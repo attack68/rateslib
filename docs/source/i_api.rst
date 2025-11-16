@@ -201,6 +201,7 @@ Objects
    :no-heading:
    :include: FixedLeg
    :include: FloatLeg
+   :include: CustomLeg
    :include: Amortization
 
 Instruments
@@ -222,6 +223,8 @@ Objects
    :include: IRS
    :include: NDF
    :include: XCS
+   :include: FXSwap
+   :include: FXForward
 
 
 Class Inheritance Diagram

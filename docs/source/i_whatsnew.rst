@@ -38,6 +38,8 @@ The doc pages should be expanded and examples given.
 The `STIRFuture` has been refactored to make ``bp_value`` redundant and instead replaced by
 a designed notional and DCF for the period.
 
+FXExchange renamed to FXForward.
+
 
 .. list-table::
    :widths: 25 75

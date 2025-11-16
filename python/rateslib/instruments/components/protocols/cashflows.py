@@ -96,7 +96,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         # this is a generalist implementation of an NPV function for an instrument with 2 legs.
         # most instruments may be likely to implement NPV directly to benefit from optimisations
         # specific to that instrument
-        assert hasattr(self, "legs")
+        assert hasattr(self, "legs")  # noqa: S101
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
@@ -149,7 +149,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         # this is a generalist implementation of an NPV function for an instrument with 2 legs.
         # most instruments may be likely to implement NPV directly to benefit from optimisations
         # specific to that instrument
-        assert hasattr(self, "instruments")
+        assert hasattr(self, "instruments")  # noqa: S101
 
         _: DataFrame = concat(
             [_.cashflows(*args, **kwargs) for _ in self.instruments],

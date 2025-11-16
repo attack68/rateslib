@@ -97,7 +97,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
         # this is a generalist implementation of an NPV function for an instrument with 2 legs.
         # most instruments may be likely to implement NPV directly to benefit from optimisations
         # specific to that instrument
-        assert hasattr(self, "legs")
+        assert hasattr(self, "legs")  # noqa: S101
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
@@ -168,7 +168,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
         """
         Private NPV summation function used with a single thread, over all `self.instruments`.
         """
-        assert hasattr(self, "instruments")
+        assert hasattr(self, "instruments")  # noqa: S101
 
         local_npv: dict[str, DualTypes] = {}
         for instrument in self.instruments:

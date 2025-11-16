@@ -32,21 +32,50 @@ if TYPE_CHECKING:
     )
 
 
-class FXExchange(_BaseInstrument):
+class FXForward(_BaseInstrument):
     """
-    Create a simple exchange of two currencies.
+    Create a simple *FX exchange* composing two
+    :class:`~rateslib.legs.components.CustomLeg`
+    of individual :class:`~rateslib.periods.components.Cashflow` of different currencies.
+
+    .. rubric:: Examples
+
+    A sold EURUSD *FX forward* at 1.165 expressed in $10mm.
+
+    .. ipython:: python
+       :suppress:
+
+       from datetime import datetime as dt
+       from rateslib.instruments.components import FXForward
+
+    .. ipython:: python
+
+       fxfwd = FXForward(
+           settlement=dt(2022, 2, 24),
+           pair="eurusd",
+           leg2_notional=10e6,
+           fx_rate=1.165
+       )
+       fxfwd.cashflows()
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    settlement : datetime
+    settlement : datetime, :red:`required`
         The date of the currency exchange.
-    pair: str
+    pair: str, :red:`required`
         The currency pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
-    fx_rate : float, optional
-        The FX rate used to derive the notional exchange on *Leg2*.
-    notional : float
-        The cashflow amount of the LHS currency.
-    curves : Curve, LineCurve, str or list of such, optional
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        To define the notional of the trade in units of LHS pair use ``notional``.
+    leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
+        To define the notional of the trade in units of RHS pair use ``leg2_notional``.
+        Only one of ``notional`` or ``leg2_notional`` can be specified.
+    fx_rate : float, :green:`optional`
+        The FX rate of ``pair`` defining the transaction price. If not given, set at pricing.
+    curves : Curve, LineCurve, str or list of such, :green:`optional`
         For *FXExchange* only discounting curves are required in each currency and not rate
         forecasting curves.
         The signature should be: `[None, eur_curve, None, usd_curve]` for a "eurusd" pair.
@@ -126,20 +155,29 @@ class FXExchange(_BaseInstrument):
         pair: str,
         fx_rate: DualTypes_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
+        leg2_notional: DualTypes_ = NoInput(0),
         curves: Curves_ = NoInput(0),
     ):
+        pair_ = pair.lower()
+        if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
+            notional = defaults.notional
+        elif not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
+            raise ValueError("Only one of `notional` and `leg2_notional` can be given.")
+
         user_args = dict(
             settlement=settlement,
             currency=pair[:3],
             leg2_currency=pair[3:6],
-            leg2_pair=pair,
-            leg2_fx_fixings=fx_rate,
             notional=notional,
+            leg2_notional=leg2_notional,
             curves=self._parse_curves(curves),
         )
         instrument_args = dict(
             leg2_settlement=NoInput.inherit,
-            leg2_notional=NoInput.negate,
+            pair=NoInput(0),
+            leg2_pair=NoInput(0),
+            fx_fixings=NoInput(0),
+            leg2_fx_fixings=NoInput(0),
         )  # these are hard coded arguments specific to this instrument
         default_args = dict(
             notional=defaults.notional,
@@ -150,12 +188,25 @@ class FXExchange(_BaseInstrument):
             default_args=default_args,
             meta_args=["curves"],
         )
+
+        # allocate arguments to correct legs for non-deliverability
+        if isinstance(notional, NoInput):
+            self.kwargs.leg1["notional"] = -1.0 * self.kwargs.leg2["notional"]
+            self.kwargs.leg1["pair"] = pair_
+            self.kwargs.leg1["fx_fixings"] = fx_rate
+        else:  # notional set on leg1
+            self.kwargs.leg2["notional"] = -1.0 * self.kwargs.leg1["notional"]
+            self.kwargs.leg2["pair"] = pair_
+            self.kwargs.leg2["fx_fixings"] = fx_rate
+
         self._leg1 = CustomLeg(
             periods=[
                 Cashflow(
                     currency=self.kwargs.leg1["currency"],
                     notional=-1.0 * self.kwargs.leg1["notional"],
                     payment=self.kwargs.leg1["settlement"],
+                    pair=self.kwargs.leg1["pair"],
+                    fx_fixings=self.kwargs.leg1["fx_fixings"],
                 ),
             ]
         )

@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 class IRS(_BaseInstrument):
     """
-    Create an *interest rate swap (IRS)* composing a :class:`~rateslib.legs.components.FixedLeg`
+    An *interest rate swap (IRS)* composing a :class:`~rateslib.legs.components.FixedLeg`
     and a :class:`~rateslib.legs.components.FloatLeg`.
 
     .. role:: red
@@ -194,7 +194,7 @@ class IRS(_BaseInstrument):
     --------
     Construct a curve to price the example.
 
-    """
+    """  # noqa: E501
 
     _rate_scalar = 1.0
 

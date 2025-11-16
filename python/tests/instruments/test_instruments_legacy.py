@@ -33,7 +33,7 @@ from rateslib.instruments import (
     FXRiskReversal,
     FXStraddle,
     FXStrangle,
-    FXSwap,
+    # FXSwap,
     IndexFixedRateBond,
     # Portfolio,
     # Spread,
@@ -51,7 +51,8 @@ from rateslib.instruments.components import (
     ZCIS,
     ZCS,
     Fly,
-    FXExchange,
+    FXForward,
+    FXSwap,
     FXVolValue,
     Portfolio,
     Spread,
@@ -170,12 +171,11 @@ def simple_solver():
         FXSwap(
             dt(2022, 7, 1),
             "3M",
-            currency="usd",
-            leg2_currency="eur",
+            pair="usdeur",
             curves=["usdusd", "usdusd", "eureur", "eureur"],
             notional=-1e6,
         ),
-        FXExchange(
+        FXForward(
             settlement=dt(2022, 10, 1),
             pair="eurusd",
             curves=[None, "eureur", None, "usdusd"],
@@ -680,15 +680,14 @@ class TestNullPricing:
             FXSwap(
                 dt(2022, 7, 1),
                 "3M",
-                currency="usd",
-                leg2_currency="eur",
-                curves=["usdusd", "usdusd", "eureur", "eureur"],
-                notional=-1e6,
+                pair="usdeur",
+                curves=["usdusd", "eurusd"],
+                notional=1e6,
                 # fx_fixing=0.999851,
                 # split_notional=1003052.812,
                 # points=2.523505,
             ),
-            FXExchange(
+            FXForward(
                 settlement=dt(2022, 10, 1),
                 pair="eurusd",
                 curves=[None, "eureur", None, "usdusd"],
@@ -796,7 +795,7 @@ class TestNullPricing:
             fx=fxf,
         )
         result = inst.delta(solver=solver)
-        rate = inst.rate(solver=solver)
+        # rate = inst.rate(solver=solver)
         assert abs(result.iloc[0, 0] - 25.0) < 1.0
         result2 = inst.npv(solver=solver)
         assert abs(result2) < 1e-3
@@ -920,7 +919,7 @@ class TestNullPricing:
                 "fixed_rate",
             ),
             (
-                FXExchange(
+                FXForward(
                     dt(2022, 3, 1),
                     pair="usdeur",
                     curves=[NoInput(0), "usdusd", NoInput(0), "eurusd"],
@@ -973,8 +972,7 @@ class TestNullPricing:
                 FXSwap(
                     dt(2022, 2, 1),
                     "3M",
-                    currency="eur",
-                    leg2_currency="usd",
+                    pair="eurusd",
                     curves=[NoInput(0), "eurusd", NoInput(0), "usdusd"],
                 ),
                 "points",
@@ -1120,14 +1118,13 @@ class TestNullPricing:
             FXSwap(
                 dt(2022, 7, 1),
                 "3M",
-                currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 notional=-1e6,
                 # fx_fixing=0.999851,
                 # split_notional=1003052.812,
                 # points=2.523505,
             ),
-            FXExchange(
+            FXForward(
                 settlement=dt(2022, 10, 1),
                 pair="usdeur",
                 notional=-1e6 * 25 / 74.27,
@@ -2057,9 +2054,9 @@ class TestValue:
             Value(effective=dt(2022, 7, 1), metric="bad").rate(curves=curve)
 
 
-class TestFXExchange:
+class TestFXForward:
     def test_cashflows(self) -> None:
-        fxe = FXExchange(
+        fxe = FXForward(
             settlement=dt(2022, 10, 1),
             pair="eurusd",
             notional=-1e6,
@@ -2088,7 +2085,7 @@ class TestFXExchange:
         ],
     )
     def test_npv_at_mid_market(self, curve, curve2, base, fx) -> None:
-        fxe = FXExchange(
+        fxe = FXForward(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
             fx_rate=1.2080131682341035,
@@ -2102,7 +2099,7 @@ class TestFXExchange:
         assert abs(result - 0.0) < 1e-8
 
     def test_rate(self, curve, curve2) -> None:
-        fxe = FXExchange(
+        fxe = FXForward(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
             fx_rate=1.2080131682341035,
@@ -2116,7 +2113,7 @@ class TestFXExchange:
     def test_npv_fx_numeric(self, curve) -> None:
         # This demonstrates the ambiguity and poor practice of
         # using numeric fx as pricing input, although it will return.
-        fxe = FXExchange(
+        fxe = FXForward(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
             fx_rate=1.2080131682341035,
@@ -2130,7 +2127,7 @@ class TestFXExchange:
             fxe.npv(curves=[curve] * 4, fx=2.0, base="bad")
 
     def test_npv_no_fx_raises(self, curve) -> None:
-        fxe = FXExchange(
+        fxe = FXForward(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
             fx_rate=1.2080131682341035,
@@ -2142,8 +2139,8 @@ class TestFXExchange:
             fxe.npv(curves=[curve, curve])
 
     def test_notional_direction(self, curve, curve2) -> None:
-        fx1 = FXExchange(notional=1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20)
-        fx2 = FXExchange(notional=-1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
+        fx1 = FXForward(notional=1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20)
+        fx2 = FXForward(notional=-1e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
         pf = Portfolio([fx1, fx2])
         fx = FXRates({"eurusd": 1.30}, base="usd")
         result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
@@ -2154,7 +2151,7 @@ class TestFXExchange:
         assert abs(result - expected) < 1e-8
 
     def test_analytic_delta_is_zero(self, curve, curve2) -> None:
-        result = FXExchange(
+        result = FXForward(
             settlement=dt(2022, 3, 1),
             pair="eurusd",
             fx_rate=1.2080131682341035,
@@ -2171,7 +2168,7 @@ class TestFXExchange:
                 instruments=[
                     IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
                     IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
-                    FXExchange(
+                    FXForward(
                         pair="eurusd",
                         settlement=dt(2024, 9, 24),
                         curves=[None, eurusd, None, usd],
@@ -2179,6 +2176,20 @@ class TestFXExchange:
                 ],
                 s=[3.77, 5.51, 1.0775],
             )
+
+    def test_leg2_notional(self, curve, curve2) -> None:
+        fx1 = FXForward(
+            leg2_notional=-1.2e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.20
+        )
+        fx2 = FXForward(leg2_notional=1.3e6, pair="eurusd", settlement=dt(2022, 1, 1), fx_rate=1.30)
+        pf = Portfolio([fx1, fx2])
+        fx = FXRates({"eurusd": 1.30}, base="usd")
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
+        expected = 100000.0
+        assert abs(result - expected) < 1e-8
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
+        expected = 100000.0 / 1.30
+        assert abs(result - expected) < 1e-8
 
 
 class TestNDF:
@@ -2616,7 +2627,7 @@ class TestNonMtmXCS:
             notional=10e6,
             leg2_fx_fixings=mapping[fix],
         )
-        assert abs(xcs.npv(curves=[curve, curve, curve2, curve2], fx=fxr)) < 1e-7
+        assert abs(xcs.npv(curves=[curve, curve, curve2, curve2], fx=fxf)) < 1e-7
 
     def test_nonmtm_fx_fixing_raises_type_crossing(self, curve, curve2):
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
@@ -2697,7 +2708,7 @@ class TestNonMtmXCS:
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
         with pytest.raises(AttributeError, match="'float' object has no attribute 'rate'"):
-            result = xcs.npv(curves=[curve] * 2, fx=10.0)
+            xcs.npv(curves=[curve] * 2, fx=10.0)
 
     @pytest.mark.skip(reason="v2.5 uses FXForwards as a more explicit input type.")
     def test_npv_fx_as_rates_valid(self) -> None:
@@ -3045,7 +3056,7 @@ class TestNonMtmFixedFixedXCS:
             leg2_fx_fixings=mapping[fix],
             leg2_fixed_rate=2.0,
         )
-        assert abs(xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxr)) < 1e-7
+        assert abs(xcs.npv(curves=[curve2, curve2, curve, curve], fx=fxf)) < 1e-7
 
     def test_nonmtmfixxcs_fx_fixing_type_crossing_raises(self, curve, curve2) -> None:
         fxr = FXRates({"usdnok": 10}, settlement=dt(2022, 1, 1))
@@ -3986,13 +3997,11 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
-        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
+        result = fxs.rate(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)
         assert abs(result - expected) < 1e-10
         assert np.isclose(result.dual, expected.dual)
 
@@ -4005,22 +4014,21 @@ class TestFXSwap:
             dt(2022, 2, 1),
             "8M",
             pair="usdnok",
-            payment_lag=0,
             notional=1e6,
         )
         expected = fxf.swap("usdnok", [dt(2022, 2, 1), dt(2022, 10, 1)])
-        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)
+        result = fxs.rate(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)
         assert abs(result - expected) < 1e-10
         assert np.isclose(result.dual, expected.dual)
 
     def test_currency_arg_pair_overlap(self) -> None:
-        fxs = FXSwap(
-            dt(2022, 2, 1),
-            "8M",
-            pair="usdnok",
-            currency="jpy",
-        )
-        assert fxs.leg1.currency == "usd"
+        with pytest.raises(TypeError, match="unexpected keyword argument 'currency'"):
+            FXSwap(
+                dt(2022, 2, 1),
+                "8M",
+                pair="usdnok",
+                currency="jpy",
+            )
 
     def test_fxswap_npv(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -4030,92 +4038,63 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
 
-        assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
+        assert abs(fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)) < 1e-7
 
-        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf, fixed_rate=True)
+        result = fxs.rate(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)
         fxs.leg2_fixed_rate = result
-        assert abs(fxs.npv([NoInput(0), curve, NoInput(0), curve2], NoInput(0), fxf)) < 1e-7
+        assert abs(fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)) < 1e-7
 
-    @pytest.mark.parametrize(
-        ("points", "split_notional"),
-        [(100, 1e6), (NoInput(0), 1e6), (100, NoInput(0))],
-    )
-    def test_fxswap_points_raises(self, points, split_notional) -> None:
-        if points is not NoInput(0):
-            msg = "Cannot initialise FXSwap with `points` but without `fx_fixings`."
-            with pytest.raises(ValueError, match=msg):
-                FXSwap(
-                    dt(2022, 2, 1),
-                    "8M",
-                    currency="usd",
-                    leg2_currency="nok",
-                    payment_lag=0,
-                    notional=1e6,
-                    split_notional=split_notional,
-                    points=points,
-                )
-        else:
-            msg = "Cannot initialise FXSwap with `split_notional` but without `fx_fixings`"
-            with pytest.raises(ValueError, match=msg):
-                FXSwap(
-                    dt(2022, 2, 1),
-                    "8M",
-                    currency="usd",
-                    leg2_currency="nok",
-                    payment_lag=0,
-                    notional=1e6,
-                    split_notional=split_notional,
-                    points=points,
-                )
+    def test_fxswap_points_raises(self) -> None:
+        msg = "`points` has been set on an FXSwap without a defined `fx_fixings`"
+        with pytest.raises(ValueError, match=msg):
+            FXSwap(
+                dt(2022, 2, 1),
+                "8M",
+                pair="usdnok",
+                notional=1e6,
+                points=100.0,
+            )
 
     def test_fxswap_points_warns(self) -> None:
-        with pytest.warns(UserWarning):
-            fxs = FXSwap(
+        with pytest.raises(ValueError, match="An FXSwap must set ``fx_fixings`` and ``points`` si"):
+            FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                fx_fixings=11.0,
-                currency="usd",
-                leg2_currency="nok",
-                payment_lag=0,
+                leg2_fx_fixings=11.0,
+                pair="usdnok",
                 notional=1e6,
             )
-            assert fxs._is_split is False
 
-        with pytest.warns(UserWarning):
-            fxs = FXSwap(
-                dt(2022, 2, 1),
-                "8M",
-                fx_fixings=11.0,
-                currency="usd",
-                leg2_currency="nok",
-                payment_lag=0,
-                notional=1e6,
-                split_notional=1e6,
-            )
-            assert fxs._is_split is True
+        FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            leg2_fx_fixings=11.0,
+            points=1000.0,
+            pair="usdnok",
+            notional=1e6,
+            split_notional=1e6,
+        )
 
     @pytest.mark.parametrize(
         ("fx_fixings", "points", "split_notional", "expected"),
         [
             (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
-            (11.0, 1800.0, NoInput(0), Dual(-3734.617680, ["fx_usdnok"], [3027.88203904])),
+            (11.0, 1800.0, NoInput(0), Dual(3734.617680, ["fx_usdnok"], [-3027.88203904])),
             (
                 11.0,
                 1754.5623360395632,
                 NoInput(0),
-                Dual(-4166.37288388, ["fx_usdnok"], [3071.05755945]),
+                Dual(4166.37288388, ["fx_usdnok"], [-3071.05755945]),
             ),
             (
                 10.032766762996951,
                 1754.5623360395632,
                 NoInput(0),
-                Dual(0, ["fx_usdnok"], [2654.42027107]),
+                Dual(0, ["fx_usdnok"], [-2654.42027107]),
             ),
             (
                 10.032766762996951,
@@ -4151,19 +4130,62 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            fx_fixings=fx_fixings,
+            leg2_fx_fixings=fx_fixings,
             points=points,
             split_notional=split_notional,
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
-        assert fxs.points == points
+        assert fxs.kwargs.meta["points"] == points
         result = fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf, base="usd")
+        # rate = fxs.rate(curves=[curve, curve2], fx=fxf)
 
         assert abs(result - expected) < 1e-6
         assert np.isclose(result.dual, expected.dual)
+
+    def test_direction_fx_swap_notional(self, curve, curve2):
+        fxf = FXForwards(
+            FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "nokusd": curve2, "noknok": curve2},
+        )
+        fxs = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            leg2_fx_fixings=10.0,
+            points=1000.0,
+            pair="usdnok",
+            notional=1e6,
+        )
+        fxs2 = FXSwap(
+            dt(2022, 2, 1),
+            "8M",
+            leg2_fx_fixings=10.0,
+            points=1500.0,
+            pair="usdnok",
+            notional=-1e6,
+        )
+        assert (
+            fxs.npv(curves=[curve, curve2], fx=fxf) - fxs2.npv(curves=[curve, curve2], fx=fxf)
+        ) > 0
+
+    @pytest.mark.parametrize("leg", [1, 2])
+    def test_notional_directions_with_split_notional(self, leg):
+        fxs = FXSwap(
+            **{
+                "effective": dt(2022, 2, 1),
+                "termination": dt(2022, 4, 1),
+                f"{'leg2_' if leg == 2 else ''}notional": 1e6,
+                "split_notional": 1e6,
+                "pair": "usdnok",
+            }
+        )
+        l1c1_sign = fxs.leg1.periods[0].settlement_params.notional < 0
+        l1c2_sign = fxs.leg1.periods[1].settlement_params.notional < 0
+        l2c1_sign = fxs.leg2.periods[0].settlement_params.notional < 0
+        l2c2_sign = fxs.leg2.periods[1].settlement_params.notional < 0
+        assert l1c1_sign != l1c2_sign
+        assert l2c1_sign != l2c2_sign
+        assert l1c1_sign != l2c1_sign
 
     def test_rate_with_fixed_parameters(self, curve, curve2) -> None:
         fxf = FXForwards(
@@ -4173,15 +4195,13 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            fx_fixings=10.01,
+            leg2_fx_fixings=10.01,
             points=1765,
             split_notional=1.01e6,
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
-        result = fxs.rate([NoInput(0), curve, NoInput(0), curve2], fx=fxf)
+        result = fxs.rate(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)
         expected = 1746.59802
         assert abs(result - expected) < 1e-4
 
@@ -4211,14 +4231,18 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
-        fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        result = fxs.npv(
+            curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf
+        )
+        assert isinstance(result, Dual)
         fxf._set_ad_order(2)
-        fxs.npv(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        result2 = fxs.npv(
+            curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf
+        )
+        assert isinstance(result2, Dual2)
 
     def test_transition_from_dual_to_dual2_rate(self, curve, curve2) -> None:
         # Test added for BUG, see PR: XXX
@@ -4230,20 +4254,63 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            currency="usd",
-            leg2_currency="nok",
-            payment_lag=0,
+            pair="usdnok",
             notional=1e6,
         )
-        fxs.rate(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        result = fxs.rate(
+            curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf
+        )
+        assert isinstance(result, Dual)
         fxf._set_ad_order(2)
-        fxs.rate(curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf)
+        result = fxs.rate(
+            curves=[None, fxf.curve("usd", "usd"), None, fxf.curve("nok", "usd")], fx=fxf
+        )
+        assert isinstance(result, Dual2)
 
+    @pytest.mark.skip(reason="in v2.5 split notional is not the default and must be set directly")
     def test_split_notional_raises(self):
         # this is an unpriced FXswap with split notional
         fxs = FXSwap(effective=dt(2022, 2, 1), termination="3m", pair="eurusd")
-        with pytest.raises(ValueError, match="A `curve` is required to determine a `split_notion"):
+        with pytest.raises(
+            TypeError, match="`curves` have not been supplied correctly. A `disc_curve` is required"
+        ):
             fxs.rate()
+
+    @pytest.mark.parametrize(
+        ("eom", "expected"),
+        [
+            (False, dt(2022, 5, 28)),
+            (True, dt(2022, 5, 31)),
+        ],
+    )
+    def test_eom_dates(self, eom, expected):
+        fxs = FXSwap(
+            effective=dt(2022, 2, 28),
+            termination="3m",
+            pair="eurusd",
+            calendar="all",
+            modifier="mf",
+            eom=eom,
+        )
+        assert fxs.kwargs.leg1["termination"] == expected
+
+    @pytest.mark.parametrize(
+        ("roll", "expected"),
+        [
+            ("imm", dt(2022, 4, 20)),
+            (19, dt(2022, 4, 19)),
+        ],
+    )
+    def test_roll_dates(self, roll, expected):
+        fxs = FXSwap(
+            effective=dt(2022, 1, 19),
+            termination="3m",
+            pair="eurusd",
+            calendar="all",
+            modifier="mf",
+            roll=roll,
+        )
+        assert fxs.kwargs.leg1["termination"] == expected
 
 
 class TestSTIRFuture:
@@ -5125,7 +5192,7 @@ class TestSpec:
             ),
         ),
         (
-            FXExchange(
+            FXForward(
                 dt(2022, 1, 15),
                 pair="eurusd",
                 curves=["eureur", "eureur", "usdusd", "usdeur"],
@@ -5180,8 +5247,7 @@ class TestSpec:
             FXSwap(
                 dt(2022, 1, 5),
                 "3M",
-                currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 curves=["eureur", "eurusd", "usdusd", "usdusd"],
             ),
             DataFrame(
@@ -5849,7 +5915,7 @@ class TestFXOptions:
             instruments=[
                 IRS(dt(2024, 6, 24), "3m", spec="eur_irs", curves=eur),
                 IRS(dt(2024, 6, 24), "3m", spec="usd_irs", curves=usd),
-                FXExchange(
+                FXForward(
                     pair="eurusd",
                     settlement=dt(2024, 9, 24),
                     curves=[None, eurusd, None, usd],
