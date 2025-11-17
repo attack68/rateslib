@@ -39,6 +39,8 @@ pub(crate) enum PyAdjuster {
     FollowingExLast { _u8: u8 },
     #[pyo3(constructor = (_u8=12))]
     FollowingExLastSettle { _u8: u8 },
+    #[pyo3(constructor = (number, _u8=13))]
+    BusDaysLagSettleInAdvance { number: i32, _u8: u8 },
 }
 
 /// Used for providing pickle support for PyAdjuster
@@ -92,6 +94,7 @@ impl From<Adjuster> for PyAdjuster {
             Adjuster::CalDaysLagSettle(n) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
             Adjuster::FollowingExLast {} => PyAdjuster::FollowingExLast { _u8: 11 },
             Adjuster::FollowingExLastSettle {} => PyAdjuster::FollowingExLastSettle { _u8: 12 },
+            Adjuster::BusDaysLagSettleInAdvance(n) => PyAdjuster::BusDaysLagSettleInAdvance { number: n, _u8: 13 },
         }
     }
 }
@@ -112,6 +115,7 @@ impl From<PyAdjuster> for Adjuster {
             PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => Adjuster::CalDaysLagSettle(n),
             PyAdjuster::FollowingExLast { _u8: _ } => Adjuster::FollowingExLast {},
             PyAdjuster::FollowingExLastSettle { _u8: _ } => Adjuster::FollowingExLastSettle {},
+            PyAdjuster::BusDaysLagSettleInAdvance { number: n, _u8: _ } => Adjuster::BusDaysLagSettleInAdvance(n),
         }
     }
 }
@@ -187,6 +191,7 @@ impl PyAdjuster {
             PyAdjuster::CalDaysLagSettle { number: n, _u8: _ } => format!("{n}D"),
             PyAdjuster::FollowingExLast { _u8: _ } => format!("FEX"),
             PyAdjuster::FollowingExLastSettle { _u8: _ } => format!("FEXSETTLE"),
+            PyAdjuster::BusDaysLagSettleInAdvance { number: n, _u8: _ } => format!("IA{n}B"),
         }
     }
 
@@ -205,6 +210,7 @@ impl PyAdjuster {
             PyAdjuster::CalDaysLagSettle { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
             PyAdjuster::FollowingExLast { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
             PyAdjuster::FollowingExLastSettle { _u8: u } => PyAdjusterNewArgs::NoArgs(*u),
+            PyAdjuster::BusDaysLagSettleInAdvance { number: n, _u8: u } => PyAdjusterNewArgs::I32(*n, *u),
         }
     }
 
@@ -224,6 +230,7 @@ impl PyAdjuster {
             PyAdjusterNewArgs::I32(n, 10) => PyAdjuster::CalDaysLagSettle { number: n, _u8: 10 },
             PyAdjusterNewArgs::NoArgs(11) => PyAdjuster::FollowingExLast { _u8: 11 },
             PyAdjusterNewArgs::NoArgs(12) => PyAdjuster::FollowingExLastSettle { _u8: 12 },
+            PyAdjusterNewArgs::I32(n, 13) => PyAdjuster::BusDaysLagSettleInAdvance { number: n, _u8: 13 },
             _ => panic!("Undefined behaviour."),
         }
     }

@@ -34,6 +34,8 @@ pub enum Adjuster {
     FollowingExLast {},
     /// Following adjustment rule, enforcing settlement, except uses actual date for the last date in a vector.
     FollowingExLastSettle {},
+    /// A set number of business days, enforcing settlement, except uses the period start date for a vector.
+    BusDaysLagSettleInAdvance(i32),
 }
 
 /// Perform date adjustment according to calendar definitions, i.e. a known [`DateRoll`].
@@ -95,6 +97,7 @@ impl Adjustment for Adjuster {
             }
             Adjuster::FollowingExLast {} => calendar.roll_forward_bus_day(udate), // no vector
             Adjuster::FollowingExLastSettle {} => calendar.roll_forward_settled_bus_day(udate), // no vector
+            Adjuster::BusDaysLagSettleInAdvance(n) => calendar.lag_bus_days(udate, *n, true), // no vector
         }
     }
 
@@ -128,6 +131,13 @@ impl Adjustment for Adjuster {
             }
             Adjuster::FollowingExLast {} => reverse_forward_type(adate, self, calendar), // no vector
             Adjuster::FollowingExLastSettle {} => reverse_forward_type(adate, self, calendar), // no vector
+            Adjuster::BusDaysLagSettleInAdvance(n) => {
+                if Adjuster::BusDaysLagSettle(0).adjust(adate, calendar) != *adate {
+                    return vec![]; // input has no valid reversal
+                }
+                let date = calendar.add_bus_days(adate, -n, false).unwrap();
+                Adjuster::Previous {}.reverse(&date, calendar)
+            }, // no vector
         }
     }
 
@@ -136,20 +146,24 @@ impl Adjustment for Adjuster {
         udates: &Vec<NaiveDateTime>,
         calendar: &T,
     ) -> Vec<NaiveDateTime> {
+        let mut non_vector_adates: Vec<NaiveDateTime> = udates
+            .iter()
+            .map(|udate| self.adjust(udate, calendar))
+            .collect();
+
+        // mutate for vector adjustment
         match self {
             Adjuster::FollowingExLast {} | Adjuster::FollowingExLastSettle {} => {
-                let mut adates: Vec<NaiveDateTime> = udates
-                    .iter()
-                    .map(|udate| self.adjust(udate, calendar))
-                    .collect();
-                adates[udates.len() - 1] = udates[udates.len() - 1];
-                adates
+                non_vector_adates[udates.len() - 1] = udates[udates.len() - 1];
             }
-            _ => udates
-                .iter()
-                .map(|udate| self.adjust(udate, calendar))
-                .collect(),
+            Adjuster::BusDaysLagSettleInAdvance(_n) => {
+                for i in (1..udates.len()).rev() {
+                    non_vector_adates[i] = non_vector_adates[i-1];
+                }
+            }
+            _ => {}
         }
+        non_vector_adates
     }
 }
 
@@ -275,6 +289,28 @@ mod tests {
                 ndt(2015, 9, 8),
                 ndt(2015, 9, 8),
                 ndt(2015, 9, 7)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_adjusts_in_advance() {
+        // the vector is adjusted to in advance
+        let cal = fixture_hol_cal();
+        let udates = vec![
+            ndt(2015, 9, 4),
+            ndt(2015, 9, 5),
+            ndt(2015, 9, 6),
+            ndt(2015, 9, 7),
+        ];
+        let result = Adjuster::BusDaysLagSettleInAdvance(0).adjusts(&udates, &cal);
+        assert_eq!(
+            result,
+            vec![
+                ndt(2015, 9, 4),
+                ndt(2015, 9, 4),
+                ndt(2015, 9, 8),
+                ndt(2015, 9, 8)
             ]
         );
     }

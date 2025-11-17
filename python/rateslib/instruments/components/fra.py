@@ -5,18 +5,15 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_fx_maybe_from_solver,
     _get_maybe_curve_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
-from rateslib.periods.components.utils import (
-    _maybe_fx_converted,
-    _maybe_local,
-)
+from rateslib.scheduling import Adjuster
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -42,20 +39,16 @@ if TYPE_CHECKING:
     )
 
 
-class STIRFuture(_BaseInstrument):
+class FRA(_BaseInstrument):
     """
-    A *short term interest rate (STIR) future* compositing a
+    A *forward rate agreement (FRA)* compositing a
     :class:`~rateslib.legs.components.FixedLeg` and :class:`~rateslib.legs.components.FloatLeg`.
 
     Parameters
     ----------
-    price : float
-        The traded price of the future. Defined as 100 minus the fixed rate.
-    contracts : int
-        The number of traded contracts.
-    nominal : float
-        The nominal value of the contract. E.g. SOFR 3M futures are $1mm. If not given will use the
-        default notional.
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
     leg2_float_spread : float, optional
         The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
         `None` and designated
@@ -213,19 +206,15 @@ class STIRFuture(_BaseInstrument):
         eom: bool_ = NoInput(0),
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
-        payment_lag: int_ = NoInput(0),
+        payment_lag: int = 0,
         ex_div: int_ = NoInput(0),
         convention: str_ = NoInput(0),
         # settlement parameters
         currency: str_ = NoInput(0),
-        contracts: int = 1,
-        nominal: float | NoInput = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
         # rate parameters
-        price: DualTypes_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
         leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
-        leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
@@ -248,14 +237,10 @@ class STIRFuture(_BaseInstrument):
             convention=convention,
             # settlement
             currency=currency,
-            nominal=nominal,
-            contracts=contracts,
+            notional=notional,
             # rate
-            price=price,
-            leg2_float_spread=leg2_float_spread,
-            leg2_spread_compound_method=leg2_spread_compound_method,
+            fixed_rate=fixed_rate,
             leg2_rate_fixings=leg2_rate_fixings,
-            leg2_fixing_method=leg2_fixing_method,
             leg2_method_param=leg2_method_param,
             leg2_fixing_series=leg2_fixing_series,
             leg2_fixing_frequency=leg2_fixing_frequency,
@@ -274,10 +259,18 @@ class STIRFuture(_BaseInstrument):
             leg2_payment_lag=NoInput.inherit,
             leg2_ex_div=NoInput.inherit,
             leg2_convention=NoInput.inherit,
-            fixed_rate=NoInput(0) if isinstance(price, NoInput) else 100 - price,
+            leg2_float_spread=0.0,
+            leg2_fixing_method=FloatFixingMethod.IBOR,
+            leg2_spread_compound_method=SpreadCompoundMethod.NoneSimple,
+            leg2_notional=NoInput.negate,
+            leg2_currency=NoInput.inherit,
+            payment_lag=Adjuster.BusDaysLagSettleInAdvance(payment_lag),
+            initial_exchange=False,
+            final_exchange=False,
+            leg2_initial_exchange=False,
+            leg2_final_exchange=False,
         )
         default_args = dict(
-            payment_lag=defaults.payment_lag_specific[type(self).__name__],
             nominal=defaults.notional,
             metric="rate",
         )
@@ -285,10 +278,8 @@ class STIRFuture(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "contracts", "nominal", "price", "metric"],
+            meta_args=["curves", "metric"],
         )
-        self._kwargs.leg1["notional"] = -self.kwargs.meta["nominal"] * self.kwargs.meta["contracts"]
-        self._kwargs.leg2["notional"] = self.kwargs.meta["nominal"] * self.kwargs.meta["contracts"]
 
         self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
         self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
@@ -299,6 +290,10 @@ class STIRFuture(_BaseInstrument):
                 "The scheduling parameters of the STIRFuture must define exactly "
                 f"one regular period. Got '{self.leg1.schedule.n_periods}'."
             )
+
+    def _fra_rate_scalar(self, leg2_rate_curve) -> DualTypes_:
+        r = self.leg2._regular_periods[0].rate(rate_curve=leg2_rate_curve)
+        return 1 / (1 + self.leg2._regular_periods[0].period_params.dcf * r / 100.0)
 
     def npv(
         self,
@@ -312,36 +307,33 @@ class STIRFuture(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
-        self._set_pricing_mid(curves=curves, solver=solver, settlement=settlement, forward=forward)
-        local_npv = super().npv(
+        self._set_pricing_mid(
+            curves=curves,
+            solver=solver,
+            settlement=settlement,
+            forward=forward,
+        )
+        _curves: _Curves = self._parse_curves(curves)
+        _curves_meta: _Curves = self.kwargs.meta["curves"]
+        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+        )
+        fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
+
+        npv = super().npv(
             curves=curves,
             solver=solver,
             fx=fx,
             fx_vol=fx_vol,
             base=base,
-            local=True,
+            local=local,
             settlement=settlement,
             forward=forward,
-        )[self.leg1.settlement_params.currency]
-
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        npv_immediate = (
-            local_npv
-            / _get_maybe_curve_maybe_from_solver(
-                solver=solver, curves_meta=_curves_meta, curves=_curves, name="disc_curve"
-            )[self.leg1.settlement_params.payment]
         )
-
-        if not local:
-            return _maybe_fx_converted(
-                value=npv_immediate,
-                currency=self.leg1.settlement_params.currency,
-                fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
-                base=_drb(self.leg1.settlement_params.currency, base),
-            )
+        if local:
+            return {k: v * fra_scalar for k, v in npv.items()}
         else:
-            return {self.leg1.settlement_params.currency: npv_immediate}
+            return npv * fra_scalar
 
     def _set_pricing_mid(
         self,
@@ -399,12 +391,10 @@ class STIRFuture(_BaseInstrument):
             )
             / 100
         )
-        if metric_ == "price":
-            return 100 - rate
-        elif metric_ == "rate":
+        if metric_ == "rate":
             return rate
         else:
-            raise ValueError("`metric` must be in {'rate', 'price'}.")
+            raise ValueError("`metric` must be in {'rate'}.")
 
     def analytic_delta(
         self,
@@ -419,32 +409,22 @@ class STIRFuture(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
-        unadjusted_local_analytic_delta = super().analytic_delta(
+        _curves: _Curves = self._parse_curves(curves)
+        _curves_meta: _Curves = self.kwargs.meta["curves"]
+        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+        )
+        fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
+        return fra_scalar * super().analytic_delta(
             curves=curves,
             solver=solver,
             fx=fx,
             fx_vol=fx_vol,
             base=base,
-            local=True,
+            local=local,
             settlement=settlement,
             forward=forward,
             leg=leg,
-        )[self.leg1.settlement_params.currency]
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        prefix = "" if leg == 1 else "leg2_"
-        adjusted_local_analytic_delta = (
-            unadjusted_local_analytic_delta
-            / _get_maybe_curve_maybe_from_solver(
-                solver=solver, curves_meta=_curves_meta, curves=_curves, name=f"{prefix}disc_curve"
-            )[self.leg1.settlement_params.payment]
-        )
-        return _maybe_local(
-            value=adjusted_local_analytic_delta,
-            local=local,
-            currency=self.leg1.settlement_params.currency,
-            fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
-            base=base,
         )
 
     def local_analytic_rate_fixings(
@@ -467,9 +447,46 @@ class STIRFuture(_BaseInstrument):
         )
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        return (
-            df
-            / _get_maybe_curve_maybe_from_solver(
-                solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_disc_curve"
-            )[self.leg1.settlement_params.payment]
+        return df * self._fra_rate_scalar(
+            leg2_rate_curve=_get_maybe_curve_maybe_from_solver(
+                solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+            )
         )
+
+    def cashflows(
+        self,
+        *,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        df = super()._cashflows_from_legs(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
+            settlement=settlement,
+            forward=forward,
+        )
+
+        _curves: _Curves = self._parse_curves(curves)
+        _curves_meta: _Curves = self.kwargs.meta["curves"]
+        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+        )
+        scalar = _dual_float(self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve))
+
+        headers = [
+            defaults.headers["cashflow"],
+            defaults.headers["npv"],
+            defaults.headers["npv_fx"],
+        ]
+        for header in headers:
+            df[header] = df[header] * scalar
+
+        return df
