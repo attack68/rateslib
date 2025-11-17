@@ -451,6 +451,18 @@ class FloatPeriod(_BasePeriodStatic):
     #         )
 
     def try_rate(self, rate_curve: CurveOption_) -> Result[DualTypes]:
+        """
+        Calculate the period rate, with lazy e
+
+        Parameters
+        ----------
+        rate_curve: XXX
+            The curve used to forecast rates, if the period has no fixing.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
         rate_fixing = self.rate_params.rate_fixing.value
         if isinstance(rate_fixing, NoInput):
             return try_rate_value(
@@ -483,6 +495,18 @@ class FloatPeriod(_BasePeriodStatic):
             )
 
     def rate(self, rate_curve: CurveOption_) -> DualTypes:
+        """
+        Calculate the period rate.
+
+        Parameters
+        ----------
+        rate_curve: XXX
+            The curve used to forecast rates, if the period has no fixing.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
         return self.try_rate(rate_curve).unwrap()
 
 

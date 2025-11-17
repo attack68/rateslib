@@ -14,7 +14,7 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     # CDS,
-    FRA,
+    # FRA,
     # IIRS,
     # IRS,
     # NDF,
@@ -43,6 +43,7 @@ from rateslib.instruments import (
 )
 from rateslib.instruments.components import (
     CDS,
+    FRA,
     IIRS,
     IRS,
     NDF,
@@ -1774,7 +1775,7 @@ class TestFRA:
             frequency="S",
             fixed_rate=4.00,
         )
-        result = fra.rate(curve)
+        result = fra.rate(curves=curve)
         expected = 4.0590821964144
         assert abs(result - expected) < 1e-7
 
@@ -1789,8 +1790,8 @@ class TestFRA:
             frequency="S",
             fixed_rate=4.035,
         )
-        result = fra.npv(curve)
-        expected = fra.analytic_delta(curve) * (4.035 - fra.rate(curve)) * -100
+        result = fra.npv(curves=curve)
+        expected = fra.analytic_delta(curves=curve) * (4.035 - fra.rate(curves=curve)) * -100
         assert abs(result - expected) < 1e-8
         assert abs(result - 118631.8350458332) < 1e-7
 
@@ -1804,9 +1805,31 @@ class TestFRA:
             frequency="s",
             fixed_rate=4.035,
         )
-        result = fra.cashflows(curve)
+        result = fra.cashflows(curves=curve)
         assert isinstance(result, DataFrame)
-        assert result.index.nlevels == 1
+        assert result.index.nlevels == 2
+
+    def test_fra_cashflows_with_rate_fixing(self) -> None:
+        fra = FRA(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 7, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="s",
+            fixed_rate=4.035,
+            leg2_rate_fixings=2.99,
+        )
+        result = fra.cashflows()
+        assert isinstance(result, DataFrame)
+        subsample = result.loc[:, "Cashflow"]
+
+        d = 181.0 / 360.0
+        x = 0.04035 * d / (1 + d * 0.0299)
+        y = 0.0299 * d / (1 + d * 0.0299)
+
+        for a, b in zip(subsample, [-1e9 * x, 1e9 * y]):
+            assert abs(a - b) < 1e-4
 
     def test_irs_npv_mid_mkt_zero(self, curve) -> None:
         fra = FRA(
@@ -1817,14 +1840,14 @@ class TestFRA:
             convention="Act360",
             frequency="S",
         )
-        result = fra.npv(curve)
+        result = fra.npv(curves=curve)
         assert abs(result) < 1e-9
 
         fra.fixed_rate = 1.0  # pay fixed low rate implies positive NPV
-        assert fra.npv(curve) > 1
+        assert fra.npv(curves=curve) > 1
 
         fra.fixed_rate = NoInput(0)  # fixed rate set back to initial
-        assert abs(fra.npv(curve)) < 1e-9
+        assert abs(fra.npv(curves=curve)) < 1e-9
 
     @pytest.mark.parametrize(("eom", "exp"), [(True, dt(2021, 5, 31)), (False, dt(2021, 5, 26))])
     def test_fra_roll_inferral(self, eom, exp) -> None:
@@ -1852,7 +1875,7 @@ class TestFRA:
             fixed_rate=4.035,
             curves=curve,
         )
-        result = fra.fixings_table()
+        result = fra.local_analytic_rate_fixings(curves=curve)
         assert isinstance(result, DataFrame)
 
     def test_imm_dated_fixings_table(self, curve):
@@ -1865,9 +1888,10 @@ class TestFRA:
             curves=curve,
             notional=1e9,
         )
-        result = fra.fixings_table()
+        result = fra.local_analytic_rate_fixings()
+        analytic_delta = fra.analytic_delta()
         assert isinstance(result, DataFrame)
-        assert abs(result.iloc[0, 0] - 1010998964) < 1
+        assert abs(result.iloc[0, 0] - analytic_delta) < 1
 
 
 class TestZCS:

@@ -417,7 +417,9 @@ class _FloatRateParams:
 
     @property
     def rate_fixing(self) -> IBORFixing | IBORStubFixing | RFRFixing:
-        """The appropriate rate fixing class for the *Period*."""
+        """The :class:`~rateslib.data.fixings.IBORFixing`,
+        :class:`~rateslib.data.fixings.IBORStubFixing`, or :class:`~rateslib.data.fixings.RFRFixing`
+        appropriate for the *Period*."""
         return self._rate_fixing
 
     def _validate_combinations_args(self) -> None:

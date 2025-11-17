@@ -934,3 +934,20 @@ def test_schedule_when_one_front_stub_of_two_is_regular(fs):
         modifier="mf",
     )
     assert s._stubs == [False, False, False, True]
+
+
+def test_schedule_in_advance_payment():
+    # used by FRA constructor
+    from rateslib.scheduling import Adjuster
+
+    s = Schedule(
+        effective=dt(2024, 3, 20),
+        termination=dt(2024, 12, 18),
+        calendar="bus",
+        frequency="Q",
+        modifier="mf",
+        payment_lag=Adjuster.BusDaysLagSettleInAdvance(1),
+    )
+    assert s.aschedule == [dt(2024, 3, 20), dt(2024, 6, 19), dt(2024, 9, 18), dt(2024, 12, 18)]
+    assert s.pschedule == [dt(2024, 3, 21), dt(2024, 3, 21), dt(2024, 6, 20), dt(2024, 9, 19)]
+    assert s.pschedule3 == s.pschedule
