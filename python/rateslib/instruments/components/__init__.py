@@ -1,5 +1,6 @@
 from rateslib.instruments.components.cds import CDS
 from rateslib.instruments.components.fly import Fly
+from rateslib.instruments.components.fra import FRA
 from rateslib.instruments.components.fx_forward import FXForward
 from rateslib.instruments.components.fx_swap import FXSwap
 from rateslib.instruments.components.fx_vol_value import FXVolValue
@@ -16,6 +17,7 @@ from rateslib.instruments.components.zcis import ZCIS
 from rateslib.instruments.components.zcs import ZCS
 
 __all__ = [
+    "FRA",
     "IRS",
     "XCS",
     "STIRFuture",
