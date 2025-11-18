@@ -4736,7 +4736,8 @@ class TestPortfolio:
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
         frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
         pf = Portfolio([irs, frb])
-        assert isinstance(pf.fixings_table(), DataFrame)
+        table = pf.local_analytic_rate_fixings()
+        assert isinstance(table, DataFrame)
 
 
 class TestFly:
@@ -4906,7 +4907,8 @@ class TestSpread:
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
         frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
         spd = Spread(irs, frb)
-        assert isinstance(spd.fixings_table(), DataFrame)
+        table = spd.local_analytic_rate_fixings()
+        assert isinstance(table, DataFrame)
 
 
 class TestSensitivities:
@@ -5126,6 +5128,8 @@ class TestSpec:
         assert bill.kwargs["fixed_rate"] == 0.0
 
     def test_fra(self) -> None:
+        from rateslib.enums.parameters import FloatFixingMethod
+
         fra = FRA(
             effective=dt(2022, 1, 1),
             termination="3m",
@@ -5134,12 +5138,13 @@ class TestSpec:
             modifier="F",
             fixed_rate=2.0,
         )
-        assert fra.kwargs["leg2_fixing_method"] == "ibor"
-        assert fra.kwargs["convention"] == "act360"
-        assert fra.kwargs["currency"] == "eur"
-        assert fra.kwargs["fixed_rate"] == 2.0
-        assert fra.kwargs["leg2_schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
-        assert fra.kwargs["leg2_schedule"].modifier == Adjuster.Following()
+        assert fra.kwargs.leg2["fixing_method"] == FloatFixingMethod.IBOR
+        assert fra.kwargs.leg1["convention"] == "act360"
+        assert fra.kwargs.leg1["currency"] == "eur"
+        assert fra.kwargs.leg2["currency"] == "eur"
+        assert fra.kwargs.leg1["fixed_rate"] == 2.0
+        assert fra.kwargs.leg2["schedule"].payment_adjuster == Adjuster.BusDaysLagSettleInAdvance(5)
+        assert fra.kwargs.leg2["schedule"].modifier == Adjuster.Following()
 
     def test_frn(self) -> None:
         frn = FloatRateNote(
@@ -5176,12 +5181,19 @@ class TestSpec:
     ("inst", "expected"),
     [
         (
-            IRS(dt(2022, 1, 1), "9M", "Q", currency="eur", curves=["eureur", "eur_eurusd"]),
+            IRS(
+                dt(2022, 1, 1),
+                "9M",
+                "Q",
+                currency="eur",
+                curves=["eureur", "eur_eurusd"],
+                fixed_rate=4.0,
+            ),
             DataFrame(
-                [-0.21319, -0.00068, 0.21656],
+                data=[-3808.80973, -3850.91496, -3893.01546],
                 index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
                 columns=MultiIndex.from_tuples(
-                    [("EUR", "usd,eur")],
+                    tuples=[("EUR", "usd,eur")],
                     names=["local_ccy", "collateral_ccy"],
                 ),
             ),
@@ -5196,7 +5208,7 @@ class TestSpec:
                 curves=["eureur", "eurusd", "eureur"],
             ),
             DataFrame(
-                [-0.51899, -6260.7208, 6299.28759],
+                [-0.00, -6260.19615, 6299.81823],
                 index=Index([dt(2022, 4, 3), dt(2022, 7, 3), dt(2022, 10, 3)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "usd")],
@@ -5205,9 +5217,16 @@ class TestSpec:
             ),
         ),
         (
-            FRA(dt(2022, 1, 15), "3M", "Q", currency="eur", curves=["eureur", "eureur"]),
+            FRA(
+                dt(2022, 1, 15),
+                "3M",
+                "Q",
+                currency="eur",
+                curves=["eureur", "eureur"],
+                fixed_rate=4.0,
+            ),
             DataFrame(
-                [0],
+                [-16091.56434],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "eur")],
@@ -5237,17 +5256,18 @@ class TestSpec:
                 "M",
                 currency="eur",
                 leg2_currency="usd",
+                leg2_mtm=True,
                 curves=["eureur", "eurusd", "usdusd", "usdusd"],
             ),
             DataFrame(
                 [
-                    [1000000.0, -1100306.44592],
-                    [0.0, -2377.85237],
-                    [-2042.44624, 4630.97800],
-                    [0.0, -2152.15417],
-                    [-1844.59236, 4191.00589],
-                    [-1000000, 1104836.45246],
-                    [-2042.44624, 4650.04393],
+                    [1000000.0, -1100306.44743],
+                    [0.0, -2377.86409],
+                    [-2128.20822, 4630.97804],
+                    [0.0, -2152.16480],
+                    [-1922.05479, 4191.00596],
+                    [-1000000, 1104836.47633],
+                    [-2128.20822, 4650.04405],
                 ],
                 index=Index(
                     [
@@ -5275,7 +5295,7 @@ class TestSpec:
                 curves=["eureur", "eurusd", "usdusd", "usdusd"],
             ),
             DataFrame(
-                [[1000000.0, -1100306.44592], [-1005943.73163, 1113805.13741]],
+                [[-1000000.0, 1100306.44743], [1000000.0, -1107224.13024]],
                 index=Index([dt(2022, 1, 5), dt(2022, 4, 5)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "usd"), ("USD", "usd")],
