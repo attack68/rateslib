@@ -251,6 +251,13 @@ mod tests {
     }
 
     #[test]
+    fn test_equality() {
+        assert_eq!(Adjuster::Following {}, Adjuster::Following {});
+        assert_eq!(Adjuster::BusDaysLagSettle(3), Adjuster::BusDaysLagSettle(3));
+        assert_ne!(Adjuster::BusDaysLagSettle(3), Adjuster::BusDaysLagSettle(5));
+    }
+
+    #[test]
     fn test_adjusts() {
         let cal = fixture_hol_cal();
         let udates = vec![

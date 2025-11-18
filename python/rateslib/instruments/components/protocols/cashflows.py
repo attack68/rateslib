@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from pandas import DataFrame, concat, isna
 
+from rateslib import defaults
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
@@ -155,4 +156,58 @@ class _WithCashflows(_WithPricingObjs, Protocol):
             [_.cashflows(*args, **kwargs) for _ in self.instruments],
             keys=[f"inst{i}" for i in range(len(self.instruments))],
         )
+        return _
+
+    def cashflows_table(
+        self,
+        curves: Curves_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: FXVolOption_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        """
+        Aggregate the values derived from a
+        :meth:`~rateslib.instruments.components._BaseInstrument.cashflows`
+        method on a :class:`~rateslib.instruments.components._BaseInstrument`.
+
+        Parameters
+        ----------
+        XXX
+
+        Returns
+        -------
+        DataFrame
+        """
+        cashflows = self.cashflows(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            fx_vol=fx_vol,
+            base=base,
+            settlement=settlement,
+            forward=forward,
+        )
+        cashflows = cashflows[
+            [
+                defaults.headers["currency"],
+                defaults.headers["collateral"],
+                defaults.headers["payment"],
+                defaults.headers["cashflow"],
+            ]
+        ]
+        _: DataFrame = cashflows.groupby(  # type: ignore[assignment]
+            [
+                defaults.headers["currency"],
+                defaults.headers["collateral"],
+                defaults.headers["payment"],
+            ],
+            dropna=False,
+        )
+        _ = _.sum().unstack([0, 1]).droplevel(0, axis=1)
+        _.columns.names = ["local_ccy", "collateral_ccy"]
+        _.index.names = ["payment"]
+        _ = _.sort_index(ascending=True, axis=0).infer_objects().fillna(0.0)
         return _
