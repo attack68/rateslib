@@ -92,7 +92,7 @@ VE_NEEDS_FX_FORWARDS_BAD_TYPE = (
 )
 
 FW_FIXINGS_AS_SERIES = (
-    "Setting any `fixings` argument as a Series directly is currently supported, but not"
+    "Setting any `fixings` argument as a Series directly is currently supported, but not "
     "recommended and may be removed in future versions.\n"
     "Best practice is to add the fixings object to the default _BaseFixingsLoader and then "
     "reference that object by Series name.\n"

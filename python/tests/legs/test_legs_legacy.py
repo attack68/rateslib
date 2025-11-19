@@ -439,12 +439,12 @@ class TestFloatLeg:
         ("method", "settlement", "forward", "expected"),
         [
             ("ISDA_compounding", NoInput(0), NoInput(0), 357.7019143401966),
-            ("ISDA_compounding", dt(2022, 4, 6), NoInput(0), 580.3895480501503),
+            ("ISDA_compounding", dt(2022, 4, 6), dt(2022, 4, 6), 580.3895480501503),
             ("ISDA_flat_compounding", NoInput(0), NoInput(0), 360.65913016465225),
-            ("ISDA_flat_compounding", dt(2022, 4, 6), NoInput(0), 587.64160672647),
+            ("ISDA_flat_compounding", dt(2022, 4, 6), dt(2022, 4, 6), 587.64160672647),
             ("NONE_Simple", NoInput(0), NoInput(0), 362.2342162),
             ("NONE_Simple", NoInput(0), dt(2022, 2, 1), 360.98240826375957),
-            ("NONE_Simple", dt(2022, 4, 6), NoInput(0), 590.6350781908598),
+            ("NONE_Simple", dt(2022, 4, 6), dt(2022, 4, 6), 590.6350781908598),
         ],
     )
     def test_float_leg_spread_calculation(
@@ -956,7 +956,7 @@ class TestZeroFloatLeg:
         [
             (NoInput(0), NoInput(0), 0.71008),
             (NoInput(0), dt(2023, 1, 1), -0.11739),
-            (dt(2026, 1, 1), NoInput(0), -2.40765),
+            (dt(2026, 1, 1), dt(2026, 1, 1), -2.40765),
         ],
     )
     def test_zero_float_spread_calc(self, settlement, forward, exp, curve) -> None:
@@ -1651,8 +1651,8 @@ class TestFixedLeg:
         ("settlement", "forward", "exp"),
         [
             (NoInput(0), NoInput(0), 403.9491881327746),
-            (dt(2022, 3, 30), NoInput(0), 399.9990223763462),
-            (dt(2022, 4, 6), NoInput(0), 799.0147512470912),
+            (dt(2022, 3, 30), dt(2022, 3, 30), 399.9990223763462),
+            (dt(2022, 4, 6), dt(2022, 4, 6), 799.0147512470912),
         ],
     )
     def test_fixed_leg_spread(self, settlement, forward, exp, curve) -> None:
@@ -2071,8 +2071,8 @@ class TestCreditPremiumLeg:
         ("settlement", "forward", "exp"),
         [
             (NoInput(0), NoInput(0), 408.02994815795125),
-            (dt(2022, 3, 30), NoInput(0), 404.03987718823055),
-            (dt(2022, 4, 6), NoInput(0), 811.1815703665554),
+            (dt(2022, 3, 30), dt(2022, 3, 30), 404.03987718823055),
+            (dt(2022, 4, 6), dt(2022, 4, 6), 811.1815703665554),
         ],
     )
     def test_fixed_leg_spread(self, settlement, forward, exp, curve) -> None:
