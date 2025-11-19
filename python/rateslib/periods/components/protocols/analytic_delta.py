@@ -17,7 +17,7 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         FXForwards_,
