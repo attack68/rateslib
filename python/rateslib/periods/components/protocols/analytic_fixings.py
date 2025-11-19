@@ -13,7 +13,7 @@ from rateslib.periods.components.protocols import _WithIndexingStatic, _WithNonD
 from rateslib.periods.components.protocols.npv import _screen_ex_div_and_forward
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         CurveOption_,
         FXForwards_,
         FXVolOption_,

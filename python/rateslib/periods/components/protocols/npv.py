@@ -18,7 +18,7 @@ from rateslib.periods.components.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.typing import (  # pragma: no cover
         FX_,
         CurveOption_,
         DualTypes,
@@ -88,8 +88,9 @@ def _screen_ex_div_and_forward(
             # in the case of Dualtypes this would be faster to just return 0.0
             # but the multiplication is used to handle DataFrame (FixingsSensitivity)
         if not is_forward:
-            # forward is assumed to be equal to settlement
-            return Ok(local_value.unwrap() / disc_curve_[settlement])  # type: ignore[index]
+            # forward is assumed to be immediate value if not given.
+            # # forward is assumed to be equal to settlement
+            return local_value  # / disc_curve_[settlement])  # type: ignore[index]
         else:
             return Ok(local_value.unwrap() / disc_curve_[forward])  # type: ignore[index]
 
