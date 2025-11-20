@@ -13,6 +13,7 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.components.protocols import (
     _BaseLeg,
+    _WithExDiv,
 )
 from rateslib.periods.components import (
     Cashflow,
@@ -42,7 +43,7 @@ if TYPE_CHECKING:
     )
 
 
-class FixedLeg(_BaseLeg):
+class FixedLeg(_BaseLeg, _WithExDiv):
     """
     Define a *Leg* containing :class:`~rateslib.periods.components.FixedPeriod`.
 

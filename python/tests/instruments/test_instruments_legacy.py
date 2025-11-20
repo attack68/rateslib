@@ -23,7 +23,7 @@ from rateslib.instruments import (
     # ZCIS,
     # ZCS,
     Bill,
-    FixedRateBond,
+    # FixedRateBond,
     FloatRateNote,
     # Fly,
     FXBrokerFly,
@@ -51,6 +51,7 @@ from rateslib.instruments.components import (
     XCS,
     ZCIS,
     ZCS,
+    FixedRateBond,
     Fly,
     FXForward,
     FXSwap,
@@ -5091,11 +5092,11 @@ class TestSpec:
         )
         from rateslib.instruments.bonds.conventions import US_GB_TSY
 
-        assert bond.calc_mode.kwargs == US_GB_TSY.kwargs
-        assert bond.kwargs["convention"] == "actacticma"
-        assert bond.kwargs["currency"] == "usd"
-        assert bond.kwargs["fixed_rate"] == 2.0
-        assert bond.kwargs["ex_div"] == 1
+        assert bond.kwargs.meta["calc_mode"].kwargs == US_GB_TSY.kwargs
+        assert bond.kwargs.leg1["convention"] == "actacticma"
+        assert bond.kwargs.leg1["currency"] == "usd"
+        assert bond.kwargs.leg1["fixed_rate"] == 2.0
+        assert bond.kwargs.leg1["schedule"].payment_adjuster3 == Adjuster.BusDaysLagSettle(-1)
 
     def test_indexfixedratebond(self) -> None:
         bond = IndexFixedRateBond(

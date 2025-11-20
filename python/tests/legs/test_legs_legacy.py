@@ -647,6 +647,12 @@ class TestFloatLeg:
         assert float_leg.periods[3].rate_params.rate_fixing.value == NoInput.blank
         assert float_leg.periods[3].rate_params.rate_fixing.identifier == f"{name}_1M"
 
+    def test_ex_div(self):
+        leg = FloatLeg(schedule=Schedule(dt(2000, 1, 1), dt(2001, 1, 1), "Q", extra_lag=-3))
+        assert not leg.ex_div(dt(2000, 3, 29))
+        assert leg.ex_div(dt(2000, 3, 30))
+        assert leg.ex_div(dt(2000, 4, 1))
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve) -> None:
@@ -1952,6 +1958,12 @@ class TestFixedLeg:
         result = fl.cashflows(fx=fxf)[["Type", "Notional", "Cashflow", "FX Fix Date"]]
         assert_frame_equal(result, expected)
 
+    def test_ex_div(self):
+        leg = FixedLeg(schedule=Schedule(dt(2000, 1, 1), dt(2001, 1, 1), "Q", extra_lag=-3))
+        assert not leg.ex_div(dt(2000, 3, 29))
+        assert leg.ex_div(dt(2000, 3, 30))
+        assert leg.ex_div(dt(2000, 4, 1))
+
 
 class TestCreditPremiumLeg:
     @pytest.mark.parametrize(
@@ -2098,6 +2110,12 @@ class TestCreditPremiumLeg:
             forward=forward,
         )
         assert abs(result - exp) < 1e-6
+
+    def test_ex_div(self):
+        leg = CreditPremiumLeg(schedule=Schedule(dt(2000, 1, 1), dt(2001, 1, 1), "Q", extra_lag=-3))
+        assert not leg.ex_div(dt(2000, 3, 29))
+        assert leg.ex_div(dt(2000, 3, 30))
+        assert leg.ex_div(dt(2000, 4, 1))
 
 
 class TestCreditProtectionLeg:
