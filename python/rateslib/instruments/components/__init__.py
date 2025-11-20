@@ -1,3 +1,4 @@
+from rateslib.instruments.components.bonds import FixedRateBond
 from rateslib.instruments.components.cds import CDS
 from rateslib.instruments.components.fly import Fly
 from rateslib.instruments.components.fra import FRA
@@ -34,4 +35,5 @@ __all__ = [
     "FXForward",
     "FXVolValue",
     "FXSwap",
+    "FixedRateBond",
 ]

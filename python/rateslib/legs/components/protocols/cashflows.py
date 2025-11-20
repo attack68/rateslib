@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from pandas import DataFrame
 
+from rateslib.curves import index_left
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
@@ -11,8 +12,10 @@ if TYPE_CHECKING:
         CurveOption_,
         FXForwards_,
         FXVolOption_,
+        Schedule,
         _BaseCurve_,
         _BasePeriod,
+        datetime,
         datetime_,
         str_,
     )
@@ -66,3 +69,45 @@ class _WithCashflows(Protocol):
             for period in self.periods
         ]
         return DataFrame.from_records(seq)
+
+
+class _WithExDiv(Protocol):
+    @property
+    def schedule(self) -> Schedule: ...
+
+    def _period_index(self, settlement: datetime) -> int:
+        """
+        Get the period index for that which the settlement date fall within.
+        Uses adjusted dates.
+        """
+        _: int = index_left(
+            self.schedule.aschedule,
+            len(self.schedule.aschedule),
+            settlement,
+        )
+        return _
+
+    def ex_div(self, settlement: datetime) -> bool:
+        """
+        Return a boolean whether the security is ex-div at the given settlement.
+
+        Parameters
+        ----------
+        settlement : datetime
+            The settlement date to test.
+
+        Returns
+        -------
+        bool
+
+        Notes
+        -----
+        Uses the UK DMO convention of returning *False* if ``settlement``
+        **is on or before** the ex-div date for a regular coupon period.
+
+        This is evaluated by analysing the attribute ``pschedule3`` of the associated
+        :class:`~rateslib.scheduling.Schedule` object of the *Leg*.
+        """
+        left_period_index = self._period_index(settlement)
+        ex_div_date = self.schedule.pschedule3[left_period_index + 1]
+        return settlement > ex_div_date

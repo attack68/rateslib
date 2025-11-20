@@ -6,7 +6,7 @@ from rateslib import defaults
 from rateslib.curves import index_left
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.legs.components.amortization import Amortization, _get_amortization
-from rateslib.legs.components.protocols import _BaseLeg
+from rateslib.legs.components.protocols import _BaseLeg, _WithExDiv
 from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPeriod
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     )
 
 
-class CreditPremiumLeg(_BaseLeg):
+class CreditPremiumLeg(_BaseLeg, _WithExDiv):
     """
     Define a *Leg* containing :class:`~rateslib.periods.components.CreditPremiumPeriod`.
 

@@ -12,9 +12,7 @@ from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.legs.components.amortization import Amortization, _AmortizationType, _get_amortization
-from rateslib.legs.components.protocols import (
-    _BaseLeg,
-)
+from rateslib.legs.components.protocols import _BaseLeg, _WithExDiv
 from rateslib.periods.components import Cashflow, FloatPeriod, MtmCashflow, ZeroFloatPeriod
 from rateslib.periods.components.parameters import _FloatRateParams, _SettlementParams
 
@@ -39,7 +37,7 @@ if TYPE_CHECKING:
     )
 
 
-class FloatLeg(_BaseLeg):
+class FloatLeg(_BaseLeg, _WithExDiv):
     """
     Define a *Leg* containing :class:`~rateslib.periods.components.FloatPeriod`.
 

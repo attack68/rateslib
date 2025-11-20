@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
-from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
     _get_maybe_curve_maybe_from_solver,
@@ -18,6 +17,7 @@ if TYPE_CHECKING:
         FXVolOption_,
         Solver_,
         _Curves,
+        _KWArgs,
         datetime_,
         str_,
     )
