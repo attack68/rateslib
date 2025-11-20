@@ -6,7 +6,7 @@ from collections.abc import Sequence as Sequence
 from datetime import datetime as datetime
 from typing import Any as Any
 from typing import NoReturn as NoReturn
-from typing import TypeAlias
+from typing import Protocol, TypeAlias
 
 import numpy as np
 from pandas import DataFrame as DataFrame
@@ -68,6 +68,7 @@ from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
 from rateslib.instruments import VolValue as VolValue
 from rateslib.instruments.bonds import BondMixin as BondMixin
+from rateslib.instruments.components.protocols.kwargs import _KWArgs as _KWArgs
 from rateslib.instruments.components.protocols.pricing import _Curves as _Curves
 from rateslib.instruments.components.protocols.pricing import _Vol as _Vol
 from rateslib.legs import CreditPremiumLeg as CreditPremiumLeg
@@ -237,3 +238,8 @@ class SupportsMetrics:
     def gamma(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def cashflows_table(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
+
+
+class _SupportsFixedFloatLeg1(Protocol):
+    @property
+    def leg1(self) -> FixedLeg | FloatLeg: ...

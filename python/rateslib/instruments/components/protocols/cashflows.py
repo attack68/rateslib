@@ -103,42 +103,47 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
-        leg1_df = self.legs[0].cashflows(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "rate_curve", solver
-            ),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "disc_curve", solver
-            ),
-            index_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "index_curve", solver
-            ),
-            fx=_fx_maybe_from_solver,
-            fx_vol=fx_vol,
-            settlement=settlement,
-            forward=forward,
-            base=base,
-        )
+        legs_df = [
+            self.legs[0].cashflows(
+                rate_curve=_get_maybe_curve_maybe_from_solver(
+                    _curves_meta, _curves, "rate_curve", solver
+                ),
+                disc_curve=_get_maybe_curve_maybe_from_solver(
+                    _curves_meta, _curves, "disc_curve", solver
+                ),
+                index_curve=_get_maybe_curve_maybe_from_solver(
+                    _curves_meta, _curves, "index_curve", solver
+                ),
+                fx=_fx_maybe_from_solver,
+                fx_vol=fx_vol,
+                settlement=settlement,
+                forward=forward,
+                base=base,
+            )
+        ]
 
-        leg2_df = self.legs[1].cashflows(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_disc_curve", solver
-            ),
-            index_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_index_curve", solver
-            ),
-            fx=_fx_maybe_from_solver,
-            fx_vol=fx_vol,
-            settlement=settlement,
-            forward=forward,
-            base=base,
-        )
+        if len(self.legs) > 1:
+            legs_df.append(
+                self.legs[1].cashflows(
+                    rate_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, "leg2_rate_curve", solver
+                    ),
+                    disc_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, "leg2_disc_curve", solver
+                    ),
+                    index_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, "leg2_index_curve", solver
+                    ),
+                    fx=_fx_maybe_from_solver,
+                    fx_vol=fx_vol,
+                    settlement=settlement,
+                    forward=forward,
+                    base=base,
+                )
+            )
 
         # filter empty or all NaN
-        dfs_filtered = [_ for _ in [leg1_df, leg2_df] if not (_.empty or isna(_).all(axis=None))]
+        dfs_filtered = [_ for _ in legs_df if not (_.empty or isna(_).all(axis=None))]
 
         with warnings.catch_warnings():
             # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries

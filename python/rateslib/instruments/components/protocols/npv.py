@@ -103,45 +103,34 @@ class _WithNPV(_WithPricingObjs, Protocol):
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
-        local_npv = {
-            self.legs[0].settlement_params.currency: self.legs[0].local_npv(
+        local_npv: dict[str, DualTypes] = {}
+        for leg, names in zip(
+            self.legs,
+            [
+                ("rate_curve", "disc_curve", "index_curve"),
+                ("leg2_rate_curve", "leg2_disc_curve", "leg2_index_curve"),
+            ],
+            strict=False,
+        ):
+            leg_local_npv = leg.local_npv(
                 rate_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "rate_curve", solver
+                    _curves_meta, _curves, names[0], solver
                 ),
                 disc_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "disc_curve", solver
+                    _curves_meta, _curves, names[1], solver
                 ),
                 index_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "index_curve", solver
+                    _curves_meta, _curves, names[2], solver
                 ),
                 fx=_fx_maybe_from_solver,
                 fx_vol=fx_vol,
                 settlement=settlement,
                 forward=forward,
             )
-        }
-
-        leg2_local_npv = self.legs[1].local_npv(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_disc_curve", solver
-            ),
-            index_curve=_get_maybe_curve_maybe_from_solver(
-                _curves_meta, _curves, "leg2_index_curve", solver
-            ),
-            fx=_fx_maybe_from_solver,
-            fx_vol=fx_vol,
-            settlement=settlement,
-            forward=forward,
-        )
-
-        if self.legs[0].settlement_params.currency == self.legs[1].settlement_params.currency:
-            # then the two legs share the same currency
-            local_npv[self.legs[0].settlement_params.currency] += leg2_local_npv
-        else:
-            local_npv[self.legs[1].settlement_params.currency] = leg2_local_npv
+            if leg.settlement_params.currency in local_npv:
+                local_npv[leg.settlement_params.currency] += leg_local_npv
+            else:
+                local_npv[leg.settlement_params.currency] = leg_local_npv
 
         if not local:
             single_value: DualTypes = 0.0

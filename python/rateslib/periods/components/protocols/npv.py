@@ -173,7 +173,7 @@ class _WithNPV(Protocol):
         -------
         Result[float, Dual, Dual2, Variable]
         """  # noqa: E501
-        raise NotImplementedError(
+        raise NotImplementedError(  # pragma: no cover
             f"Period type '{type(self).__name__}' must implement `immediate_local_npv`"
         )
 
@@ -607,7 +607,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         -------
         float, Dual, Dual2, Variable
         """
-        raise NotImplementedError(
+        raise NotImplementedError(  # pragma: no cover
             f"Period type '{type(self).__name__}' must implement `unindexed_reference_cashflow`"
         )
 

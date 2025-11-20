@@ -82,6 +82,11 @@ def _inherit_or_negate(kwargs: dict[str, Any], ignore_blank: bool = False) -> di
 
 def _convert_to_schedule_kwargs(kwargs: dict[str, Any], leg: int) -> dict[str, Any]:
     _ = "" if leg == 1 else "leg2_"
+
+    ex_div = kwargs.pop(f"{_}ex_div", NoInput(0))
+    if isinstance(ex_div, int):
+        ex_div = -1 * ex_div  # negate this input for business days backwards
+
     kwargs[f"{_}schedule"] = Schedule(
         effective=kwargs.pop(f"{_}effective", NoInput(0)),
         termination=kwargs.pop(f"{_}termination", NoInput(0)),
@@ -95,7 +100,7 @@ def _convert_to_schedule_kwargs(kwargs: dict[str, Any], leg: int) -> dict[str, A
         calendar=kwargs.pop(f"{_}calendar", NoInput(0)),
         payment_lag=kwargs.pop(f"{_}payment_lag", NoInput(0)),
         payment_lag_exchange=kwargs.pop(f"{_}payment_lag_exchange", NoInput(0)),
-        extra_lag=kwargs.pop(f"{_}ex_div", NoInput(0)),
+        extra_lag=ex_div,
     )
     return kwargs
 
