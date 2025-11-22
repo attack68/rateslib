@@ -166,17 +166,15 @@ class _WithOASpread(_WithAccrued, Protocol):
             _shifted_discount_curve = disc_curve.shift(g)
             return self.rate(curves=[curve, _shifted_discount_curve], metric=metric)
 
-        disc_curve_ = (
-            _get_maybe_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "disc_curve", solver
-            ),
+        disc_curve_ = _get_maybe_curve_maybe_from_solver(
+            self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
+
         _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
-        rate_curve_ = (
-            _get_maybe_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "rate_curve", solver
-            ),
+        rate_curve_ = _get_maybe_curve_maybe_from_solver(
+            self.kwargs.meta["curves"], _curves, "rate_curve", solver
         )
+
         _ad_fore = _maybe_set_ad_order(rate_curve_, 0)
 
         s = partial(

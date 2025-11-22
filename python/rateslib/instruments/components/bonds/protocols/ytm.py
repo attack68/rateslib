@@ -246,4 +246,4 @@ class _WithYTM(_WithAccrued, Protocol):
 
     def _period_cashflow(self, period: Cashflow | FixedPeriod, curve: _BaseCurve_) -> DualTypes:  # type: ignore[override]
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
-        return period.cashflow()  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
+        return period.unindexed_cashflow()  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
