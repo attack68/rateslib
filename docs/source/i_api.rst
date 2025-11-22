@@ -225,6 +225,7 @@ Objects
    :include: XCS
    :include: FXSwap
    :include: FXForward
+   :include: IndexFixedRateBond
 
 
 Class Inheritance Diagram

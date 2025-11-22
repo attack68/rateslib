@@ -217,8 +217,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - BondFuture
    * - USD
      - :ref:`us_gb <spec-us-gb>`, :ref:`us_gb_tsy <spec-us-gb>`, :ref:`us_corp <spec-us-corp>`, :ref:`us_muni <spec-us-muni>`
-     - :ref:`us_gbb <spec-usd-gbb>`
-     -
+     - :ref:`us_gbb <spec-us-gbb>`
+     - :ref:`us_gbi <spec-us-gbi>`
      -
      - :ref:`us_gb_2y <spec-us-gb-2y>`, :ref:`us_gb_3y <spec-us-gb-3y>`, :ref:`us_gb_5y <spec-us-gb-5y>`, :ref:`us_gb_10y <spec-us-gb-10y>`, :ref:`us_gb_30y <spec-us-gb-30y>`
    * - EUR
@@ -230,7 +230,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
    * - GBP
      - :ref:`uk_gb <spec-uk-gb>`
      - :ref:`uk_gbb <spec-uk-gbb>`
-     -
+     - :ref:`uk_gbi <spec-uk-gbi>`
      -
      -
    * - CHF

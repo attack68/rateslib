@@ -40,6 +40,12 @@ a designed notional and DCF for the period.
 
 FXExchange renamed to FXForward.
 
+IndexFixedBond has new ``accrued`` and ``fwd_from_repo`` to handle indexation.
+IndexFixedRateBond duration now allows a ``risk`` metric to be expressed with indexation or
+without.
+
+Add specs 'uk_gbi' and 'us_gbi'.
+
 
 .. list-table::
    :widths: 25 75
@@ -101,8 +107,8 @@ FXExchange renamed to FXForward.
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
        - The ``cashflow`` property on many *BasePeriod* types is now a callable method consistent
-         with other *Period* types, such as a *FloatPeriod*. Its results is unchanged when
-         provided no arguments.
+         with other *Period* types, such as a *FloatPeriod*. Its result is unchanged when
+         provided with no arguments.
          (`1025 <https://github.com/attack68/rateslib/pull/1025>`_)
    * - **Automatic Differentiation**
      - - The :class:`~rateslib.dual.gradient` method can now be called on `float` and `int` datatypes

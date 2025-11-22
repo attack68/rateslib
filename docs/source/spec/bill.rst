@@ -11,7 +11,7 @@ Bill
 USD
 ********
 
-.. _spec-usd-gbb:
+.. _spec-us-gbb:
 
 Government Bill
 ----------------
