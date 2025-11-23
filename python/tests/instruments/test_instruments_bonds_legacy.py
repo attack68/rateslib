@@ -11,14 +11,16 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
-    IRS,
-    Bill,
-    BondFuture,
+    # Bill,
+    # BondFuture,
     # FixedRateBond,
     FloatRateNote,
     # IndexFixedRateBond,
 )
 from rateslib.instruments.components import (
+    IRS,
+    Bill,
+    BondFuture,
     FixedRateBond,
     IndexFixedRateBond,
 )
@@ -1521,7 +1523,15 @@ class TestFixedRateBond:
         curve = Curve({dt(1999, 11, 25): 1.0, dt(2015, 12, 7): 0.85})
         Solver(
             curves=[curve],
-            instruments=[IRS(dt(1999, 12, 8), "2y", spec="gbp_irs", curves=curve)],
+            instruments=[
+                IRS(
+                    effective=dt(1999, 12, 8),
+                    termination="2y",
+                    spec="gbp_irs",
+                    curves=curve,
+                    leg2_fixing_series="eur_rfr",
+                )
+            ],
             s=[2.5],
         )
         # gilt.rate(curve, metric="dirty_price") = 80.52025551638633
@@ -1895,7 +1905,8 @@ class TestIndexFixedRateBond:
         ],
     )
     def test_index_ratio(self, i_fixings, expected) -> None:
-        fixings.add("index_series", Series([90.0, 290], index=[dt(2022, 1, 1), dt(2022, 2, 1)]))
+        if isinstance(i_fixings, str):
+            fixings.add("index_series", Series([90.0, 290], index=[dt(2022, 1, 1), dt(2022, 2, 1)]))
         i_curve = Curve(
             {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
             index_lag=3,
@@ -1915,8 +1926,9 @@ class TestIndexFixedRateBond:
             index_method="daily",
             index_lag=3,
         )
-        result = bond.index_ratio(settlement=dt(2022, 4, 15), curve=i_curve)
-        fixings.pop("index_series")
+        result = bond.index_ratio(settlement=dt(2022, 4, 15), index_curve=i_curve)
+        if isinstance(i_fixings, str):
+            fixings.pop("index_series")
         assert abs(result - expected) < 1e-5
 
     @pytest.mark.skip(
@@ -2154,6 +2166,8 @@ class TestIndexFixedRateBond:
         ("price", "indexed", "dirty", "expected"),
         [
             (99.423682, True, True, 100.2169930),
+            (99.1924173, True, False, 99.9007374),
+            (98.1322608, False, True, 98.0424122),
             (97.904000, False, False, 97.733020),
         ],
     )
@@ -2199,6 +2213,8 @@ class TestIndexFixedRateBond:
         ("price", "indexed", "dirty", "fwd_price"),
         [
             (99.423682, True, True, 100.2169930),
+            (99.1924173, True, False, 99.9007374),
+            (98.1322608, False, True, 98.0424122),
             (97.904000, False, False, 97.733020),
         ],
     )
@@ -2392,6 +2408,49 @@ class TestIndexFixedRateBond:
         assert bond.price(3.0, dt(2002, 3, 4)) == bond2.price(3.0, dt(2002, 3, 4))
         assert bond.accrued(dt(2002, 3, 4)) == bond2.accrued(dt(2002, 3, 4))
 
+    def test_fixed_rate_getter_and_setter(self):
+        tii_0728 = IndexFixedRateBond(
+            effective=dt(2018, 7, 31),
+            termination=dt(2028, 7, 15),
+            spec="us_gbi",
+            fixed_rate=0.75,
+        )
+        assert tii_0728.fixed_rate == 0.75
+        tii_0728.fixed_rate = 1.90
+        assert tii_0728.fixed_rate == 1.90
+
+    def test_no_fixed_rate_raises(self):
+        with pytest.raises(ValueError, match="`fixed_rate` must be provided for IndexFixedRateBo"):
+            IndexFixedRateBond(
+                effective=dt(2018, 7, 31),
+                termination=dt(2028, 7, 15),
+                spec="us_gbi",
+            )
+
+    def test_parse_curves(self, curve):
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99},
+            index_lag=3,
+            index_base=95.0,
+            interpolation="linear_index",
+        )
+        bond = IndexFixedRateBond(
+            dt(2022, 1, 1),
+            "9m",
+            "Q",
+            convention="ActActICMA",
+            fixed_rate=4,
+            ex_div=0,
+            calendar=NoInput(0),
+            index_method="daily",
+            settle=0,
+        )
+        result1 = bond.npv(curves=[i_curve, curve])
+        result2 = bond.npv(curves={"index_curve": i_curve, "disc_curve": curve})
+        expected = -1006875.3812
+        assert abs(result1 - expected) < 1e-5
+        assert abs(result1 - result2) < 1e-5
+
 
 class TestBill:
     def test_bill_discount_rate(self) -> None:
@@ -2463,9 +2522,9 @@ class TestBill:
             calc_mode="ustb",
             metric="simple_rate",
         )
-        price = bill.rate(curve, metric="price")
+        price = bill.rate(curves=curve, metric="price")
         expected = bill.simple_rate(price, dt(2004, 1, 22))
-        result = bill.rate(curve)
+        result = bill.rate(curves=curve)
         assert abs(result - expected) < 1e-6
 
     def test_bill_rate(self) -> None:
@@ -2481,41 +2540,43 @@ class TestBill:
             calc_mode="ustb",
         )
 
-        result = bill.rate(curve, metric="price")
+        result = bill.rate(curves=curve, metric="price")
         expected = 99.9385705675
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="discount_rate")
+        result = bill.rate(curves=curve, metric="discount_rate")
         expected = bill.discount_rate(99.9385705675, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="simple_rate")
+        result = bill.rate(curves=curve, metric="simple_rate")
         expected = bill.simple_rate(99.9385705675, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="ytm")
+        result = bill.rate(curves=curve, metric="ytm")
         expected = bill.ytm(99.9385705675, dt(2004, 1, 22))
         assert abs(result - expected) < 1e-6
 
-        bill.kwargs["settle"] = 2  # set the bill to T+2 settlement and re-run the calculations
+        bill.kwargs.meta["settle"] = 2  # set the bill to T+2 settlement and re-run the calculations
 
-        result = bill.rate(curve, metric="price")
+        result = bill.rate(curves=curve, metric="price")
         expected = 99.94734388985547
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="discount_rate")
+        result = bill.rate(curves=curve, metric="discount_rate")
         expected = bill.discount_rate(99.94734388985547, dt(2004, 1, 26))
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="simple_rate")
+        result = bill.rate(curves=curve, metric="simple_rate")
         expected = bill.simple_rate(99.94734388985547, dt(2004, 1, 26))
         assert abs(result - expected) < 1e-6
 
-        result = bill.rate(curve, metric="ytm")
+        result = bill.rate(curves=curve, metric="ytm")
         expected = bill.ytm(99.94734388985547, dt(2004, 1, 26))
         assert abs(result - expected) < 1e-6
 
     def test_bill_default_calc_mode(self) -> None:
+        from rateslib.instruments.components.bonds.conventions import US_GBB
+
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),
@@ -2524,7 +2585,7 @@ class TestBill:
             convention="Act360",
             settle=0,
         )
-        assert bill.kwargs["calc_mode"] == "us_gbb"
+        assert bill.kwargs.meta["calc_mode"] == US_GBB
 
     def test_bill_rate_raises(self) -> None:
         curve = Curve({dt(2004, 1, 22): 1.00, dt(2005, 1, 22): 0.992})
@@ -2538,7 +2599,7 @@ class TestBill:
         )
 
         with pytest.raises(ValueError, match="`metric` must be in"):
-            bill.rate(curve, metric="bad vibes")
+            bill.rate(curves=curve, metric="bad vibes")
 
     def test_sgbb(self) -> None:
         bill = Bill(
@@ -2577,9 +2638,9 @@ class TestBill:
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bill.rate(curve, metric="price") # = 98.605
-        result = bill.oaspread(curve, price=price)
+        result = bill.oaspread(curves=curve, price=price)
         curve_z = curve.shift(result)
-        result = bill.rate(curve_z, metric="clean_price")
+        result = bill.rate(curves=curve_z, metric="clean_price")
         assert abs(result - price) < tol
 
     def test_with_fx_supplied(self) -> None:
@@ -2628,11 +2689,11 @@ class TestBill:
 
     def test_us_gbb_eom(self):
         b = Bill(dt(2023, 2, 28), "3m", spec="us_gbb")
-        assert b.leg1.periods[0].end == dt(2023, 5, 31)
+        assert b.leg1._regular_periods[0].period_params.end == dt(2023, 5, 31)
 
     def test_se_gbb_eom(self):
         b = Bill(dt(2023, 2, 28), "3m", spec="se_gbb")
-        assert b.leg1.periods[0].end == dt(2023, 5, 28)
+        assert b.leg1._regular_periods[0].period_params.end == dt(2023, 5, 28)
 
     def test_act_act_icma(self):
         # gh 144
@@ -2662,8 +2723,8 @@ class TestBill:
             calc_mode="us_gbb",
         )
 
-        assert bill_actacticma.dcf == 0.2465753424657534
-        assert bill_act360.dcf == 0.25
+        assert bill_actacticma.leg1._regular_periods[0].period_params.dcf == 0.2465753424657534
+        assert bill_act360.leg1._regular_periods[0].period_params.dcf == 0.25
 
 
 class TestFloatRateNote:
@@ -3503,7 +3564,7 @@ class TestBondFuture:
         ]
         future = BondFuture(delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds)
         prices = [102.732, 131.461, 107.877, 134.455]
-        basket = future.kwargs["basket"]
+        basket = future.kwargs.meta["basket"]
         dirty_prices = [
             price + basket[i].accrued(dt(2000, 3, 16)) for i, price in enumerate(prices)
         ]
@@ -3597,7 +3658,11 @@ class TestBondFuture:
             delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
             basket=bonds,
         )
-        result = future.rate(NoInput(0), solver, metric=metric, delivery=delivery)
+        result = future.rate(
+            solver=solver,
+            metric=metric,
+            settlement=delivery,
+        )
         assert abs(result - expected) < 1e-3
 
     def test_future_rate_raises(self) -> None:
