@@ -6,11 +6,11 @@ from rateslib import defaults
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.instruments.components.bonds.fixed_rate_bond import FixedRateBond
 from rateslib.instruments.components.bonds.conventions import (
     BillCalcMode,
     _get_bill_calc_mode,
 )
+from rateslib.instruments.components.bonds.fixed_rate_bond import FixedRateBond
 from rateslib.instruments.components.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
