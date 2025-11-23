@@ -347,7 +347,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         Returns
         -------
         float, Dual, Dual2, Variable
-        """
+        """  # noqa: E501
 
         left_index = self.leg1._period_index(settlement)
         period_index_params = self.leg1._regular_periods[left_index].index_params
