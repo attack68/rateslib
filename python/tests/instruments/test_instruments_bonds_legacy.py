@@ -24,7 +24,7 @@ from rateslib.instruments.components import (
     FixedRateBond,
     IndexFixedRateBond,
 )
-from rateslib.instruments.components.bonds.conventions import BondCalcMode
+from rateslib.instruments.components.bonds.conventions import US_GBB, BondCalcMode
 from rateslib.scheduling import dcf, get_calendar
 from rateslib.solver import Solver
 
@@ -2575,8 +2575,6 @@ class TestBill:
         assert abs(result - expected) < 1e-6
 
     def test_bill_default_calc_mode(self) -> None:
-        from rateslib.instruments.components.bonds.conventions import US_GBB
-
         bill = Bill(
             effective=dt(2004, 1, 22),
             termination=dt(2004, 2, 19),

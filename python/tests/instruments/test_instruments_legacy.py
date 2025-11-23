@@ -22,7 +22,7 @@ from rateslib.instruments import (
     # XCS,
     # ZCIS,
     # ZCS,
-    Bill,
+    # Bill,
     # FixedRateBond,
     FloatRateNote,
     # Fly,
@@ -34,7 +34,7 @@ from rateslib.instruments import (
     FXStraddle,
     FXStrangle,
     # FXSwap,
-    IndexFixedRateBond,
+    # IndexFixedRateBond,
     # Portfolio,
     # Spread,
     # STIRFuture,
@@ -51,16 +51,19 @@ from rateslib.instruments.components import (
     XCS,
     ZCIS,
     ZCS,
+    Bill,
     FixedRateBond,
     Fly,
     FXForward,
     FXSwap,
     FXVolValue,
+    IndexFixedRateBond,
     Portfolio,
     Spread,
     STIRFuture,
     Value,
 )
+from rateslib.instruments.components.bonds.conventions import US_GB
 from rateslib.instruments.components.protocols.kwargs import (
     _KWArgs,
 )
@@ -5106,13 +5109,12 @@ class TestSpec:
             calc_mode="ust",
             fixed_rate=2.0,
         )
-        from rateslib.instruments.bonds.conventions import US_GB
 
-        assert bond.calc_mode.kwargs == US_GB.kwargs
-        assert bond.kwargs["convention"] == "actacticma"
-        assert bond.kwargs["currency"] == "gbp"
-        assert bond.kwargs["fixed_rate"] == 2.0
-        assert bond.kwargs["ex_div"] == 7
+        assert bond.kwargs.leg1["convention"] == "actacticma"
+        assert bond.kwargs.leg1["currency"] == "gbp"
+        assert bond.kwargs.leg1["fixed_rate"] == 2.0
+        assert bond.kwargs.leg1["schedule"].payment_adjuster3 == Adjuster.BusDaysLagSettle(-7)
+        assert bond.kwargs.meta["calc_mode"] == US_GB
 
     def test_bill(self) -> None:
         bill = Bill(
@@ -5121,12 +5123,12 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        from rateslib.instruments.bonds.conventions import US_GBB
+        from rateslib.instruments.components.bonds.conventions import US_GBB
 
-        assert bill.calc_mode.kwargs == US_GBB.kwargs
-        assert bill.kwargs["convention"] == "act365f"
-        assert bill.kwargs["currency"] == "usd"
-        assert bill.kwargs["fixed_rate"] == 0.0
+        assert bill.kwargs.meta["calc_mode"] == US_GBB
+        assert bill.kwargs.leg1["convention"] == "act365f"
+        assert bill.kwargs.leg1["currency"] == "usd"
+        assert bill.kwargs.leg1["fixed_rate"] == 0.0
 
     def test_fra(self) -> None:
         from rateslib.enums.parameters import FloatFixingMethod
