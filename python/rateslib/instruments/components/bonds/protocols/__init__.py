@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption_,
         Solver_,
+        _BaseCurve_,
         datetime,
         datetime_,
         str_,
@@ -127,21 +128,15 @@ class _BaseBondInstrument(
         forward: datetime_ = NoInput(0),
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
-        if isinstance(settlement, NoInput):
-            _curves = self._parse_curves(curves)
-            disc_curve = _get_maybe_curve_maybe_from_solver(
+        settlement_ = self._maybe_get_settlement(
+            settlement=settlement,
+            disc_curve=_get_maybe_curve_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
-                curves=_curves,
+                curves=self._parse_curves(curves),
                 name="disc_curve",
                 solver=solver,
-            )
-            settlement_ = self.leg1.schedule.calendar.lag_bus_days(
-                disc_curve.nodes.initial,
-                self.kwargs.meta["settle"],
-                True,
-            )
-        else:
-            settlement_ = settlement
+            ),
+        )
 
         return super().analytic_delta(
             curves=curves,
@@ -230,6 +225,20 @@ class _BaseBondInstrument(
             dirty=dirty,
             curve=NoInput(0),
         )
+
+    def _maybe_get_settlement(
+        self,
+        settlement: datetime_,
+        disc_curve: _BaseCurve_,
+    ) -> datetime:
+        if isinstance(settlement, NoInput):
+            return self.leg1.schedule.calendar.lag_bus_days(
+                disc_curve.nodes.initial,
+                self.kwargs.meta["settle"],
+                True,
+            )
+        else:
+            return settlement
 
 
 __all__ = [

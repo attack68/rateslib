@@ -717,6 +717,12 @@ def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
     return calc_mode
 
 
+def _get_bill_calc_mode(calc_mode: str | BillCalcMode) -> BillCalcMode:
+    if isinstance(calc_mode, str):
+        return BILL_MODE_MAP[calc_mode.lower()]
+    return calc_mode
+
+
 def _get_calc_mode_for_class(
     obj: Security, calc_mode: str | BondCalcMode | BillCalcMode
 ) -> BondCalcMode | BillCalcMode:

@@ -232,8 +232,6 @@ class FixedRateBond(_BaseBondInstrument):
         default_args = dict(
             notional=defaults.notional,
             calc_mode=defaults.calc_mode[type(self).__name__],
-            initial_exchange=False,
-            final_exchange=True,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_specific[type(self).__name__],
             ex_div=defaults.ex_div,
@@ -306,15 +304,7 @@ class FixedRateBond(_BaseBondInstrument):
                 name="disc_curve",
                 solver=solver,
             )
-
-            if isinstance(settlement, NoInput):
-                settlement_ = self.leg1.schedule.calendar.lag_bus_days(
-                    disc_curve.nodes.initial,
-                    self.kwargs.meta["settle"],
-                    True,
-                )
-            else:
-                settlement_ = settlement
+            settlement_ = self._maybe_get_settlement(settlement=settlement, disc_curve=disc_curve)
             npv = self.leg1.local_npv(
                 disc_curve=disc_curve,
                 settlement=settlement_,
