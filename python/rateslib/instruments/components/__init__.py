@@ -2,6 +2,7 @@ from rateslib.instruments.components.bonds import (
     Bill,
     BondFuture,
     FixedRateBond,
+    FloatRateNote,
     IndexFixedRateBond,
 )
 from rateslib.instruments.components.cds import CDS
@@ -41,6 +42,7 @@ __all__ = [
     "FXVolValue",
     "FXSwap",
     "FixedRateBond",
+    "FloatRateNote",
     "IndexFixedRateBond",
     "BondFuture",
     "Bill",
