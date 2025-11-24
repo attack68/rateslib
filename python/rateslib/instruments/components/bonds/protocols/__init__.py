@@ -223,7 +223,7 @@ class _BaseBondInstrument(
             settlement=settlement,
             calc_mode=NoInput(0),  # will be set to kwargs.meta
             dirty=dirty,
-            curve=NoInput(0),
+            rate_curve=NoInput(0),
         )
 
     def _maybe_get_settlement(

@@ -366,6 +366,26 @@ class _FloatRateParams:
         return self.fixing_index.frequency
 
     @property
+    def fixing_identifier(self) -> str_:
+        """The string identifier provided to ``rate_fixings`` to construct a *Fixings* object."""
+        if isinstance(self.rate_fixing, RFRFixing):
+            if isinstance(self.rate_fixing.identifier, str):
+                return self.rate_fixing.identifier[:-3]  # strip out "_1B"
+            return NoInput(0)
+        elif isinstance(self.rate_fixing, IBORFixing):
+            if isinstance(self.rate_fixing.identifier, str):
+                if self.rate_fixing.identifier[-3] == "_":
+                    return self.rate_fixing.identifier[:-3]
+                else:  # [-4] == "_"
+                    return self.rate_fixing.identifier[:-4]
+            else:
+                return NoInput(0)
+        else:  # IBORStubFixing
+            if isinstance(self.rate_fixing.identifier, str):
+                return self.rate_fixing.identifier  # no suffix
+            return NoInput(0)
+
+    @property
     def accrual_start(self) -> datetime:
         """
         The accrual start date for the *Period*.
