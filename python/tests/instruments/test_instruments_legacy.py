@@ -24,7 +24,7 @@ from rateslib.instruments import (
     # ZCS,
     # Bill,
     # FixedRateBond,
-    FloatRateNote,
+    # FloatRateNote,
     # Fly,
     FXBrokerFly,
     FXCall,
@@ -53,6 +53,7 @@ from rateslib.instruments.components import (
     ZCS,
     Bill,
     FixedRateBond,
+    FloatRateNote,
     Fly,
     FXForward,
     FXSwap,
@@ -5156,12 +5157,12 @@ class TestSpec:
             spec="usd_frn5",
             payment_lag=5,
         )
-        assert frn.kwargs["fixing_method"] == "rfr_observation_shift"
-        assert frn.kwargs["method_param"] == 5
-        assert frn.kwargs["convention"] == "act360"
-        assert frn.kwargs["currency"] == "usd"
-        assert frn.kwargs["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
-        assert frn.kwargs["schedule"].modifier == Adjuster.ModifiedFollowing()
+        assert frn.kwargs.leg1["fixing_method"] == "rfr_observation_shift"
+        assert frn.kwargs.leg1["method_param"] == 5
+        assert frn.kwargs.leg1["convention"] == "act360"
+        assert frn.kwargs.leg1["currency"] == "usd"
+        assert frn.kwargs.leg1["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
+        assert frn.kwargs.leg1["schedule"].modifier == Adjuster.ModifiedFollowing()
 
     def test_xcs(self) -> None:
         xcs = XCS(

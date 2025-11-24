@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         CalInput,
         CurveOption_,
         Curves_,
+        DualTypes,
         DualTypes_,
         Frequency,
         FXForwards_,
@@ -294,7 +295,7 @@ class FixedRateBond(_BaseBondInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
         if metric_ in ["clean_price", "dirty_price", "ytm"]:
             _curves = self._parse_curves(curves)

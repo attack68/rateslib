@@ -123,41 +123,32 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
-        dfs = []
-        dfs.append(
-            self.legs[0].local_analytic_rate_fixings(
-                rate_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "rate_curve", solver
-                ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "disc_curve", solver
-                ),
-                index_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "index_curve", solver
-                ),
-                fx=_fx_maybe_from_solver,
-                fx_vol=fx_vol,
-                settlement=settlement,
-                forward=forward,
+        dfs: list[DataFrame] = []
+        for leg, names in zip(
+            self.legs,
+            [
+                ("rate_curve", "disc_curve", "index_curve"),
+                ("leg2_rate_curve", "leg2_disc_curve", "leg2_index_curve"),
+            ],
+            strict=False,
+        ):
+            dfs.append(
+                leg.local_analytic_rate_fixings(
+                    rate_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, names[0], solver
+                    ),
+                    disc_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, names[1], solver
+                    ),
+                    index_curve=_get_maybe_curve_maybe_from_solver(
+                        _curves_meta, _curves, names[2], solver
+                    ),
+                    fx=_fx_maybe_from_solver,
+                    fx_vol=fx_vol,
+                    settlement=settlement,
+                    forward=forward,
+                )
             )
-        )
-        dfs.append(
-            self.legs[1].local_analytic_rate_fixings(
-                rate_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "leg2_rate_curve", solver
-                ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "leg2_disc_curve", solver
-                ),
-                index_curve=_get_maybe_curve_maybe_from_solver(
-                    _curves_meta, _curves, "leg2_index_curve", solver
-                ),
-                fx=_fx_maybe_from_solver,
-                fx_vol=fx_vol,
-                settlement=settlement,
-                forward=forward,
-            )
-        )
 
         with warnings.catch_warnings():
             # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries

@@ -379,3 +379,52 @@ class TestRateParams:
                 identifier="NOT_AVAILABLE",
             )
         assert isinstance(fix.value, NoInput)
+
+    def test_rfr_fixing_identifier(self):
+        p = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 4, 1),
+            frequency=Frequency.Months(3, None),
+            payment=dt(2000, 1, 4),
+            fixing_method=FloatFixingMethod.RFRPaymentDelay,
+            rate_fixings="TEST",
+        )
+        assert p.rate_params.fixing_identifier == "TEST"
+        assert p.rate_params.rate_fixing.identifier == "TEST_1B"
+
+    def test_ibor_fixing_identifier(self):
+        p = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 4, 1),
+            frequency=Frequency.Months(3, None),
+            payment=dt(2000, 1, 4),
+            fixing_method=FloatFixingMethod.IBOR,
+            rate_fixings="TEST",
+        )
+        assert p.rate_params.fixing_identifier == "TEST"
+        assert p.rate_params.rate_fixing.identifier == "TEST_3M"
+
+    def test_ibor12M_fixing_identifier(self):
+        p = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2001, 1, 1),
+            frequency=Frequency.Months(12, None),
+            payment=dt(2000, 1, 4),
+            fixing_method=FloatFixingMethod.IBOR,
+            rate_fixings="TEST",
+        )
+        assert p.rate_params.fixing_identifier == "TEST"
+        assert p.rate_params.rate_fixing.identifier == "TEST_12M"
+
+    def test_ibor_stub_fixing_identifier(self):
+        p = FloatPeriod(
+            start=dt(2000, 1, 1),
+            end=dt(2000, 3, 1),
+            frequency=Frequency.Months(3, None),
+            payment=dt(2000, 1, 4),
+            fixing_method=FloatFixingMethod.IBOR,
+            stub=True,
+            rate_fixings="TEST",
+        )
+        assert p.rate_params.fixing_identifier == "TEST"
+        assert p.rate_params.rate_fixing.identifier == "TEST"

@@ -10,18 +10,12 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments import (
-    # Bill,
-    # BondFuture,
-    # FixedRateBond,
-    FloatRateNote,
-    # IndexFixedRateBond,
-)
 from rateslib.instruments.components import (
     IRS,
     Bill,
     BondFuture,
     FixedRateBond,
+    FloatRateNote,
     IndexFixedRateBond,
 )
 from rateslib.instruments.components.bonds.conventions import US_GBB, BondCalcMode
@@ -2733,16 +2727,16 @@ class TestFloatRateNote:
             (500, NoInput(0), 0, 508.93107035125325),
             (-200, NoInput(0), 0, -200.053341848676),
             (10, "isda_compounding", 0, 10.00000120),
-            (500, "isda_compounding", 0, 500.050371345),
-            (-200, "isda_compounding", 0, -200.003309580533),
+            (500, "isda_compounding", 0, 499.9999999997),
+            (-200, "isda_compounding", 0, -199.99999999),
             (10, NoInput(0), 25, 10.055032859883),
             (500, NoInput(0), 250, 508.93107035125325),
             (10, "isda_compounding", 25, 10.00000120),
-            (500, "isda_compounding", 250, 500.00635330533544),
+            (500, "isda_compounding", 250, 499.99999999975523),
             (10, NoInput(0), -25, 10.055032859883),
             (500, NoInput(0), -250, 508.93107035125325),
             (10, "isda_compounding", -25, 10.00000120),
-            (500, "isda_compounding", -250, 500.16850637415),
+            (500, "isda_compounding", -250, 499.9999999997),
         ],
     )
     def test_float_rate_bond_rate_spread(self, curve_spd, method, float_spd, expected) -> None:
@@ -2766,12 +2760,12 @@ class TestFloatRateNote:
         )
         curve = Curve({dt(2007, 1, 1): 1.0, dt(2017, 1, 1): 0.9}, convention="Act365f")
         disc_curve = curve.shift(curve_spd)
-        result = bond.rate([curve, disc_curve], metric="spread")
+        result = bond.rate(curves=[curve, disc_curve], metric="spread")
         assert abs(result - expected) < 1e-4
 
         bond.float_spread = result
-        validate = bond.npv([curve, disc_curve])
-        assert abs(validate + bond.leg1.notional) < 0.30 * abs(curve_spd)
+        validate = bond.npv(curves=[curve, disc_curve])
+        assert abs(validate + bond.leg1.settlement_params.notional) < 0.30 * abs(curve_spd)
 
     @pytest.mark.parametrize(
         ("curve_spd", "method", "float_spd", "expected"),
@@ -2794,18 +2788,19 @@ class TestFloatRateNote:
         disc_curve = curve.shift(curve_spd)
         fxr = FXRates({"usdnok": 10.0}, settlement=dt(2007, 1, 1))
         result = bond.rate(
-            [curve, disc_curve],
+            curves=[curve, disc_curve],
             metric="spread",
             fx=fxr,
         )
         assert abs(result - expected) < 1e-4
 
         bond.float_spread = result
-        validate = bond.npv([curve, disc_curve], fx=fxr)
-        assert abs(validate + bond.leg1.notional) < 0.30 * abs(curve_spd)
+        validate = bond.npv(curves=[curve, disc_curve], fx=fxr)
+        assert abs(validate + bond.leg1.settlement_params.notional) < 0.30 * abs(curve_spd)
 
     def test_float_rate_bond_accrued(self) -> None:
-        fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_1B", Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1))))
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -2814,12 +2809,13 @@ class TestFloatRateNote:
             ex_div=3,
             float_spread=100,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=5,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(dt(2010, 3, 3))
         expected = 0.5019199020076  # 3% * 2 / 12
+        fixings.pop(name + "_1B")
         assert abs(result - expected) < 1e-8
 
     @pytest.mark.parametrize(
@@ -2832,7 +2828,8 @@ class TestFloatRateNote:
         ],
     )
     def test_float_rate_bond_rate_metric(self, metric, spd, exp) -> None:
-        fixings = Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_1B", Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1))))
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -2841,7 +2838,7 @@ class TestFloatRateNote:
             ex_div=3,
             float_spread=spd,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=5,
             spread_compound_method="none_simple",
             settle=2,
@@ -2850,6 +2847,7 @@ class TestFloatRateNote:
         disc_curve = curve.shift(spd)
 
         result = bond.rate(curves=[curve, disc_curve], metric=metric)
+        fixings.pop(name + "_1B")
         assert abs(result - exp) < 1e-8
 
     @pytest.mark.parametrize(
@@ -2860,7 +2858,8 @@ class TestFloatRateNote:
         ],
     )
     def test_initialised_rate_metric(self, metric, spd, exp) -> None:
-        fixings = Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_1B", Series(0.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1))))
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -2869,7 +2868,7 @@ class TestFloatRateNote:
             ex_div=3,
             float_spread=spd,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=5,
             spread_compound_method="none_simple",
             settle=2,
@@ -2879,14 +2878,19 @@ class TestFloatRateNote:
         disc_curve = curve.shift(spd)
 
         result = bond.rate(curves=[curve, disc_curve])
+        fixings.pop(name + "_1B")
         assert abs(result - exp) < 1e-8
 
     @pytest.mark.parametrize(
         ("settlement", "expected"),
-        [(dt(2010, 3, 3), 0.501369863013698), (dt(2010, 12, 30), -0.005479452054)],
+        [
+            (dt(2010, 3, 3), 0.501369863013698),
+            (dt(2010, 6, 30), -0.008219178082191761),  # ex div with fixed IBOR
+        ],
     )
     def test_float_rate_bond_accrued_ibor(self, settlement, expected) -> None:
-        fixings = Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1)))
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_6M", Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 1))))
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -2895,15 +2899,16 @@ class TestFloatRateNote:
             ex_div=3,
             float_spread=100,
             fixing_method="ibor",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=2,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(settlement)
+        fixings.pop(name + "_6M")
         assert abs(result - expected) < 1e-8
 
     def test_float_rate_bond_raise_frequency(self) -> None:
-        with pytest.raises(ValueError, match="FloatRateNote `frequency`"):
+        with pytest.raises(ValueError, match="A `FloatRateNote` cannot have a 'zero' freq"):
             FloatRateNote(
                 effective=dt(2007, 1, 1),
                 termination=dt(2017, 1, 1),
@@ -2912,19 +2917,14 @@ class TestFloatRateNote:
                 ex_div=3,
                 float_spread=100,
                 fixing_method="rfr_observation_shift",
-                fixings=NoInput(0),
+                rate_fixings=NoInput(0),
                 method_param=5,
                 spread_compound_method="none_simple",
             )
 
-    @pytest.mark.parametrize(
-        "fixings",
-        [
-            Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 8))),
-            [2.0, [2.0, 2.0]],
-        ],
-    )
-    def test_negative_accrued_needs_forecasting(self, fixings) -> None:
+    def test_negative_accrued_needs_forecasting(self) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_1B", Series(2.0, index=date_range(dt(2009, 12, 1), dt(2010, 3, 8))))
         bond = FloatRateNote(
             effective=dt(2009, 9, 16),
             termination=dt(2017, 3, 16),
@@ -2933,24 +2933,30 @@ class TestFloatRateNote:
             ex_div=6,
             float_spread=0,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
-        with pytest.warns(UserWarning):
-            result = bond.accrued(dt(2010, 3, 11))
+        from rateslib.data.fixings import FixingMissingForecasterError
 
-        # approximate calculation 5 days of negative accrued at 2% = -0.027397
-        assert abs(result + 2 * 5 / 365) < 1e-3
+        with pytest.raises(
+            FixingMissingForecasterError,
+            match="A `rate_curve` is required to forecast missing RFR rates",
+        ):
+            bond.accrued(dt(2010, 3, 11))
+            fixings.pop(name + "_1B")
+
+        # # approximate calculation 5 days of negative accrued at 2% = -0.027397
+        # assert abs(result + 2 * 5 / 365) < 1e-3
 
     @pytest.mark.parametrize(
-        "fixings",
+        "rate_fixings",
         [
             NoInput(0),
         ],
     )
-    def test_negative_accrued_raises(self, fixings) -> None:
+    def test_negative_accrued_raises(self, rate_fixings) -> None:
         bond = FloatRateNote(
             effective=dt(2009, 9, 16),
             termination=dt(2017, 3, 16),
@@ -2959,14 +2965,34 @@ class TestFloatRateNote:
             ex_div=5,
             float_spread=0,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=rate_fixings,
             method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
-        with pytest.raises(TypeError, match="`fixings` or `curve` are not available for RFR"):
+        from rateslib.data.fixings import FixingMissingForecasterError
+
+        with pytest.raises(
+            FixingMissingForecasterError,
+            match="A `rate_curve` is required to forecast missing RFR rate",
+        ):
             bond.accrued(dt(2010, 3, 11))
 
+    @pytest.mark.skip(reason="v2.5 removed these validations")
+    def test_bad_accrued_parameter_combo_raises(self, rate_fixings) -> None:
+        bond = FloatRateNote(
+            effective=dt(2009, 9, 16),
+            termination=dt(2017, 3, 16),
+            frequency="Q",
+            convention="Act365f",
+            ex_div=5,
+            float_spread=0,
+            fixing_method="rfr_observation_shift",
+            rate_fixings=rate_fixings,
+            method_param=5,
+            spread_compound_method="none_simple",
+            calendar=NoInput(0),
+        )
         with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
             bond = FloatRateNote(
                 effective=dt(2009, 9, 16),
@@ -2986,7 +3012,7 @@ class TestFloatRateNote:
             ex_div=0,
             float_spread=0,
             fixing_method="rfr_observation_shift",
-            fixings=NoInput(0),
+            rate_fixings=NoInput(0),
             method_param=0,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
@@ -3007,15 +3033,15 @@ class TestFloatRateNote:
             notional=-1000000,
             settle=0,
             fixing_method="ibor",
-            fixings=2.0,
+            rate_fixings=2.0,
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 1.0})
-        result = frn.analytic_delta(curve)
+        result = frn.analytic_delta(curves=curve)
         expected = -550.0
         assert abs(result - expected) < 1e-6
 
-        frn.kwargs["settle"] = 2
-        result = frn.analytic_delta(curve)  # bond is ex div on settle 27th Nov 2010
+        frn.kwargs.meta["settle"] = 2
+        result = frn.analytic_delta(curves=curve)  # bond is ex div on settle 27th Nov 2010
         expected = -500.0  # bond has dropped a 6m coupon payment
         assert abs(result - expected) < 1e-6
 
@@ -3029,9 +3055,13 @@ class TestFloatRateNote:
         ],
     )
     def test_float_rate_bond_forward_prices(self, metric, spd, exp) -> None:
-        fixings = Series(
-            data=2.0,
-            index=get_calendar("bus").bus_date_range(start=dt(2007, 1, 1), end=dt(2010, 2, 26)),
+        name = str(hash(os.urandom(8)))
+        fixings.add(
+            name + "_1B",
+            Series(
+                data=2.0,
+                index=get_calendar("bus").bus_date_range(start=dt(2007, 1, 1), end=dt(2010, 2, 26)),
+            ),
         )
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
@@ -3042,7 +3072,7 @@ class TestFloatRateNote:
             float_spread=spd,
             fixing_method="rfr_observation_shift",
             calendar="bus",
-            fixings=fixings,
+            rate_fixings=name,
             method_param=5,
             spread_compound_method="none_simple",
             settle=2,
@@ -3057,8 +3087,9 @@ class TestFloatRateNote:
         result = bond.rate(
             curves=[curve, disc_curve],
             metric=metric,
-            forward_settlement=dt(2010, 8, 1),
+            settlement=dt(2010, 8, 1),
         )
+        fixings.pop(name + "_1B")
         assert abs(result - exp) < 1e-8
 
     def test_float_rate_bond_forward_accrued(self) -> None:
@@ -3076,7 +3107,7 @@ class TestFloatRateNote:
         )
         curve = Curve({dt(2010, 3, 1): 1.0, dt(2017, 1, 1): 0.9}, convention="act365f")
         # disc_curve = curve.shift(0)
-        result = bond.accrued(dt(2010, 8, 1), curve=curve)
+        result = bond.accrued(dt(2010, 8, 1), rate_curve=curve)
         expected = 0.13083715795372267
         assert abs(result - expected) < 1e-8
 
@@ -3095,7 +3126,7 @@ class TestFloatRateNote:
         )
 
         with pytest.raises(ValueError, match="`metric` must be in"):
-            bond.rate(NoInput(0), metric="BAD")
+            bond.rate(metric="BAD")
 
     def test_forecast_ibor(self, curve) -> None:
         f_curve = LineCurve({dt(2022, 1, 1): 3.0, dt(2022, 2, 1): 4.0})
@@ -3106,7 +3137,7 @@ class TestFloatRateNote:
             fixing_method="ibor",
             method_param=0,
         )
-        result = frn.accrued(dt(2022, 2, 5), curve=f_curve)
+        result = frn.accrued(dt(2022, 2, 5), rate_curve=f_curve)
         expected = 0.044444444
         assert abs(result - expected) < 1e-4
 
@@ -3119,21 +3150,31 @@ class TestFloatRateNote:
             termination=dt(2008, 12, 7),
             frequency="q",
             fixing_method="rfr_payment_delay",
-            fixings=[[4.0]],
+            rate_fixings=[4.0],
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.75})
         # result = bond.rate(curve, metric="clean_price") = 99.999999999999953
-        result = bond.oaspread(curve, price=price)
+        result = bond.oaspread(curves=curve, price=price)
         curve_z = curve.shift(result)
-        result = bond.rate([curve, curve_z], metric="clean_price")
+        result = bond.rate(curves=[curve, curve_z], metric="clean_price")
         assert abs(result - price) < tol
 
     def test_settle_method_param_combinations(self) -> None:
         # for RFR when method_param is less than settle curve based pricing methods will
         # require forecasting from RFR curve to correctly calculate the accrued.
-        fixings = Series(
-            [2.0, 3.0, 4.0, 5.0, 6.0],
-            index=[dt(2022, 1, 2), dt(2022, 1, 3), dt(2022, 1, 4), dt(2022, 1, 5), dt(2022, 1, 6)],
+        name = str(hash(os.urandom(8)))
+        fixings.add(
+            name + "_1B",
+            Series(
+                [2.0, 3.0, 4.0, 5.0, 6.0],
+                index=[
+                    dt(2022, 1, 2),
+                    dt(2022, 1, 3),
+                    dt(2022, 1, 4),
+                    dt(2022, 1, 5),
+                    dt(2022, 1, 6),
+                ],
+            ),
         )
         frn = FloatRateNote(
             effective=dt(2022, 1, 5),
@@ -3142,11 +3183,14 @@ class TestFloatRateNote:
             settle=3,
             method_param=2,
             fixing_method="rfr_observation_shift",
-            fixings=fixings,
+            rate_fixings=name,
             convention="Act365F",
             ex_div=1,
         )
-        curve = Curve({dt(2022, 1, 7): 1.0, dt(2023, 1, 7): 0.95})
+        curve = Curve(
+            nodes={dt(2022, 1, 7): 1.0, dt(2023, 1, 7): 0.95},
+            convention="act365f",
+        )
 
         # Case1: All fixings are known and are published
         # in this case a Curve is not required and is not given
@@ -3154,25 +3198,28 @@ class TestFloatRateNote:
         assert abs(result - 0.04932400) < 1e-6
 
         # Case2: Some fixings are unknown and must be forecast by a curve.
-        # None are supplied so a UserWarning is generated and they are forward filled.
-        with pytest.warns(UserWarning, match="A `Curve` was not supplied."):
-            result = frn.accrued(settlement=dt(2022, 1, 10))
-            assert abs(result - 0.065770465) < 1e-6
+        # If a curve is not supplied this will error
+        from rateslib.data.fixings import FixingMissingForecasterError
+
+        with pytest.raises(
+            FixingMissingForecasterError, match="A `rate_curve` is required to forecast missing RFR"
+        ):
+            frn.accrued(settlement=dt(2022, 1, 10))
 
         # Case3: Some fixings are unknown and must be forecast by a curve.
         # A curve is given so this is used to forecast the values.
-        result = frn.accrued(settlement=dt(2022, 1, 10), curve=curve)
-        assert abs(result - 0.06319248) < 1e-6
+        result = frn.accrued(settlement=dt(2022, 1, 10), rate_curve=curve)
+        assert abs(result - 0.06338487826265116) < 1e-6
 
         # Case4: The bond settles on Issue date and there is no accrued if curve supplied or not
         result1 = frn.accrued(settlement=dt(2022, 1, 5))
-        result2 = frn.accrued(settlement=dt(2022, 1, 5), curve=curve)
+        result2 = frn.accrued(settlement=dt(2022, 1, 5), rate_curve=curve)
         assert abs(result1) < 1e-6
         assert abs(result2) < 1e-6
 
         # Case5: The bond settles on a coupon date and there is no accrued if curve supplied or not
         result1 = frn.accrued(settlement=dt(2022, 4, 5))
-        result2 = frn.accrued(settlement=dt(2022, 4, 5), curve=curve)
+        result2 = frn.accrued(settlement=dt(2022, 4, 5), rate_curve=curve)
         assert abs(result1) < 1e-6
         assert abs(result2) < 1e-6
 
@@ -3188,7 +3235,7 @@ class TestFloatRateNote:
             ex_div=1,
         )
         result1 = frn_no_fixings.accrued(settlement=dt(2022, 1, 5))
-        result2 = frn_no_fixings.accrued(settlement=dt(2022, 1, 5), curve=curve)
+        result2 = frn_no_fixings.accrued(settlement=dt(2022, 1, 5), rate_curve=curve)
         assert abs(result1) < 1e-6
         assert abs(result2) < 1e-6
 
@@ -3204,12 +3251,16 @@ class TestFloatRateNote:
             convention="Act365F",
             ex_div=1,
         )
-        result = frn_no_fixings.accrued(settlement=dt(2022, 1, 10), curve=curve)
-        assert abs(result - 0.04159011) < 1e-6
+        result = frn_no_fixings.accrued(settlement=dt(2022, 1, 10), rate_curve=curve)
+        assert abs(result - 0.04216776020085078) < 1e-6
 
         # Case8: bond settles a few days forward, no fixings are given and no curve. Must error.
-        with pytest.raises(TypeError, match="`fixings` or `curve` are not available for"):
+        with pytest.raises(
+            FixingMissingForecasterError,
+            match="A `rate_curve` is required to forecast missing RFR rates",
+        ):
             frn_no_fixings.accrued(settlement=dt(2022, 1, 10))
+        fixings.pop(name + "_1B")
 
     def test_ibor_fixings_table_historical_before_curve(self, curve):
         # see test FloatPeriod.test_ibor_fixings_table_historical_before_curve
@@ -3218,10 +3269,10 @@ class TestFloatRateNote:
             termination=dt(2002, 8, 7),
             frequency="q",
             fixing_method="ibor",
-            fixings=[4.0],
+            rate_fixings=[4.0],
             curves=[curve],
         )
-        result = bond.fixings_table()
+        result = bond.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
 
     def test_ibor_fixings_table_with_fixing(self, curve):
@@ -3231,14 +3282,14 @@ class TestFloatRateNote:
             termination=dt(2022, 8, 7),
             frequency="q",
             fixing_method="ibor",
-            fixings=[4.0],
+            rate_fixings=[4.0],
             curves=[curve],
         )
-        result = bond.fixings_table()
+        result = bond.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
         assert result.iloc[0, 0] == 0.0
-        assert result.iloc[1, 0] == -1e6
-        assert result.iloc[2, 0] == -1e6
+        assert abs(result.iloc[1, 0] + 24.376897) < 1e-6
+        assert abs(result.iloc[2, 0] + 24.941351) < 1e-6
 
     def test_ibor_ytm_rate(self, curve):
         # test a FixedRateBond and FloatRateNote with same conventions and cashflows have same ytm
@@ -3252,9 +3303,10 @@ class TestFloatRateNote:
             convention="actacticma",
             calendar="nyc",
             modifier="none",
-            fixings=[4.0],
+            rate_fixings=[4.0],
             curves=[ibor_curve, disc_curve],
             calc_mode="us_gb",
+            fixing_series="eur_ibor",
             settle=1,
         )
         frb = FixedRateBond(
@@ -3284,7 +3336,7 @@ class TestFloatRateNote:
             convention="actacticma",
             calendar="nyc",
             modifier="none",
-            fixings=[4.0, 4.0, 4.0],
+            rate_fixings=[4.0, 4.0, 4.0],
             calc_mode="us_gb",
             settle=1,
         )
@@ -3305,7 +3357,8 @@ class TestFloatRateNote:
         assert abs(y1 - y2) < 1e-12  # FRN and equivalent FRB have the same yield-to-maturity.
 
     def test_cashflows_known_fixings(self):
-        fixings = Series(2.0, index=date_range(dt(1999, 12, 1), dt(2004, 6, 2)))
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_1B", Series(2.0, index=date_range(dt(1999, 12, 1), dt(2004, 6, 2))))
 
         frn = FloatRateNote(
             effective=dt(2000, 12, 7),
@@ -3314,11 +3367,12 @@ class TestFloatRateNote:
             currency="gbp",
             convention="Act365F",
             ex_div=3,
-            fixings=fixings,
+            rate_fixings=name,
             fixing_method="rfr_observation_shift_avg",
             method_param=5,
         )
         result = frn.cashflows()
+        fixings.pop(name + "_1B")
         assert isinstance(result, DataFrame)
         assert abs(result["Cashflow"].iloc[0] + 10000) < 50.0
         assert abs(result["Cashflow"].iloc[1] + 10000) < 50.0
