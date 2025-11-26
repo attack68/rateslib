@@ -4,18 +4,20 @@ from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
-    _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
     _WithPricingObjs,
 )
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
         Solver_,
+        _BaseLeg,
         _Curves,
         _KWArgs,
         datetime_,
@@ -28,16 +30,16 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
     Protocol to determine the *analytic rate delta* of a particular *Leg* of an *Instrument*.
     """
 
-    _kwargs: _KWArgs
+    @property
+    def kwargs(self) -> _KWArgs: ...
 
     @property
-    def kwargs(self) -> _KWArgs:
-        return self._kwargs
+    def legs(self) -> list[_BaseLeg]: ...
 
     def analytic_delta(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -92,27 +94,26 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         for this conversion although best practice does not recommend it due to possible
         settlement date conflicts.
         """
-        assert hasattr(self, "legs")  # noqa: S101
-
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
 
         prefix = "" if leg == 1 else "leg2_"
 
-        return self.legs[leg - 1].analytic_delta(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
+        value: DualTypes | dict[str, DualTypes] = self.legs[leg - 1].analytic_delta(
+            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}rate_curve", solver
             ),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}disc_curve", solver
             ),
-            index_curve=_get_maybe_curve_maybe_from_solver(
+            index_curve=_maybe_get_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}index_curve", solver
             ),
             fx_vol=fx_vol,
-            fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
+            fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
             base=base,
             local=local,
             settlement=settlement,
             forward=forward,
         )
+        return value

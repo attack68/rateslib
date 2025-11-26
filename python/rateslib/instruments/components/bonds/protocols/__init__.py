@@ -11,7 +11,7 @@ from rateslib.instruments.components.bonds.protocols.repo import _WithRepo
 from rateslib.instruments.components.bonds.protocols.ytm import _WithYTM
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.pricing import (
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 
 if TYPE_CHECKING:
@@ -50,7 +50,7 @@ class _BaseBondInstrument(
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         _curves = self._parse_curves(curves)
-        disc_curve = _get_maybe_curve_maybe_from_solver(
+        disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             curves_meta=self.kwargs.meta["curves"], curves=_curves, name="disc_curve", solver=solver
         )
         if isinstance(settlement, NoInput):
@@ -130,7 +130,7 @@ class _BaseBondInstrument(
     ) -> DualTypes | dict[str, DualTypes]:
         settlement_ = self._maybe_get_settlement(
             settlement=settlement,
-            disc_curve=_get_maybe_curve_maybe_from_solver(
+            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
                 curves=self._parse_curves(curves),
                 name="disc_curve",

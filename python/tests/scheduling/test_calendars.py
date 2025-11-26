@@ -18,7 +18,7 @@ from rateslib.scheduling import (
     next_imm,
 )
 from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
-from rateslib.scheduling.frequency import _get_frequency, _get_fx_expiry_and_delivery
+from rateslib.scheduling.frequency import _get_frequency, _get_fx_expiry_and_delivery_and_payment
 
 
 @pytest.fixture
@@ -573,26 +573,22 @@ def test_add_and_get_custom_calendar() -> None:
     ],
 )
 def test_expiries_delivery(evald, delivery, expiry, expected_expiry) -> None:
-    result_expiry, _ = _get_fx_expiry_and_delivery(
-        evald,
-        expiry,
-        delivery,
-        "tgt|fed",
-        "mf",
-        False,
+    result_expiry, _, _ = _get_fx_expiry_and_delivery_and_payment(
+        evald, expiry, delivery, "tgt|fed", "mf", False, 0
     )
     assert result_expiry == expected_expiry
 
 
 def test_expiries_delivery_raises() -> None:
     with pytest.raises(ValueError, match="Cannot determine FXOption expiry and delivery"):
-        _get_fx_expiry_and_delivery(
+        _get_fx_expiry_and_delivery_and_payment(
             dt(2000, 1, 1),
             "3m",
             dt(2000, 3, 2),
             "tgt|fed",
             "mf",
             False,
+            0,
         )
 
 

@@ -14,14 +14,13 @@ from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import _get_fx_delta_type
 from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
-from rateslib.instruments.base import Metrics
-from rateslib.instruments.sensitivities import Sensitivities
-from rateslib.instruments.utils import (
-    _get_fxvol_curves_fx_and_base_maybe_from_solver,
-    _push,
-    _update_with_defaults,
+from rateslib.instruments.components.protocols import _BaseInstrument, _KWArgs
+from rateslib.instruments.components.protocols.pricing import (
+    _Curves,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
-from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
+from rateslib.legs.components import CustomLeg
+from rateslib.periods.components import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 
@@ -63,7 +62,7 @@ class _PricingMetrics:
     f_d: DualTypes
 
 
-class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
+class FXOption(_BaseInstrument, metaclass=ABCMeta):
     """
     Create an *FX Option*.
 
@@ -103,7 +102,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
     premium_ccy: str, optional (RHS)
         The currency in which the premium is paid. Can *only* be one of the two currencies
         in `pair`.
-    option_fixing: float
+    option_fixings: float
         The value determined at expiry to set the moneyness of the option.
     delta_type: str in {"spot", "forward"}, optional (defaults.fx_delta_type)
         When deriving strike from delta use the equation associated with spot or forward delta.
@@ -155,13 +154,31 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
 
     """
 
-    style: str = "european"
     _rate_scalar: float = 1.0
     _pricing: _PricingMetrics
 
-    _option_periods: tuple[FXPutPeriod | FXCallPeriod]
-    _cashflow_periods: tuple[Cashflow]
-    curves: Curves_
+    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+        """
+        An FXOption has two curve requirements: a discount curve
+
+        When given as only 1 element this curve is applied to all of the those components
+
+        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        """
+        if isinstance(curves, NoInput):
+            return _Curves()
+        if isinstance(curves, dict):
+            return _Curves(
+                rate_curve=curves.get("rate_curve", NoInput(0)),
+                disc_curve=curves.get("disc_curve", NoInput(0)),
+            )
+        elif isinstance(curves, list | tuple) and len(curves) == 2:
+            return _Curves(
+                rate_curve=curves[0],
+                disc_curve=curves[1],
+            )
+        else:
+            raise ValueError(f"{type(self).__name__} requires 2 curve types. Got {len(curves)}.")
 
     def __init__(
         self,
@@ -177,21 +194,22 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         premium: DualTypes_ = NoInput(0),
         premium_ccy: str_ = NoInput(0),
         payment_lag: str | datetime_ = NoInput(0),
-        option_fixing: DualTypes_ = NoInput(0),
+        option_fixings: DualTypes_ = NoInput(0),
         delta_type: str_ = NoInput(0),
         metric: str_ = NoInput(0),
         curves: Curves_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
         spec: str_ = NoInput(0),
+        call: bool = True,
     ):
-        self.kwargs: dict[str, Any] = dict(
+        user_args = dict(
             pair=pair,
             expiry=expiry,
             notional=notional,
             strike=strike,
             premium=premium,
             premium_ccy=premium_ccy,
-            option_fixing=option_fixing,
+            option_fixings=option_fixings,
             payment_lag=payment_lag,
             delivery_lag=delivery_lag,
             calendar=calendar,
@@ -199,80 +217,114 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             modifier=modifier,
             delta_type=delta_type,
             metric=metric,
+            curves=self._parse_curves(curves),
+            vol=vol,
         )
-        self.kwargs = _push(spec, self.kwargs)
-
-        self.kwargs = _update_with_defaults(
-            self.kwargs,
-            {
-                "delta_type": defaults.fx_delta_type,
-                "notional": defaults.notional,
-                "modifier": defaults.modifier,
-                "metric": "pips_or_%",
-                "delivery_lag": defaults.fx_delivery_lag,
-                "payment_lag": defaults.payment_lag,
-                "premium_ccy": self.kwargs["pair"][3:],
-                "eom": defaults.eom_fx,
-            },
+        instrument_args = dict()
+        default_args = dict(
+            delta_type=defaults.fx_delta_type,
+            notional=defaults.notional,
+            modifier=defaults.modifier,
+            metric="pips_or_%",
+            delivery_lag=defaults.fx_delivery_lag,
+            payment_lag=defaults.payment_lag,
+            premium_ccy=pair[3:],
+            eom=defaults.eom_fx,
+        )
+        self._kwargs = _KWArgs(
+            user_args=user_args,
+            default_args=default_args,
+            spec=spec,
+            meta_args=["curves", "vol", "metric"],
         )
 
-        (self.kwargs["expiry"], self.kwargs["delivery"], self.kwargs["payment"]) = (
+        # determine the `expiry` and `delivery` as datetimes if derived from other combinations
+        (self.kwargs.leg1["expiry"], self.kwargs.leg1["delivery"], self.kwargs.leg1["payment"]) = (
             _get_fx_expiry_and_delivery_and_payment(
                 eval_date=eval_date,
-                expiry=self.kwargs["expiry"],
-                delivery_lag=self.kwargs["delivery_lag"],
-                calendar=self.kwargs["calendar"],
-                modifier=self.kwargs["modifier"],
-                eom=self.kwargs["eom"],
-                payment_lag=self.kwargs["payment_lag"],
+                expiry=self.kwargs.leg1["expiry"],
+                delivery_lag=self.kwargs.leg1["delivery_lag"],
+                calendar=self.kwargs.leg1["calendar"],
+                modifier=self.kwargs.leg1["modifier"],
+                eom=self.kwargs.leg1["eom"],
+                payment_lag=self.kwargs.leg1["payment_lag"],
             )
         )
 
-        if self.kwargs["premium_ccy"] not in [
-            self.kwargs["pair"][:3],
-            self.kwargs["pair"][3:],
+        if self.kwargs.leg1["premium_ccy"] not in [
+            self.kwargs.leg1["pair"][:3],
+            self.kwargs.leg1["pair"][3:],
         ]:
             raise ValueError(
-                f"`premium_ccy`: '{self.kwargs['premium_ccy']}' must be one of option "
-                f"currency pair: '{self.kwargs['pair']}'.",
+                f"`premium_ccy`: '{self.kwargs.leg1['premium_ccy']}' must be one of option "
+                f"currency pair: '{self.kwargs.leg1['pair']}'.",
             )
-        elif self.kwargs["premium_ccy"] == self.kwargs["pair"][3:]:
-            self.kwargs["metric_period"] = "pips"
-            self.kwargs["delta_method"] = _get_fx_delta_type(self.kwargs["delta_type"])
+        elif self.kwargs.leg1["premium_ccy"] == self.kwargs.leg1["pair"][3:]:
+            self.kwargs.meta["metric_period"] = "pips"
+            self.kwargs.meta["delta_method"] = _get_fx_delta_type(self.kwargs.leg1["delta_type"])
         else:
-            self.kwargs["metric_period"] = "percent"
-            self.kwargs["delta_method"] = _get_fx_delta_type(self.kwargs["delta_type"] + "_pa")
-
-        # nothing to inherit or negate.
-        # self.kwargs = _inherit_or_negate(self.kwargs)  # inherit or negate the complete arg list
+            self.kwargs.meta["metric_period"] = "percent"
+            self.kwargs.meta["delta_method"] = _get_fx_delta_type(
+                self.kwargs.leg1["delta_type"] + "_pa"
+            )
 
         self._validate_strike_and_premiums()
 
-        self.vol = vol
-        self.curves = curves
-        self.spec = spec
+        if call:
+            option = FXCallPeriod(
+                pair=self.kwargs.leg1["pair"],
+                expiry=self.kwargs.leg1["expiry"],
+                delivery=self.kwargs.leg1["delivery"],
+                strike=(
+                    NoInput(0)
+                    if isinstance(self.kwargs.leg1["strike"], str)
+                    else self.kwargs.leg1["strike"]
+                ),
+                notional=self.kwargs.leg1["notional"],
+                option_fixings=self.kwargs.leg1["option_fixings"],
+                delta_type=self.kwargs.meta["delta_method"],
+                metric=self.kwargs.meta["metric_period"],
+            )
+        else:
+            option = FXPutPeriod(
+                pair=self.kwargs.leg1["pair"],
+                expiry=self.kwargs.leg1["expiry"],
+                delivery=self.kwargs.leg1["delivery"],
+                strike=(
+                    NoInput(0)
+                    if isinstance(self.kwargs.leg1["strike"], str)
+                    else self.kwargs.leg1["strike"]
+                ),
+                notional=self.kwargs.leg1["notional"],
+                option_fixings=self.kwargs.leg1["option_fixings"],
+                delta_type=self.kwargs.meta["delta_method"],
+                metric=self.kwargs.meta["metric_period"],
+            )
 
-        self._cashflow_periods = (
-            Cashflow(
-                notional=self.kwargs["premium"],
-                payment=self.kwargs["payment"],
-                currency=self.kwargs["premium_ccy"],
-                stub_type="Premium",
-            ),
+        self._leg1 = CustomLeg(
+            [
+                option,
+                Cashflow(
+                    notional=self.kwargs.leg1["premium"],
+                    payment=self.kwargs.leg1["payment"],
+                    currency=self.kwargs.leg1["premium_ccy"],
+                ),
+            ]
         )
+        self._legs = [self._leg1]
 
     @property
     def periods(self) -> tuple[FXCallPeriod | FXPutPeriod, Cashflow]:
-        return (self._option_periods[0], self._cashflow_periods[0])
+        return (self._leg1[0], self._leg1[1])
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
 
     def _validate_strike_and_premiums(self) -> None:
-        if isinstance(self.kwargs["strike"], NoInput):
+        if isinstance(self.kwargs.leg1["strike"], NoInput):
             raise ValueError("`strike` for FXOption must be set to numeric or string value.")
-        if isinstance(self.kwargs["strike"], str) and not isinstance(
-            self.kwargs["premium"], NoInput
+        if isinstance(self.kwargs.leg1["strike"], str) and not isinstance(
+            self.kwargs.leg1["premium"], NoInput
         ):
             raise ValueError(
                 "FXOption with string delta as `strike` cannot be initialised with a known "
@@ -282,7 +334,8 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
 
     def _set_strike_and_vol(
         self,
-        curves: Curves_DiscTuple,
+        rate_curve,
+        disc_curve,
         fx: FX_,
         vol: FXVolOption_,
     ) -> None:
@@ -298,10 +351,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         Pricing elements are captured and cached so they can be used later by subsequent methods.
         """
         fx_ = _validate_fx_as_forwards(fx)
-        # vol_: FXVolOption = _validate_obj_not_no_input(vol, "vol")  # type: ignore[assignment]
         vol_ = vol
-        curves_3: _BaseCurve = _validate_obj_not_no_input(curves[3], "curves[3]")
-        curves_1: _BaseCurve = _validate_obj_not_no_input(curves[1], "curves[1]")
 
         self._pricing = _PricingMetrics(
             vol=None,
@@ -315,12 +365,12 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             eval_date = vol_.meta.eval_date
         else:
-            eval_date = curves_3.nodes.initial
+            eval_date = disc_curve.nodes.initial
             self._pricing.vol = vol_  # Not a vol model so set directly
-        self._pricing.t_e = self._option_periods[0]._t_to_expiry(eval_date)
+        self._pricing.t_e = self.periods[0]._t_to_expiry(eval_date)
 
-        w_deli = curves_1[self.kwargs["delivery"]]
-        w_spot = curves_1[self._pricing.spot]
+        w_deli = rate_curve[self.kwargs["delivery"]]
+        w_spot = rate_curve[self._pricing.spot]
 
         # determine if _PricingMetrics.k can be set directly to a numeric value
         if isinstance(self.kwargs["strike"], str) and self.kwargs["strike"].lower() in [
@@ -350,15 +400,15 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             # will determine the strike from % delta or ATM-delta string
             method = self.kwargs["strike"].lower()
             if method == "atm_delta":
-                self._pricing.delta_index, self._pricing.vol, self._pricing.k = (
-                    self._option_periods[0]._index_vol_and_strike_from_atm(
-                        delta_type=self._option_periods[0].delta_type,
-                        vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
-                        w_deli=w_deli,
-                        w_spot=w_spot,
-                        f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
-                        t_e=self._pricing.t_e,
-                    )
+                self._pricing.delta_index, self._pricing.vol, self._pricing.k = self.periods[
+                    0
+                ]._index_vol_and_strike_from_atm(
+                    delta_type=self.periods[0].fx_option_params.delta_type,
+                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+                    w_deli=w_deli,
+                    w_spot=w_spot,
+                    f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
+                    t_e=self._pricing.t_e,
                 )
 
             elif method[-1] == "d":  # representing delta
@@ -367,7 +417,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                     self._pricing.delta_index,
                     self._pricing.vol,
                     self._pricing.k,
-                ) = self._option_periods[0]._index_vol_and_strike_from_delta(
+                ) = self.periods[0]._index_vol_and_strike_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_method"],
                     vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
@@ -467,17 +517,15 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         more complex and
         integrated calculation.
         """
-        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
-            self.curves,
-            self.vol,
-            solver,
-            curves,
-            fx,
-            base,
-            vol,
-            self.kwargs["pair"][3:],
+        _curves = self._parse_curves(curves)
+        rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
         )
-        self._set_strike_and_vol(curves_, fx_, vol_)
+        disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
+        )
+        fx_ = _get
+        self._set_strike_and_vol(rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=vol_)
 
         # Premium is not required for rate and also sets as float
         # Review section: "Hyper-parameters and Solver interaction" before enabling.
@@ -488,8 +536,8 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
             return _validate_obj_not_no_input(self._pricing.vol, "vol")  # type: ignore[return-value]
 
         _: DualTypes = self._option_periods[0].rate(
-            disc_curve=_validate_obj_not_no_input(curves_[1], "curve"),
-            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curve"),
+            rate_curve=_validate_obj_not_no_input(curves_[1], "curve"),
+            disc_curve=_validate_obj_not_no_input(curves_[3], "curve"),
             fx=fx_,
             base=NoInput(0),
             vol=self._pricing.vol,  # type: ignore[arg-type]
@@ -772,22 +820,7 @@ class FXCall(FXOption):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._option_periods = (
-            FXCallPeriod(
-                pair=self.kwargs["pair"],
-                expiry=self.kwargs["expiry"],
-                delivery=self.kwargs["delivery"],
-                payment=self.kwargs["payment"],
-                strike=(
-                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
-                ),
-                notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_method"],
-                metric=self.kwargs["metric_period"],
-            ),
-        )
+        super().__init__(*args, **kwargs, call=True)
 
 
 class FXPut(FXOption):
@@ -798,19 +831,4 @@ class FXPut(FXOption):
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self._option_periods = (
-            FXPutPeriod(
-                pair=self.kwargs["pair"],
-                expiry=self.kwargs["expiry"],
-                delivery=self.kwargs["delivery"],
-                payment=self.kwargs["payment"],
-                strike=(
-                    NoInput(0) if isinstance(self.kwargs["strike"], str) else self.kwargs["strike"]
-                ),
-                notional=self.kwargs["notional"],
-                option_fixing=self.kwargs["option_fixing"],
-                delta_type=self.kwargs["delta_method"],
-                metric=self.kwargs["metric_period"],
-            ),
-        )
+        super().__init__(*args, **kwargs, call=False)

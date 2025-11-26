@@ -10,7 +10,7 @@ from rateslib.instruments.components.protocols.kwargs import _convert_to_schedul
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 
@@ -637,16 +637,16 @@ class XCS(_BaseInstrument):
         metric_ = _drb(self.kwargs.meta["metric"], metric)
 
         fx_ = _get_fx_maybe_from_solver(fx=fx, solver=solver)
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
-        leg2_disc_curve = _get_maybe_curve_maybe_from_solver(
+        leg2_disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
         )
-        rate_curve = _get_maybe_curve_maybe_from_solver(
+        rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "rate_curve", solver
         )
-        disc_curve = _get_maybe_curve_maybe_from_solver(
+        disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
 

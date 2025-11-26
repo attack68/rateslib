@@ -10,7 +10,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 from rateslib.scheduling import Adjuster
@@ -315,7 +315,7 @@ class FRA(_BaseInstrument):
         )
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
         fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
@@ -369,10 +369,10 @@ class FRA(_BaseInstrument):
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_get_maybe_curve_maybe_from_solver(
+            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_get_maybe_curve_maybe_from_solver(
+            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             settlement=settlement,
@@ -382,7 +382,7 @@ class FRA(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -411,7 +411,7 @@ class FRA(_BaseInstrument):
     ) -> DualTypes | dict[str, DualTypes]:
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
         fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
@@ -448,7 +448,7 @@ class FRA(_BaseInstrument):
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         return df * self._fra_rate_scalar(
-            leg2_rate_curve=_get_maybe_curve_maybe_from_solver(
+            leg2_rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
             )
         )
@@ -476,7 +476,7 @@ class FRA(_BaseInstrument):
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _get_maybe_curve_maybe_from_solver(
+        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
         scalar = _dual_float(self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve))

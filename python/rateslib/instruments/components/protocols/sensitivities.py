@@ -6,15 +6,15 @@ from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.components.protocols.npv import _WithNPV
 from rateslib.instruments.components.protocols.pricing import (
-    _get_fx_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
 )
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curves_,
+        CurvesT_,
         DataFrame,
+        Dual,
         Dual2,
-        DualTypes,
         FXForwards_,
         FXVolOption_,
         NoInput,
@@ -33,7 +33,7 @@ class _WithSensitivities(_WithNPV, Protocol):
     def delta(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -74,7 +74,7 @@ class _WithSensitivities(_WithNPV, Protocol):
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv: dict[str, DualTypes] = self.npv(
+        npv: dict[str, Dual] = self.npv(  # type: ignore[assignment]
             curves=curves,
             solver=solver,
             fx=fx,
@@ -84,12 +84,14 @@ class _WithSensitivities(_WithNPV, Protocol):
             settlement=settlement,
             local=True,
         )
-        return solver.delta(npv=npv, base=base, fx=_get_fx_maybe_from_solver(fx=fx, solver=solver))
+        return solver.delta(
+            npv=npv, base=base, fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver)
+        )
 
     def exo_delta(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -145,7 +147,7 @@ class _WithSensitivities(_WithNPV, Protocol):
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
-        npv: dict[str, DualTypes] = self.npv(
+        npv: dict[str, Dual | Dual2] = self.npv(  # type: ignore[assignment]
             curves=curves,
             solver=solver,
             fx=fx,
@@ -159,7 +161,7 @@ class _WithSensitivities(_WithNPV, Protocol):
             npv=npv,
             vars=vars,
             base=base,
-            fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
+            fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
             vars_scalar=vars_scalar,
             vars_labels=vars_labels,
         )
@@ -167,7 +169,7 @@ class _WithSensitivities(_WithNPV, Protocol):
     def gamma(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -209,7 +211,7 @@ class _WithSensitivities(_WithNPV, Protocol):
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
 
-        fx_ = _get_fx_maybe_from_solver(fx=fx, solver=solver)
+        fx_ = _get_fx_forwards_maybe_from_solver(fx=fx, solver=solver)
         # store original order
         if id(solver.fx) != id(fx_) and isinstance(fx_, FXRates | FXForwards):
             # then the fx_ object is available on solver but that is not being used.
@@ -219,7 +221,7 @@ class _WithSensitivities(_WithNPV, Protocol):
         _ad_svr = solver._ad
         solver._set_ad_order(2)
 
-        npv: dict[str, Dual2] = self.npv(
+        npv: dict[str, Dual2] = self.npv(  # type: ignore[assignment]
             curves=curves,
             solver=solver,
             fx=fx_,

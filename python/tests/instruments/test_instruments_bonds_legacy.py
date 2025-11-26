@@ -2940,7 +2940,7 @@ class TestFloatRateNote:
         )
         from rateslib.data.fixings import FixingMissingForecasterError
 
-        with pytest.raises(
+        with pytest.raises(  # noqa: PT012
             FixingMissingForecasterError,
             match="A `rate_curve` is required to forecast missing RFR rates",
         ):
@@ -2980,21 +2980,8 @@ class TestFloatRateNote:
 
     @pytest.mark.skip(reason="v2.5 removed these validations")
     def test_bad_accrued_parameter_combo_raises(self, rate_fixings) -> None:
-        bond = FloatRateNote(
-            effective=dt(2009, 9, 16),
-            termination=dt(2017, 3, 16),
-            frequency="Q",
-            convention="Act365f",
-            ex_div=5,
-            float_spread=0,
-            fixing_method="rfr_observation_shift",
-            rate_fixings=rate_fixings,
-            method_param=5,
-            spread_compound_method="none_simple",
-            calendar=NoInput(0),
-        )
         with pytest.raises(ValueError, match="For RFR FRNs `ex_div` must be less than"):
-            bond = FloatRateNote(
+            FloatRateNote(
                 effective=dt(2009, 9, 16),
                 termination=dt(2017, 3, 16),
                 frequency="Q",

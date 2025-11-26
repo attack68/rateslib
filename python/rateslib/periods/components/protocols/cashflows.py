@@ -20,7 +20,7 @@ from rateslib.periods.components.parameters import (
 from rateslib.periods.components.protocols.npv import _WithNPV, _WithNPVStatic
 from rateslib.periods.components.utils import (
     _get_immediate_fx_scalar_and_base,
-    _validate_credit_curve,
+    _try_validate_base_curve,
 )
 
 if TYPE_CHECKING:
@@ -403,7 +403,7 @@ def _credit_elements(
     credit_elements: dict[str, Any] = {}
     if hasattr(self, "credit_params") and isinstance(self.credit_params, _CreditParams):
         if hasattr(self, "period_params") and isinstance(self.period_params, _PeriodParams):
-            rc_res = _validate_credit_curve(rate_curve)
+            rc_res = _try_validate_base_curve(rate_curve)
             if not isinstance(rc_res, Err):
                 credit_elements.update(
                     {

@@ -27,12 +27,13 @@ class _WithNPV(Protocol):
 
     """
 
-    _periods: list[_BasePeriod]
+    #  _periods: list[_BasePeriod]
 
     @property
     def periods(self) -> list[_BasePeriod]:
-        """List of *Periods* associated with the *Leg*."""
-        return self._periods
+        ...
+        # """List of *Periods* associated with the *Leg*."""
+        # return self._periods
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
