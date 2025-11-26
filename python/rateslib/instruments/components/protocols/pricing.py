@@ -11,16 +11,19 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         FX_,
         Any,
-        Curves_,
+        CurvesT_,
+        FXForwards_,
         FXVolObj,
         FXVolOption_,
         Solver,
         Solver_,
         Vol_,
         _BaseCurve,
+        _BaseCurve_,
         _BaseCurveOrDict,
         _BaseCurveOrDict_,
         _BaseCurveOrId,
+        _BaseCurveOrId_,
         _BaseCurveOrIdOrIdDict,
         _BaseCurveOrIdOrIdDict_,
     )
@@ -32,7 +35,7 @@ class _WithPricingObjs(Protocol):
     possibly deriving those from a :class:`~rateslib.solver.Solver` mapping.
     """
 
-    def _parse_curves(self, curves: Curves_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """Method is needed to map the `curves` argument input for any individual *Instrument* into
         the more defined :class:`~rateslib.curves._parsers._Curves` structure.
         """
@@ -134,12 +137,22 @@ class _Vol:
         return self._fx_vol
 
 
-def _get_maybe_curve_maybe_from_solver(
+# Solver and Curve mapping
+
+
+def _maybe_get_curve_or_dict_maybe_from_solver(
     curves_meta: _Curves,
     curves: _Curves,
     name: str,
     solver: Solver_,
 ) -> _BaseCurveOrDict_:
+    """
+    Fetch a curve name from either:
+
+    - the direct given curve input, if it is a valid curve object.
+    - from a provided Solver if it is string based and needs a solver mapping.
+    """
+
     curve: _BaseCurveOrIdOrIdDict_ = _drb(getattr(curves_meta, name), getattr(curves, name))
     if isinstance(curve, NoInput):
         return curve
@@ -150,68 +163,51 @@ def _get_maybe_curve_maybe_from_solver(
             curve=curve,
             solver=solver,
         )
-        # try:
-        #     parsed_curve = _parse_curve_or_id_from_solver_(curve=curve, solver=solver)
-        #     return parsed_curve
-        # except KeyError as e:
-        #     raise ValueError(
-        #         "`curves` must contain str curve `id` s existing in `solver` "
-        #         "(or its associated `pre_solvers`).\n"
-        #         f"The sought id was: '{e.args[0]}'.\n"
-        #         f"The available ids are {list(solver.pre_curves.keys())}.",
-        #     )
 
 
-def _get_maybe_fx_vol_maybe_from_solver(
-    vol_meta: _Vol,
-    vol: _Vol,
-    # name: str, = "fx_vol"
+def _maybe_get_curve_maybe_from_solver(
+    curves_meta: _Curves,
+    curves: _Curves,
+    name: str,
     solver: Solver_,
-) -> FXVolObj | NoInput:
-    vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
-    if isinstance(vol_, NoInput):
-        return vol_
+) -> _BaseCurve_:
+    """
+    Fetch a curve name from either:
+
+    - the direct given curve input, if it is a valid curve object.
+    - from a provided Solver if it is string based and needs a solver mapping.
+    """
+    curve: _BaseCurveOrId_ = _drb(getattr(curves_meta, name), getattr(curves, name))
+    if isinstance(curve, NoInput):
+        return curve
     elif isinstance(solver, NoInput):
-        return _validate_fx_vol_is_not_id(fx_vol=vol_)
+        return _validate_base_curve_is_not_id(curve=curve)
     else:
-        return _get_fx_vol_from_solver(fx_vol=vol_, solver=solver)
+        # TODO: use overloads typing on '_get_curve_from_solver'
+        return _get_curve_from_solver(  # type: ignore[return-value]  # cannot return a dict
+            curve=curve,
+            solver=solver,
+        )
 
 
-# def _get_curve_maybe_from_solver(
-#     curves_meta: _Curves,
-#     curves: _Curves,
-#     name: str,
-#     solver: Solver_,
-# ) -> _BaseCurveOrDict:
-#     curve: _BaseCurveOrIdOrIdDict = _drb(getattr(curves_meta, name), getattr(curves, name))
-#     if isinstance(solver, NoInput):
-#         return _validate_curve_is_not_id(curve=curve)
-#     else:
-#         try:
-#             parsed_curve = _parse_curve_or_id_from_solver_(curve=curve, solver=solver)
-#             return parsed_curve
-#         except KeyError as e:
-#             raise ValueError(
-#                 "`curves` must contain str curve `id` s existing in `solver` "
-#                 "(or its associated `pre_solvers`).\n"
-#                 f"The sought id was: '{e.args[0]}'.\n"
-#                 f"The available ids are {list(solver.pre_curves.keys())}.",
-#             )
+def _validate_curve_is_not_id(curve: _BaseCurveOrIdOrIdDict) -> _BaseCurveOrDict_:
+    """
+    Validate that a curve input is an object and not a string id.
+    """
+    if isinstance(curve, dict):
+        return {k: _validate_base_curve_is_not_id(v) for k, v in curve.items()}
+    elif isinstance(curve, NoInput) or curve is None:
+        return NoInput(0)
+    else:
+        return _validate_base_curve_is_not_id(curve)
 
 
-# def _get_maybe_curve_from_solver(
-#     curve: _BaseCurveOrIdOrIdDict_, solver: Solver
-# ) -> _BaseCurveOrDict_:
-#     """
-#     Maps a "Curve | str | dict[str, Curve | str] | NoInput" to a
-#     "Curve | dict[str, Curve] | NoInput" via a Solver.
-#
-#     This is the inexplicit variety which handles NoInput.
-#     """
-#     if isinstance(curve, NoInput) or curve is None:
-#         return NoInput(0)
-#     else:
-#         return _get_curve_from_solver_(curve=curve, solver=solver)
+def _validate_base_curve_is_not_id(curve: _BaseCurveOrId) -> _BaseCurve:
+    if isinstance(curve, str):  # curve is a str ID
+        raise ValueError(
+            f"`curves` must contain _BaseCurve, not str, if `solver` not given. Got id: '{curve}'"
+        )
+    return curve
 
 
 def _get_curve_from_solver(curve: _BaseCurveOrIdOrIdDict, solver: Solver) -> _BaseCurveOrDict:
@@ -281,6 +277,24 @@ def _parse_curve_or_id_from_solver_(curve: _BaseCurveOrId, solver: Solver) -> _B
                 raise ValueError("`curve` must be in `solver`.")
 
 
+# Solver and Vol mapping
+
+
+def _get_maybe_fx_vol_maybe_from_solver(
+    vol_meta: _Vol,
+    vol: _Vol,
+    # name: str, = "fx_vol"
+    solver: Solver_,
+) -> FXVolObj | NoInput:
+    vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
+    if isinstance(vol_, NoInput):
+        return vol_
+    elif isinstance(solver, NoInput):
+        return _validate_fx_vol_is_not_id(fx_vol=vol_)
+    else:
+        return _get_fx_vol_from_solver(fx_vol=vol_, solver=solver)
+
+
 def _get_fx_vol_from_solver(fx_vol: FXVolObj | str, solver: Solver) -> FXVolObj:
     if isinstance(fx_vol, str):
         return solver._get_pre_fxvol(fx_vol)
@@ -319,32 +333,42 @@ def _get_fx_vol_from_solver(fx_vol: FXVolObj | str, solver: Solver) -> FXVolObj:
             raise ValueError("FXVol object must be in `solver`.")
 
 
-def _validate_curve_is_not_id(curve: _BaseCurveOrIdOrIdDict) -> _BaseCurveOrDict_:
-    """
-    Validate that a curve input is an object and not a string id.
-    """
-    if isinstance(curve, dict):
-        return {k: _validate_base_curve_is_not_id(v) for k, v in curve.items()}
-    elif isinstance(curve, NoInput) or curve is None:
-        return NoInput(0)
-    else:
-        return _validate_base_curve_is_not_id(curve)
-
-
-def _validate_base_curve_is_not_id(curve: _BaseCurveOrId) -> _BaseCurve:
-    if isinstance(curve, str):  # curve is a str ID
-        raise ValueError(
-            f"`curves` must contain _BaseCurve, not str, if `solver` not given. Got id: '{curve}'"
-        )
-    return curve
-
-
 def _validate_fx_vol_is_not_id(fx_vol: FXVolObj | str) -> FXVolObj:
     if isinstance(fx_vol, str):  # curve is a str ID
         raise ValueError(
             f"`vol` must contain FXVol object, not str, if `solver` not given. Got id: '{fx_vol}'"
         )
     return fx_vol
+
+
+# FX and Solver mapping
+
+
+def _get_fx_forwards_maybe_from_solver(solver: Solver_, fx: FXForwards_) -> FXForwards_:
+    if isinstance(fx, NoInput):
+        if isinstance(solver, NoInput):
+            fx_: FXForwards_ = NoInput(0)
+        else:
+            if isinstance(solver.fx, NoInput):
+                fx_ = NoInput(0)
+            else:
+                # TODO disallow `fx` on Solver as FXRates. Only allow FXForwards.
+                fx_ = solver._get_fx()  # type: ignore[assignment]
+    else:
+        fx_ = fx
+        if (
+            not isinstance(solver, NoInput)
+            and not isinstance(solver.fx, NoInput)
+            and id(fx) != id(solver.fx)
+        ):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which will be used but is not the same. This can lead "
+                "to calculation inconsistencies, mathematically.",
+                UserWarning,
+            )
+
+    return fx_
 
 
 def _get_fx_maybe_from_solver(solver: Solver_, fx: FX_) -> FX_:

@@ -4436,7 +4436,7 @@ class TestFXOption:
             disc_curve=fxfo.curve("usd", "usd"),
             fx=fxfo,
             fx_vol=vol_,
-            forward_settlement=pay,
+            forward=pay,
         ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3
@@ -4490,7 +4490,7 @@ class TestFXOption:
             fxfo.curve("usd", "usd"),
             fx=fxfo,
             fx_vol=vol_,
-            forward_settlement=pay,
+            forward=pay,
         ).unwrap()
         expected = exp_pts
         assert abs(result - expected) < 1e-3

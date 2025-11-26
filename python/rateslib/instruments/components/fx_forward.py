@@ -10,7 +10,7 @@ from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
@@ -270,10 +270,10 @@ class FXForward(_BaseInstrument):
 
         _: DualTypes = forward_fx(
             date=self.kwargs.leg1["settlement"],
-            curve_domestic=_get_maybe_curve_maybe_from_solver(
+            curve_domestic=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "disc_curve", solver
             ),
-            curve_foreign=_get_maybe_curve_maybe_from_solver(
+            curve_foreign=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             fx_rate=imm_fx,

@@ -100,8 +100,8 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
     direction: OptionType, :red:`required`
         Call or put. The value :math:`\phi` value in option formulae.
     delivery: datetime, :red:`required`
-        The settlement date of the underlying FX rate. Also used as the implied payment date of
-        the cashflow valuation date.
+        The settlement date of the underlying FX rate of the option. Also used as the implied
+        payment date of the cashflow valuation date.
     pair: str, :red:`required`
         The currency pair of the :class:`~rateslib.data.fixings.FXFixing` against which the option
         will settle.
@@ -120,12 +120,16 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
     ex_dividend: datetime, :green:`optional (set as 'delivery')`
+        The ex-dividend date of the settled cashflow.
 
         .. note::
 
-           The following parameters define **non-deliverability**. If the *Period* is directly
-           deliverable do not supply these parameters. The ``nd_pair`` must contain RHS currency
-           of `pair` in order to define a valid non-deliverable FX Option.
+           The following parameters define **non-deliverability**. A non-deliverable FX option is
+           one whose cash settlement value in RHS currency of ``pair`` is converted to a third
+           deliverable currency via a rate defined by ``fx_fixings``. The ``nd_pair`` must contain
+           RHS currency of `pair` in order to correctly define this conversion.
+
+           If the *Period* is directly deliverable do not set these parameters.
 
     nd_pair: str, :green:`optional`
         The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
@@ -322,12 +326,16 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         fx_vol: FXVolOption_ = NoInput(0),
         **kwargs: Any,
     ) -> DualTypes:
+        # The unindexed_reference_cashflow does not require a discount curve.
+        # A curve may only be required to determine an evaluation date, which in turn is used to
+        # derive 'time_to_expiry'. The cashflow is expressed in reference currency on the delivery
+        # date of the FX forward, i.e. the 'forward FX date'.
         if isinstance(self.fx_option_params.strike, NoInput):
             raise ValueError(err.VE_NEEDS_STRIKE)
         k = self.fx_option_params.strike
 
         if not isinstance(self.fx_option_params.option_fixing.value, NoInput):
-            # then the cashflow is defined by a fixing
+            # then the cashflow amount is defined by a known fixing
             fix: DualTypes = self.fx_option_params.option_fixing.value
             phi: OptionType = self.fx_option_params.direction
 
@@ -339,16 +347,13 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
                 return 0.0
 
         else:
-            # value is expressed in currency (i.e. pair[3:])
+            # value is expressed in reference currency (i.e. pair[3:])
             fx_ = _validate_fx_as_forwards(fx)
-
-            # rate_curve_ = _validate_obj_not_no_input(rate_curve, "rate_curve")
-            # disc_curve_ = _validate_obj_not_no_input(disc_curve, "disc_curve")
 
             vol_ = _get_vol_maybe_from_obj(
                 fx_vol=fx_vol,
                 fx=fx_,
-                disc_curve=rate_curve,
+                rate_curve=rate_curve,
                 strike=k,
                 pair=self.fx_option_params.pair,
                 delivery=self.fx_option_params.delivery,
@@ -386,34 +391,12 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         metric: FXOptionMetric | str_ = NoInput(0),
-        forward_settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
-        Return the pricing metric of the *FXOption*.
+        Return the pricing metric of the *FXOption*, with lazy error handling.
 
-        This is priced according to the ``payment`` date of the *OptionPeriod*.
-
-        Parameters
-        ----------
-        rate_curve: Curve
-            The discount *Curve* for the LHS currency. Used in the case of domestic notional
-            percent based quotations.
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency. Used for for pips based quotations.
-        fx: float, FXRates, FXForwards, optional
-            The object to project the currency pair FX rate at delivery.
-        fx_vol: float, Dual, Dual2
-            The percentage log-normal volatility to price the option.
-        metric: FXOptionMetric  or str, optional
-            The metric to return. If *Pips* assumes the premium is in foreign (rhs)
-            currency. If *Percent*, the premium is assumed to be domestic (lhs).
-        forward_settlement: datetime, optional
-            The premium is, by default, measured for payment at ``delivery``. This date will
-            return a calculation for premium payment on another date.
-
-        Returns
-        -------
-        float, Dual, Dual2 or dict of such.
+        See :meth:`~rateslib.periods.components.FXOptionPeriod.rate`.
         """
         if not isinstance(metric, NoInput):
             metric_ = _get_fx_option_metric(metric)
@@ -432,26 +415,24 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
 
         if metric_ == FXOptionMetric.Pips:
             points_premium = cash / self.settlement_params.notional
-            if isinstance(forward_settlement, NoInput):
+            if isinstance(forward, NoInput):
                 return Ok(points_premium * 10000.0)
             else:
                 return Ok(
                     points_premium
                     * 10000.0
                     * disc_curve[self.settlement_params.payment]
-                    / disc_curve[forward_settlement]
+                    / disc_curve[forward]
                 )
         else:  # metric_ == FXOptionMetric.Percent:
             fx_ = _validate_fx_as_forwards(fx)
             currency_premium = cash / fx_.rate(
                 self.fx_option_params.pair, self.settlement_params.payment
             )
-            if isinstance(forward_settlement, NoInput):
+            if isinstance(forward, NoInput):
                 return Ok(currency_premium / self.settlement_params.notional * 100)
             else:
-                currency_premium *= (
-                    rate_curve[self.settlement_params.payment] / rate_curve[forward_settlement]
-                )
+                currency_premium *= rate_curve[self.settlement_params.payment] / rate_curve[forward]
                 return Ok(currency_premium / self.settlement_params.notional * 100)
 
     def rate(
@@ -462,7 +443,7 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
         metric: str_ = NoInput(0),
-        forward_settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
         Return the pricing metric of the *FXOption*.
@@ -471,19 +452,22 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
 
         Parameters
         ----------
-        disc_curve: Curve
+        rate_curve: Curve
             The discount *Curve* for the LHS currency. (Not used).
-        disc_curve_ccy2: Curve
+        disc_curve: Curve
             The discount *Curve* for the RHS currency.
         fx: float, FXRates, FXForwards, optional
             The object to project the currency pair FX rate at delivery.
         base: str, optional
             Not used by `rate`.
-        vol: float, Dual, Dual2
+        fx_vol: float, Dual, Dual2
             The percentage log-normal volatility to price the option.
         metric: str in {"pips", "percent"}
             The metric to return. If "pips" assumes the premium is in foreign (rhs)
             currency. If "percent", the premium is assumed to be domestic (lhs).
+        forward: datetime, optional (set as payment date of option)
+            The date to project the cashflow value to using the ``disc_curve`` if RHS ("pips") or
+            using ``rate_curve`` if LHS ("percent").
 
         Returns
         -------
@@ -495,7 +479,7 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
             fx=fx,
             fx_vol=fx_vol,
             metric=metric,
-            forward_settlement=forward_settlement,
+            forward=forward,
         ).unwrap()
 
     def implied_vol(
@@ -511,9 +495,9 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
 
         Parameters
         ----------
-        disc_curve: Curve
+        rate_curve: Curve
             Not used by `implied_vol`.
-        disc_curve_ccy2: Curve
+        disc_curve: Curve
             The discount *Curve* for the RHS currency.
         fx: FXForwards
             The object to project the currency pair FX rate at delivery.

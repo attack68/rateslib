@@ -8,17 +8,18 @@ from pandas import DataFrame, DatetimeIndex, concat
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
     _WithPricingObjs,
 )
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curves_,
+        CurvesT_,
         FXForwards_,
         FXVolOption_,
         Solver_,
         _Curves,
+        _KWArgs,
         datetime_,
     )
 
@@ -61,10 +62,13 @@ def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
 
 
 class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
+    @property
+    def kwargs(self) -> _KWArgs: ...
+
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -109,7 +113,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
     def _local_analytic_rate_fixings_from_legs(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -134,13 +138,13 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         ):
             dfs.append(
                 leg.local_analytic_rate_fixings(
-                    rate_curve=_get_maybe_curve_maybe_from_solver(
+                    rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                         _curves_meta, _curves, names[0], solver
                     ),
-                    disc_curve=_get_maybe_curve_maybe_from_solver(
+                    disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                         _curves_meta, _curves, names[1], solver
                     ),
-                    index_curve=_get_maybe_curve_maybe_from_solver(
+                    index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                         _curves_meta, _curves, names[2], solver
                     ),
                     fx=_fx_maybe_from_solver,
@@ -159,7 +163,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
     def _local_analytic_rate_fixings_from_instruments(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

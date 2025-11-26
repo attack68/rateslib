@@ -12,7 +12,7 @@ from rateslib.instruments.components.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg
 from rateslib.periods.components.parameters import _IndexParams
@@ -418,13 +418,13 @@ class IndexFixedRateBond(_BaseBondInstrument):
             "index_dirty_price",
         ]:
             _curves = self._parse_curves(curves)
-            disc_curve = _get_maybe_curve_maybe_from_solver(
+            disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
                 curves=_curves,
                 name="disc_curve",
                 solver=solver,
             )
-            index_curve = _get_maybe_curve_maybe_from_solver(
+            index_curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
                 curves=_curves,
                 name="index_curve",

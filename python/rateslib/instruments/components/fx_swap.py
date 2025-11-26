@@ -10,7 +10,7 @@ from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
@@ -455,13 +455,13 @@ class FXSwap(_BaseInstrument):
 
         # then non-deliverability and fx_fixing are on leg2
         core_npv = core_leg.npv(
-            disc_curve=_get_maybe_curve_maybe_from_solver(
+            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, f"{core_curve}disc_curve", solver
             ),
             base=self.leg2.settlement_params.currency,
             fx=fx_,
         )
-        nd_disc_curve = _get_maybe_curve_maybe_from_solver(
+        nd_disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, f"{nd_curve}disc_curve", solver
         )
         nd_cf1_npv = self.leg2.periods[0].local_npv(disc_curve=nd_disc_curve, fx=fx_)

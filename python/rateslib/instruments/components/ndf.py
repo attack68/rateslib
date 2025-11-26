@@ -14,7 +14,7 @@ from rateslib.instruments.components.protocols.pricing import (
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
-from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -294,13 +294,14 @@ class NDF(_BaseInstrument):
         if isinstance(self.kwargs.leg1["settlement"], datetime):
             settlement_: datetime = settlement
         else:
-            _, settlement_ = _get_fx_expiry_and_delivery(
+            _, settlement_, _ = _get_fx_expiry_and_delivery_and_payment(
                 eval_date=self.kwargs.meta["eval_date"],
                 expiry=self.kwargs.leg1["settlement"],
                 delivery_lag=self.kwargs.meta["payment_lag"],
                 calendar=self.kwargs.meta["calendar"],
                 modifier=self.kwargs.meta["modifier"],
                 eom=self.kwargs.meta["eom"],
+                payment_lag=0,
             )
             self.kwargs.leg1["settlement"] = settlement_
             self.kwargs.leg2["settlement"] = settlement_

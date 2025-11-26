@@ -19,6 +19,7 @@ if TYPE_CHECKING:
         DualTypes,
         FXVolOption_,
         _BaseCurve,
+        _BaseCurve_,
         datetime,
         str_,
     )
@@ -120,7 +121,7 @@ def _get_immediate_fx_scalar_and_base(
 def _get_vol_maybe_from_obj(
     fx_vol: FXVolOption_,
     fx: FXForwards,
-    disc_curve: _BaseCurve,
+    rate_curve: _BaseCurve_,
     strike: DualTypes,
     pair: str,
     delivery: datetime,
@@ -128,24 +129,37 @@ def _get_vol_maybe_from_obj(
 ) -> DualTypes:
     """Return a volatility for the option from a given FX Vol object.
 
-    ``disc_curve`` is used as the LHS rate_curve to convert between spot and delivery delta.
+    ``rate_curve`` is used as the curve on the LHS rate_curve to convert between spot and delivery
+    delta. This is not a 'discount curve' because it is not used to discount cashflows.
     """
     # FXOption can have a `strike` that is NoInput, however this internal function should
     # only be performed after a `strike` has been set to number, temporarily or otherwise.
 
-    if isinstance(fx_vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
+    if isinstance(fx_vol, FXDeltaVolSmile | FXDeltaVolSurface):
+        # fx_vol is a Vol object
+        rate_curve_: _BaseCurve = _validate_base_curve(rate_curve)
         spot = fx.pairs_settlement[pair]
         f = fx.rate(pair, delivery)
         _: tuple[Any, DualTypes, Any] = fx_vol.get_from_strike(
             k=strike,
             f=f,
-            z_w=disc_curve[delivery] / disc_curve[spot],
+            z_w=rate_curve_[delivery] / rate_curve_[spot],
             expiry=expiry,
         )
         vol_: DualTypes = _[1]
+    elif isinstance(fx_vol, FXSabrSmile | FXSabrSurface):
+        # fx_vol is a Vol object
+        f = fx.rate(pair, delivery)
+        _ = fx_vol.get_from_strike(
+            k=strike,
+            f=f,
+            expiry=expiry,
+        )
+        vol_ = _[1]
     elif isinstance(fx_vol, NoInput):
         raise ValueError("`fx_vol` cannot be NoInput when provided to pricing function.")
     else:
+        # fx_vol is a given scalar
         vol_ = fx_vol
 
     return vol_
@@ -187,7 +201,7 @@ def _try_validate_fx_as_forwards(fx: FX_) -> Result[FXForwards]:
         return Ok(fx)
 
 
-def _validate_credit_curve(curve: CurveOption_) -> Result[_BaseCurve]:
+def _try_validate_base_curve(curve: CurveOption_) -> Result[_BaseCurve]:
     if not isinstance(curve, _BaseCurve):
         return Err(
             TypeError(
@@ -196,6 +210,15 @@ def _validate_credit_curve(curve: CurveOption_) -> Result[_BaseCurve]:
             )
         )
     return Ok(curve)
+
+
+def _validate_base_curve(curve: CurveOption_) -> _BaseCurve:
+    if not isinstance(curve, _BaseCurve):
+        raise TypeError(
+            "`curves` have not been supplied correctly.\n"
+            f"A _BaseCurve type object is required. Got: {type(curve).__name__}"
+        )
+    return curve
 
 
 def _validate_credit_curves(

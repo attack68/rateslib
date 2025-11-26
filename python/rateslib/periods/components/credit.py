@@ -16,7 +16,7 @@ from rateslib.periods.components.parameters import (
     _SettlementParams,
 )
 from rateslib.periods.components.protocols import _BasePeriod
-from rateslib.periods.components.utils import _validate_credit_curve, _validate_credit_curves
+from rateslib.periods.components.utils import _try_validate_base_curve, _validate_credit_curves
 from rateslib.scheduling import Frequency, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
@@ -455,7 +455,7 @@ class CreditProtectionPeriod(_BasePeriod):
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
     ) -> DualTypes:
-        rate_curve_ = _validate_credit_curve(rate_curve).unwrap()
+        rate_curve_ = _try_validate_base_curve(rate_curve).unwrap()
         return -self.settlement_params.notional * (1 - rate_curve_.meta.credit_recovery_rate)
 
     def try_cashflow(

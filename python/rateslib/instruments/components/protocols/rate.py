@@ -6,7 +6,7 @@ from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -26,7 +26,7 @@ class _WithRate(Protocol):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -40,7 +40,7 @@ class _WithRate(Protocol):
     def spread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

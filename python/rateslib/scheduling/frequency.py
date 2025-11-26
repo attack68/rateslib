@@ -242,14 +242,15 @@ def add_tenor(
     return adjuster.adjust(next_date, cal_)
 
 
-def _get_fx_expiry_and_delivery(
+def _get_fx_expiry_and_delivery_and_payment(
     eval_date: datetime_,
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,
     modifier: str,
     eom: bool,
-) -> tuple[datetime, datetime]:
+    payment_lag: int | datetime,
+) -> tuple[datetime, datetime, datetime]:
     """
     Determines the expiry and delivery date of an FX option using the following rules:
 
@@ -270,11 +271,14 @@ def _get_fx_expiry_and_delivery(
         Date rule, expected to be "MF" for most FX rate tenors.
     eom: bool
         Whether end-of-month is preserved in tenor date determination.
+    payment_lag: int, datetime
+        Number of business days to lag payment by after expiry.
 
     Returns
     -------
     tuple of datetime
     """
+    calendar_ = get_calendar(calendar)
     if isinstance(expiry, str):
         if isinstance(eval_date, NoInput):
             raise ValueError("`expiry` as string tenor requires `eval_date`.")
@@ -289,19 +293,23 @@ def _get_fx_expiry_and_delivery(
                     "using a string tenor `expiry`.",
                 )
             else:
-                spot = get_calendar(calendar).lag_bus_days(eval_date, delivery_lag, True)
+                spot = calendar_.lag_bus_days(eval_date, delivery_lag, True)
                 roll = "eom" if (eom and Imm.Eom.validate(spot)) else spot.day
                 delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
-                expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
-                return expiry_, delivery_
+                expiry_ = calendar_.add_bus_days(delivery_, -delivery_lag, False)
         else:
-            expiry_ = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+            expiry_ = add_tenor(eval_date, expiry, "F", calendar_, NoInput(0), False)
     else:
         expiry_ = expiry
 
     if isinstance(delivery_lag, datetime):
         delivery_ = delivery_lag
     else:
-        delivery_ = get_calendar(calendar).lag_bus_days(expiry_, delivery_lag, True)
+        delivery_ = calendar_.lag_bus_days(expiry_, delivery_lag, True)
 
-    return expiry_, delivery_
+    if isinstance(payment_lag, datetime):
+        payment_ = payment_lag
+    else:
+        payment_ = calendar_.lag_bus_days(expiry_, payment_lag, True)
+
+    return expiry_, delivery_, payment_

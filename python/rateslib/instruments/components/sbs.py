@@ -9,7 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FloatLeg
 
@@ -228,10 +228,10 @@ class SBS(_BaseInstrument):
 
         if metric_.lower() == "float_spread":
             leg2_npv: DualTypes = self.leg2.local_npv(
-                rate_curve=_get_maybe_curve_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
                 ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -240,10 +240,10 @@ class SBS(_BaseInstrument):
             )
             return self.leg1.spread(
                 target_npv=-leg2_npv,
-                rate_curve=_get_maybe_curve_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "rate_curve", solver
                 ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -252,10 +252,10 @@ class SBS(_BaseInstrument):
             )
         else:  # metric == "leg2_float_spread"
             leg1_npv: DualTypes = self.leg1.local_npv(
-                rate_curve=_get_maybe_curve_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "rate_curve", solver
                 ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -264,10 +264,10 @@ class SBS(_BaseInstrument):
             )
             return self.leg2.spread(
                 target_npv=-leg1_npv,
-                rate_curve=_get_maybe_curve_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
                 ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
                 ),
                 index_curve=NoInput(0),
