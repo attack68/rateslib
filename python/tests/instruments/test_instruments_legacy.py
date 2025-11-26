@@ -27,9 +27,9 @@ from rateslib.instruments import (
     # FloatRateNote,
     # Fly,
     FXBrokerFly,
-    FXCall,
+    # FXCall,
     # FXExchange,
-    FXPut,
+    # FXPut,
     FXRiskReversal,
     FXStraddle,
     FXStrangle,
@@ -55,7 +55,9 @@ from rateslib.instruments.components import (
     FixedRateBond,
     FloatRateNote,
     Fly,
+    FXCall,
     FXForward,
+    FXPut,
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
@@ -5432,7 +5434,7 @@ class TestFXOptions:
             delta_type=dlty,
         )
         result = fxc.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=vol,
         )

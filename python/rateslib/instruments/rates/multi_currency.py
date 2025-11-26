@@ -28,14 +28,13 @@ from rateslib.legs import (
     FloatLeg,
     FloatLegMtm,
 )
-from rateslib.legs.rates import _get_reference_currency_and_reversed
 from rateslib.periods import (
     Cashflow,
     NonDeliverableCashflow,
 )
 from rateslib.periods.utils import _get_fx_fixings_from_non_fx_forwards, _maybe_local
 from rateslib.scheduling import get_calendar
-from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery
+from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
@@ -398,18 +397,21 @@ class NDF(Sensitivities, Metrics):
         }
         self.kwargs = _update_with_defaults(self.kwargs, default_kws)
 
-        self.kwargs["fixing_date"], self.kwargs["settlement"] = _get_fx_expiry_and_delivery(
-            eval_date,
-            self.kwargs["settlement"],
-            self.kwargs["payment_lag"],
-            self.kwargs["calendar"],
-            self.kwargs["modifier"],
-            self.kwargs["eom"],
+        (self.kwargs["fixing_date"], self.kwargs["settlement"], _) = (
+            _get_fx_expiry_and_delivery_and_payment(
+                eval_date=eval_date,
+                expiry=self.kwargs["settlement"],
+                delivery_lag=self.kwargs["payment_lag"],
+                calendar=self.kwargs["calendar"],
+                modifier=self.kwargs["modifier"],
+                eom=self.kwargs["eom"],
+                payment_lag=self.kwargs["payment_lag"],
+            )
         )
 
-        reference_currency, reversed_ = _get_reference_currency_and_reversed(
-            self.kwargs["pair"], self.kwargs["currency"]
-        )
+        # reference_currency, reversed_ = _get_reference_currency_and_reversed(
+        #     self.kwargs["pair"], self.kwargs["currency"]
+        # )
 
         self.periods = (
             NonDeliverableCashflow(

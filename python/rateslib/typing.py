@@ -165,6 +165,8 @@ _BaseCurveOrDict: TypeAlias = "_BaseCurve | _BaseCurveDict"
 _BaseCurveOrIdOrIdDict: TypeAlias = "_BaseCurveOrId | _BaseCurveOrIdDict"
 _BaseCurveOrDict_: TypeAlias = "_BaseCurve | _BaseCurveDict | NoInput"
 _BaseCurveOrIdOrIdDict_: TypeAlias = "_BaseCurveOrId | _BaseCurveOrIdDict | NoInput"
+CurvesT: TypeAlias = "_BaseCurveOrIdOrIdDict | Sequence[CurveOrId | CurveDict] | _Curves"
+CurvesT_: TypeAlias = "CurvesT | NoInput"
 
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 CurveOrId: TypeAlias = "_BaseCurve | str"

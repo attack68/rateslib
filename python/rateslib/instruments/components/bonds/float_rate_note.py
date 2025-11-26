@@ -13,7 +13,7 @@ from rateslib.instruments.components.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FloatLeg
 from rateslib.periods.components import FloatPeriod
@@ -309,13 +309,13 @@ class FloatRateNote(_BaseBondInstrument):
         metric = _drb(self.kwargs.meta["metric"], metric).lower()
         _curves = self._parse_curves(curves)
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
-            disc_curve = _get_maybe_curve_maybe_from_solver(
+            disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 solver=solver,
                 curves=_curves,
                 curves_meta=self.kwargs.meta["curves"],
                 name="disc_curve",
             )
-            rate_curve = _get_maybe_curve_maybe_from_solver(
+            rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 solver=solver,
                 curves=_curves,
                 curves_meta=self.kwargs.meta["curves"],

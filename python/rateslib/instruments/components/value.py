@@ -11,7 +11,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.scheduling import dcf
 
@@ -143,13 +143,13 @@ class Value(_BaseInstrument):
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         if metric_ == "curve_value":
-            curve = _get_maybe_curve_maybe_from_solver(
+            curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "rate_curve", solver
             )
             ret: DualTypes = curve[effective]
 
         elif metric_ == "cc_zero_rate":
-            curve = _get_maybe_curve_maybe_from_solver(
+            curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "rate_curve", solver
             )
             if curve._base_type != _CurveType.dfs:
@@ -160,7 +160,7 @@ class Value(_BaseInstrument):
             ret = (dual_log(curve[effective]) / -dcf_) * 100
 
         elif metric_ == "index_value":
-            curve = _get_maybe_curve_maybe_from_solver(
+            curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "index_curve", solver
             )
             ret = curve.index_value(
@@ -170,7 +170,7 @@ class Value(_BaseInstrument):
             )
 
         elif metric_ == "o/n_rate":
-            curve = _get_maybe_curve_maybe_from_solver(
+            curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "rate_curve", solver
             )
             ret = curve.rate(effective, "1D")  # type: ignore[assignment]

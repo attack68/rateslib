@@ -6,14 +6,14 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _get_maybe_curve_maybe_from_solver,
+    _maybe_get_curve_or_dict_maybe_from_solver,
     _WithPricingObjs,
 )
 from rateslib.periods.components.utils import _maybe_fx_converted
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -43,7 +43,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -113,13 +113,13 @@ class _WithNPV(_WithPricingObjs, Protocol):
             strict=False,
         ):
             leg_local_npv = leg.local_npv(
-                rate_curve=_get_maybe_curve_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     _curves_meta, _curves, names[0], solver
                 ),
-                disc_curve=_get_maybe_curve_maybe_from_solver(
+                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     _curves_meta, _curves, names[1], solver
                 ),
-                index_curve=_get_maybe_curve_maybe_from_solver(
+                index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                     _curves_meta, _curves, names[2], solver
                 ),
                 fx=_fx_maybe_from_solver,
@@ -146,7 +146,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
     def _npv_single_core(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
