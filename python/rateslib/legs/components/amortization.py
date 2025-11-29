@@ -23,6 +23,19 @@ class Amortization:
     """
     An amortization schedule for any :class:`~rateslib.legs.base.BaseLeg`.
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.legs.components import Amortization
+
+    .. ipython:: python
+
+       obj = Amortization(n=5, initial=1e6, amortization="to_zero")
+       obj.outstanding
+       obj.amortization
+
     Parameters
     ----------
     n: int
@@ -41,14 +54,22 @@ class Amortization:
     - a list or tuple of *n-1* scalars, then this is defines a custome amortization schedule.
     - a string flag then an amortization schedule will be calculated directly:
 
-      - *"to_zero": each period will be a constant value ending with zero implied ending balance.
-      - *"{float}%": each period will amortize by a constant percentage of the outstanding balance.
+      - *"to_zero"*: each period will be a constant value ending with zero implied ending balance.
+      - *"{float}%"*: each period will amortize by a constant percentage of the outstanding balance.
 
     """
 
     _type: _AmortizationType
-    amortization: tuple[DualTypes, ...]
-    outstanding: tuple[DualTypes, ...]
+
+    @property
+    def amortization(self) -> tuple[DualTypes, ...]:
+        """A tuple of (n-1) amortization amounts for each *Period*."""
+        return self._amortization
+
+    @property
+    def outstanding(self) -> tuple[DualTypes, ...]:
+        """A tuple of n outstanding notional amounts for each *Period*."""
+        return self._outstanding
 
     def __init__(
         self,
@@ -58,8 +79,8 @@ class Amortization:
     ) -> None:
         if isinstance(amortization, NoInput):
             self._type = _AmortizationType.NoAmortization
-            self.amortization = (0.0,) * (n - 1)
-            self.outstanding = (initial,) * n
+            self._amortization: tuple[DualTypes, ...] = (0.0,) * (n - 1)
+            self._outstanding: tuple[DualTypes, ...] = (initial,) * n
         elif isinstance(amortization, list | tuple):
             self._type = _AmortizationType.CustomSchedule
             if len(amortization) != (n - 1):
@@ -67,16 +88,16 @@ class Amortization:
                     "Custom amortisation schedules must have `n-1` amortization amounts for `n` "
                     f"periods.\nGot '{len(amortization)}' amounts for '{n}' periods."
                 )
-            self.amortization = tuple(amortization)
+            self._amortization = tuple(amortization)
             outstanding = [initial]
             for value in amortization:
                 outstanding.append(outstanding[-1] - value)
-            self.outstanding = tuple(outstanding)
+            self._outstanding = tuple(outstanding)
         elif isinstance(amortization, str):
             if amortization.lower() == "to_zero":
                 self._type = _AmortizationType.ConstantPeriod
-                self.amortization = (initial / n,) * (n - 1)
-                self.outstanding = (initial,) + tuple([initial * (1 - i / n) for i in range(1, n)])
+                self._amortization = (initial / n,) * (n - 1)
+                self._outstanding = (initial,) + tuple([initial * (1 - i / n) for i in range(1, n)])
             elif amortization[-1] == "%":
                 self._type = _AmortizationType.CustomSchedule
                 amortization_ = [initial * float(amortization[:-1]) / 100]
@@ -85,14 +106,16 @@ class Amortization:
                     outstanding_.append(outstanding_[-1] - amortization_[-1])
                     if i != n - 1:
                         amortization_.append(outstanding_[-1] * float(amortization[:-1]) / 100)
-                self.outstanding = tuple(outstanding_)
-                self.amortization = tuple(amortization_)
+                self._outstanding = tuple(outstanding_)
+                self._amortization = tuple(amortization_)
             else:
                 raise ValueError("`amortization` as string must be one of 'to_zero', '{float}%'.")
         else:  # isinstance(amortization, DualTypes)
             self._type = _AmortizationType.ConstantPeriod
-            self.amortization = (amortization,) * (n - 1)
-            self.outstanding = (initial,) + tuple([initial - amortization * i for i in range(1, n)])
+            self._amortization = (amortization,) * (n - 1)
+            self._outstanding = (initial,) + tuple(
+                [initial - amortization * i for i in range(1, n)]
+            )
 
     def __mul__(self, other: DualTypes) -> Amortization:
         return Amortization(

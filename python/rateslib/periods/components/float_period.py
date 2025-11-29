@@ -702,6 +702,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
 
     @property
     def float_spread(self) -> DualTypes:
+        """The float spread parameter of each :class:`~rateslib.periods.components.FloatPeriod`."""
         return self._float_periods[0].rate_params.float_spread
 
     @float_spread.setter
@@ -712,7 +713,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     @property
     def float_periods(self) -> list[FloatPeriod]:
         """
-        The individual :class:`~rateslib.periods.components.period.FloatPeriod` that are
+        The individual :class:`~rateslib.periods.components.FloatPeriod` that are
         compounded.
         """
         return self._float_periods

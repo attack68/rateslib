@@ -48,6 +48,8 @@ class _BasePeriodStatic(
 
 
 __all__ = [
+    "_BasePeriod",
+    "_BasePeriodStatic",
     "_WithNPV",
     "_WithCashflows",
     "_WithAnalyticDelta",

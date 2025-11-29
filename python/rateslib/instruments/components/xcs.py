@@ -9,7 +9,8 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_fx_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
@@ -17,8 +18,7 @@ from rateslib.legs.components import FixedLeg, FloatLeg
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         FXVolOption_,
         LegFixings,
         RollDay,
+        Sequence,
         Solver_,
         _BaseLeg,
         bool_,
@@ -76,16 +77,25 @@ class XCS(_BaseInstrument):
 
     .. rubric:: Pricing
 
-    The methods of a *XCS* require an :class:`~rateslib.fx.FXForwards` object for ``fx``, and
-    **four** :class:`~rateslib.curves._BaseCurve` for ``curves``;
+    The methods of a *XCS* require an :class:`~rateslib.fx.FXForwards` object for ``fx`` .
 
-    - a **rate_curve**,
-    - a **disc_curve**,
-    - a **leg2_rate_curve**,
-    - a **leg2_disc_curve** (for pricing consistency the collateral of each discount curve should
-      be the same).
+    They also require a *disc curve* and a *leg2 disc curve* which are appropriate curves for the
+    relevant currency, typically under the same collateral. For *FloatLegs*, an additional
+    *rate curve* and *leg2 rate curve* are required. The following input
+    formats are allowed:
 
-    If given as a list these should be specified in this order.
+    .. code-block:: python
+
+       curves = [rate_curve, disc_curve, leg2_rate_curve, leg2_disc_curve]  # four curves
+       curves = {  # dict form is explicit
+           "rate_curve": rate_curve,
+           "disc_curve": disc_curve,
+           "leg2_rate_curve": leg2_rate_curve,
+           "leg2_disc_curve": leg2_disc_curve,
+       }
+
+    The available pricing ``metric`` are in *{'leg1', 'leg2'}* which will return a *float spread*
+    or a *fixed rate* on the specified leg, for the appropriate *Leg* type.
 
     .. role:: red
 
@@ -246,8 +256,9 @@ class XCS(_BaseInstrument):
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -312,14 +323,14 @@ class XCS(_BaseInstrument):
     def fixed_rate(self) -> DualTypes_:
         """The fixed rate parameter of the composited
         :class:`~rateslib.legs.components.FixedLeg`."""
-        if self.kwargs.meta["fixed"]:
+        if isinstance(self.leg1, FixedLeg):
             return self.leg1.fixed_rate
         else:
             raise AttributeError(f"Leg1 is of type: {type(self.leg1).__name__}")
 
     @fixed_rate.setter
     def fixed_rate(self, value: DualTypes_) -> None:
-        if self.kwargs.meta["fixed"]:
+        if isinstance(self.leg1, FixedLeg):
             self.kwargs.leg1["fixed_rate"] = value
             self.leg1.fixed_rate = value
         else:
@@ -329,14 +340,14 @@ class XCS(_BaseInstrument):
     def float_spread(self) -> DualTypes:
         """The float spread parameter of the composited
         :class:`~rateslib.legs.components.FloatLeg`."""
-        if not self.kwargs.meta["fixed"]:
+        if isinstance(self.leg1, FloatLeg):
             return self.leg1.float_spread
         else:
             raise AttributeError(f"Leg1 is of type: {type(self.leg1).__name__}")
 
     @float_spread.setter
-    def float_spread(self, value: DualTypes_) -> None:
-        if not self.kwargs.meta["fixed"]:
+    def float_spread(self, value: DualTypes) -> None:
+        if isinstance(self.leg1, FloatLeg):
             self.kwargs.leg1["float_spread"] = value
             self.leg1.float_spread = value
         else:
@@ -346,14 +357,14 @@ class XCS(_BaseInstrument):
     def leg2_fixed_rate(self) -> DualTypes_:
         """The float spread parameter of the composited
         :class:`~rateslib.legs.components.FloatLeg`."""
-        if self.kwargs.meta["leg2_fixed"]:
+        if isinstance(self.leg2, FixedLeg):
             return self.leg2.fixed_rate
         else:
             raise AttributeError(f"Leg2 is of type: {type(self.leg2).__name__}")
 
     @leg2_fixed_rate.setter
     def leg2_fixed_rate(self, value: DualTypes_) -> None:
-        if self.kwargs.meta["leg2_fixed"]:
+        if isinstance(self.leg2, FixedLeg):
             self.kwargs.leg2["fixed_rate"] = value
             self.leg2.fixed_rate = value
         else:
@@ -363,14 +374,14 @@ class XCS(_BaseInstrument):
     def leg2_float_spread(self) -> DualTypes_:
         """The float spread parameter of the composited
         :class:`~rateslib.legs.components.FloatLeg`."""
-        if not self.kwargs.meta["leg2_fixed"]:
+        if isinstance(self.leg2, FloatLeg):
             return self.leg2.float_spread
         else:
             raise AttributeError(f"Leg2 is of type: {type(self.leg2).__name__}")
 
     @leg2_float_spread.setter
     def leg2_float_spread(self, value: DualTypes) -> None:
-        if not self.kwargs.meta["leg2_fixed"]:
+        if isinstance(self.leg2, FloatLeg):
             self.kwargs.leg2["float_spread"] = value
             self.leg2.float_spread = value
         else:
@@ -389,7 +400,7 @@ class XCS(_BaseInstrument):
         return self._leg2
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -449,14 +460,14 @@ class XCS(_BaseInstrument):
         leg2_fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         leg2_fx_fixings: LegFixings = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
         metric: str = "leg1",
     ) -> None:
@@ -612,11 +623,15 @@ class XCS(_BaseInstrument):
             )
 
         if fixed:
-            self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
+            self._leg1: FixedLeg | FloatLeg = FixedLeg(
+                **_convert_to_schedule_kwargs(self.kwargs.leg1, 1)
+            )
         else:
             self._leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
         if leg2_fixed:
-            self._leg2 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+            self._leg2: FixedLeg | FloatLeg = FixedLeg(
+                **_convert_to_schedule_kwargs(self.kwargs.leg2, 1)
+            )
         else:
             self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
@@ -624,7 +639,7 @@ class XCS(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -632,26 +647,26 @@ class XCS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
         metric_ = _drb(self.kwargs.meta["metric"], metric)
 
-        fx_ = _get_fx_maybe_from_solver(fx=fx, solver=solver)
+        fx_ = _get_fx_forwards_maybe_from_solver(fx=fx, solver=solver)
         leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
-        leg2_disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+        leg2_disc_curve = _maybe_get_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
         )
         rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "rate_curve", solver
         )
-        disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+        disc_curve = _maybe_get_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
 
         if metric_ == "leg1":
-            leg2_npv: DualTypes = self.leg2.npv(
+            leg2_npv: DualTypes = self.leg2.npv(  # type: ignore[assignment]
                 rate_curve=leg2_rate_curve,
                 disc_curve=leg2_disc_curve,
                 base=self.leg1.settlement_params.currency,
@@ -672,7 +687,7 @@ class XCS(_BaseInstrument):
             else:
                 return spread
         elif metric_ == "leg2":
-            leg1_npv: DualTypes = self.leg1.npv(
+            leg1_npv: DualTypes = self.leg1.npv(  # type: ignore[assignment]
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
                 base=self.leg2.settlement_params.currency,
@@ -715,7 +730,7 @@ class XCS(_BaseInstrument):
     def spread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -738,7 +753,7 @@ class XCS(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -767,7 +782,7 @@ class XCS(_BaseInstrument):
 
     def _set_pricing_mid(
         self,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
@@ -776,8 +791,8 @@ class XCS(_BaseInstrument):
         # all float_spread are assumed to be equal to zero if not given.
         # missing fixed rates will be priced and set if possible.
 
-        if self.kwargs.meta["fixed"] and isinstance(self.kwargs.leg1["fixed_rate"], NoInput):
-            if self.kwargs.meta["leg2_fixed"] and isinstance(
+        if isinstance(self.leg1, FixedLeg) and isinstance(self.kwargs.leg1["fixed_rate"], NoInput):
+            if isinstance(self.leg2, FixedLeg) and isinstance(
                 self.kwargs.leg2["fixed_rate"], NoInput
             ):
                 raise ValueError("At least one leg must have a defined `fixed_rate`.")
@@ -792,8 +807,10 @@ class XCS(_BaseInstrument):
             )
             self.leg1.fixed_rate = _dual_float(mid_price)
 
-        elif self.kwargs.meta["leg2_fixed"] and isinstance(self.kwargs.leg2["fixed_rate"], NoInput):
-            # leg1 cannot be fixed with NoInput
+        elif isinstance(self.leg2, FixedLeg) and isinstance(
+            self.kwargs.leg2["fixed_rate"], NoInput
+        ):
+            # leg1 cannot be fixed with NoInput - this branch is covered above
             mid_price = self.rate(
                 curves=curves,
                 solver=solver,
@@ -804,17 +821,13 @@ class XCS(_BaseInstrument):
             )
             self.leg2.fixed_rate = _dual_float(mid_price)
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
-        An IRS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
-
-        When given as only 1 element this curve is applied to all of the those components
-
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        A XCS requires 4 curves (mostly if float-float, otherwise it needs 2)
         """
         if isinstance(curves, NoInput):
             return _Curves()
-        if isinstance(curves, dict):
+        elif isinstance(curves, dict):
             return _Curves(
                 rate_curve=curves.get("rate_curve", NoInput(0)),
                 disc_curve=curves.get("disc_curve", NoInput(0)),
@@ -831,15 +844,17 @@ class XCS(_BaseInstrument):
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires 4 curve types. Got {len(curves)}."
+                    f"{type(self).__name__} requires a 4 curve type input. Got {len(curves)}."
                 )
-        else:  # `curves` is just a single input which is copied across all curves
-            raise ValueError(f"{type(self).__name__} requires 4 curve types. Got 1.")
+        elif isinstance(curves, _Curves):
+            return curves
+        else:
+            raise ValueError(f"{type(self).__name__} requires a 4 curve type input. Got 1.")
 
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -860,7 +875,7 @@ class XCS(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

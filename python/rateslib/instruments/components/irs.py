@@ -72,7 +72,7 @@ class IRS(_BaseInstrument):
        curves = curve | [curve]           #  a single curve is repeated for all required curves
        curves = [rate_curve, disc_curve]  #  two curves are applied in the given order
        curves = [None, disc_curve, rate_curve, disc_curve]     # four curves applied to each leg
-       curves = {"leg2_rate_curve": rate_curve, "disc_curve"}  # dict form is explicit
+       curves = {"leg2_rate_curve": rate_curve, "disc_curve": disc_curve}  # dict form is explicit
 
     .. role:: red
 
@@ -204,7 +204,8 @@ class IRS(_BaseInstrument):
            The following are **meta parameters**.
 
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -223,16 +224,6 @@ class IRS(_BaseInstrument):
     def fixed_rate(self, value: DualTypes_) -> None:
         self.kwargs.leg1["fixed_rate"] = value
         self.leg1.fixed_rate = value
-
-    # @property
-    # def float_spread(self) -> NoReturn:
-    #     """The float spread parameter of the composited
-    #     :class:`~rateslib.legs.components.FloatLeg`."""
-    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
-
-    # @property
-    # def leg2_fixed_rate(self) -> NoReturn:
-    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def leg2_float_spread(self) -> DualTypes_:

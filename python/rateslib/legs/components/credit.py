@@ -80,7 +80,7 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
         return self._regular_periods[0].settlement_params
 
     @property
-    def periods(self) -> list[CreditPremiumPeriod]:  # type: ignore[override]
+    def periods(self) -> list[CreditPremiumPeriod]:
         """Combine all period collection types into an ordered list."""
         return list(self._regular_periods)
 
@@ -253,7 +253,7 @@ class CreditProtectionLeg(_BaseLeg):
         return self._regular_periods[0].settlement_params
 
     @property
-    def periods(self) -> list[CreditProtectionPeriod]:  # type: ignore[override]
+    def periods(self) -> list[CreditProtectionPeriod]:
         """Combine all period collection types into an ordered list."""
         return list(self._regular_periods)
 

@@ -17,12 +17,18 @@ if TYPE_CHECKING:
         _BasePeriod,
         datetime_,
         str_,
+        Sequence,
     )
 
 
 class _WithAnalyticDelta(Protocol):
+    """
+    Protocol to calculate analytical rate delta sensitivities of any *Leg* type.
+
+    """
+
     @property
-    def periods(self) -> list[_BasePeriod]: ...
+    def periods(self) -> Sequence[_BasePeriod]: ...
 
     def local_analytic_delta(
         self,

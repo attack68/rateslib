@@ -9,6 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import ZeroFixedLeg, ZeroFloatLeg
@@ -16,8 +17,7 @@ from rateslib.legs.components import ZeroFixedLeg, ZeroFloatLeg
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
@@ -40,8 +40,39 @@ if TYPE_CHECKING:
 
 class ZCS(_BaseInstrument):
     """
-    Create a *zero coupon swap (ZCS)* composing a :class:`~rateslib.legs.components.ZeroFixedLeg`
+    A *zero coupon swap (ZCS)* composing a :class:`~rateslib.legs.components.ZeroFixedLeg`
     and a :class:`~rateslib.legs.components.ZeroFloatLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import ZCS
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       zcs = ZCS(
+           effective=dt(2000, 1, 1),
+           termination="2y",
+           frequency="S",
+           fixed_rate=2.0,
+       )
+       zcs.cashflows()
+
+    .. rubric:: Pricing
+
+    A *ZCS* requires a *disc curve* on both legs (which should be the same *Curve*) and a
+    *leg2 rate curve* to forecast rates on the *ZeroFloatLeg*. The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = [rate_curve, disc_curve]  #  two curves are applied in the given order
+       curves = [None, disc_curve, rate_curve, disc_curve]     # four curves applied to each leg
+       curves = {"leg2_rate_curve": rate_curve, "disc_curve": disc_curve}  # dict form is explicit
 
     .. role:: red
 
@@ -137,7 +168,7 @@ class ZCS(_BaseInstrument):
            The following are **rate parameters**.
 
     fixed_rate : float or None
-        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
         will be set to mid-market when curves are provided.
     leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
@@ -167,8 +198,9 @@ class ZCS(_BaseInstrument):
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -184,10 +216,6 @@ class ZCS(_BaseInstrument):
     Similarly some information is provided in that same link regarding
     ``leg2_fixings``, but a cookbook article is also produced for
     :ref:`working with fixings <cook-fixings-doc>`.
-
-    Examples
-    --------
-    Construct a curve to price the example.
 
     """  # noqa: E501
 
@@ -275,9 +303,9 @@ class ZCS(_BaseInstrument):
         # settlement parameters
         currency: str_ = NoInput(0),
         notional: float_ = NoInput(0),
-        amortization: float_ = NoInput(0),
+        # amortization: float_ = NoInput(0),
         leg2_notional: float_ = NoInput(-1),
-        leg2_amortization: float_ = NoInput(-1),
+        # leg2_amortization: float_ = NoInput(-1),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
@@ -288,7 +316,7 @@ class ZCS(_BaseInstrument):
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
         user_args = dict(
@@ -343,6 +371,8 @@ class ZCS(_BaseInstrument):
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
+            # amortization=NoInput(0),
+            # leg2_amortization=NoInput(0),
         )
 
         default_args = dict(
@@ -364,7 +394,7 @@ class ZCS(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -372,14 +402,14 @@ class ZCS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             index_curve=NoInput(0),
@@ -390,7 +420,7 @@ class ZCS(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -403,7 +433,7 @@ class ZCS(_BaseInstrument):
     def spread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -415,7 +445,7 @@ class ZCS(_BaseInstrument):
         leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
-        disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+        disc_curve = _maybe_get_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver
         )
         leg1_npv: DualTypes = self.leg1.local_npv(
@@ -437,7 +467,7 @@ class ZCS(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -465,7 +495,7 @@ class ZCS(_BaseInstrument):
 
     def _set_pricing_mid(
         self,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -481,7 +511,7 @@ class ZCS(_BaseInstrument):
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An ZCS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
 
@@ -491,7 +521,7 @@ class ZCS(_BaseInstrument):
         """
         if isinstance(curves, NoInput):
             return _Curves()
-        if isinstance(curves, dict):
+        elif isinstance(curves, dict):
             return _Curves(
                 rate_curve=curves.get("rate_curve", NoInput(0)),
                 disc_curve=curves.get("disc_curve", NoInput(0)),
@@ -521,17 +551,19 @@ class ZCS(_BaseInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                leg2_rate_curve=curves,
-                disc_curve=curves,
-                leg2_disc_curve=curves,
+                leg2_rate_curve=curves,  # type: ignore[arg-type]
+                disc_curve=curves,  # type: ignore[arg-type]
+                leg2_disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -552,7 +584,7 @@ class ZCS(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
