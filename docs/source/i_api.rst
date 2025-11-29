@@ -105,7 +105,13 @@ Periods
 
 Link to the :ref:`Periods<periods-doc>` section in the user guide.
 
-.. automodapi:: rateslib.periods
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.periods.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
    :no-heading:
 
 Protocols
@@ -118,8 +124,6 @@ Protocols
    :headings: "^-"
    :inherited-members:
    :no-heading:
-   :skip: _BasePeriod
-   :skip: _BasePeriodStatic
 
 Parameters
 ^^^^^^^^^^
@@ -137,20 +141,12 @@ Parameters
    :skip: _init_FloatRateParams
    :skip: _init_MtmParams
 
-Objects
-^^^^^^^^
-
-.. automodapi:: rateslib.periods.components
-   :no-inheritance-diagram:
-   :headings: "^-"
-   :inherited-members:
-   :no-heading:
-
 
 Class Inheritance Diagram
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. inheritance-diagram:: rateslib.periods.components.protocols._WithNPV rateslib.periods.components.protocols._WithNPVStatic rateslib.periods.components.protocols._WithIndexingStatic rateslib.periods.components.protocols._WithNonDeliverableStatic rateslib.periods.components.BasePeriod rateslib.periods.components.FloatPeriod rateslib.periods.components.Cashflow rateslib.periods.components.FixedPeriod
+
+.. inheritance-diagram:: rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.protocols._BasePeriodStatic rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.FloatPeriod rateslib.periods.components.Cashflow rateslib.periods.components.FixedPeriod
    :private-bases:
    :parts: 1
 
@@ -160,37 +156,6 @@ Legs
 
 Link to the :ref:`Legs<legs-doc>` section in the user guide.
 
-.. automodapi:: rateslib.legs
-   :no-heading:
-
-
-.. Protocols
-    ^^^^^^^^^
-
-    .. automodapi:: rateslib.legs.components.protocols
-       :no-inheritance-diagram:
-       :headings: "^-"
-       :inherited-members:
-       :no-heading:
-       :include: _WithNPV
-       :include: _WithNPVStatic
-       :include: _WithIndexingStatic
-       :include: _WithNonDeliverableStatic
-
-    Parameters
-    ^^^^^^^^^^
-
-    .. automodapi:: rateslib.legs.components.parameters
-       :no-inheritance-diagram:
-       :headings: "^-"
-       :inherited-members:
-       :no-heading:
-       :skip: _init_or_none_IndexParams
-       :skip: _init_or_none_NonDeliverableParams
-       :skip: _init_SettlementParams_with_fx_pair
-       :skip: _init_FloatRateParams
-       :skip: _init_MtmParams
-
 Objects
 ^^^^^^^^
 
@@ -199,10 +164,14 @@ Objects
    :headings: "^-"
    :inherited-members:
    :no-heading:
-   :include: FixedLeg
-   :include: FloatLeg
-   :include: CustomLeg
-   :include: Amortization
+
+Protocols
+^^^^^^^^^
+
+.. automodapi:: rateslib.legs.components.protocols
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :no-heading:
 
 Instruments
 ============
@@ -221,11 +190,12 @@ Objects
    :inherited-members:
    :no-heading:
    :include: IRS
-   :include: NDF
+   :include: SBS
+   :include: ZCS
    :include: XCS
-   :include: FXSwap
-   :include: FXForward
-   :include: IndexFixedRateBond
+   :include: FRA
+   :include: IIRS
+   :include: ZCIS
 
 
 Class Inheritance Diagram

@@ -1900,6 +1900,30 @@ class TestFRA:
         assert isinstance(result, DataFrame)
         assert abs(result.iloc[0, 0] - analytic_delta) < 1
 
+    def test_fra_ex_div_and_payment(self):
+        fra = FRA(
+            effective=dt(2024, 12, 18),
+            termination=dt(2025, 3, 19),
+            spec="sek_fra3",
+            roll="imm",
+            curves=curve,
+            notional=1e9,
+            payment_lag=2,
+            ex_div=-1,
+        )
+        assert fra.leg1.periods[0].period_params.start == dt(2024, 12, 18)
+        assert fra.leg1.periods[0].settlement_params.payment == dt(2024, 12, 20)
+        assert fra.leg1.periods[0].settlement_params.ex_dividend == dt(2024, 12, 19)
+
+    def test_fra_cashflows_no_curve(self):
+        fra = FRA(
+            effective=dt(2000, 1, 1),
+            termination="6m",
+            spec="eur_fra6",
+            fixed_rate=2.0,
+        )
+        assert isinstance(fra.cashflows(), DataFrame)
+
 
 class TestZCS:
     @pytest.mark.parametrize(("freq", "exp"), [("Q", 3.53163356950), ("S", 3.54722411409218)])

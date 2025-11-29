@@ -46,6 +46,9 @@ without.
 
 Add specs 'uk_gbi' and 'us_gbi'.
 
+By default non-mtm-XCS are constructed which differed to previous becuase of the new
+flexibility of allowing MTM leg on either leg1 or leg2
+
 
 .. list-table::
    :widths: 25 75

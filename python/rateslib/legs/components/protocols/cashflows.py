@@ -18,12 +18,18 @@ if TYPE_CHECKING:
         datetime,
         datetime_,
         str_,
+        Sequence,
     )
 
 
 class _WithCashflows(Protocol):
+    """
+    Protocol to generate cashflows of any *Leg* type.
+
+    """
+
     @property
-    def periods(self) -> list[_BasePeriod]: ...
+    def periods(self) -> Sequence[_BasePeriod]: ...
 
     def cashflows(
         self,
@@ -72,6 +78,11 @@ class _WithCashflows(Protocol):
 
 
 class _WithExDiv(Protocol):
+    """
+    Protocol to determine if a *Leg* is ex-dividend on a given settlement.
+
+    """
+
     @property
     def schedule(self) -> Schedule: ...
 

@@ -9,6 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
@@ -16,8 +17,7 @@ from rateslib.legs.components import FixedLeg, FloatLeg
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
@@ -40,6 +40,196 @@ if TYPE_CHECKING:
 
 
 class IIRS(_BaseInstrument):
+    """
+    An *indexed interest rate swap (IIRS)* composing a :class:`~rateslib.legs.components.FixedLeg`
+    and a :class:`~rateslib.legs.components.FloatLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import IIRS
+       from rateslib import fixings
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       fixings.add("CPI_UK", Series(index=[dt(1999, 10, 1), dt(1999, 11, 1)], data=[110.0, 112.0]))
+       iirs = IIRS(
+           effective=dt(2000, 1, 1),
+           termination="2y",
+           frequency="A",
+           leg2_frequency="S",
+           index_fixings="CPI_UK",
+           index_lag=3,
+           fixed_rate=2.0,
+       )
+       iirs.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("CPI_UK")
+
+    .. rubric:: Pricing
+
+    An *IIRS* requires a *disc curve* on both legs (which should be the same *Curve*), an
+    *index curve* for index forecasting on the *FixedLeg*, and a
+    *leg2 rate curve* to forecast rates on the *FloatLeg*. The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = [index_curve, disc_curve, leg2_rate_curve]  #  three curves are applied in order
+       curves = [index_curve, disc_curve, leg2_rate_curve, disc_curve]  # four curves applied to each leg
+       curves = {  # dict form is explicit
+           "leg2_rate_curve": leg2_rate_curve,
+           "disc_curve": disc_curve,
+           "index_curve": index_curve,
+       }
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+
+        .. note::
+
+           The following define generalised **scheduling** parameters.
+
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    payment_lag_exchange: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    ex_div: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+    leg2_effective : datetime, :green:`optional (inherited from leg1)`
+    leg2_termination : datetime, str, :green:`optional (inherited from leg1)`
+    leg2_frequency : Frequency, str, :green:`optional (inherited from leg1)`
+    leg2_stub : StubInference, str, :green:`optional (inherited from leg1)`
+    leg2_front_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_back_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_roll : RollDay, int, str, :green:`optional (inherited from leg1)`
+    leg2_eom : bool, :green:`optional (inherited from leg1)`
+    leg2_modifier : Adjuster, str, :green:`optional (inherited from leg1)`
+    leg2_calendar : calendar, str, :green:`optional (inherited from leg1)`
+    leg2_payment_lag: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_payment_lag_exchange: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_ex_div: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_convention: str, :green:`optional (inherited from leg1)`
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional_exchange: bool, :green:`optional (set as False)`
+        Whether to include a final notional exchange on both legs, which affects the PV since
+        the *FixedLeg* has an *indexed* cashflow.
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
+        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
+        each successive period by that same value. Should have
+        sign equal to that of notional if the notional is to reduce towards zero.
+    leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
+    leg2_amortization : float, Dual, Dual2, Variable, str, Amortization, :green:`optional (negatively inherited from leg1)`
+
+        .. note::
+
+           The following are **rate parameters**.
+
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for each period.
+    leg2_method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``.
+    leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
+    leg2_float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
+        The amount (in bps) added to the rate in each period rate determination.
+    leg2_spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
+        ``fixing_method``.
+    leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        See XXX (working with fixings).
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
+
+    """  # noqa: E501
+
     _rate_scalar = 1.0
 
     @property
@@ -50,14 +240,6 @@ class IIRS(_BaseInstrument):
     def fixed_rate(self, value: DualTypes_) -> None:
         self.kwargs.leg1["fixed_rate"] = value
         self.leg1.fixed_rate = value
-
-    # @property
-    # def float_spread(self) -> NoReturn:
-    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
-    #
-    # @property
-    # def leg2_fixed_rate(self) -> NoReturn:
-    #     raise AttributeError(f"Attribute not available on {type(self).__name__}")
 
     @property
     def leg2_float_spread(self) -> DualTypes_:
@@ -89,12 +271,6 @@ class IIRS(_BaseInstrument):
         termination: datetime | str_ = NoInput(0),
         frequency: Frequency | str_ = NoInput(0),
         *,
-        fixed_rate: DualTypes_ = NoInput(0),
-        notional_exchange: bool = False,
-        index_base: DualTypes_ = NoInput(0),
-        index_lag: int_ = NoInput(0),
-        index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -105,15 +281,7 @@ class IIRS(_BaseInstrument):
         payment_lag: int_ = NoInput(0),
         payment_lag_exchange: int_ = NoInput(0),
         ex_div: int_ = NoInput(0),
-        notional: float_ = NoInput(0),
-        currency: str_ = NoInput(0),
-        amortization: float_ = NoInput(0),
         convention: str_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
-        leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
         leg2_frequency: Frequency | str_ = NoInput(1),
@@ -126,11 +294,29 @@ class IIRS(_BaseInstrument):
         leg2_calendar: CalInput = NoInput(1),
         leg2_payment_lag: int_ = NoInput(1),
         leg2_payment_lag_exchange: int_ = NoInput(1),
-        leg2_notional: float_ = NoInput(-1),
-        leg2_amortization: float_ = NoInput(-1),
         leg2_convention: str_ = NoInput(1),
         leg2_ex_div: int_ = NoInput(1),
-        curves: Curves_ = NoInput(0),
+        # settlement params
+        currency: str_ = NoInput(0),
+        notional_exchange: bool = False,
+        notional: float_ = NoInput(0),
+        amortization: float_ = NoInput(0),
+        leg2_notional: float_ = NoInput(-1),
+        leg2_amortization: float_ = NoInput(-1),
+        # index params
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: Series[DualTypes] | str_ = NoInput(0),
+        # rate params
+        fixed_rate: DualTypes_ = NoInput(0),
+        leg2_float_spread: DualTypes_ = NoInput(0),
+        leg2_spread_compound_method: str_ = NoInput(0),
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_fixing_method: str_ = NoInput(0),
+        leg2_method_param: int_ = NoInput(0),
+        # meta params
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
         user_args = dict(
@@ -208,7 +394,7 @@ class IIRS(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -216,14 +402,14 @@ class IIRS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             index_curve=NoInput(0),
@@ -249,10 +435,10 @@ class IIRS(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,  # - leg1_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
-                index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                index_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "index_curve", solver
                 ),
                 settlement=settlement,
@@ -264,7 +450,7 @@ class IIRS(_BaseInstrument):
     def spread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -276,10 +462,10 @@ class IIRS(_BaseInstrument):
 
         leg1_npv: DualTypes = self.leg1.local_npv(
             rate_curve=NoInput(0),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "disc_curve", solver
             ),
-            index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            index_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "index_curve", solver
             ),
             settlement=settlement,
@@ -290,7 +476,7 @@ class IIRS(_BaseInstrument):
             rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             index_curve=NoInput(0),
@@ -301,7 +487,7 @@ class IIRS(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -329,7 +515,7 @@ class IIRS(_BaseInstrument):
 
     def _set_pricing_mid(
         self,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -345,12 +531,10 @@ class IIRS(_BaseInstrument):
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An IIRS has three curve requirements: an index_curve, a leg2_rate_curve and a
         disc_curve used by both legs.
-
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
         """
         if isinstance(curves, NoInput):
             return _Curves()
@@ -375,13 +559,6 @@ class IIRS(_BaseInstrument):
                     leg2_rate_curve=curves[2],
                     leg2_disc_curve=curves[1],
                 )
-            elif len(curves) == 2:
-                return _Curves(
-                    disc_curve=curves[1],
-                    index_curve=curves[0],
-                    leg2_rate_curve=curves[1],
-                    leg2_disc_curve=curves[1],
-                )
             elif len(curves) == 4:
                 return _Curves(
                     disc_curve=curves[1],
@@ -393,14 +570,15 @@ class IIRS(_BaseInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires 3 curve types. Got {len(curves)}."
                 )
-
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             raise ValueError(f"{type(self).__name__} requires 3 curve types. Got 1.")
 
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -421,7 +599,7 @@ class IIRS(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
