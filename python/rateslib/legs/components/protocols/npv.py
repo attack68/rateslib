@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         _BasePeriod,
         datetime_,
         str_,
+        Sequence,
     )
 
 
@@ -27,10 +28,8 @@ class _WithNPV(Protocol):
 
     """
 
-    #  _periods: list[_BasePeriod]
-
     @property
-    def periods(self) -> list[_BasePeriod]:
+    def periods(self) -> Sequence[_BasePeriod]:
         ...
         # """List of *Periods* associated with the *Leg*."""
         # return self._periods

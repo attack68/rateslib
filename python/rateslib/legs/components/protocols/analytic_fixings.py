@@ -15,12 +15,18 @@ if TYPE_CHECKING:
         _BaseCurve_,
         _BasePeriod,
         datetime_,
+        Sequence,
     )
 
 
 class _WithAnalyticRateFixings(Protocol):
+    """
+    Protocol to calculate analytical rate fixing sensitivities of any *Leg* type.
+
+    """
+
     @property
-    def periods(self) -> list[_BasePeriod]: ...
+    def periods(self) -> Sequence[_BasePeriod]: ...
 
     def local_analytic_rate_fixings(
         self,

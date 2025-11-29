@@ -400,7 +400,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             # will determine the strike from % delta or ATM-delta string
             method = self.kwargs["strike"].lower()
             if method == "atm_delta":
-                self._pricing.delta_index, self._pricing.vol, self._pricing.k = self.periods[
+                (self._pricing.delta_index, self._pricing.vol, self._pricing.k) = self.periods[
                     0
                 ]._index_vol_and_strike_from_atm(
                     delta_type=self.periods[0].fx_option_params.delta_type,

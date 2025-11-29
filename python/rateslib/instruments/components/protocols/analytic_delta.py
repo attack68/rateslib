@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         DualTypes,
         FXForwards_,
         FXVolOption_,
+        Sequence,
         Solver_,
         _BaseLeg,
         _Curves,
@@ -34,7 +35,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
     def kwargs(self) -> _KWArgs: ...
 
     @property
-    def legs(self) -> list[_BaseLeg]: ...
+    def legs(self) -> Sequence[_BaseLeg]: ...
 
     def analytic_delta(
         self,

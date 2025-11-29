@@ -26,8 +26,6 @@ from rateslib.periods.components.fx_volatility import FXCallPeriod, FXOptionPeri
 from rateslib.periods.components.protocols import _BasePeriod, _BasePeriodStatic
 
 __all__ = [
-    "_BasePeriod",
-    "_BasePeriodStatic",
     "Cashflow",
     # "IndexCashflow",
     # "NonDeliverableCashflow",

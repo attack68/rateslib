@@ -4,12 +4,13 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
-from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.generics import NoInput, Ok, Result, _drb
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
@@ -18,8 +19,7 @@ from rateslib.scheduling import Adjuster
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         FXVolOption_,
         RollDay,
         Solver_,
+        _BaseCurveOrDict_,
         _BaseLeg,
         bool_,
         datetime,
@@ -44,71 +45,135 @@ class FRA(_BaseInstrument):
     A *forward rate agreement (FRA)* compositing a
     :class:`~rateslib.legs.components.FixedLeg` and :class:`~rateslib.legs.components.FloatLeg`.
 
-    Parameters
-    ----------
-    fixed_rate : float or None
-        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
-        will be set to mid-market when curves are provided.
-    leg2_float_spread : float, optional
-        The spread applied to the :class:`~rateslib.legs.FloatLeg`. Can be set to
-        `None` and designated
-        later, perhaps after a mid-market spread for all periods has been calculated.
-    leg2_spread_compound_method : str, optional
-        The method to use for adding a floating spread to compounded rates. Available
-        options are `{"none_simple", "isda_compounding", "isda_flat_compounding"}`.
-    leg2_fixings : float, list, or Series optional
-        If a float scalar, will be applied as the determined fixing for the first
-        period. If a list of *n* fixings will be used as the fixings for the first *n*
-        periods. If any sublist of length *m* is given, is used as the first *m* RFR
-        fixings for that :class:`~rateslib.periods.FloatPeriod`. If a datetime
-        indexed ``Series`` will use the fixings that are available in that object,
-        and derive the rest from the ``curve``.
-    leg2_fixing_method : str, optional
-        The method by which floating rates are determined, set by default. See notes.
-    leg2_method_param : int, optional
-        A parameter that is used for the various ``fixing_method`` s. See notes.
+    These *Legs* have *Instrument* level overloads in order to satisfy the cashflow determination
+    conventions of a *FRA* instruments.
 
-    Notes
-    -----
-    A *STIRFuture* is modelled as a single period *IRS* whose payment date is overloaded to always
-    result in immediate settlement, with the immediate date derived from the discount curve
-    used during pricing.
-
-    Examples
-    --------
-    Construct a curve to price the example.
-
-    .. ipython:: python
-
-       usd = Curve(
-           nodes={
-               dt(2022, 1, 1): 1.0,
-               dt(2023, 1, 1): 0.965,
-               dt(2024, 1, 1): 0.94
-           },
-           id="usd_stir"
-       )
-
-    Create the *STIRFuture*, and demonstrate the :meth:`~rateslib.instruments.STIRFuture.rate`,
-    :meth:`~rateslib.instruments.STIRFuture.npv`,
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import STIRFuture
+       from rateslib.instruments.components import FRA
+       from datetime import datetime as dt
 
     .. ipython:: python
 
-       stir = STIRFuture(
-            effective=dt(2022, 3, 16),
-            termination=dt(2022, 6, 15),
-            spec="usd_stir",
-            curves=usd,
-            price=99.50,
-            contracts=10,
-        )
-       stir.rate(metric="price")
-       stir.npv()
+       fra = FRA(
+           effective=dt(2000, 1, 1),
+           termination="6m",
+           spec="eur_fra6",
+           fixed_rate=2.0,
+       )
+       fra.cashflows()
+
+    .. rubric:: Pricing
+
+    An *FRA* requires a *disc curve* on both legs (which should be the same *Curve*) and a
+    *leg2 rate curve* to forecast the IBOR type rate on the *FloatLeg*. The following input
+    formats are allowed:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = [rate_curve, disc_curve]  #  two curves are applied in the given order
+       curves = [None, disc_curve, rate_curve, disc_curve]     # four curves applied to each leg
+       curves = {"leg2_rate_curve": rate_curve, "disc_curve": disc_curve}  # dict form is explicit
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+
+        .. note::
+
+           The following define generalised **scheduling** parameters.
+
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: int, :green:`optional (set as 0)`
+        A number of business days by which to lag a traditional *FRA* payment date.
+
+        .. warning::
+
+           *FRAs* are defined by a payment structure that has a cashflow at the accrual start
+           date and an amount adjusted by the rate fixing. An input to this parameter, say 5,
+           will apply an adjuster: `Adjuster.BusDaysLagSettleInAdvance(5)`.
+
+    ex_div: int, :green:`optional (set as 0)`
+        Applied in the same manner as the ``payment_lag``, except negated. An input of 1 will
+        apply an adjuster: `Adjuster.BusDaysLagSettleInAdvance(-1)`.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+
+        .. note::
+
+           The following are **rate parameters**.
+
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+    leg2_method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``.
+    leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the schedule.
+    leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
+    leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        See XXX (working with fixings).
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
 
     """
 
@@ -140,7 +205,7 @@ class FRA(_BaseInstrument):
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An STIRFuture has two curve requirements: a leg2_rate_curve and a disc_curve used by
         both legs.
@@ -188,11 +253,13 @@ class FRA(_BaseInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                leg2_rate_curve=curves,
-                disc_curve=curves,
-                leg2_disc_curve=curves,
+                leg2_rate_curve=curves,  # type: ignore[arg-type]
+                disc_curve=curves,  # type: ignore[arg-type]
+                leg2_disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def __init__(
@@ -207,7 +274,7 @@ class FRA(_BaseInstrument):
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int = 0,
-        ex_div: int_ = NoInput(0),
+        ex_div: int = 0,
         convention: str_ = NoInput(0),
         # settlement parameters
         currency: str_ = NoInput(0),
@@ -219,7 +286,7 @@ class FRA(_BaseInstrument):
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> None:
@@ -232,8 +299,6 @@ class FRA(_BaseInstrument):
             eom=eom,
             modifier=modifier,
             calendar=calendar,
-            payment_lag=payment_lag,
-            ex_div=ex_div,
             convention=convention,
             # settlement
             currency=currency,
@@ -265,6 +330,7 @@ class FRA(_BaseInstrument):
             leg2_notional=NoInput.negate,
             leg2_currency=NoInput.inherit,
             payment_lag=Adjuster.BusDaysLagSettleInAdvance(payment_lag),
+            ex_div=Adjuster.BusDaysLagSettleInAdvance(-ex_div),
             initial_exchange=False,
             final_exchange=False,
             leg2_initial_exchange=False,
@@ -291,14 +357,23 @@ class FRA(_BaseInstrument):
                 f"one regular period. Got '{self.leg1.schedule.n_periods}'."
             )
 
-    def _fra_rate_scalar(self, leg2_rate_curve) -> DualTypes_:
+    def _fra_rate_scalar(self, leg2_rate_curve: _BaseCurveOrDict_) -> DualTypes:
         r = self.leg2._regular_periods[0].rate(rate_curve=leg2_rate_curve)
         return 1 / (1 + self.leg2._regular_periods[0].period_params.dcf * r / 100.0)
+
+    def _try_fra_rate_scalar(self, leg2_rate_curve: _BaseCurveOrDict_) -> Result[DualTypes]:
+        r = self.leg2._regular_periods[0].try_rate(rate_curve=leg2_rate_curve)
+        if r.is_err:
+            return r
+        else:
+            return Ok(
+                1 / (1 + self.leg2._regular_periods[0].period_params.dcf * r.unwrap() / 100.0)
+            )
 
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -330,14 +405,14 @@ class FRA(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
-        if local:
+        if isinstance(npv, dict):
             return {k: v * fra_scalar for k, v in npv.items()}
         else:
             return npv * fra_scalar
 
     def _set_pricing_mid(
         self,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -356,7 +431,7 @@ class FRA(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -364,7 +439,7 @@ class FRA(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
@@ -372,7 +447,7 @@ class FRA(_BaseInstrument):
             rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             settlement=settlement,
@@ -382,7 +457,7 @@ class FRA(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -399,7 +474,7 @@ class FRA(_BaseInstrument):
     def analytic_delta(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -415,7 +490,7 @@ class FRA(_BaseInstrument):
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
         fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
-        return fra_scalar * super().analytic_delta(
+        a_delta = super().analytic_delta(
             curves=curves,
             solver=solver,
             fx=fx,
@@ -426,11 +501,15 @@ class FRA(_BaseInstrument):
             forward=forward,
             leg=leg,
         )
+        if isinstance(a_delta, dict):
+            return {k: v * fra_scalar for k, v in a_delta.items()}
+        else:
+            return a_delta * fra_scalar
 
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -456,7 +535,7 @@ class FRA(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -479,7 +558,7 @@ class FRA(_BaseInstrument):
         leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
-        scalar = _dual_float(self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve))
+        scalar = self._try_fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
 
         headers = [
             defaults.headers["cashflow"],
@@ -487,6 +566,8 @@ class FRA(_BaseInstrument):
             defaults.headers["npv_fx"],
         ]
         for header in headers:
-            df[header] = df[header] * scalar
-
+            if scalar.is_err:
+                df[header] = None
+            else:
+                df[header] = df[header] * _dual_float(scalar.unwrap())
         return df

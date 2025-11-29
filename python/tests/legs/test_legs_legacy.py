@@ -1423,6 +1423,41 @@ class TestZeroIndexLeg:
         assert abs(result1 - result3) < 1e-8
         assert abs(result1 - result4) < 1e-8
 
+    @pytest.mark.parametrize(
+        ("ini", "final", "mtm", "lenn", "nd_dt", "cf"),
+        [
+            (False, False, False, 1, dt(2000, 1, 1), 500e3 * 2.0),
+            (False, False, True, 1, dt(2001, 1, 1), 500e3 * 3.0),
+            (False, True, False, 1, dt(2000, 1, 1), 1.5e6 * 2.0),
+            (False, True, True, 1, dt(2000, 1, 1), 1.5e6 * 2.0),
+            # (True, False, False, 2, dt(2000, 1, 1)), # final exch True by default
+            # (True, False, True, 2, dt(2000, 1, 1)),  # final exch True by default
+            (True, True, False, 2, dt(2000, 1, 1), 1.5e6 * 2.0),
+            (True, True, True, 2, dt(2000, 1, 1), 1.5e6 * 2.0),
+        ],
+    )
+    def test_attributes(self, ini, final, mtm, lenn, nd_dt, cf) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name, Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[10.0, 15.0]))
+        fixings.add(name + "fx", Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[2.0, 3.0]))
+        leg = ZeroIndexLeg(
+            schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2001, 1, 1), frequency="Z"),
+            currency="usd",
+            initial_exchange=ini,
+            final_exchange=final,
+            pair="eurusd",
+            mtm=mtm,
+            fx_fixings=name + "fx",
+            index_lag=0,
+            index_fixings=name,
+            notional=-1e6,
+        )
+        assert len(leg.periods) == lenn
+        assert leg.periods[-1].non_deliverable_params.delivery == nd_dt
+        assert leg.periods[-1].cashflow() == cf
+        fixings.pop(name)
+        fixings.pop(name + "fx")
+
 
 class TestFloatLegExchange:
     @pytest.mark.skip(reason="v 2.2 removed ability to mutate notional")

@@ -3,15 +3,19 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib.legs.components.protocols import _BaseLeg
-from rateslib.periods.components import _BasePeriod
+from rateslib.periods.components.protocols import _BasePeriod
 
 if TYPE_CHECKING:
-    pass
+    from rateslib.typing import (  # pragma: no cover
+        Sequence,
+        Any,
+        DualTypes,
+    )
 
 
 class CustomLeg(_BaseLeg):
     """
-    Create a leg containing user specified :class:`~rateslib.periods.components._BasePeriod`.
+    A *Leg* containing user specified :class:`~rateslib.periods.components._BasePeriod`.
 
     .. rubric:: Examples
 
@@ -52,13 +56,16 @@ class CustomLeg(_BaseLeg):
     """  # noqa: E501
 
     @property
-    def periods(self) -> list[_BasePeriod]:
+    def periods(self) -> Sequence[_BasePeriod]:
         """Combine all period collection types into an ordered list."""
         return self._periods
 
-    def __init__(self, periods: list[_BasePeriod]) -> None:
+    def __init__(self, periods: Sequence[_BasePeriod]) -> None:
         if not all(isinstance(p, _BasePeriod) for p in periods):
             raise ValueError(
                 "Each object in `periods` must be an instance of `_BasePeriod`.",
             )
         self._periods = periods
+
+    def spread(self, *args: Any, **kwargs: Any) -> DualTypes:
+        return super().spread(*args, **kwargs)  # type: ignore[safe-super]
