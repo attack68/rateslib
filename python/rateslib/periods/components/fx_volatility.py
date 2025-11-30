@@ -48,7 +48,7 @@ from rateslib.periods.components.parameters import (
     _NonDeliverableParams,
     _SettlementParams,
 )
-from rateslib.periods.components.protocols import _BasePeriodStatic
+from rateslib.periods.components.protocols import _BasePeriodStatic, _WithAnalyticFXOptionGreeks
 from rateslib.periods.components.utils import (
     _get_vol_delta_type,
     _get_vol_maybe_from_obj,
@@ -79,7 +79,7 @@ if TYPE_CHECKING:
     )
 
 
-class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
+class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
     r"""
     An abstract base class for implementing FX option *Periods*.
 
@@ -225,7 +225,7 @@ class FXOptionPeriod(_BasePeriodStatic, metaclass=ABCMeta):
         return self._rate_params
 
     @property
-    def fx_option_params(self) -> _FXOptionParams:  # type: ignore[override]
+    def fx_option_params(self) -> _FXOptionParams:
         """The :class:`~rateslib.periods.components.parameters._FXOptionParams` of the
         *Period*."""
         return self._fx_option_params

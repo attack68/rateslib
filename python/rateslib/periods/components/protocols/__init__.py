@@ -27,7 +27,6 @@ class _BasePeriod(
     _WithCashflows,
     _WithAnalyticDelta,
     _WithAnalyticRateFixings,
-    _WithAnalyticFXOptionGreeks,
     metaclass=ABCMeta,
 ):
     """Abstract base class for *Period* types."""

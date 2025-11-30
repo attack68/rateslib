@@ -12,10 +12,10 @@ if TYPE_CHECKING:
         CurveOption_,
         FXForwards_,
         FXVolOption_,
+        Sequence,
         _BaseCurve_,
         _BasePeriod,
         datetime_,
-        Sequence,
     )
 
 

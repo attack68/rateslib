@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 class SBS(_BaseInstrument):
     """
-    An *single currency basis swap (SBS)* composing a :class:`~rateslib.legs.components.FloatLeg`
+    A *single currency basis swap (SBS)* composing a :class:`~rateslib.legs.components.FloatLeg`
     and a :class:`~rateslib.legs.components.FloatLeg`.
 
     .. rubric:: Examples

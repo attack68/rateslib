@@ -12,6 +12,7 @@ from rateslib.periods.components import CreditPremiumPeriod, CreditProtectionPer
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         FX_,
+        Any,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -44,6 +45,13 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
         .. note::
 
+           The following are **period parameters** combined with the ``schedule``.
+
+    convention: str, optional
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+        .. note::
+
            The following define generalised **settlement** parameters.
 
     currency : str, :green:`optional (set by 'defaults')`
@@ -57,11 +65,18 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
         .. note::
 
-           The following are **period parameters** combined with the ``schedule``.
+           The following define **rate parameters**.
 
-    convention: str, optional
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
+    fixed_rate: float, Dual, Dual2, Variable, :green:`optional`
+        The fixed rate of each composited :class:`~rateslib.periods.components.CreditPremiumPeriod`.
+
+        .. note::
+
+           The following parameters define **credit specific** elements.
+
+    premium_accrued: bool, :green:`optional (set by 'defaults')`
+        Whether an accrued premium is paid on the event of mid-period credit default.
+
 
     Notes
     -----
@@ -147,7 +162,7 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
         self._regular_periods = tuple(
             [
-                CreditPremiumPeriod(  # type: ignore[abstract]
+                CreditPremiumPeriod(
                     fixed_rate=fixed_rate,
                     premium_accrued=premium_accrued,
                     # currency args
@@ -286,7 +301,7 @@ class CreditProtectionLeg(_BaseLeg):
 
         self._regular_periods = tuple(
             [
-                CreditProtectionPeriod(  # type: ignore[abstract]
+                CreditProtectionPeriod(
                     # currency args
                     payment=self.schedule.pschedule[i + 1],
                     currency=self._currency,
@@ -336,3 +351,6 @@ class CreditProtectionLeg(_BaseLeg):
         )
         ret: float = sum(_)
         return ret
+
+    def spread(self, *args: Any, **kwargs: Any) -> DualTypes:
+        raise NotImplementedError(f"{type(self).__name__} does not implement `spread`.")

@@ -8,13 +8,13 @@ from rateslib.enums.parameters import (
 )
 
 __all__ = [
-    "Ok",
-    "Err",
-    "Result",
-    "NoInput",
     "FloatFixingMethod",
-    "IndexMethod",
     "SpreadCompoundMethod",
+    "IndexMethod",
     "FXDeltaMethod",
     "FXOptionMetric",
+    "NoInput",
+    "Result",
+    "Ok",
+    "Err",
 ]
