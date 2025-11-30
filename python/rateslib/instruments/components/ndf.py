@@ -10,24 +10,26 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_fx_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
+from rateslib.periods.components.utils import _validate_fx_as_forwards
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Adjuster,
+        Any,
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
         FXForwards_,
         FXVolOption_,
         PeriodFixings,
+        Sequence,
         Solver_,
         _BaseLeg,
         bool_,
@@ -55,6 +57,23 @@ class NDF(_BaseInstrument):
 
        ndf = NDF(dt(2025, 1, 5), "usdbrl", fx_rate=5.5, currency="usd")
        ndf.cashflows()
+
+    .. rubric:: Pricing
+
+    The methods of an *NDF* require an :class:`~rateslib.fx.FXForwards` object for ``fx`` .
+
+    They also require a *disc curve*, which is appropriate curve to discount the
+    cashflows of the deliverable settlement currency. The following input
+    formats are allowed:
+
+    .. code-block:: python
+
+       curves = disc_curve | [disc_curve]  # one curve
+       curves = [None, disc_curve, None, disc_curve]  # four curves
+       curves = {  # dict form is explicit
+           "disc_curve": disc_curve,
+           "leg2_disc_curve": disc_curve,
+       }
 
     .. role:: red
 
@@ -121,8 +140,9 @@ class NDF(_BaseInstrument):
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -142,15 +162,13 @@ class NDF(_BaseInstrument):
         return self._leg2
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
-        An NDF requires 1 curve to discount curve the settlement currency.
-
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        An NDF requires 1 disc curve for the cashflows in the delivery currency.
         """
         if isinstance(curves, NoInput):
             return _Curves()
@@ -163,10 +181,10 @@ class NDF(_BaseInstrument):
                 ),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 2:
+            if len(curves) == 1:
                 return _Curves(
                     disc_curve=curves[0],
-                    leg2_disc_curve=curves[1],
+                    leg2_disc_curve=curves[0],
                 )
             elif len(curves) == 4:
                 return _Curves(
@@ -177,11 +195,12 @@ class NDF(_BaseInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires 1 curve types. Got {len(curves)}."
                 )
-
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                disc_curve=curves,
-                leg2_disc_curve=curves,
+                disc_curve=curves,  # type: ignore[arg-type]
+                leg2_disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def __init__(
@@ -205,14 +224,14 @@ class NDF(_BaseInstrument):
         reversed: bool = False,
         leg2_reversed: bool = False,
         # meta
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
         # determine 'currency' and each 'pair'
         # this coordinates the allowable combination inputs
         pair_ = pair.lower()
         if isinstance(currency, NoInput):
-            user_args = dict(
+            user_args: dict[str, Any] = dict(
                 currency=pair_[3:],
                 pair=pair_,
                 fx_fixings=fx_fixings,
@@ -341,7 +360,7 @@ class NDF(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -362,7 +381,7 @@ class NDF(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -370,8 +389,8 @@ class NDF(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
-        fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
+    ) -> DualTypes:
+        fx_ = _validate_fx_as_forwards(_get_fx_forwards_maybe_from_solver(solver=solver, fx=fx))
         return fx_.rate(
             pair=self.kwargs.meta["settlement_pair"], settlement=self.kwargs.leg1["settlement"]
         )
@@ -391,7 +410,7 @@ class NDF(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

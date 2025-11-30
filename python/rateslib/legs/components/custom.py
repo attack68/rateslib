@@ -7,9 +7,9 @@ from rateslib.periods.components.protocols import _BasePeriod
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        Sequence,
         Any,
         DualTypes,
+        Sequence,
     )
 
 

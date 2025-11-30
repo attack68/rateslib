@@ -29,13 +29,13 @@ if TYPE_CHECKING:
         IndexMethod,
         LegFixings,
         Schedule,
+        Sequence,
         _BaseCurve_,
         _BasePeriod,
         datetime,
         datetime_,
         int_,
         str_,
-        Sequence,
     )
 
 
@@ -284,7 +284,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(  # type: ignore[abstract]
+            _ini_cf = Cashflow(
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -305,7 +305,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(  # type: ignore[abstract]
+            _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -339,7 +339,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         rate_fixings_list = _leg_fixings_to_list(rate_fixings, self._schedule.n_periods)
         self._regular_periods = tuple(
             [
-                FloatPeriod(  # type: ignore[abstract]
+                FloatPeriod(
                     float_spread=float_spread,
                     rate_fixings=rate_fixings_list[i],
                     fixing_method=fixing_method,
@@ -384,7 +384,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         else:
             self._amortization_exchange_periods = tuple(
                 [
-                    Cashflow(  # type: ignore[abstract]
+                    Cashflow(
                         notional=self.amortization.amortization[i],
                         payment=self.schedule.pschedule2[i + 1],
                         currency=self._currency,
@@ -413,7 +413,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 raise ValueError(err.VE_PAIR_AND_LEG_MTM)
             self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = tuple(
                 [
-                    MtmCashflow(  # type: ignore[abstract]
+                    MtmCashflow(
                         payment=self.schedule.pschedule2[i + 1],
                         notional=-self.amortization.outstanding[i],
                         pair=pair,
@@ -747,7 +747,7 @@ class ZeroFloatLeg(_BaseLeg):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(  # type: ignore[abstract]
+            _ini_cf = Cashflow(
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -768,7 +768,7 @@ class ZeroFloatLeg(_BaseLeg):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(  # type: ignore[abstract]
+            _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -788,7 +788,7 @@ class ZeroFloatLeg(_BaseLeg):
         self._exchange_periods = (_ini_cf, _final_cf)
 
         self._regular_periods = (
-            ZeroFloatPeriod(  # type: ignore[abstract]
+            ZeroFloatPeriod(
                 float_spread=float_spread,
                 rate_fixings=rate_fixings,
                 fixing_method=fixing_method,

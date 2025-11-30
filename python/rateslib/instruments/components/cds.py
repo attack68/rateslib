@@ -9,7 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
 )
 from rateslib.legs.components import CreditPremiumLeg, CreditProtectionLeg
 from rateslib.scheduling import Frequency
@@ -17,11 +17,10 @@ from rateslib.scheduling import Frequency
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
-        Frequency,
         FXForwards_,
         FXVolOption_,
         RollDay,
@@ -37,6 +36,167 @@ if TYPE_CHECKING:
 
 
 class CDS(_BaseInstrument):
+    """
+    A *credit default swap (CDS)* composing a :class:`~rateslib.legs.components.CreditPremiumLeg`
+    and a :class:`~rateslib.legs.components.CreditProtectionLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import CDS
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       irs = CDS(
+           effective=dt(2001, 12, 20),
+           termination="2y",
+           spec="us_ig_cds",
+       )
+       irs.cashflows()
+
+    .. rubric:: Pricing
+
+    A *CDS* requires a hazard *rate curve*  and a *disc curve* on both legs
+    (which should be the same). The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = [rate_curve, disc_curve]  #  two curves are applied in the given order
+       curves = [rate_curve, disc_curve, rate_curve, disc_curve]  # four curves applied to each leg
+       curves = {"rate_curve": rate_curve, "disc_curve": disc_curve}
+       curves = {  # dict form is explicit
+           "rate_curve": rate_curve,
+           "disc_curve": disc_curve
+           "leg2_rate_curve": rate_curve,
+           "leg2_disc_curve": rate_curve,
+       }
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+
+        .. note::
+
+           The following define generalised **scheduling** parameters.
+
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    payment_lag_exchange: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    ex_div: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+    leg2_effective : datetime, :green:`optional (inherited from leg1)`
+    leg2_termination : datetime, str, :green:`optional (inherited from leg1)`
+    leg2_frequency : Frequency, str, :green:`optional (inherited from leg1)`
+    leg2_stub : StubInference, str, :green:`optional (inherited from leg1)`
+    leg2_front_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_back_stub : datetime, :green:`optional (inherited from leg1)`
+    leg2_roll : RollDay, int, str, :green:`optional (inherited from leg1)`
+    leg2_eom : bool, :green:`optional (inherited from leg1)`
+    leg2_modifier : Adjuster, str, :green:`optional (inherited from leg1)`
+    leg2_calendar : calendar, str, :green:`optional (inherited from leg1)`
+    leg2_payment_lag: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_payment_lag_exchange: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_ex_div: Adjuster, int, :green:`optional (inherited from leg1)`
+    leg2_convention: str, :green:`optional (inherited from leg1)`
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
+        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
+        each successive period by that same value. Should have
+        sign equal to that of notional if the notional is to reduce towards zero.
+    leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
+    leg2_amortization : float, Dual, Dual2, Variable, str, Amortization, :green:`optional (negatively inherited from leg1)`
+
+        .. note::
+
+           The following are **rate parameters**.
+
+    fixed_rate : float or None
+        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        will be set to mid-market when curves are provided.
+
+        .. note::
+
+           The following parameters define **credit specific** elements.
+
+    premium_accrued: bool, :green:`optional (set by 'defaults')`
+        Whether an accrued premium is paid on the event of mid-period credit default.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
+
+    """  # noqa: E501
+
     _rate_scalar = 1.0
 
     @property
@@ -69,8 +229,6 @@ class CDS(_BaseInstrument):
         termination: datetime | str_ = NoInput(0),
         frequency: Frequency | str_ = NoInput(0),
         *,
-        premium_accrued: bool_ = NoInput(0),
-        fixed_rate: DualTypes_ = NoInput(0),
         stub: str_ = NoInput(0),
         front_stub: datetime_ = NoInput(0),
         back_stub: datetime_ = NoInput(0),
@@ -81,9 +239,6 @@ class CDS(_BaseInstrument):
         payment_lag: int_ = NoInput(0),
         payment_lag_exchange: int_ = NoInput(0),
         ex_div: int_ = NoInput(0),
-        notional: float_ = NoInput(0),
-        currency: str_ = NoInput(0),
-        amortization: float_ = NoInput(0),
         convention: str_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
@@ -97,19 +252,25 @@ class CDS(_BaseInstrument):
         leg2_calendar: CalInput = NoInput(1),
         leg2_payment_lag: int_ = NoInput(1),
         leg2_payment_lag_exchange: int_ = NoInput(1),
-        leg2_notional: float_ = NoInput(-1),
-        leg2_amortization: float_ = NoInput(-1),
         leg2_convention: str_ = NoInput(1),
         leg2_ex_div: int_ = NoInput(1),
-        curves: Curves_ = NoInput(0),
+        # settlement
+        notional: float_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        amortization: float_ = NoInput(0),
+        leg2_notional: float_ = NoInput(-1),
+        leg2_amortization: float_ = NoInput(-1),
+        # rate and credit params
+        premium_accrued: bool_ = NoInput(0),
+        fixed_rate: DualTypes_ = NoInput(0),
+        # meta params
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
         user_args = dict(
             effective=effective,
             termination=termination,
             frequency=frequency,
-            premium_accrued=premium_accrued,
-            fixed_rate=fixed_rate,
             stub=stub,
             front_stub=front_stub,
             back_stub=back_stub,
@@ -124,11 +285,6 @@ class CDS(_BaseInstrument):
             currency=currency,
             amortization=amortization,
             convention=convention,
-            # leg2_float_spread=leg2_float_spread,
-            # leg2_spread_compound_method=leg2_spread_compound_method,
-            # leg2_rate_fixings=leg2_rate_fixings,
-            # leg2_fixing_method=leg2_fixing_method,
-            # leg2_method_param=leg2_method_param,
             leg2_effective=leg2_effective,
             leg2_termination=leg2_termination,
             leg2_frequency=leg2_frequency,
@@ -145,14 +301,14 @@ class CDS(_BaseInstrument):
             leg2_notional=leg2_notional,
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
+            # rate and credit
+            premium_accrued=premium_accrued,
+            fixed_rate=fixed_rate,
+            # meta
             curves=self._parse_curves(curves),
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             leg2_currency=NoInput(1),
-            # initial_exchange=False,
-            # final_exchange=False,
-            # leg2_initial_exchange=False,
-            # leg2_final_exchange=False,
         )
 
         default_args = dict(
@@ -176,7 +332,7 @@ class CDS(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -188,10 +344,10 @@ class CDS(_BaseInstrument):
         _curves = self._parse_curves(curves)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            rate_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
             ),
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+            disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             index_curve=NoInput(0),
@@ -201,10 +357,10 @@ class CDS(_BaseInstrument):
         return (
             self.leg1.spread(
                 target_npv=-leg2_npv,
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                rate_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "rate_curve", solver
                 ),
-                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
                 index_curve=NoInput(0),
@@ -236,7 +392,7 @@ class CDS(_BaseInstrument):
     def spread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -260,7 +416,7 @@ class CDS(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -288,7 +444,7 @@ class CDS(_BaseInstrument):
 
     def _set_pricing_mid(
         self,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -304,7 +460,7 @@ class CDS(_BaseInstrument):
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
-    def _parse_curves(self, curves: Curves_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         A CDS has two curve requirements: a hazard_curve and a disc_curve used by both legs.
 
@@ -333,6 +489,13 @@ class CDS(_BaseInstrument):
                     disc_curve=curves[1],
                     leg2_disc_curve=curves[1],
                 )
+            elif len(curves) == 4:
+                return _Curves(
+                    rate_curve=curves[0],
+                    leg2_rate_curve=curves[2],
+                    disc_curve=curves[1],
+                    leg2_disc_curve=curves[3],
+                )
             else:
                 raise ValueError(f"{type(self).__name__} requires 2 `curves`. Got {len(curves)}.")
 
@@ -342,7 +505,7 @@ class CDS(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -363,7 +526,7 @@ class CDS(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

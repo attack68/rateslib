@@ -6,12 +6,12 @@ from rateslib.legs.components.float import FloatLeg, ZeroFloatLeg
 
 __all__ = [
     "FixedLeg",
-    "Amortization",
     "FloatLeg",
-    "CreditPremiumLeg",
-    "CreditProtectionLeg",
-    "CustomLeg",
     "ZeroFixedLeg",
     "ZeroFloatLeg",
     "ZeroIndexLeg",
+    "CreditPremiumLeg",
+    "CreditProtectionLeg",
+    "CustomLeg",
+    "Amortization",
 ]

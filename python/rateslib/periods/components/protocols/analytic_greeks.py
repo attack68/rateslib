@@ -29,7 +29,8 @@ if TYPE_CHECKING:
 
 
 class _WithAnalyticFXOptionGreeks(Protocol):
-    fx_option_params: _FXOptionParams
+    @property
+    def fx_option_params(self) -> _FXOptionParams: ...
 
     @property
     def settlement_params(self) -> _SettlementParams: ...

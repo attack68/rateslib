@@ -4,23 +4,24 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _get_fx_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
+from rateslib.periods.components.utils import _validate_base_curve
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
+        Any,
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DataFrame,
         DualTypes,
         DualTypes_,
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
         FXVolOption_,
         PeriodFixings,
         RollDay,
+        Sequence,
         Solver_,
         _BaseLeg,
         bool_,
@@ -65,6 +67,18 @@ class FXSwap(_BaseInstrument):
            points=56.5,
        )
        fxs.cashflows()
+
+    .. rubric:: Pricing
+
+    An *FX Swap* requires a *disc curve* and a *leg2 disc curve* to discount the cashflows
+    of the respective currencies (typically with the same collateral definition).
+    The following input formats are allowed:
+
+    .. code-block:: python
+
+       curves = [disc_curve, leg2_disc_curve]  #  two curves are applied in the given order
+       curves = [None, disc_curve, None, leg2_disc_curve]  # four curves applied to each leg
+       curves = {"disc_curve": disc_curve, "leg2_disc_curve": leg2_disc_curve}  # dict form is explicit
 
     .. role:: red
 
@@ -147,25 +161,20 @@ class FXSwap(_BaseInstrument):
         return self._leg2
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
-        An NDF requires 1 curve to discount curve the settlement currency.
-
-        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        An FXSwap requires a disc curve and a leg2 disc curve
         """
         if isinstance(curves, NoInput):
             return _Curves()
         elif isinstance(curves, dict):
             return _Curves(
                 disc_curve=curves.get("disc_curve", NoInput(0)),
-                leg2_disc_curve=_drb(
-                    curves.get("disc_curve", NoInput(0)),
-                    curves.get("leg2_disc_curve", NoInput(0)),
-                ),
+                leg2_disc_curve=curves.get("leg2_disc_curve", NoInput(0)),
             )
         elif isinstance(curves, list | tuple):
             if len(curves) == 2:
@@ -180,14 +189,12 @@ class FXSwap(_BaseInstrument):
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires 1 curve types. Got {len(curves)}."
+                    f"{type(self).__name__} requires 2 curve types. Got {len(curves)}."
                 )
-
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
-            return _Curves(
-                disc_curve=curves,
-                leg2_disc_curve=curves,
-            )
+            raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
 
     def __init__(
         self,
@@ -209,7 +216,7 @@ class FXSwap(_BaseInstrument):
         leg2_fx_fixings: PeriodFixings = NoInput(0),
         points: DualTypes_ = NoInput(0),
         # meta
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
         pair_ = pair.lower()
@@ -256,7 +263,7 @@ class FXSwap(_BaseInstrument):
             pair=NoInput(0),
             leg2_pair=NoInput(0),
         )
-        default_args = dict()
+        default_args: dict[str, Any] = dict()
         self._kwargs = _KWArgs(
             spec=spec,
             user_args={**user_args, **instrument_args},
@@ -395,7 +402,7 @@ class FXSwap(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -416,7 +423,7 @@ class FXSwap(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -424,7 +431,7 @@ class FXSwap(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         if isinstance(self.kwargs.leg1["pair"], NoInput):
             # then non-deliverability and fx_fixing are on leg2
             return self._rate_on_leg(
@@ -441,41 +448,48 @@ class FXSwap(_BaseInstrument):
         core_leg: str,
         nd_leg: str,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         _curves = self._parse_curves(curves)
-        fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
+        fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
 
         core_curve = "" if core_leg == "leg1" else "leg2_"
         nd_curve = "" if nd_leg == "leg1" else "leg2_"
-        core_leg = getattr(self, core_leg)
-        nd_leg = getattr(self, nd_leg)
+        core_leg_: CustomLeg = getattr(self, core_leg)
+        nd_leg_: CustomLeg = getattr(self, nd_leg)
 
         # then non-deliverability and fx_fixing are on leg2
-        core_npv = core_leg.npv(
-            disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+        disc_curve = _validate_base_curve(
+            _maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, f"{core_curve}disc_curve", solver
-            ),
+            )
+        )
+        core_npv: DualTypes = core_leg_.npv(  # type: ignore[assignment]
+            disc_curve=disc_curve,
             base=self.leg2.settlement_params.currency,
             fx=fx_,
+            local=False,
         )
-        nd_disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, f"{nd_curve}disc_curve", solver
+        nd_disc_curve = _validate_base_curve(
+            _maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, f"{nd_curve}disc_curve", solver
+            )
         )
         nd_cf1_npv = self.leg2.periods[0].local_npv(disc_curve=nd_disc_curve, fx=fx_)
         net_zero_cf = (core_npv + nd_cf1_npv) / nd_disc_curve[
-            nd_leg.periods[1].settlement_params.payment
+            nd_leg_.periods[1].settlement_params.payment
         ]
-        required_fx = net_zero_cf / nd_leg.periods[1].settlement_params.notional
-        original_fx = nd_leg.periods[0].non_deliverable_params.fx_fixing.value_or_forecast(fx=fx_)
-        return (required_fx - original_fx) * 10000.0
+        required_fx = net_zero_cf / nd_leg_.periods[1].settlement_params.notional
+        original_fx = nd_leg_.periods[0].non_deliverable_params.fx_fixing.value_or_forecast(fx=fx_)  # type: ignore[attr-defined]
+        _: DualTypes = (required_fx - original_fx) * 10000.0
+        return _
 
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

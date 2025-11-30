@@ -15,14 +15,14 @@ from rateslib.legs.components.protocols import (
     _BaseLeg,
     _WithExDiv,
 )
-from rateslib.periods.components.protocols import (
-    _BasePeriod,
-)
 from rateslib.periods.components import (
     Cashflow,
     FixedPeriod,
     MtmCashflow,
     ZeroFixedPeriod,
+)
+from rateslib.periods.components.protocols import (
+    _BasePeriod,
 )
 
 if TYPE_CHECKING:
@@ -533,7 +533,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(  # type: ignore[abstract]
+            _ini_cf = Cashflow(
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -555,7 +555,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(  # type: ignore[abstract]
+            _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -577,7 +577,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
 
         self._regular_periods: tuple[FixedPeriod, ...] = tuple(
             [
-                FixedPeriod(  # type: ignore[abstract]
+                FixedPeriod(
                     fixed_rate=fixed_rate,
                     # currency args
                     payment=self.schedule.pschedule[i + 1],
@@ -618,7 +618,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
             # only with notional exchange and some Amortization amount
             self._amortization_exchange_periods = tuple(
                 [
-                    Cashflow(  # type: ignore[abstract]
+                    Cashflow(
                         notional=self.amortization.amortization[i],
                         payment=self.schedule.pschedule2[i + 1],
                         currency=self._currency,
@@ -648,7 +648,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                 raise ValueError(err.VE_PAIR_AND_LEG_MTM)
             self._mtm_exchange_periods: tuple[_BasePeriod, ...] | None = tuple(
                 [
-                    MtmCashflow(  # type: ignore[abstract]
+                    MtmCashflow(
                         payment=self.schedule.pschedule2[i + 1],
                         notional=-self.amortization.outstanding[i],
                         pair=pair,
@@ -888,7 +888,7 @@ class ZeroFixedLeg(_BaseLeg):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(  # type: ignore[abstract]
+            _ini_cf = Cashflow(
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -910,7 +910,7 @@ class ZeroFixedLeg(_BaseLeg):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
-            _final_cf = Cashflow(  # type: ignore[abstract]
+            _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
                 currency=self._currency,
@@ -931,7 +931,7 @@ class ZeroFixedLeg(_BaseLeg):
         self._exchange_periods = (_ini_cf, _final_cf)
 
         self._regular_periods = (
-            ZeroFixedPeriod(  # type: ignore[abstract]
+            ZeroFixedPeriod(
                 fixed_rate=NoInput(0),
                 schedule=self.schedule,
                 # currency args
@@ -1206,7 +1206,7 @@ class ZeroIndexLeg(_BaseLeg):
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
         else:
-            _ini_cf = Cashflow(  # type: ignore[abstract]
+            _ini_cf = Cashflow(
                 payment=self.schedule.pschedule2[0],
                 notional=-self._amortization.outstanding[0],
                 currency=self._currency,
@@ -1225,7 +1225,7 @@ class ZeroIndexLeg(_BaseLeg):
                 index_only=False,  #  is only True if there is not final exchange
             )
         final_exchange_ = final_exchange or initial_exchange
-        _final_cf = Cashflow(  # type: ignore[abstract]
+        _final_cf = Cashflow(
             payment=self.schedule.pschedule2[-1],
             notional=self._amortization.outstanding[-1],
             currency=self._currency,
