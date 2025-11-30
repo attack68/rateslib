@@ -13,12 +13,12 @@ if TYPE_CHECKING:
         FXForwards_,
         FXVolOption_,
         Schedule,
+        Sequence,
         _BaseCurve_,
         _BasePeriod,
         datetime,
         datetime_,
         str_,
-        Sequence,
     )
 
 

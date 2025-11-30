@@ -780,7 +780,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         )
         rate_fixings_ = _leg_fixings_to_list(rate_fixings, self.schedule.n_periods)
         self._float_periods: list[FloatPeriod] = [
-            FloatPeriod(  # type: ignore[abstract]
+            FloatPeriod(
                 float_spread=float_spread,
                 rate_fixings=rate_fixings_[i],
                 fixing_method=fixing_method,

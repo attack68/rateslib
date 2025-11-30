@@ -40,21 +40,6 @@ Scheduling
    :no-heading:
    :no-inheritance-diagram:
 
-Piecewise Polynomial Splines
-=============================
-
-.. automodapi:: rateslib.splines
-   :no-heading:
-   :no-inheritance-diagram:
-
-
-Dual (for AD)
-==============
-
-.. automodapi:: rateslib.dual
-   :no-heading:
-   :no-inheritance-diagram:
-
 
 Curves
 =======
@@ -85,6 +70,29 @@ Fixings
    :inherited-members:
    :no-inheritance-diagram:
 
+Instruments
+============
+
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.instruments.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
+   :no-heading:
+   :include: IRS
+   :include: SBS
+   :include: ZCS
+   :include: XCS
+   :include: FRA
+   :include: IIRS
+   :include: ZCIS
+   :include: FXForward
+   :include: FXSwap
+   :include: CDS
+   :include: NDF
+
 FX
 ===
 
@@ -99,6 +107,28 @@ FX Volatility
    :inherited-members:
    :no-heading:
    :no-inheritance-diagram:
+
+Legs
+=====
+
+Link to the :ref:`Legs<legs-doc>` section in the user guide.
+
+Objects
+^^^^^^^^
+
+.. automodapi:: rateslib.legs.components
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :inherited-members:
+   :no-heading:
+
+Protocols
+^^^^^^^^^
+
+.. automodapi:: rateslib.legs.components.protocols
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :no-heading:
 
 Periods
 ========
@@ -145,64 +175,10 @@ Parameters
 Class Inheritance Diagram
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
 .. inheritance-diagram:: rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.protocols._BasePeriodStatic rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.FloatPeriod rateslib.periods.components.Cashflow rateslib.periods.components.FixedPeriod
    :private-bases:
    :parts: 1
 
-
-Legs
-=====
-
-Link to the :ref:`Legs<legs-doc>` section in the user guide.
-
-Objects
-^^^^^^^^
-
-.. automodapi:: rateslib.legs.components
-   :no-inheritance-diagram:
-   :headings: "^-"
-   :inherited-members:
-   :no-heading:
-
-Protocols
-^^^^^^^^^
-
-.. automodapi:: rateslib.legs.components.protocols
-   :no-inheritance-diagram:
-   :headings: "^-"
-   :no-heading:
-
-Instruments
-============
-
-.. automodapi:: rateslib.instruments
-   :no-heading:
-   :inherited-members:
-   :no-inheritance-diagram:
-
-Objects
-^^^^^^^^
-
-.. automodapi:: rateslib.instruments.components
-   :no-inheritance-diagram:
-   :headings: "^-"
-   :inherited-members:
-   :no-heading:
-   :include: IRS
-   :include: SBS
-   :include: ZCS
-   :include: XCS
-   :include: FRA
-   :include: IIRS
-   :include: ZCIS
-
-
-Class Inheritance Diagram
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. automod-diagram:: rateslib.instruments
-    :parts: 1
 
 Solver
 =======
@@ -230,6 +206,21 @@ Solver
    :skip: uuid4
    :skip: PerformanceWarning
 
+
+Piecewise Polynomial Splines
+=============================
+
+.. automodapi:: rateslib.splines
+   :no-heading:
+   :no-inheritance-diagram:
+
+
+Dual (for AD)
+==============
+
+.. automodapi:: rateslib.dual
+   :no-heading:
+   :no-inheritance-diagram:
 
 Serialization
 ==============

@@ -175,7 +175,7 @@ class FRA(_BaseInstrument):
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
 
-    """
+    """  # noqa: E501
 
     _rate_scalar = 1.0
 

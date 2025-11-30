@@ -13,11 +13,11 @@ if TYPE_CHECKING:
         DualTypes,
         FXForwards_,
         FXVolOption_,
+        Sequence,
         _BaseCurve_,
         _BasePeriod,
         datetime_,
         str_,
-        Sequence,
     )
 
 
