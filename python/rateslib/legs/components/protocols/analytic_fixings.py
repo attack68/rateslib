@@ -11,10 +11,10 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         CurveOption_,
         FXForwards_,
-        FXVolOption_,
         Sequence,
         _BaseCurve_,
         _BasePeriod,
+        _FXVolOption_,
         datetime_,
     )
 
@@ -35,7 +35,7 @@ class _WithAnalyticRateFixings(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:

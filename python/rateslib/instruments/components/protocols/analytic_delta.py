@@ -5,8 +5,10 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
+    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _Vol,
     _WithPricingObjs,
 )
 
@@ -15,9 +17,9 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         FXForwards_,
-        FXVolOption_,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         _Curves,
         _KWArgs,
@@ -43,7 +45,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -51,52 +53,12 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
         """
-        Calculate the rate analytic delta of any *Leg* of the *Instrument* converted to any
-        other *base* accounting currency.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-            The FX volatility *Smile* or *Surface* object used for determining Black calendar
-            day implied volatility values.
-        base: str, optional
-            The currency to convert the *local settlement* NPV to.
-        local: bool, optional
-            An override flag to return a dict of NPV values indexed by string currency.
-        settlement: datetime, optional
-            The assumed settlement date of the *PV* determination. Used only to evaluate
-            *ex-dividend* status.
-        forward: datetime, optional
-            The future date to project the *PV* to using the ``disc_curve``.
-        leg: int, optional
-            The leg number, 1 or 2, for which to determine the analytic delta.
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable or dict of such indexed by string currency.
-
-        Notes
-        -----
-        If ``base`` is not provided then this function will return the value obtained from
-        :meth:`~rateslib.periods.components._WithNPV.try_local_npv`.
-
-        If ``base`` is provided this then an :class:`~rateslib.fx.FXForwards` object may be
-        required to perform conversions. An :class:`~rateslib.fx.FXRates` object is also allowed
-        for this conversion although best practice does not recommend it due to possible
-        settlement date conflicts.
+        TBD
         """
         _curves: _Curves = self._parse_curves(curves)
+        _vol: _Vol = self._parse_vol(vol)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
+        _vol_meta: _Vol = self.kwargs.meta["vol"]
 
         prefix = "" if leg == 1 else "leg2_"
 
@@ -110,7 +72,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
             index_curve=_maybe_get_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}index_curve", solver
             ),
-            fx_vol=fx_vol,
+            fx_vol=_get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver),
             fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
             base=base,
             local=local,

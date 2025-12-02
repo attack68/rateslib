@@ -12,6 +12,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 
@@ -26,11 +27,11 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
-        FXVolOption_,
         LegFixings,
         RollDay,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         bool_,
         datetime,
@@ -564,6 +565,7 @@ class XCS(_BaseInstrument):
             final_exchange=True,
             leg2_initial_exchange=True,
             leg2_final_exchange=True,
+            vol=_Vol(),
         )
 
         default_args = dict(
@@ -576,7 +578,7 @@ class XCS(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "metric", "fixed", "leg2_fixed"],
+            meta_args=["curves", "metric", "fixed", "leg2_fixed", "vol"],
         )
 
         # narrowing of fixed or floating
@@ -642,7 +644,7 @@ class XCS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -733,7 +735,7 @@ class XCS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -743,7 +745,7 @@ class XCS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -756,7 +758,7 @@ class XCS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -773,7 +775,7 @@ class XCS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,
@@ -821,6 +823,9 @@ class XCS(_BaseInstrument):
             )
             self.leg2.fixed_rate = _dual_float(mid_price)
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         A XCS requires 4 curves (mostly if float-float, otherwise it needs 2)
@@ -844,12 +849,12 @@ class XCS(_BaseInstrument):
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires a 4 curve type input. Got {len(curves)}."
+                    f"{type(self).__name__} requires 4 curve type input. Got {len(curves)}."
                 )
         elif isinstance(curves, _Curves):
             return curves
         else:
-            raise ValueError(f"{type(self).__name__} requires a 4 curve type input. Got 1.")
+            raise ValueError(f"{type(self).__name__} requires 4 curve type input. Got 1.")
 
     def cashflows(
         self,
@@ -857,7 +862,7 @@ class XCS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -866,7 +871,7 @@ class XCS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -878,7 +883,7 @@ class XCS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -886,7 +891,7 @@ class XCS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             settlement=settlement,
             forward=forward,
         )

@@ -13,6 +13,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_object_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 from rateslib.periods.components.utils import (
@@ -32,9 +33,9 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
-        FXVolOption_,
         RollDay,
         Solver_,
+        VolT_,
         _BaseLeg,
         bool_,
         datetime,
@@ -231,6 +232,9 @@ class STIRFuture(_BaseInstrument):
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An STIRFuture has two curve requirements: a leg2_rate_curve and a disc_curve used by
@@ -361,6 +365,7 @@ class STIRFuture(_BaseInstrument):
             leg2_ex_div=NoInput.inherit,
             leg2_convention=NoInput.inherit,
             fixed_rate=NoInput(0) if isinstance(price, NoInput) else 100 - price,
+            vol=_Vol(),
         )
         default_args = dict(
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
@@ -371,7 +376,7 @@ class STIRFuture(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "contracts", "nominal", "price", "metric"],
+            meta_args=["curves", "contracts", "nominal", "price", "metric", "vol"],
         )
         self._kwargs.leg1["notional"] = -self.kwargs.meta["nominal"] * self.kwargs.meta["contracts"]
         self._kwargs.leg2["notional"] = self.kwargs.meta["nominal"] * self.kwargs.meta["contracts"]
@@ -392,7 +397,7 @@ class STIRFuture(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -403,7 +408,7 @@ class STIRFuture(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=True,
             settlement=settlement,
@@ -455,7 +460,7 @@ class STIRFuture(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -500,7 +505,7 @@ class STIRFuture(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -511,7 +516,7 @@ class STIRFuture(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=True,
             settlement=settlement,
@@ -546,7 +551,7 @@ class STIRFuture(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -554,7 +559,7 @@ class STIRFuture(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             settlement=settlement,
             forward=forward,
         )
@@ -575,7 +580,7 @@ class STIRFuture(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -584,7 +589,7 @@ class STIRFuture(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,

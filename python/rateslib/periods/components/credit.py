@@ -32,10 +32,10 @@ if TYPE_CHECKING:  # pragma: no cover
         DualTypes_,
         FXForwards_,
         FXRevised_,
-        FXVolOption_,
         RollDay,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption_,
         bool_,
         datetime,
         datetime_,
@@ -189,7 +189,7 @@ class CreditPremiumPeriod(_BasePeriod):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
 
@@ -203,7 +203,7 @@ class CreditPremiumPeriod(_BasePeriod):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXRevised_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         c = 0.0001 * self.period_params.dcf * self.settlement_params.notional
 
@@ -222,7 +222,7 @@ class CreditPremiumPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         if isinstance(self.rate_params.fixed_rate, NoInput):
             raise ValueError(err.VE_NEEDS_FIXEDRATE)
@@ -240,7 +240,7 @@ class CreditPremiumPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.cashflow`
@@ -453,7 +453,7 @@ class CreditProtectionPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         rate_curve_ = _try_validate_base_curve(rate_curve).unwrap()
         return -self.settlement_params.notional * (1 - rate_curve_.meta.credit_recovery_rate)
@@ -465,7 +465,7 @@ class CreditProtectionPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.components.protocols._WithNPVStatic.cashflow`
@@ -495,7 +495,7 @@ class CreditProtectionPeriod(_BasePeriod):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
 
@@ -529,7 +529,7 @@ class CreditProtectionPeriod(_BasePeriod):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXRevised_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         return Ok(0.0)
 

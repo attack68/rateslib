@@ -1587,18 +1587,18 @@ class TestIIRS:
             index_lag=3,
             index_fixings=name,
         )
-        initial_mid = iirs.rate(curves=[i_curve, curve])
-        result = iirs.npv(curves=[i_curve, curve])
+        initial_mid = iirs.rate(curves=[i_curve, curve, curve])
+        result = iirs.npv(curves=[i_curve, curve, curve, curve])
         assert abs(result) < 1e-8
 
-        iirs.fixed_rate = iirs.rate(curves=[i_curve, curve])
+        iirs.fixed_rate = iirs.rate(curves=[i_curve, curve, curve])
         fixings.pop(name)
         fixings.add(name=name, series=Series(index=[dt(2021, 11, 1)], data=[500.0]))
-        result2 = iirs.npv(curves=[i_curve, curve])
+        result2 = iirs.npv(curves=[i_curve, curve, curve])
         assert result2 > 1
         assert iirs.leg1._regular_periods[0].index_params.index_base.value == 500.0
 
-        new_mid = iirs.rate(curves=[i_curve, curve])
+        new_mid = iirs.rate(curves=[i_curve, curve, curve])
         assert abs(new_mid - initial_mid) > 5.00
 
     def test_cashflows(self, curve) -> None:
@@ -1681,7 +1681,7 @@ class TestIIRS:
             index_base=100.0,
             interpolation="linear_index",
         )
-        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=[i_curve, curve])
+        iirs = IIRS(dt(2022, 1, 15), "6m", "Q", curves=[i_curve, curve, curve])
         result = iirs.local_analytic_rate_fixings()
         assert isinstance(result, DataFrame)
 
@@ -1695,7 +1695,13 @@ class TestIIRS:
             [97, 98, 99, 100.0],
             index=[dt(2025, 1, 1), dt(2025, 2, 1), dt(2025, 3, 1), dt(2025, 4, 1)],
         )
-        iirs = IIRS(dt(2025, 5, 15), "1y", "Q", index_fixings=fixings, curves=[inflation, discount])
+        iirs = IIRS(
+            dt(2025, 5, 15),
+            "1y",
+            "Q",
+            index_fixings=fixings,
+            curves=[inflation, discount, discount],
+        )
         result = iirs.rate()
         assert abs(result - 1.9775254614497422) < 1e-8
 
@@ -2764,7 +2770,7 @@ class TestNonMtmXCS:
         )
         curve = Curve({dt(2022, 2, 1): 1.0, dt(2024, 2, 1): 0.9})
         with pytest.raises(AttributeError, match="'float' object has no attribute 'rate'"):
-            xcs.npv(curves=[curve] * 2, fx=10.0)
+            xcs.npv(curves=[curve] * 4, fx=10.0)
 
     @pytest.mark.skip(reason="v2.5 uses FXForwards as a more explicit input type.")
     def test_npv_fx_as_rates_valid(self) -> None:
@@ -3906,7 +3912,7 @@ class TestXCS:
 
     @pytest.mark.parametrize("curves", ["bad-value", ["1", "2", "3"]])
     def test_parse_curves_failures(self, curves):
-        with pytest.raises(ValueError, match="XCS requires 4 curve types"):
+        with pytest.raises(ValueError, match="XCS requires 4 curve type"):
             XCS(
                 dt(2000, 1, 1),
                 "6m",
@@ -4138,7 +4144,7 @@ class TestFXSwap:
     @pytest.mark.parametrize(
         ("fx_fixings", "points", "split_notional", "expected"),
         [
-            (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [-1712.833785])),
+            (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [0.0])),
             (11.0, 1800.0, NoInput(0), Dual(3734.617680, ["fx_usdnok"], [-3027.88203904])),
             (
                 11.0,
@@ -4178,6 +4184,9 @@ class TestFXSwap:
         # usdnok: 10.032766762996951,
         # points:  1754.5623360395632
         # split_notional: 1027365.1574336714
+
+        # the first test which results in a zero gradient is explained on the documentation pages
+        # from an FXSwap in the notes section.
 
         fxf = FXForwards(
             FXRates({"usdnok": 10}, settlement=dt(2022, 1, 3)),
@@ -4880,7 +4889,7 @@ class TestFly:
         irs = IRS(dt(2022, 1, 15), "6m", spec="eur_irs3", curves=curve)
         frb = FixedRateBond(dt(2022, 1, 1), "5y", "A", fixed_rate=2.0, curves=curve)
         fly = Fly(irs, frb, irs)
-        assert isinstance(fly.fixings_table(), DataFrame)
+        assert isinstance(fly.local_analytic_rate_fixings(), DataFrame)
 
 
 class TestSpread:

@@ -40,9 +40,9 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXVol_,
-        FXVolOption_,
         Solver_,
         _BaseCurve,
+        _FXVolOption_,
         bool_,
         datetime_,
         float_,
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
 class _PricingMetrics:
     """None elements are used as flags to indicate an element is not yet set."""
 
-    vol: FXVolOption_ | None
+    vol: _FXVolOption_ | None
     k: DualTypes | None
     delta_index: DualTypes | None
     spot: datetime
@@ -284,7 +284,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
         self,
         curves: Curves_DiscTuple,
         fx: FX_,
-        vol: FXVolOption_,
+        vol: _FXVolOption_,
     ) -> None:
         """
         Set the strike, if necessary, and determine pricing metrics from the volatility objects.
@@ -353,7 +353,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 self._pricing.delta_index, self._pricing.vol, self._pricing.k = (
                     self._option_periods[0]._index_vol_and_strike_from_atm(
                         delta_type=self._option_periods[0].delta_type,
-                        vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+                        vol=_validate_obj_not_no_input(vol_, "vol"),
                         w_deli=w_deli,
                         w_spot=w_spot,
                         f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,
@@ -370,7 +370,7 @@ class FXOption(Sensitivities, Metrics, metaclass=ABCMeta):
                 ) = self._option_periods[0]._index_vol_and_strike_from_delta(
                     delta=float(self.kwargs["strike"][:-1]) / 100.0,
                     delta_type=self.kwargs["delta_method"],
-                    vol=_validate_obj_not_no_input(vol_, "vol"),  # type: ignore[arg-type]
+                    vol=_validate_obj_not_no_input(vol_, "vol"),
                     w_deli=w_deli,
                     w_spot=w_spot,
                     f=fx_ if isinstance(vol_, FXSabrSurface) else self._pricing.f_d,

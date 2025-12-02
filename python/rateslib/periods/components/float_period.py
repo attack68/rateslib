@@ -47,7 +47,6 @@ if TYPE_CHECKING:
         DualTypes_,
         Frequency,
         FXForwards_,
-        FXVolOption_,
         Result,
         RFRFixing,
         RollDay,
@@ -55,6 +54,7 @@ if TYPE_CHECKING:
         Series,
         _BaseCurve_,
         _FloatRateParams,
+        _FXVolOption_,
         bool_,
         datetime,
         datetime_,
@@ -407,7 +407,7 @@ class FloatPeriod(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         if isinstance(rate_curve, NoInput):
             return Err(ValueError(err.VE_NEEDS_RATE_CURVE))
@@ -889,7 +889,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         try:
             r_i = [period.rate(rate_curve=rate_curve) for period in self.float_periods]
@@ -920,7 +920,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),

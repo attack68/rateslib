@@ -20,9 +20,9 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards,
-        FXVolOption,
-        FXVolOption_,
         _BaseCurve,
+        _FXVolOption,
+        _FXVolOption_,
         datetime,
         datetime_,
     )
@@ -42,7 +42,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
     #     disc_curve: _BaseCurve,
     #     fx: FXForwards,
     #     index_curve: _BaseCurve_ = NoInput(0),
-    #     fx_vol: FXVolOption_ = NoInput(0),
+    #     fx_vol: _FXVolOption_ = NoInput(0),
     # ) -> dict[str, Any]:
     #     return self.__base_analytic_greeks(
     #         rate_curve=rate_curve,
@@ -58,7 +58,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         rate_curve: _BaseCurve,
         disc_curve: _BaseCurve,
         fx: FXForwards,
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
         premium_payment: datetime_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -151,7 +151,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         rate_curve: _BaseCurve,  #  w(.)
         disc_curve: _BaseCurve,  # v(.)
         fx: FXForwards,
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
         premium_payment: datetime_ = NoInput(0),
         _reduced: bool = False,
@@ -391,7 +391,7 @@ class _WithAnalyticFXOptionGreeks(Protocol):
         delta: DualTypes,
         vega: DualTypes,
         v_deli: DualTypes,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         sqrt_t: DualTypes,
         vol_: DualTypes,
         expiry: datetime,

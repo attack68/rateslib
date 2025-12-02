@@ -8,19 +8,20 @@ from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmi
 from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
-    _get_fx_maybe_from_solver,
+    _get_fx_forwards_maybe_from_solver,
     _get_maybe_fx_vol_maybe_from_solver,
     _Vol,
 )
+from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
-        Curves_,
+        CurvesT_,
         DualTypes,
-        FXVol_,
+        FXForwards_,
         Solver_,
-        Vol_,
+        VolT_,
         datetime_,
         str_,
     )
@@ -28,19 +29,10 @@ if TYPE_CHECKING:
 
 class FXVolValue(_BaseInstrument):
     """
-    A pseudo *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
-    to directly parametrise an *FX Volatility* node, via some calculated metric.
+    A pseudo *Instrument* used to calibrate an *FX Vol Object* within a
+    :class:`~rateslib.solver.Solver`.
 
-    Parameters
-    ----------
-    index_value : float, Dual, Dual2
-        The value of some index to the *FXVolSmile* or *FXVolSurface*.
-    expiry: datetime, optional
-        The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
-    metric: str, optional set as 'vol'
-        The default metric to return from the ``rate`` method.
-    vol: str, FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-        The associated object from which to determine the ``rate``.
+    .. rubric:: Examples
 
     Examples
     --------
@@ -51,27 +43,58 @@ class FXVolValue(_BaseInstrument):
        :suppress:
 
        from rateslib.fx_volatility import FXDeltaVolSmile
-       from rateslib.instruments import FXVolValue
+       from rateslib.instruments.components import FXVolValue
        from rateslib.solver import Solver
 
     .. ipython:: python
 
        smile = FXDeltaVolSmile(
-           nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+           nodes={0.3: 10.0, 0.7: 10.0},
            eval_date=dt(2023, 3, 16),
            expiry=dt(2023, 6, 16),
            delta_type="forward",
            id="VolSmile",
        )
        instruments = [
-           FXVolValue(0.25, vol="VolSmile"),
-           FXVolValue(0.5, vol="VolSmile"),
-           FXVolValue(0.75, vol=smile)
+           FXVolValue(0.4, vol="VolSmile"),
+           FXVolValue(0.6, vol=smile)
        ]
-       solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8, 9.9])
-       smile[0.25]
-       smile[0.5]
-       smile[0.75]
+       solver = Solver(curves=[smile], instruments=instruments, s=[8.9, 7.8])
+       smile[0.3]
+       smile[0.4]
+       smile[0.6]
+       smile[0.7]
+
+    .. rubric:: Pricing
+
+    An *FX Vol Value* requires, and will calibrate, just one *FX Vol Object*.
+
+    Allowable inputs are:
+
+    .. code-block:: python
+
+       vol = fx_vol_obj | [fx_vol_obj]  #  a single object is detected
+       vol = {"fx_vol": fx_vol_obj}  # dict form is explicit
+
+    Currently the only available ``metric`` is *'vol'* which returns the specific volatility value
+    for the index value, i.e. a delta-index for a *DeltaVol* type object, or a strike for a
+    *SABR* type object.
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    index_value : float, Dual, Dual2, :red:`required`
+        The value of some index to the *FXVolSmile* or *FXVolSurface*.
+    expiry: datetime, :green:`optional`
+        The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
+    metric: str, :green:`optional (set as 'vol')`
+        The default metric to return from the ``rate`` method.
+    vol: str, FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, :green:`optional`
+        The associated object from which to determine the ``rate``.
+
     """
 
     _rate_scalar = 1.0
@@ -81,7 +104,7 @@ class FXVolValue(_BaseInstrument):
         index_value: DualTypes,
         expiry: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-        vol: FXVol_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
     ):
         user_args = dict(
             expiry=expiry,
@@ -97,17 +120,22 @@ class FXVolValue(_BaseInstrument):
             meta_args=["curves", "metric", "vol"],
         )
 
-    def _parse_vol(self, vol: Vol_) -> _Vol:
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        if isinstance(vol, _Vol):
+            return vol
         return _Vol(fx_vol=vol)
 
     def rate(
         self,
-        curves: Curves_ = NoInput(0),
+        *,
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: Vol_ = NoInput(0),
-        metric: str = "vol",
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+        metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
         Return a value derived from a *Curve*.
@@ -146,7 +174,9 @@ class FXVolValue(_BaseInstrument):
                     delta_index=self.kwargs.leg1["index_value"], expiry=self.kwargs.leg1["expiry"]
                 )
             elif isinstance(vol_, FXSabrSmile | FXSabrSurface):
-                fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
+                fx_ = _validate_fx_as_forwards(
+                    _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
+                )
                 return vol_.get_from_strike(
                     k=self.kwargs.leg1["index_value"],
                     f=fx_.rate(pair=vol_.meta.pair, settlement=vol_.meta.delivery),

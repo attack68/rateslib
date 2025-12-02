@@ -49,10 +49,10 @@ if TYPE_CHECKING:
         Any,
         DualTypes,
         DualTypes_,
-        FXVolOption,
-        FXVolOption_,
         Number,
         _BaseCurve,
+        _FXVolOption,
+        _FXVolOption_,
         datetime,
         str_,
     )
@@ -131,7 +131,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: FXVolOption_ = NoInput(0),
+        vol: _FXVolOption_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return the properties of the period used in calculating cashflows.
@@ -204,7 +204,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
-        vol: FXVolOption_ = NoInput(0),
+        vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         """
         Return the NPV of the *FXOption*.
@@ -269,7 +269,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: _BaseCurve,
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
-        vol: FXVolOption_ = NoInput(0),
+        vol: _FXVolOption_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -391,7 +391,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
-        vol: FXVolOption_ = NoInput(0),
+        vol: _FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
     ) -> dict[str, Any]:
         r"""
@@ -481,7 +481,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         disc_curve_ccy2: _BaseCurve,
         fx: FXForwards,
         base: str_ = NoInput(0),
-        vol: FXVolOption_ = NoInput(0),
+        vol: _FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
         _reduced: bool = False,
     ) -> dict[str, Any]:
@@ -693,7 +693,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         delta: DualTypes,
         vega: DualTypes,
         v_deli: DualTypes,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         sqrt_t: DualTypes,
         vol_: DualTypes,
         expiry: datetime,
@@ -808,7 +808,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
     def _index_vol_and_strike_from_atm(
         self,
         delta_type: FXDeltaMethod,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
@@ -973,7 +973,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
         self,
         delta: float,
         delta_type: FXDeltaMethod,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
@@ -1151,7 +1151,7 @@ class FXOptionPeriod(metaclass=ABCMeta):
 
     def _get_vol_maybe_from_obj(
         self,
-        vol: FXVolOption_,
+        vol: _FXVolOption_,
         fx: FXForwards,
         disc_curve: _BaseCurve,
     ) -> DualTypes:

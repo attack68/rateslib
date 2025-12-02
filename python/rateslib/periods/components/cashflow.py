@@ -25,10 +25,10 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         Result,
         Series,
         _BaseCurve_,
+        _FXVolOption_,
         bool_,
         datetime,
         datetime_,
@@ -199,7 +199,7 @@ class Cashflow(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())
 
@@ -450,6 +450,6 @@ class MtmCashflow(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())

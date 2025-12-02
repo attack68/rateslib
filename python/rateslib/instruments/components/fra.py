@@ -13,6 +13,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
     _maybe_get_curve_or_dict_object_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 from rateslib.scheduling import Adjuster
@@ -28,9 +29,9 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
-        FXVolOption_,
         RollDay,
         Solver_,
+        VolT_,
         _BaseCurveOrDict_,
         _BaseLeg,
         bool_,
@@ -206,6 +207,9 @@ class FRA(_BaseInstrument):
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An STIRFuture has two curve requirements: a leg2_rate_curve and a disc_curve used by
@@ -336,6 +340,7 @@ class FRA(_BaseInstrument):
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
+            vol=_Vol(),
         )
         default_args = dict(
             nominal=defaults.notional,
@@ -345,7 +350,7 @@ class FRA(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "metric"],
+            meta_args=["curves", "metric", "vol"],
         )
 
         self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
@@ -377,7 +382,7 @@ class FRA(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -400,7 +405,7 @@ class FRA(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,
@@ -435,7 +440,7 @@ class FRA(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -478,7 +483,7 @@ class FRA(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -495,7 +500,7 @@ class FRA(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,
@@ -513,7 +518,7 @@ class FRA(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -521,7 +526,7 @@ class FRA(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             settlement=settlement,
             forward=forward,
         )
@@ -539,7 +544,7 @@ class FRA(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -548,7 +553,7 @@ class FRA(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,

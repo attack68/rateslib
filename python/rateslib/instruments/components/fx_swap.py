@@ -11,6 +11,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_forwards_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
@@ -26,11 +27,11 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         PeriodFixings,
         RollDay,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         bool_,
         datetime_,
@@ -51,6 +52,7 @@ class FXSwap(_BaseInstrument):
 
        from datetime import datetime as dt
        from rateslib.instruments.components.fx_swap import FXSwap
+       from rateslib import Curve, FXRates, FXForwards
 
     Paying a 3M EURUSD *FX Swap* expressed in USD notional at 56.5 swap points.
 
@@ -128,10 +130,10 @@ class FXSwap(_BaseInstrument):
 
     fx_fixings : float, Dual, Dual2, Variable, :green:`optional`
         If ``leg2_notional`` is given, this arguments can be provided to imply ``notional`` on leg1
-        via non-deliverability.
-    leg2_fixings : float, Dual, Dual2, Variable, :green:`optional`
+        via non-deliverability. The direction of these rates should mirror ``pair``.
+    leg2_fx_fixings : float, Dual, Dual2, Variable, :green:`optional`
         If ``notional`` is given, this argument can be provided to imply ``leg2_notional``, via
-        non-deliverability.
+        non-deliverability. The direction of these rates should mirror ``pair``.
     points : float, Dual, Dual2, Variable, :green:`optional`
         If either ``fx_fixings`` or ``leg2_fx_fixings`` are given, this argument is required to
         imply the second FX fixing.
@@ -145,6 +147,41 @@ class FXSwap(_BaseInstrument):
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
+
+    Notes
+    -----
+    An *FXSwap* is constructed from two *Legs* where one is non-deliverable. A fully
+    specified *Instrument* is one whose non-deliverable *fx fixings* are set at initialisation
+    via ``points`` and either ``fx_fixings`` or ``leg2_fx_fixings``. If these are not given then
+    these values will be forecast :class:`~rateslib.data.fixings.FXFixing`, which will likely
+    impact risk sensitivity calculations. This is best observed in the following example where
+    two similar *FXSwaps* are created, but their risks (as demonstrated by the Dual gradients)
+    are different.
+
+    .. ipython:: python
+
+       eurusd = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95})
+       usdusd = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.94})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.15}, settlement=dt(2000, 1, 3)),
+           fx_curves={"usdusd": usdusd, "eureur": eurusd, "eurusd": eurusd},
+       )
+       fxs1 = FXSwap(
+           dt(2000, 1, 10),
+           dt(2000, 4, 10),
+           pair="eurusd",
+           notional=1e6,
+           leg2_fx_fixings=1.1502327721341274,  # <- mid-market value inserted as float
+           points=30.303287307187343  # <- mid-market value inserted as float
+       )
+       fxs2 = FXSwap(
+           dt(2000, 1, 10),
+           dt(2000, 4, 10),
+           pair="eurusd",
+           notional=1e6,
+       )
+       fxs1.npv(curves=[eurusd, usdusd], fx=fxf)
+       fxs2.npv(curves=[eurusd, usdusd], fx=fxf)
 
     """  # noqa: E501
 
@@ -195,6 +232,9 @@ class FXSwap(_BaseInstrument):
             return curves
         else:  # `curves` is just a single input which is copied across all curves
             raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
+
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
 
     def __init__(
         self,
@@ -262,6 +302,7 @@ class FXSwap(_BaseInstrument):
             leg2_currency=pair[3:6],
             pair=NoInput(0),
             leg2_pair=NoInput(0),
+            vol=_Vol(),
         )
         default_args: dict[str, Any] = dict()
         self._kwargs = _KWArgs(
@@ -272,6 +313,7 @@ class FXSwap(_BaseInstrument):
                 "curves",
                 "points",
                 "split_notional",
+                "vol",
             ],
         )
 
@@ -405,7 +447,7 @@ class FXSwap(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -414,7 +456,7 @@ class FXSwap(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -426,7 +468,7 @@ class FXSwap(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -492,7 +534,7 @@ class FXSwap(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -502,7 +544,7 @@ class FXSwap(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,
