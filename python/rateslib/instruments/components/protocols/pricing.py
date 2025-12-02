@@ -147,10 +147,14 @@ def _maybe_get_curve_or_dict_maybe_from_solver(
     solver: Solver_,
 ) -> _BaseCurveOrDict_:
     """
-    Fetch a curve name from either:
+    This function is used by many pricing methods to lookup a particular requested curve and
+    return it, either directly from the provided input or via its string id and a Solver mapping.
 
-    - the direct given curve input, if it is a valid curve object.
-    - from a provided Solver if it is string based and needs a solver mapping.
+    When a string id is provided and a Solver is missing this function will raise, which is the
+    preferred method for performing calulations, e.g. `npv` or `rate`.
+
+    This function can return a dict of curves, e.g. {1m: curve, 3m: curve2} for use with
+    IBOR stub pricing as a *rate curve*.
     """
 
     curve: _BaseCurveOrIdOrIdDict_ = _drb(getattr(curves_meta, name), getattr(curves, name))
@@ -172,10 +176,14 @@ def _maybe_get_curve_maybe_from_solver(
     solver: Solver_,
 ) -> _BaseCurve_:
     """
-    Fetch a curve name from either:
+    This function is used by many pricing methods to lookup a particular requested curve and
+    return it, either directly from the provided input or via its string id and a Solver mapping.
 
-    - the direct given curve input, if it is a valid curve object.
-    - from a provided Solver if it is string based and needs a solver mapping.
+    When a string id is provided and a Solver is missing this function will raise, which is the
+    preferred method for performing calulations, e.g. `npv` or `rate`.
+
+    This function should not return a dict of curves so is best suited for determining discount
+    factor, index, or credit type single curves.
     """
     curve: _BaseCurveOrId_ = _drb(getattr(curves_meta, name), getattr(curves, name))
     if isinstance(curve, NoInput):
@@ -207,6 +215,81 @@ def _validate_base_curve_is_not_id(curve: _BaseCurveOrId) -> _BaseCurve:
         raise ValueError(
             f"`curves` must contain _BaseCurve, not str, if `solver` not given. Got id: '{curve}'"
         )
+    return curve
+
+
+def _maybe_get_curve_or_dict_object_maybe_from_solver(
+    curves_meta: _Curves,
+    curves: _Curves,
+    name: str,
+    solver: Solver_,
+) -> _BaseCurveOrDict_:
+    """
+    This function is used by many pricing methods to lookup a particular requested curve and
+    return it, either directly from the provided input or via its string id and a Solver mapping.
+
+    When a string id is provided and a Solver is missing this function will convert that to
+    a NoInput, which is the preferred method for use with `cashflow` generators which are
+    allowed to fail and return null values.
+
+    This function can also return a dict of values.
+    """
+
+    curve: _BaseCurveOrIdOrIdDict_ = _drb(getattr(curves_meta, name), getattr(curves, name))
+    if isinstance(curve, NoInput):
+        return curve
+    elif isinstance(solver, NoInput):
+        return _convert_curve_id_to_no_input(curve=curve)
+    else:
+        return _get_curve_from_solver(
+            curve=curve,
+            solver=solver,
+        )
+
+
+def _maybe_get_curve_object_maybe_from_solver(
+    curves_meta: _Curves,
+    curves: _Curves,
+    name: str,
+    solver: Solver_,
+) -> _BaseCurve_:
+    """
+    This function is used by many pricing methods to lookup a particular requested curve and
+    return it, either directly from the provided input or via its string id and a Solver mapping.
+
+    When a string id is provided and a Solver is missing this function will convert that to
+    a NoInput, which is the preferred method for use with `cashflow` generators which are
+    allowed to fail and return null values.
+
+    This function should not return a dict of curves.
+    """
+    curve: _BaseCurveOrId_ = _drb(getattr(curves_meta, name), getattr(curves, name))
+    if isinstance(curve, NoInput):
+        return curve
+    elif isinstance(solver, NoInput):
+        return _convert_base_curve_id_to_no_input(curve=curve)
+    else:
+        # TODO: use overloads typing on '_get_curve_from_solver'
+        return _get_curve_from_solver(  # type: ignore[return-value]  # cannot return a dict
+            curve=curve,
+            solver=solver,
+        )
+
+
+def _convert_curve_id_to_no_input(curve: _BaseCurveOrIdOrIdDict) -> _BaseCurveOrDict_:
+    if isinstance(curve, dict):
+        # may return {str: NoInput} not understood by typing
+        return {k: _convert_base_curve_id_to_no_input(v) for k, v in curve.items()}  # type: ignore[misc]
+    elif isinstance(curve, NoInput) or curve is None:
+        return NoInput(0)
+    else:
+        return _convert_base_curve_id_to_no_input(curve)
+
+
+def _convert_base_curve_id_to_no_input(curve: _BaseCurveOrId) -> _BaseCurve_:
+    # used by cashflow methods to return NoInput curves when they are not available
+    if isinstance(curve, str):
+        return NoInput(0)
     return curve
 
 

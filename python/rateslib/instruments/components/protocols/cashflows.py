@@ -10,7 +10,8 @@ from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_object_maybe_from_solver,
+    _maybe_get_curve_or_dict_object_maybe_from_solver,
     _WithPricingObjs,
 )
 
@@ -105,13 +106,13 @@ class _WithCashflows(_WithPricingObjs, Protocol):
 
         legs_df = [
             self.legs[0].cashflows(
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                rate_curve=_maybe_get_curve_or_dict_object_maybe_from_solver(
                     _curves_meta, _curves, "rate_curve", solver
                 ),
-                disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                disc_curve=_maybe_get_curve_object_maybe_from_solver(
                     _curves_meta, _curves, "disc_curve", solver
                 ),
-                index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                index_curve=_maybe_get_curve_object_maybe_from_solver(
                     _curves_meta, _curves, "index_curve", solver
                 ),
                 fx=_fx_maybe_from_solver,
@@ -125,13 +126,13 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         if len(self.legs) > 1:
             legs_df.append(
                 self.legs[1].cashflows(
-                    rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                    rate_curve=_maybe_get_curve_or_dict_object_maybe_from_solver(
                         _curves_meta, _curves, "leg2_rate_curve", solver
                     ),
-                    disc_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                    disc_curve=_maybe_get_curve_object_maybe_from_solver(
                         _curves_meta, _curves, "leg2_disc_curve", solver
                     ),
-                    index_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                    index_curve=_maybe_get_curve_object_maybe_from_solver(
                         _curves_meta, _curves, "leg2_index_curve", solver
                     ),
                     fx=_fx_maybe_from_solver,
@@ -157,10 +158,13 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         # specific to that instrument
         assert hasattr(self, "instruments")  # noqa: S101
 
-        _: DataFrame = concat(
-            [_.cashflows(*args, **kwargs) for _ in self.instruments],
-            keys=[f"inst{i}" for i in range(len(self.instruments))],
-        )
+        with warnings.catch_warnings():
+            # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
+            warnings.filterwarnings("ignore", category=FutureWarning)
+            _: DataFrame = concat(
+                [_.cashflows(*args, **kwargs) for _ in self.instruments],
+                keys=[f"inst{i}" for i in range(len(self.instruments))],
+            )
         return _
 
     def cashflows_table(

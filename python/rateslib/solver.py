@@ -1858,6 +1858,11 @@ class Solver(Gradients, _WithState):
         The results are stated in the cross-gamma grid in figure 22.1.
 
         .. ipython:: python
+           :suppress:
+
+           from rateslib import Solver, Curve
+
+        .. ipython:: python
 
            curve_r = Curve(
                nodes={

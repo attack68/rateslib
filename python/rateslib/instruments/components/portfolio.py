@@ -16,7 +16,7 @@ from rateslib.periods.components.utils import _maybe_fx_converted
 if TYPE_CHECKING:
     from rateslib.typing import (
         Any,
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -34,61 +34,50 @@ def _instrument_npv(
     return instrument.npv(*args, **kwargs)
 
 
-def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
-    """
-    Add a DataFrame to an existing fixings table by extending or adding to relevant columns.
-
-    Parameters
-    ----------
-    df_result: The main DataFrame that will be updated
-    df: The incoming DataFrame with new data to merge
-
-    Returns
-    -------
-    DataFrame
-    """
-    # reindex the result DataFrame
-    if df_result.empty:
-        return df
-    else:
-        df_result = df_result.reindex(index=df_result.index.union(df.index))
-
-    # # update existing columns with missing data from the new available data
-    # for c in [c for c in df.columns if c in df_result.columns and c[1] in ["dcf", "rates"]]:
-    #     df_result[c] = df_result[c].combine_first(df[c])
-
-    # merge by addition existing values with missing filled to zero
-    m = [c for c in df.columns if c in df_result.columns]
-    if len(m) > 0:
-        df_result[m] = df_result[m].add(df[m], fill_value=0.0)
-
-    # append new columns without additional calculation
-    a = [c for c in df.columns if c not in df_result.columns]
-    if len(a) > 0:
-        df_result[a] = df[a]
-
-    # df_result.columns = MultiIndex.from_tuples(df_result.columns)
-    return df_result
-
-
 class Portfolio(_BaseInstrument):
     """
-    Create a collection of *Instruments* to group metrics
+    A collection of :class:`~rateslib.instruments.components.protocols._BaseInstrument`.
+
+    .. rubric:: Examples
+
+    The following initialises a *Portfolio* of *IRSs*.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import Portfolio, IRS
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       pf = Portfolio(instruments=[
+           IRS(dt(2000, 1, 1), "1y", notional=10e3, spec="eur_irs", curves=["estr"]),
+           IRS(dt(2000, 1, 1), "2y", notional=10e3, spec="eur_irs", curves=["estr"]),
+           IRS(dt(2000, 1, 1), "3y", notional=10e3, spec="eur_irs", curves=["estr"]),
+       ])
+       pf.cashflows()
+
+    .. rubric:: Pricing
+
+    Each :class:`~rateslib.instruments.components.protocols._BaseInstrument` should have
+    its own ``curves`` and ``vol`` objects set at its initialisation, according to the
+    documentation for that *Instrument*. For the pricing methods ``curves`` and ``vol`` objects,
+    these can be universally passed to each *Instrument* but in many cases that would be
+    technically impossible since each *Instrument* might require difference pricing objects, e.g.
+    if the *Instruments* have difference currencies. For a *Portfolio*
+    of three *IRS* in the same currency this would be possible, however.
 
     Parameters
     ----------
-    instruments : list
-        This should be a list of *Instruments*.
+    instruments : list of _BaseInstrument
+        The collection of *Instruments*.
 
     Notes
     -----
-    When using a :class:`Portfolio` each *Instrument* must either have pricing parameters
-    pre-defined using the appropriate :ref:`pricing mechanisms<mechanisms-doc>` or share
-    common pricing parameters defined at price time.
+    A *Portfolio* is just a container for multiple
+    :class:`~rateslib.instruments.components.protocols._BaseInstrument`.
+    There is no concept of a :meth:`~rateslib.instruments.components.Portfolio.rate`.
 
-    Examples
-    --------
-    See examples for :class:`Spread` for similar functionality.
     """
 
     _instruments: Sequence[_BaseInstrument]
@@ -106,7 +95,7 @@ class Portfolio(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -177,7 +166,7 @@ class Portfolio(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -196,7 +185,7 @@ class Portfolio(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -213,32 +202,6 @@ class Portfolio(_BaseInstrument):
             forward=forward,
             base=base,
         )
-
-    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-        """
-        return super().delta(*args, **kwargs)
-
-    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the gamma of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-        """
-        return super().gamma(*args, **kwargs)
-
-    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument* measured
-        against user defined :class:`~rateslib.dual.Variable`.
-
-        For arguments see
-        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
-        """
-        return super().exo_delta(*args, **kwargs)
 
     def rate(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError("`rate` is not defined for Portfolio.")
