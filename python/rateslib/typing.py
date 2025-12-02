@@ -168,6 +168,16 @@ _BaseCurveOrIdOrIdDict_: TypeAlias = "_BaseCurveOrId | _BaseCurveOrIdDict | NoIn
 CurvesT: TypeAlias = "_BaseCurveOrIdOrIdDict | Sequence[CurveOrId | CurveDict] | _Curves"
 CurvesT_: TypeAlias = "CurvesT | NoInput"
 
+_FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
+_FXVolOption: TypeAlias = "_FXVolObj | DualTypes"
+_FXVolOption_: TypeAlias = "_FXVolOption | NoInput"
+
+FXVol: TypeAlias = "_FXVolOption | str"
+FXVol_: TypeAlias = "_FXVol | NoInput"
+
+VolT: TypeAlias = "FXVol | _Vol"
+VolT_: TypeAlias = "VolT | NoInput"
+
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 CurveOrId: TypeAlias = "_BaseCurve | str"
 CurveOrId_: TypeAlias = "CurveOrId | NoInput"
@@ -186,18 +196,6 @@ Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, _BaseCurve_, CurveOption_, _B
 
 # this is a type for a wrapped `rate_curve`, `disc_curve` and `index_curve`
 PeriodCurves: TypeAlias = "tuple[CurveOption_, _BaseCurve_, _BaseCurve_]"
-
-FXVolObj: TypeAlias = "FXDeltaVolSurface | FXDeltaVolSmile | FXSabrSmile | FXSabrSurface"
-
-FXVolOption: TypeAlias = "FXVolObj | DualTypes"
-FXVolOption_: TypeAlias = "FXVolOption | NoInput"
-
-FXVol: TypeAlias = "FXVolOption | str"
-FXVol_: TypeAlias = "FXVol | NoInput"
-Vol_: TypeAlias = "FXVol | NoInput"
-
-VolInput_: TypeAlias = "str | FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface"
-VolInput: TypeAlias = "VolInput_ | NoInput"
 
 FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | FXVol_"
 ListFXVol_: TypeAlias = "list[ListFXVol_ | FXVol_]"

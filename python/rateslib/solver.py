@@ -46,10 +46,10 @@ if TYPE_CHECKING:
         FXDeltaVolSurface,
         FXSabrSmile,
         FXSabrSurface,
-        FXVolObj,
         Sequence,
         SupportsRate,
         Variable,
+        _FXVolObj,
         str_,
     )
 
@@ -1110,13 +1110,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | FXVolObj] = {}
+        self.pre_curves: dict[str, Curve | _FXVolObj] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | FXVolObj] = []
+        curve_collection: list[Curve | _FXVolObj] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels

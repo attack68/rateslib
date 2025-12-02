@@ -11,6 +11,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import FloatLeg
 
@@ -24,10 +25,10 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
-        FXVolOption_,
         RollDay,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         bool_,
         datetime,
@@ -378,6 +379,7 @@ class SBS(_BaseInstrument):
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
+            vol=_Vol(),
         )
 
         default_args = dict(
@@ -390,7 +392,7 @@ class SBS(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "metric"],
+            meta_args=["curves", "metric", "vol"],
         )
 
         self._leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
@@ -403,7 +405,7 @@ class SBS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -467,7 +469,7 @@ class SBS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -477,7 +479,7 @@ class SBS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -490,7 +492,7 @@ class SBS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -506,7 +508,7 @@ class SBS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,
@@ -591,13 +593,16 @@ class SBS(_BaseInstrument):
         else:  # `curves` is just a single input
             raise TypeError("Number of `curves` for an SBS must be 3 or 4. Got 1.")
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def cashflows(
         self,
         *,
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -606,7 +611,7 @@ class SBS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -618,7 +623,7 @@ class SBS(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -626,7 +631,7 @@ class SBS(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             settlement=settlement,
             forward=forward,
         )

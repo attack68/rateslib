@@ -16,10 +16,10 @@ if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CurveOption_,
         FXForwards_,
-        FXVolOption_,
         Result,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption_,
         datetime_,
     )
 
@@ -51,7 +51,7 @@ class _WithAnalyticRateFixings(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         """
         Return a DataFrame of financial sensitivity to published interest rate fixings,
@@ -89,7 +89,7 @@ class _WithAnalyticRateFixings(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -172,7 +172,7 @@ class _WithAnalyticRateFixingsStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         """
         Return a DataFrame of financial sensitivity to published interest rate fixings,
@@ -214,7 +214,7 @@ class _WithAnalyticRateFixingsStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         """
         Return a DataFrame of financial sensitivity to published interest rate fixings,
@@ -279,7 +279,7 @@ class _WithAnalyticRateFixingsStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         """
         Return a DataFrame of financial sensitivity to published interest rate fixings,
@@ -329,7 +329,7 @@ class _WithAnalyticRateFixingsStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         """
         Return a DataFrame of financial sensitivity to published interest rate fixings,
@@ -378,7 +378,7 @@ class _WithAnalyticRateFixingsStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
         if isinstance(dc_res, Err):

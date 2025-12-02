@@ -11,6 +11,7 @@ from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_forwards_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
@@ -27,10 +28,10 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         PeriodFixings,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         bool_,
         datetime_,
@@ -166,6 +167,9 @@ class NDF(_BaseInstrument):
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An NDF requires 1 disc curve for the cashflows in the delivery currency.
@@ -287,6 +291,7 @@ class NDF(_BaseInstrument):
             leg2_currency=NoInput.inherit,
             leg2_settlement=NoInput.inherit,
             leg2_notional=NoInput(0),
+            vol=_Vol(),
         )
         default_args = dict(
             notional=defaults.notional,
@@ -306,6 +311,7 @@ class NDF(_BaseInstrument):
                 "modifier",
                 "payment_lag",
                 "eom",
+                "vol",
             ],
         )
 
@@ -363,7 +369,7 @@ class NDF(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -372,7 +378,7 @@ class NDF(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -384,7 +390,7 @@ class NDF(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -413,7 +419,7 @@ class NDF(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -427,7 +433,7 @@ class NDF(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             local=local,
             settlement=settlement,

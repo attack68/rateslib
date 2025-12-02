@@ -11,6 +11,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _get_fx_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import CustomLeg
 from rateslib.periods.components import Cashflow
@@ -23,9 +24,9 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         Sequence,
         Solver_,
+        VolT_,
         _BaseLeg,
         datetime,
         datetime_,
@@ -147,6 +148,9 @@ class FXForward(_BaseInstrument):
         else:  # `curves` is just a single input which is copied across all curves
             raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
 
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
+
     def __init__(
         self,
         settlement: datetime,
@@ -176,6 +180,7 @@ class FXForward(_BaseInstrument):
             leg2_pair=NoInput(0),
             fx_fixings=NoInput(0),
             leg2_fx_fixings=NoInput(0),
+            vol=_Vol(),
         )  # these are hard coded arguments specific to this instrument
         default_args = dict(
             notional=defaults.notional,
@@ -184,7 +189,7 @@ class FXForward(_BaseInstrument):
             spec=NoInput(0),
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves"],
+            meta_args=["curves", "vol"],
         )
 
         # allocate arguments to correct legs for non-deliverability
@@ -228,7 +233,7 @@ class FXForward(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -237,7 +242,7 @@ class FXForward(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,
@@ -249,7 +254,7 @@ class FXForward(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),

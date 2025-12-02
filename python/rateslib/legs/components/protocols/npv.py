@@ -13,10 +13,10 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         FXForwards_,
-        FXVolOption_,
         Sequence,
         _BaseCurve_,
         _BasePeriod,
+        _FXVolOption_,
         datetime_,
         str_,
     )
@@ -50,7 +50,7 @@ class _WithNPV(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
@@ -106,7 +106,7 @@ class _WithNPV(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -190,7 +190,7 @@ class _WithNPV(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:

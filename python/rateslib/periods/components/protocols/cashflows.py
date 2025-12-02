@@ -29,9 +29,9 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         FXForwards_,
-        FXVolOption_,
         Result,
         _BaseCurve_,
+        _FXVolOption_,
         datetime_,
         str_,
     )
@@ -68,7 +68,7 @@ class _WithCashflows(_WithNPV, Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
         Calculate the cashflow for the *Period* with settlement currency adjustment
@@ -101,7 +101,7 @@ class _WithCashflows(_WithNPV, Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -191,7 +191,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> dict[str, Any]:
         # indexing parameters
         index_elements: dict[str, Any] = {}
@@ -259,7 +259,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -431,7 +431,7 @@ def _cashflow_elements(
     disc_curve: _BaseCurve_ = NoInput(0),
     index_curve: _BaseCurve_ = NoInput(0),
     fx: FXForwards_ = NoInput(0),
-    fx_vol: FXVolOption_ = NoInput(0),
+    fx_vol: _FXVolOption_ = NoInput(0),
     base: str_ = NoInput(0),
     settlement: datetime_ = NoInput(0),
     forward: datetime_ = NoInput(0),

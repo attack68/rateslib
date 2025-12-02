@@ -64,13 +64,13 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption,
-        FXVolOption_,
         IndexMethod,
         Number,
         Series,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption,
+        _FXVolOption_,
         bool_,
         datetime,
         datetime_,
@@ -182,7 +182,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         rate_curve: _BaseCurve,
         disc_curve: _BaseCurve,
         fx: FXForwards,
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
         premium_payment: datetime_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -323,7 +323,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         disc_curve: _BaseCurve_ = NoInput(0),  # v(.) variety
         # index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         **kwargs: Any,
     ) -> DualTypes:
         # The unindexed_reference_cashflow does not require a discount curve.
@@ -389,7 +389,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         rate_curve: _BaseCurve,
         disc_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         metric: FXOptionMetric | str_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
@@ -441,7 +441,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         rate_curve: _BaseCurve,
         disc_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         metric: str_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
@@ -552,7 +552,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
     def _index_vol_and_strike_from_atm(
         self,
         delta_type: FXDeltaMethod,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
@@ -726,7 +726,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         self,
         delta: float,
         delta_type: FXDeltaMethod,
-        vol: FXVolOption,
+        vol: _FXVolOption,
         w_deli: DualTypes,
         w_spot: DualTypes,
         f: DualTypes | FXForwards,
@@ -765,7 +765,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
             return self._index_vol_and_strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             f_: DualTypes = f  # type: ignore[assignment]
-            vol_: DualTypes | FXDeltaVolSmile = vol  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile = vol
             return self._index_vol_and_strike_from_delta_dv(
                 f_,
                 delta,

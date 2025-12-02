@@ -14,6 +14,7 @@ from rateslib.instruments.components.protocols.kwargs import _convert_to_schedul
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _Vol,
 )
 from rateslib.legs.components import FloatLeg
 from rateslib.periods.components import FloatPeriod
@@ -26,10 +27,9 @@ if TYPE_CHECKING:
         Curves_,
         DualTypes,
         DualTypes_,
-        Frequency,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         _BaseLeg,
         datetime,
         datetime_,
@@ -235,6 +235,7 @@ class FloatRateNote(_BaseBondInstrument):
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             initial_exchange=False,
             final_exchange=True,
+            vol=_Vol(),
         )
 
         default_args = dict(
@@ -249,7 +250,7 @@ class FloatRateNote(_BaseBondInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "calc_mode", "settle", "metric"],
+            meta_args=["curves", "calc_mode", "settle", "metric", "vol"],
         )
         self.kwargs.meta["calc_mode"] = _get_bond_calc_mode(self.kwargs.meta["calc_mode"])
 
@@ -257,6 +258,9 @@ class FloatRateNote(_BaseBondInstrument):
         if self._leg1.schedule.frequency_obj == Frequency.Zero():
             raise ValueError("A `FloatRateNote` cannot have a 'zero' frequency.")
         self._legs = [self.leg1]
+
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _Vol()
 
     def _parse_curves(self, curves: CurveOption_) -> _Curves:
         """
@@ -300,7 +304,7 @@ class FloatRateNote(_BaseBondInstrument):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),

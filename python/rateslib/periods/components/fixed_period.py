@@ -30,12 +30,12 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         Result,
         RollDay,
         Schedule,
         Series,
         _BaseCurve_,
+        _FXVolOption_,
         bool_,
         datetime,
         datetime_,
@@ -307,7 +307,7 @@ class FixedPeriod(_BasePeriodStatic):
     #     disc_curve: _BaseCurve_ = NoInput(0),
     #     index_curve: _BaseCurve_ = NoInput(0),
     #     fx: FXForwards_ = NoInput(0),
-    #     fx_vol: FXVolOption_ = NoInput(0),
+    #     fx_vol: _FXVolOption_ = NoInput(0),
     # ) -> Result[DualTypes]:
     #     if self.index_params is None:
     #         if self.non_deliverable_params is None:
@@ -360,7 +360,7 @@ class FixedPeriod(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())
 
@@ -617,7 +617,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())
 
@@ -628,7 +628,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
