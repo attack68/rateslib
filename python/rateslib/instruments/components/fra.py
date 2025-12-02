@@ -12,6 +12,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _Curves,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_or_dict_object_maybe_from_solver,
 )
 from rateslib.legs.components import FixedLeg, FloatLeg
 from rateslib.scheduling import Adjuster
@@ -555,7 +556,7 @@ class FRA(_BaseInstrument):
 
         _curves: _Curves = self._parse_curves(curves)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+        leg2_rate_curve = _maybe_get_curve_or_dict_object_maybe_from_solver(
             solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
         )
         scalar = self._try_fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)

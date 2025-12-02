@@ -49,6 +49,9 @@ Add specs 'uk_gbi' and 'us_gbi'.
 By default non-mtm-XCS are constructed which differed to previous becuase of the new
 flexibility of allowing MTM leg on either leg1 or leg2
 
+The ``convention`` arg is removed from `Value` and is now taken directly from the *Curve*
+that it intends to value.
+
 
 .. list-table::
    :widths: 25 75

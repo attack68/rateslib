@@ -9,7 +9,7 @@ from rateslib import default_context, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, Variable, dual_exp, gradient
+from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -2080,10 +2080,11 @@ class TestValue:
             value.analytic_delta()
 
     def test_cc_zero_rate(self, curve) -> None:
-        v = Value(effective=dt(2022, 7, 1), convention="act365f", metric="cc_zero_rate")
+        v = Value(effective=dt(2022, 7, 1), metric="cc_zero_rate")
         result = v.rate(curves=curve)
-        expected = 4.074026613753926
-        assert result == expected
+        t = (dt(2022, 7, 1) - dt(2022, 1, 1)).days / 360
+        expected = 100 * dual_log(curve[dt(2022, 7, 1)]) / -t
+        assert abs(result - expected) < 1e-12
 
     def test_on_rate(self, curve) -> None:
         c = Curve({dt(2000, 1, 1): 1.0, dt(2000, 7, 1): 1.0})
@@ -4534,6 +4535,20 @@ class TestSTIRFuture:
         result = stir.analytic_delta(curves=curve)
         assert abs(result - expected) < 1e-10
 
+    def test_cashflows(self, curve):
+        stir = STIRFuture(
+            effective=dt(2022, 3, 16),
+            termination=dt(2022, 6, 15),
+            spec="usd_stir",
+            price=99.50,
+            contracts=10,
+        )
+        result = stir.cashflows()
+        assert result["Payment"].iloc[0] is None
+        result2 = stir.cashflows(curves=curve)
+        assert result2["Payment"].iloc[0] == dt(2022, 1, 1)
+        assert result2["DF"].iloc[0] == 1.0
+
 
 class TestPricingMechanism:
     def test_value(self, curve) -> None:
@@ -4940,6 +4955,20 @@ class TestSpread:
         spd = Spread(irs, frb)
         table = spd.local_analytic_rate_fixings()
         assert isinstance(table, DataFrame)
+
+    def test_cashflows_curve_strings(self):
+        irs = IRS(dt(2025, 12, 1), dt(2030, 12, 7), spec="gbp_irs", curves=["uk_sonia"])
+        ukt = FixedRateBond(
+            dt(2024, 12, 7),
+            dt(2030, 12, 7),
+            fixed_rate=4.75,
+            spec="uk_gb",
+            curves=["uk_gb"],
+            metric="ytm",
+        )
+        asw = Spread(ukt, irs)
+        result = asw.cashflows()
+        assert isinstance(result, DataFrame)
 
 
 class TestSensitivities:
@@ -7244,3 +7273,26 @@ class TestFXVolValue:
         v = FXVolValue(0.25)
         expected = f"<rl.FXVolValue at {hex(id(v))}>"
         assert v.__repr__() == expected
+
+
+@pytest.mark.parametrize(
+    "inst",
+    [
+        IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr"),
+        SBS(dt(2000, 1, 1), "1y", spec="eur_sbs36", curves=["eur", "eur", "eur", "eur"]),
+        STIRFuture(dt(2020, 1, 1), "1m", spec="usd_stir1", curves=["sofr"]),
+        XCS(dt(2000, 1, 1), "1y", spec="eurusd_xcs", curves=["a", "b", "c", "d"]),
+        CDS(dt(2000, 3, 20), "2y", spec="us_ig_cds", curves=["a", "b"]),
+        ZCS(dt(2000, 1, 1), "5y", spec="gbp_zcs", curves=["sonia"]),
+        ZCIS(dt(2000, 1, 1), "2y", spec="gbp_zcis", curves=["index", "sonia"]),
+        IIRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves=["index", "sonia", "rate", "sonia"]),
+        FRA(dt(2000, 1, 1), "3m", spec="eur_fra3", curves=["eur"]),
+        NDF(dt(2000, 1, 1), pair="eurusd", curves=["usd"]),
+        FixedRateBond(
+            dt(2000, 1, 1), "2y", spec="uk_gb", curves=["uk"], fixed_rate=1.2, metric="ytm"
+        ),
+    ],
+)
+def test_unpriced_cashflows_string_id(inst):
+    result = inst.cashflows()
+    assert isinstance(result, DataFrame)

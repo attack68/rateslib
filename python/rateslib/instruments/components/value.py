@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
-from rateslib.curves._parsers import _CurveType
+from rateslib.curves.utils import _CurveType
 from rateslib.dual.utils import dual_log
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import IndexMethod
@@ -11,15 +11,16 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
 )
+from rateslib.periods.components.utils import _validate_base_curve
 from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
         Convention,
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -32,41 +33,65 @@ if TYPE_CHECKING:
 
 class Value(_BaseInstrument):
     """
-    A null *Instrument* which can be used within a :class:`~rateslib.solver.Solver`
-    to directly parametrise a *Curve* node, via some calculated value.
+    A pseudo *Instrument* used to calibrate a *Curve* within a :class:`~rateslib.solver.Solver`.
 
-    Parameters
-    ----------
-    effective : datetime
-        The datetime index for which the `rate`, which is just the curve value, is
-        returned.
-    curves : Curve, LineCurve, str or list of such, optional
-        A single :class:`~rateslib.curves.Curve`,
-        :class:`~rateslib.curves.LineCurve` or id or a
-        list of such. Only uses the first *Curve* in a list.
-    convention : str, optional,
-        Day count convention used with certain ``metric``.
-    metric : str in {"curve_value", "index_value", "cc_zero_rate", "o/n_rate"}, optional
-        Configures which value to extract from the *Curve*.
-
-    Examples
-    --------
-    The below :class:`~rateslib.curves.Curve` is solved directly
-    from a calibrating DF value on 1st Nov 2022.
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import Value
+       from rateslib.instruments.components import Value
+       from datetime import datetime as dt
+       from rateslib import Curve, Solver
+
+    The below :class:`~rateslib.curves.Curve` is solved directly
+    from a calibrating DF value on 1st Nov 2022.
 
     .. ipython:: python
 
+       val = Value(dt(2022, 11, 1), curves=["v"], metric="curve_value")
        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="v")
-       instruments = [(Value(dt(2022, 11, 1)), (curve,), {})]
-       solver = Solver([curve], [], instruments, [0.99])
-       curve[dt(2022, 1, 1)]
+       solver = Solver(curves=[curve], instruments=[val], s=[0.99])
        curve[dt(2022, 11, 1)]
-       curve[dt(2023, 1, 1)]
+
+    .. rubric:: Pricing
+
+    A *Value* requires, and will calibrate, just one *Curve*. This *Curve*, appropriating
+    a *rate curve* or an *index curve*, is dependent upon the ``metric``.
+    Allowable inputs are:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = {"rate_curve": rate_curve} | {"index_curve": index_curve}  # dict form is explicit
+
+    The various *rate* ``metric`` that can be calculated for a *Curve* are as follows;
+
+    - *'curve_value'*: returns the discount factor or a value from a DF-based or value-based
+      *rate curve*.
+    - *'index_value'*: returns a daily interpolated index value using an index lag derived from the
+      *index curve*.
+    - *'cc_zero_rate'*: returns a continuously compounded zero rate to the provided *effective*
+      date from a DF based *rate curve*.
+    - *'o/n_rate'*: returns a 1 calendar day rate starting on the effective date with the provided
+      *convention* from a *rate curve*.
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    effective : datetime, :red:`required`
+        The datetime index for which the `rate`, which is just the curve value, is
+        returned.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
+    metric : str, :green:`optional` (set as 'curve_value')
+        The pricing metric returned by :meth:`~rateslib.instruments.components.Value.rate`. See
+        **Pricing**.
+
     """
 
     _rate_scalars = {
@@ -79,9 +104,10 @@ class Value(_BaseInstrument):
     def __init__(
         self,
         effective: datetime,
+        *,
         convention: Convention | str_ = NoInput(0),
         metric: str_ = NoInput(0),
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
     ) -> None:
         user_args = dict(
             effective=effective,
@@ -99,18 +125,22 @@ class Value(_BaseInstrument):
 
         self._rate_scalar = self._rate_scalars.get(self.kwargs.meta["metric"], 1.0)
 
-    def _parse_curves(self, curves: Curves_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         A Value requires only one 1 curve, which is set as all element values
         """
         if isinstance(curves, NoInput):
             return _Curves()
-        if isinstance(curves, dict):
-            raise ValueError("`curves` supplied to a Value should be a single _BaseCurve object.")
+        elif isinstance(curves, dict):
+            return _Curves(
+                rate_curve=curves.get("rate_curve", NoInput(0)),
+                index_curve=curves.get("index_curve", NoInput(0)),
+                disc_curve=curves.get("disc_curve", NoInput(0)),
+            )
         elif isinstance(curves, list | tuple):
             if len(curves) != 1:
                 raise ValueError(
-                    "`curves` supplied to a Value should be a single _BaseCurve object."
+                    f"{type(self).__name__} requires only 1 curve types. Got {len(curves)}."
                 )
             else:
                 return _Curves(
@@ -118,17 +148,19 @@ class Value(_BaseInstrument):
                     disc_curve=curves[0],
                     index_curve=curves[0],
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input
             return _Curves(
-                rate_curve=curves,
-                disc_curve=curves,
-                index_curve=curves,
+                rate_curve=curves,  # type: ignore[arg-type]
+                disc_curve=curves,  # type: ignore[arg-type]
+                index_curve=curves,  # type: ignore[arg-type]
             )
 
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -138,30 +170,35 @@ class Value(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         effective: datetime = self.kwargs.leg1["effective"]
-        convention: Convention | str = self.kwargs.leg1["convention"]
         _curves = self._parse_curves(curves)
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         if metric_ == "curve_value":
-            curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "rate_curve", solver
+            curve = _validate_base_curve(
+                _maybe_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
+                )
             )
             ret: DualTypes = curve[effective]
 
         elif metric_ == "cc_zero_rate":
-            curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "rate_curve", solver
+            curve = _validate_base_curve(
+                _maybe_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
+                )
             )
             if curve._base_type != _CurveType.dfs:
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
                 )
-            dcf_ = dcf(start=curve.nodes.initial, end=effective, convention=convention)
+            dcf_ = dcf(start=curve.nodes.initial, end=effective, convention=curve.meta.convention)
             ret = (dual_log(curve[effective]) / -dcf_) * 100
 
         elif metric_ == "index_value":
-            curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "index_curve", solver
+            curve = _validate_base_curve(
+                _maybe_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "index_curve", solver
+                )
             )
             ret = curve.index_value(
                 index_date=effective,
@@ -170,8 +207,10 @@ class Value(_BaseInstrument):
             )
 
         elif metric_ == "o/n_rate":
-            curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "rate_curve", solver
+            curve = _validate_base_curve(
+                _maybe_get_curve_maybe_from_solver(
+                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
+                )
             )
             ret = curve.rate(effective, "1D")  # type: ignore[assignment]
 

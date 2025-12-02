@@ -92,6 +92,12 @@ Objects
    :include: FXSwap
    :include: CDS
    :include: NDF
+   :include: Value
+   :include: FXVolValue
+   :include: STIRFuture
+   :include: Spread
+   :include: Fly
+   :include: Portfolio
 
 FX
 ===
