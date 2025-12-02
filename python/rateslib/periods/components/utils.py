@@ -17,9 +17,9 @@ if TYPE_CHECKING:
         Any,
         CurveOption_,
         DualTypes,
-        FXVolOption_,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption_,
         datetime,
         str_,
     )
@@ -119,7 +119,7 @@ def _get_immediate_fx_scalar_and_base(
 
 
 def _get_vol_maybe_from_obj(
-    fx_vol: FXVolOption_,
+    fx_vol: _FXVolOption_,
     fx: FXForwards,
     rate_curve: _BaseCurve_,
     strike: DualTypes,
@@ -165,14 +165,14 @@ def _get_vol_maybe_from_obj(
     return vol_
 
 
-def _get_vol_smile_or_value(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
+def _get_vol_smile_or_value(vol: _FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     else:
         return _validate_obj_not_no_input(vol, "vol")  # type: ignore[return-value]
 
 
-def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
+def _get_vol_smile_or_raise(vol: _FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     elif isinstance(vol, FXDeltaVolSmile):
@@ -181,7 +181,7 @@ def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSm
         raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
 
 
-def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
+def _get_vol_delta_type(vol: _FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
     if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
         return default_delta_type
     else:

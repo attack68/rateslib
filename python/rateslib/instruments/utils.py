@@ -20,8 +20,8 @@ if TYPE_CHECKING:
         Curves_DiscTuple,
         FXVol,
         FXVol_,
-        FXVolOption_,
         Solver_,
+        _FXVolOption_,
         str_,
     )
 
@@ -113,7 +113,7 @@ def _get_curves_fx_and_base_maybe_from_solver(
     return curves_, fx_, base_
 
 
-def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_) -> FXVolOption_:
+def _get_fxvol_maybe_from_solver(vol_attr: FXVol_, vol: FXVol_, solver: Solver_) -> _FXVolOption_:
     """
     Try to retrieve a general vol input from a solver or the default vol object associated with
     instrument.
@@ -195,7 +195,7 @@ def _get_fxvol_curves_fx_and_base_maybe_from_solver(
     base: str_,
     vol: FXVol_,
     local_ccy: str_,
-) -> tuple[Curves_DiscTuple, FX_, str_, FXVolOption_]:
+) -> tuple[Curves_DiscTuple, FX_, str_, _FXVolOption_]:
     """
     Parses the inputs including the instrument's attributes and also validates them
     """

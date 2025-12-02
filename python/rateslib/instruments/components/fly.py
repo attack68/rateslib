@@ -18,8 +18,8 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         datetime_,
         str_,
     )
@@ -135,7 +135,7 @@ class Fly(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -144,9 +144,7 @@ class Fly(_BaseInstrument):
         """
         Return the NPV of the *Portfolio* by summing individual *Instrument* NPVs.
         """
-        local_npv = self._npv_single_core(
-            curves=curves, solver=solver, fx=fx, fx_vol=fx_vol, base=base
-        )
+        local_npv = self._npv_single_core(curves=curves, solver=solver, fx=fx, vol=vol, base=base)
         if not local:
             single_value: DualTypes = 0.0
             for k, v in local_npv.items():
@@ -166,40 +164,12 @@ class Fly(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
-        Return a DataFrame of financial sensitivity to published interest rate fixings,
-        expressed in local **settlement currency** of the *Period*.
-
-        If the *Period* has no sensitivity to rates fixings this *DataFrame* is empty.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-            The FX volatility *Smile* or *Surface* object used for determining Black calendar
-            day implied volatility values.
-        settlement: datetime, optional
-            The assumed settlement date of the *PV* determination. Used only to evaluate
-            *ex-dividend* status.
-        forward: datetime, optional
-            The future date to project the *PV* to using the ``disc_curve``.
-
-        Returns
-        -------
-        DataFrame
+        TBD
         """
         df_result = DataFrame(index=DatetimeIndex([], name="obs_dates"))
         for inst in self.instruments:
@@ -208,7 +178,7 @@ class Fly(_BaseInstrument):
                     curves=curves,
                     solver=solver,
                     fx=fx,
-                    fx_vol=fx_vol,
+                    vol=vol,
                     forward=forward,
                     settlement=settlement,
                 )
@@ -223,7 +193,7 @@ class Fly(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -232,7 +202,7 @@ class Fly(_BaseInstrument):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             settlement=settlement,
             forward=forward,
             base=base,
@@ -244,7 +214,7 @@ class Fly(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -257,7 +227,7 @@ class Fly(_BaseInstrument):
                     curves=curves,
                     solver=solver,
                     fx=fx,
-                    fx_vol=fx_vol,
+                    vol=vol,
                     base=base,
                     settlement=settlement,
                     forward=forward,

@@ -13,11 +13,9 @@ if TYPE_CHECKING:
         Any,
         CurvesT_,
         FXForwards_,
-        FXVolObj,
-        FXVolOption_,
         Solver,
         Solver_,
-        Vol_,
+        VolT_,
         _BaseCurve,
         _BaseCurve_,
         _BaseCurveOrDict,
@@ -26,6 +24,8 @@ if TYPE_CHECKING:
         _BaseCurveOrId_,
         _BaseCurveOrIdOrIdDict,
         _BaseCurveOrIdOrIdDict_,
+        _FXVolObj,
+        _FXVolOption_,
     )
 
 
@@ -43,7 +43,7 @@ class _WithPricingObjs(Protocol):
             f"{type(self).__name__} must implement `_parse_curves` of class `_WithPricingObjs`."
         )
 
-    def _parse_vol(self, vol: Vol_) -> _Vol:
+    def _parse_vol(self, vol: VolT_) -> _Vol:
         """Method is needed to map the `vol` argument input for any individual *Instrument* into
         the more defined :class:`~rateslib.curves._parsers._Vol` structure.
         """
@@ -127,12 +127,12 @@ class _Vol:
     def __init__(
         self,
         *,
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ):
         self._fx_vol = fx_vol
 
     @property
-    def fx_vol(self) -> FXVolOption_:
+    def fx_vol(self) -> _FXVolOption_:
         """The FX vol object used for modelling FX volatility."""
         return self._fx_vol
 
@@ -368,7 +368,7 @@ def _get_maybe_fx_vol_maybe_from_solver(
     vol: _Vol,
     # name: str, = "fx_vol"
     solver: Solver_,
-) -> FXVolObj | NoInput:
+) -> _FXVolObj | NoInput:
     vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
     if isinstance(vol_, NoInput):
         return vol_
@@ -378,14 +378,14 @@ def _get_maybe_fx_vol_maybe_from_solver(
         return _get_fx_vol_from_solver(fx_vol=vol_, solver=solver)
 
 
-def _get_fx_vol_from_solver(fx_vol: FXVolObj | str, solver: Solver) -> FXVolObj:
+def _get_fx_vol_from_solver(fx_vol: _FXVolObj | str, solver: Solver) -> _FXVolObj:
     if isinstance(fx_vol, str):
         return solver._get_pre_fxvol(fx_vol)
 
     try:
         # it is a safeguard to load curves from solvers when a solver is
         # provided and multiple curves might have the same id
-        __: FXVolObj = solver._get_pre_fxvol(fx_vol.id)
+        __: _FXVolObj = solver._get_pre_fxvol(fx_vol.id)
         if id(__) != id(fx_vol):  # Python id() is a memory id, not a string label id.
             raise ValueError(
                 "An FXVol object has been supplied, as part of ``vol``, which has the same "
@@ -416,7 +416,7 @@ def _get_fx_vol_from_solver(fx_vol: FXVolObj | str, solver: Solver) -> FXVolObj:
             raise ValueError("FXVol object must be in `solver`.")
 
 
-def _validate_fx_vol_is_not_id(fx_vol: FXVolObj | str) -> FXVolObj:
+def _validate_fx_vol_is_not_id(fx_vol: _FXVolObj | str) -> _FXVolObj:
     if isinstance(fx_vol, str):  # curve is a str ID
         raise ValueError(
             f"`vol` must contain FXVol object, not str, if `solver` not given. Got id: '{fx_vol}'"

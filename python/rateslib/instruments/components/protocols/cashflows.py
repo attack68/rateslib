@@ -10,6 +10,7 @@ from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_object_maybe_from_solver,
     _maybe_get_curve_or_dict_object_maybe_from_solver,
     _WithPricingObjs,
@@ -20,9 +21,10 @@ if TYPE_CHECKING:
         Any,
         CurvesT_,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         _Curves,
+        _Vol,
         datetime_,
         str_,
     )
@@ -41,7 +43,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -72,7 +74,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -101,9 +103,12 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         assert hasattr(self, "legs")  # noqa: S101
 
         _curves: _Curves = self._parse_curves(curves)
+        _vol: _Vol = self._parse_vol(vol)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
+        _vol_meta: _Vol = self.kwargs.meta["vol"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
+        fx_vol = _get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
         legs_df = [
             self.legs[0].cashflows(
                 rate_curve=_maybe_get_curve_or_dict_object_maybe_from_solver(
@@ -172,7 +177,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -194,7 +199,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
             curves=curves,
             solver=solver,
             fx=fx,
-            fx_vol=fx_vol,
+            vol=vol,
             base=base,
             settlement=settlement,
             forward=forward,

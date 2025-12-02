@@ -8,6 +8,7 @@ from pandas import DataFrame, DatetimeIndex, concat
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
+    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
     _WithPricingObjs,
 )
@@ -16,10 +17,11 @@ if TYPE_CHECKING:
     from rateslib.typing import (
         CurvesT_,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         _Curves,
         _KWArgs,
+        _Vol,
         datetime_,
     )
 
@@ -71,36 +73,12 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
-        Return a DataFrame of financial sensitivity to published interest rate fixings,
-        expressed in local **settlement currency** of the *Period*.
-
-        If the *Period* has no sensitivity to rates fixings this *DataFrame* is empty.
-
-        Parameters
-        ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-            The FX volatility *Smile* or *Surface* object used for determining Black calendar
-            day implied volatility values.
-        settlement: datetime, optional
-            The assumed settlement date of the *PV* determination. Used only to evaluate
-            *ex-dividend* status.
-        forward: datetime, optional
-            The future date to project the *PV* to using the ``disc_curve``.
+        TBD
 
         Returns
         -------
@@ -116,7 +94,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -124,8 +102,11 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
 
         # this is a generic implementation to handle 2 legs.
         _curves: _Curves = self._parse_curves(curves)
+        _vol: _Vol = self._parse_vol(vol)
         _curves_meta: _Curves = self.kwargs.meta["curves"]
+        _vol_meta: _Vol = self.kwargs.meta["vol"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
+        fx_vol = _get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
 
         dfs: list[DataFrame] = []
         for leg, names in zip(
@@ -166,7 +147,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
@@ -179,7 +160,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
                     curves=curves,
                     solver=solver,
                     fx=fx,
-                    fx_vol=fx_vol,
+                    vol=vol,
                     forward=forward,
                     settlement=settlement,
                 )

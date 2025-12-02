@@ -30,11 +30,11 @@ if TYPE_CHECKING:
         FXForwards,
         FXOptionPeriod,
         FXVol,
-        FXVolOption,
         FXVolStrat_,
         ListFXVol_,
         Solver_,
         _BaseCurve,
+        _FXVolOption,
         datetime,
         str_,
     )
@@ -223,7 +223,7 @@ class FXOptionStrat:
 
         _: DualTypes = 0.0
         for option, vol__, weight in zip(self.periods, vol_, weights, strict=True):
-            _ += option.rate(curves, solver, fx, base, vol__, metric_) * weight  # type: ignore[arg-type]
+            _ += option.rate(curves, solver, fx, base, vol__, metric_) * weight
         return _
 
     def npv(
@@ -269,7 +269,7 @@ class FXOptionStrat:
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
 
         results = [
-            option.npv(curves, solver, fx, base, local, vol__)  # type: ignore[arg-type]
+            option.npv(curves, solver, fx, base, local, vol__)
             for (option, vol__) in zip(self.periods, vol_, strict=True)
         ]
 
@@ -295,7 +295,7 @@ class FXOptionStrat:
 
         y = None
         for option, vol__ in zip(self.periods, vol_, strict=True):
-            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol__)  # type: ignore[arg-type]
+            x, y_ = option._plot_payoff(window, curves, solver, fx, base, local, vol__)
             if y is None:
                 y = y_
             else:
@@ -826,8 +826,8 @@ class FXStrangle(FXOptionStrat, FXOption):
         )
         vol_: ListFXVol_ = self._get_fxvol_maybe_from_solver_recursive(vol, solver)
         # type assignment, instead of using assert
-        vol_0: FXVolOption = vol_[0]  # type: ignore[assignment]
-        vol_1: FXVolOption = vol_[1]  # type: ignore[assignment]
+        vol_0: _FXVolOption = vol_[0]
+        vol_1: _FXVolOption = vol_[1]
         curves_1: _BaseCurve = _validate_obj_not_no_input(curves_[1], "curves_[1]")
         curves_3: _BaseCurve = _validate_obj_not_no_input(curves_[3], "curves_[3]")
         fxf: FXForwards = _validate_fx_as_forwards(fx_)

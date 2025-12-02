@@ -18,9 +18,9 @@ if TYPE_CHECKING:
         CurveOption_,
         DataFrame,
         DualTypes,
-        FXVolOption_,
         Result,
         _BaseCurve,
+        _FXVolOption_,
         datetime,
         datetime_,
         str_,
@@ -232,14 +232,14 @@ def _trim_df_by_index(df: DataFrame, left: datetime_, right: datetime_) -> DataF
         return df[left:right]  # type: ignore[misc]
 
 
-def _get_vol_smile_or_value(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
+def _get_vol_smile_or_value(vol: _FXVolOption_, expiry: datetime) -> FXDeltaVolSmile | DualTypes:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     else:
         return _validate_obj_not_no_input(vol, "vol")  # type: ignore[return-value]
 
 
-def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
+def _get_vol_smile_or_raise(vol: _FXVolOption_, expiry: datetime) -> FXDeltaVolSmile:
     if isinstance(vol, FXDeltaVolSurface):
         return vol.get_smile(expiry)
     elif isinstance(vol, FXDeltaVolSmile):
@@ -248,7 +248,7 @@ def _get_vol_smile_or_raise(vol: FXVolOption_, expiry: datetime) -> FXDeltaVolSm
         raise ValueError("Must supply FXDeltaVolSmile/Surface as `vol` not numeric value.")
 
 
-def _get_vol_delta_type(vol: FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
+def _get_vol_delta_type(vol: _FXVolOption_, default_delta_type: FXDeltaMethod) -> FXDeltaMethod:
     if not isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
         return default_delta_type
     else:

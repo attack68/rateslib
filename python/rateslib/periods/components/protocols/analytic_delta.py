@@ -22,10 +22,10 @@ if TYPE_CHECKING:
         DualTypes,
         FXForwards_,
         FXRevised_,
-        FXVolOption_,
         Result,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption_,
         datetime_,
         str_,
     )
@@ -73,7 +73,7 @@ class _WithAnalyticDelta(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Calculate the immediate, analytic rate delta of a *Period* expressed in local
@@ -114,7 +114,7 @@ class _WithAnalyticDelta(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
@@ -179,7 +179,7 @@ class _WithAnalyticDelta(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -352,7 +352,7 @@ class _WithAnalyticDeltaStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXRevised_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Calculate the cashflow for the *Period* with settlement currency adjustment
@@ -377,7 +377,7 @@ class _WithAnalyticDeltaStatic(
         index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXRevised_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         dc_res = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
         if isinstance(dc_res, Err):
