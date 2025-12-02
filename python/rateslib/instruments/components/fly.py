@@ -15,7 +15,7 @@ from rateslib.periods.components.utils import _maybe_fx_converted
 if TYPE_CHECKING:
     from rateslib.typing import (
         Any,
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -64,16 +64,54 @@ def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
 
 class Fly(_BaseInstrument):
     """
-    Create a butterfly of *Instruments*.
+    A *Butterfly* of :class:`~rateslib.instruments.components.protocols._BaseInstrument`.
+
+    .. rubric:: Examples
+
+    The following initialises a *Butterfly* of *IRSs*.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import Fly, IRS
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       fly = Fly(
+           instrument1=IRS(dt(2000, 1, 1), "1y", notional=10e6, spec="eur_irs", curves=["estr"]),
+           instrument2=IRS(dt(2000, 1, 1), "2y", notional=-5e6, spec="eur_irs", curves=["estr"]),
+           instrument3=IRS(dt(2000, 1, 1), "3y", notional=1.75e6, spec="eur_irs", curves=["estr"]),
+       )
+       fly.cashflows()
+
+    .. rubric:: Pricing
+
+    Each :class:`~rateslib.instruments.components.protocols._BaseInstrument` should have
+    its own ``curves`` and ``vol`` objects set at its initialisation, according to the
+    documentation for that *Instrument*. For the pricing methods ``curves`` and ``vol`` objects,
+    these can be universally passed to each *Instrument* but in many cases that would be
+    technically impossible since each *Instrument* might require difference pricing objects, e.g.
+    if the *Instruments* have difference currencies. For a *Fly*
+    of three *IRS* in the same currency this would be possible, however.
 
     Parameters
     ----------
     instrument1 : _BaseInstrument
-        An *Instrument* with the shortest maturity.
+        The *Instrument* with the shortest maturity.
     instrument2 : _BaseInstrument
-        The *Instrument* of the body of the *Fly*.
+        The *Instrument* with the intermediate maturity.
     instrument3 : _BaseInstrument
-        An *Instrument* with the longest maturity.
+        The *Instrument* with the longest maturity.
+
+    Notes
+    -----
+    A *Fly* is just a container for three
+    :class:`~rateslib.instruments.components.protocols._BaseInstrument`, with an overload
+    for the :meth:`~rateslib.instruments.components.Spread.rate` method to calculate twice the
+    belly rate minus the wings (whatever metric is in use for each *Instrument*), which allows
+    it to offer a lot of flexibility in *pseudo Instrument* creation.
+
     """
 
     _instruments: Sequence[_BaseInstrument]
@@ -94,7 +132,7 @@ class Fly(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -125,7 +163,7 @@ class Fly(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -182,7 +220,7 @@ class Fly(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -200,73 +238,10 @@ class Fly(_BaseInstrument):
             base=base,
         )
 
-    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-        """
-        return super().delta(*args, **kwargs)
-
-    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the gamma of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-        """
-        return super().gamma(*args, **kwargs)
-
-    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument* measured
-        against user defined :class:`~rateslib.dual.Variable`.
-
-        For arguments see
-        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
-        """
-        return super().exo_delta(*args, **kwargs)
-
-    def fixings_table(
-        self,
-        curves: Curves_ = NoInput(0),
-        solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-        approximate: bool = False,
-        right: datetime_ = NoInput(0),
-    ) -> DataFrame:
-        """
-        Return a DataFrame of fixing exposures on the *Instruments*.
-
-        For arguments see :meth:`XCS.fixings_table()<rateslib.instruments.XCS.fixings_table>`,
-        and/or :meth:`IRS.fixings_table()<rateslib.instruments.IRS.fixings_table>`
-
-        Returns
-        -------
-        DataFrame
-        """
-        df_result = DataFrame(
-            index=DatetimeIndex([], name="obs_dates"),
-        )
-        for inst in self.instruments:
-            try:
-                df = inst.fixings_table(  # type: ignore[attr-defined]
-                    curves=curves,
-                    solver=solver,
-                    fx=fx,
-                    base=base,
-                    approximate=approximate,
-                    right=right,
-                )
-            except AttributeError:
-                continue
-            df_result = _composit_fixings_table(df_result, df)
-        return df_result
-
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),

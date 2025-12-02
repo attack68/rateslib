@@ -15,7 +15,7 @@ from rateslib.periods.components.utils import _maybe_fx_converted
 if TYPE_CHECKING:
     from rateslib.typing import (
         Any,
-        Curves_,
+        CurvesT_,
         DualTypes,
         FXForwards_,
         FXVolOption_,
@@ -27,15 +27,52 @@ if TYPE_CHECKING:
 
 class Spread(_BaseInstrument):
     """
-    Create a *Spread* of *Instruments*.
+    A *Spread* of :class:`~rateslib.instruments.components.protocols._BaseInstrument`.
+
+    .. rubric:: Examples
+
+    The following initialises a purchased bond asset swap *Instrument* whose *rate* is
+    the difference between the *IRS* rate and the *fixed rate bond* YTM.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments.components import Spread, IRS, FixedRateBond
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       irs = IRS(dt(2025, 12, 1), dt(2030, 12, 7), notional=1e6, spec="gbp_irs", curves=["uk_sonia"])
+       ukt = FixedRateBond(dt(2024, 12, 7), dt(2030, 12, 7), notional=-1e6, fixed_rate=4.75, spec="uk_gb", metric="ytm", curves=["uk_gb"])
+       asw = Spread(ukt, irs)
+       asw.cashflows()
+
+    .. rubric:: Pricing
+
+    Each :class:`~rateslib.instruments.components.protocols._BaseInstrument` should have
+    its own ``curves`` and ``vol`` objects set at its initialisation, according to the
+    documentation for that *Instrument*. For the pricing methods ``curves`` and ``vol`` objects,
+    these can be universally passed to each *Instrument* but in many cases that would be
+    technically impossible since each *Instrument* might require difference pricing objects.
+    In the above example a bond *Curve* and a swap *Curve* are required separately. For a *Spread*
+    of two *IRS* in the same currency this would be possible, however.
 
     Parameters
     ----------
     instrument1 : _BaseInstrument
-        An *Instrument* with the shortest maturity.
+        The *Instrument* with the shortest maturity.
     instrument2 : _BaseInstrument
         The *Instrument* with the longest maturity.
-    """
+
+    Notes
+    -----
+    A *Spread* is just a container for two
+    :class:`~rateslib.instruments.components.protocols._BaseInstrument`, with an overload
+    for the :meth:`~rateslib.instruments.components.Spread.rate` method to calculate the
+    longer rate minus the shorter (whatever metric is in use for each *Instrument*), which allows
+    it to offer a lot of flexibility in *pseudo Instrument* creation.
+
+    """  # noqa: E501
 
     _instruments: Sequence[_BaseInstrument]
 
@@ -54,7 +91,7 @@ class Spread(_BaseInstrument):
     def npv(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -89,7 +126,7 @@ class Spread(_BaseInstrument):
     def local_analytic_rate_fixings(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -108,7 +145,7 @@ class Spread(_BaseInstrument):
     def cashflows(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
@@ -126,36 +163,10 @@ class Spread(_BaseInstrument):
             base=base,
         )
 
-    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-        """
-        return super().delta(*args, **kwargs)
-
-    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the gamma of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-        """
-        return super().gamma(*args, **kwargs)
-
-    def exo_delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument* measured
-        against user defined :class:`~rateslib.dual.Variable`.
-
-        For arguments see
-        :meth:`Sensitivities.exo_delta()<rateslib.instruments.Sensitivities.exo_delta>`.
-        """
-        return super().exo_delta(*args, **kwargs)
-
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: FXVolOption_ = NoInput(0),
