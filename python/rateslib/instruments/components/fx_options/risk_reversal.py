@@ -11,7 +11,6 @@ from rateslib.instruments.components.protocols import _KWArgs
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        FX_,
         Any,
         CalInput,
         CurvesT_,
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards_,
         FXVolStrat_,
-        SeqVolT_,
+        Sequence,
         Solver_,
         VolT_,
         bool_,
@@ -30,7 +29,7 @@ if TYPE_CHECKING:
     )
 
 
-class FXOptionStrat:
+class FXOptionStrat(FXOption):
     """
     A custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`,
     or other :class:`~rateslib.instruments.FXOptionStrat` objects, of the same currency ``pair``.
@@ -51,14 +50,19 @@ class FXOptionStrat:
 
     _greeks: dict[str, Any] = {}
     _strat_elements: tuple[FXOption | FXOptionStrat, ...]
-    kwargs: dict[str, Any]
+
+    @property
+    def kwargs(self) -> _KWArgs:
+        """The :class:`~rateslib.instruments.protocols._KWArgs` of the *Instrument*."""
+        return self._kwargs
 
     def __init__(
         self,
-        options: list[FXOption | FXOptionStrat],
+        options: Sequence[FXOption | FXOptionStrat],
         rate_weight: list[float],
         rate_weight_vol: list[float],
         metric: str_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
     ):
         if len(options) != len(rate_weight) or len(options) != len(rate_weight_vol):
             raise ValueError(
@@ -71,7 +75,7 @@ class FXOptionStrat:
                 rate_weight_vol=rate_weight_vol,
                 instruments=tuple(options),
                 metric=metric,
-                curves=NoInput(0),
+                curves=self._parse_curves(curves),
                 vol=NoInput(0),
                 pair=options[0].kwargs.leg1["pair"],
             ),
@@ -156,7 +160,7 @@ class FXOptionStrat:
     #             ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
     #     return ret
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:
+    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
         if isinstance(vol, list | tuple):
             return vol
         else:
@@ -164,7 +168,7 @@ class FXOptionStrat:
 
     @property
     def instruments(self) -> tuple[FXOption | FXOptionStrat, ...]:
-        return self.kwargs.meta["instruments"]
+        return self.kwargs.meta["instruments"]  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -220,7 +224,7 @@ class FXOptionStrat:
         with id: "fx_surface1".
 
         """
-        vol_: SeqVolT_ = self._parse_vol(vol)
+        vol_: FXVolStrat_ = self._parse_vol(vol)
         metric_: str = _drb(self.kwargs.meta["metric"], metric)
         map_ = {
             "pips_or_%": self.kwargs.meta["rate_weight"],
@@ -231,14 +235,14 @@ class FXOptionStrat:
         weights = map_[metric_]
 
         _: DualTypes = 0.0
-        for option, vol__, weight in zip(self.instruments, vol_, weights, strict=True):
+        for option, vol__, weight in zip(self.instruments, vol_, weights, strict=True):  # type: ignore[misc, arg-type]
             _ += (
                 option.rate(
                     curves=curves,
                     solver=solver,
                     fx=fx,
                     base=base,
-                    vol=vol__,
+                    vol=vol__,  # type: ignore[arg-type]
                     metric=metric_,
                     settlement=settlement,
                     forward=forward,
@@ -299,11 +303,11 @@ class FXOptionStrat:
                 fx=fx,
                 base=base,
                 local=local,
-                vol=vol__,
+                vol=vol__,  # type: ignore[arg-type]
                 forward=forward,
                 settlement=settlement,
             )
-            for (option, vol__) in zip(self.instruments, vol_, strict=True)
+            for (option, vol__) in zip(self.instruments, vol_, strict=True)  # type: ignore[arg-type]
         ]
 
         if local:
@@ -340,16 +344,24 @@ class FXOptionStrat:
         window: list[float] | NoInput = NoInput(0),
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         vol: FXVolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
-        vol_: SeqVolT_ = self._parse_vol(vol)
+        vol_: FXVolStrat_ = self._parse_vol(vol)
 
         y = None
-        for inst, vol__ in zip(self.instruments, vol_, strict=True):
-            x, y_ = inst._plot_payoff(window, curves, solver, fx, base, local, vol__)
+        for inst, vol__ in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
+            x, y_ = inst._plot_payoff(
+                window=window,
+                curves=curves,
+                solver=solver,
+                fx=fx,
+                base=base,
+                local=local,
+                vol=vol__,  # type: ignore[arg-type]
+            )
             if y is None:
                 y = y_
             else:
@@ -361,7 +373,7 @@ class FXOptionStrat:
         self,
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
@@ -401,9 +413,9 @@ class FXOptionStrat:
         # interdependent options)
         self.rate(curves=curves, solver=solver, fx=fx, base=base, vol=vol)
 
-        vol_: SeqVolT_ = self._parse_vol(vol=vol)
+        vol_: FXVolStrat_ = self._parse_vol(vol=vol)
         gks = []
-        for inst, vol_i in zip(self.instruments, vol_, strict=True):
+        for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
             if isinstance(inst, FXOptionStrat):
                 gks.append(
                     inst.analytic_greeks(
@@ -422,7 +434,7 @@ class FXOptionStrat:
                         solver=solver,
                         fx=fx,
                         base=base,
-                        vol=vol_i,
+                        vol=vol_i,  # type: ignore[arg-type]
                         set_metrics=False,  # already done in the rate call above
                     )
                 )
@@ -451,7 +463,7 @@ class FXOptionStrat:
         return _
 
 
-class FXRiskReversal(FXOptionStrat, FXOption):
+class FXRiskReversal(FXOptionStrat):
     """
     An *FX Risk Reversal* :class:`~rateslib.instruments.components.FXOptionStrat`.
 
@@ -597,8 +609,6 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     """
 
     _rate_scalar = 100.0
-    periods: list[FXOption]  # type: ignore[assignment]
-    vol: FXVolStrat_
 
     def __init__(
         self,
@@ -624,7 +634,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
     ) -> None:
         vol_ = self._parse_vol(vol)
         notional_ = _drb(defaults.notional, notional)
-        options = (
+        options = [
             FXPut(
                 pair=pair,
                 expiry=expiry,
@@ -643,7 +653,7 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 premium=premium[0],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[0],
+                vol=vol_[0],  # type: ignore[index]
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -665,11 +675,11 @@ class FXRiskReversal(FXOptionStrat, FXOption):
                 premium=premium[1],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[1],
+                vol=vol_[1],  # type: ignore[index]
                 metric=NoInput(0),
                 spec=spec,
             ),
-        )
+        ]
         super().__init__(
             options=options,
             rate_weight=[-1.0, 1.0],
@@ -677,8 +687,9 @@ class FXRiskReversal(FXOptionStrat, FXOption):
             metric=metric,
         )
         self.kwargs.leg1["notional"] = notional_
+        self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:
+    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
         if isinstance(vol, list | tuple):
             return vol
         else:

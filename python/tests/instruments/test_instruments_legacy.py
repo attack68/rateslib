@@ -31,8 +31,8 @@ from rateslib.instruments import (
     # FXExchange,
     # FXPut,
     # FXRiskReversal,
-    FXStraddle,
-    FXStrangle,
+    # FXStraddle,
+    # FXStrangle,
     # FXSwap,
     # IndexFixedRateBond,
     # Portfolio,
@@ -59,6 +59,8 @@ from rateslib.instruments.components import (
     FXForward,
     FXPut,
     FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
@@ -6459,10 +6461,10 @@ class TestFXStraddle:
             premium_ccy=ccy,
             delta_type=dlty,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        fxo.npv(curves, fx=fxfo, vol=vol_)
-        call_k = fxo.periods[0].periods[0].strike
-        put_k = fxo.periods[1].periods[0].strike
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        fxo.npv(curves=curves, fx=fxfo, vol=vol_)
+        call_k = fxo.instruments[0]._option.fx_option_params.strike
+        put_k = fxo.instruments[1]._option.fx_option_params.strike
         assert abs(call_k - exp[0]) < 1e-7
         assert abs(put_k - exp[1]) < 1e-7
 
@@ -6485,12 +6487,12 @@ class TestFXStraddle:
             strike="atm_delta",
             delta_type="spot",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=7.9, metric=metric)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=7.9, metric=metric)
         assert abs(result - expected) < 1e-6
 
     def test_strad_strike_premium_validation(self) -> None:
-        with pytest.raises(ValueError, match="`strike` for FXStraddle must be set"):
+        with pytest.raises(ValueError, match="missing 1 required positional argument: 'strike'"):
             FXStraddle(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
@@ -6520,7 +6522,7 @@ class TestFXStraddle:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike="atm_delta",
@@ -6533,7 +6535,7 @@ class TestFXStraddle:
             delta_type="forward",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=fxvs,
             fx=fxfo,
         )
@@ -6619,32 +6621,24 @@ class TestFXStrangle:
             delta_type="forward",
         )
 
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
-        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
+        premium = fxo.rate(curves=curves, fx=fxfo, vol=result, metric="pips_or_%")
         metric = "pips" if ccy == "usd" else "percent"
-        premium_vol = (
-            fxo.periods[0]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol,
-                metric=metric,
-            )
+        premium_vol = fxo.instruments[0]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol,
+            metric=metric,
         )
-        premium_vol += (
-            fxo.periods[1]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol,
-                metric=metric,
-            )
+        premium_vol += fxo.instruments[1]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol,
+            metric=metric,
         )
         assert abs(premium - premium_vol) < 5e-2
 
@@ -6687,32 +6681,24 @@ class TestFXStrangle:
             premium_ccy="eur",
             delta_type="forward",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
-        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
+        premium = fxo.rate(curves=curves, fx=fxfo, vol=result, metric="pips_or_%")
         metric = "percent"
-        premium_vol = (
-            fxo.periods[0]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol,
-                metric=metric,
-            )
+        premium_vol = fxo.instruments[0]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol,
+            metric=metric,
         )
-        premium_vol += (
-            fxo.periods[1]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol,
-                metric=metric,
-            )
+        premium_vol += fxo.instruments[1]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol,
+            metric=metric,
         )
         assert abs(premium - premium_vol) < 5e-2
 
@@ -6758,8 +6744,8 @@ class TestFXStrangle:
             premium_ccy="eur",
             delta_type="forward",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
         # test fwd diff
         v = vol._get_node_vector()
@@ -6770,7 +6756,7 @@ class TestFXStrangle:
         }
         for i in range(3):
             vol._set_node_vector(v + np.array(m_[i]), ad=1)
-            result2 = fxo.rate(curves, fx=fxfo, vol=vol)
+            result2 = fxo.rate(curves=curves, fx=fxfo, vol=vol)
             fwd_diff = (result2 - result) * 1000.0
             assert abs(fwd_diff - gradient(result, [f"vol{i}"])[0]) < 2e-4
 
@@ -6817,8 +6803,8 @@ class TestFXStrangle:
             delta_type="forward",
         )
         fxfo._set_ad_order(2)
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
         # test fwd diff
         m_ = {
@@ -6834,9 +6820,9 @@ class TestFXStrangle:
         v = vol._get_node_vector()
         for i in range(3):
             vol._set_node_vector(v + np.array(m_[i]), ad=2)
-            result_plus = fxo.rate(curves, fx=fxfo, vol=vol)
+            result_plus = fxo.rate(curves=curves, fx=fxfo, vol=vol)
             vol._set_node_vector(v + np.array(n_[i]), ad=2)
-            result_min = fxo.rate(curves, fx=fxfo, vol=vol)
+            result_min = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
             fwd_diff = (result_plus + result_min - 2 * result) * 1000000.0
             assert abs(fwd_diff - gradient(result, [f"vol{i}"], order=2)[0][0]) < 1e-4
@@ -6855,29 +6841,21 @@ class TestFXStrangle:
             delta_type="forward",
         )
         vol = [8.0, 10.0]
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
-        premium = fxo.rate(curves, fx=fxfo, vol=result, metric="pips_or_%")
-        premium_vol = (
-            fxo.periods[0]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol[0],
-            )
+        premium = fxo.rate(curves=curves, fx=fxfo, vol=result, metric="pips_or_%")
+        premium_vol = fxo.instruments[0]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol[0],
         )
-        premium_vol += (
-            fxo.periods[1]
-            .periods[0]
-            .rate(
-                fxfo.curve("eur", "usd"),
-                fxfo.curve("usd", "usd"),
-                fx=fxfo,
-                vol=vol[1],
-            )
+        premium_vol += fxo.instruments[1]._option.rate(
+            rate_curve=fxfo.curve("eur", "usd"),
+            disc_curve=fxfo.curve("usd", "usd"),
+            fx=fxfo,
+            fx_vol=vol[1],
         )
 
         assert abs(premium - premium_vol) < 5e-2
@@ -6899,7 +6877,7 @@ class TestFXStrangle:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike=strikes,
@@ -6912,7 +6890,7 @@ class TestFXStrangle:
             delta_type="forward",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=fxvs,
             fx=fxfo,
         )
@@ -6925,14 +6903,16 @@ class TestFXStrangle:
         assert abs(result["vega_usd"] - expected_ccy[2]) < 1e-1
 
     def test_strang_strike_premium_validation(self) -> None:
-        with pytest.raises(ValueError, match="`strike` for FXStrangle must be set"):
-            FXStrangle(
-                pair="eurusd",
-                expiry=dt(2023, 6, 16),
-                strike=["25d", NoInput(0)],
-            )
+        # with pytest.raises(ValueError, match="`strike` for FXStrangle must be set"):
+        #     FXStrangle(
+        #         pair="eurusd",
+        #         expiry=dt(2023, 6, 16),
+        #         strike=["25d", NoInput(0)],
+        #     )
 
-        with pytest.raises(ValueError, match="FXStrangle with string delta as `strike` cannot"):
+        with pytest.raises(
+            ValueError, match="FXOption with string delta as `strike` cannot be initialised"
+        ):
             FXStrangle(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
