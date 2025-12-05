@@ -158,6 +158,7 @@ class Portfolio(_BaseInstrument):
                     currency=k,
                     fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
                     base=base,
+                    forward=forward,
                 )
             return single_value
         else:

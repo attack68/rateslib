@@ -180,6 +180,7 @@ class _WithNPV(Protocol):
             currency=self.settlement_params.currency,
             fx=fx,
             base=base,
+            forward=forward,
         )
 
     def spread(

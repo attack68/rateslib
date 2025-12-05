@@ -8,8 +8,8 @@ from pandas import DataFrame, DatetimeIndex, concat
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
     _WithPricingObjs,
 )
 
@@ -106,7 +106,7 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         _vol_meta: _Vol = self.kwargs.meta["vol"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
-        fx_vol = _get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
+        fx_vol = _maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
 
         dfs: list[DataFrame] = []
         for leg, names in zip(

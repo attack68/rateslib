@@ -9,7 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
-    _get_maybe_fx_vol_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
     _Vol,
 )
 from rateslib.periods.utils import _validate_fx_as_forwards
@@ -165,7 +165,7 @@ class FXVolValue(_BaseInstrument):
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         if metric_ == "vol":
-            vol_ = _get_maybe_fx_vol_maybe_from_solver(
+            vol_ = _maybe_get_fx_vol_maybe_from_solver(
                 vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
             )
             if isinstance(vol_, FXDeltaVolSmile | FXDeltaVolSurface):

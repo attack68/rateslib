@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import rateslib.errors as err
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
         _BaseCurve,
         _BaseCurve_,
         _FXVolOption_,
-        datetime,
+        datetime_,
         str_,
     )
 
@@ -31,6 +32,7 @@ def _maybe_local(
     currency: str,
     fx: FX_,
     base: str_,
+    forward: datetime_,
 ) -> dict[str, DualTypes] | DualTypes:
     """
     Return NPVs in scalar form or dict form.
@@ -38,17 +40,22 @@ def _maybe_local(
     if local:
         return {currency: value}
     else:
-        return _maybe_fx_converted(value=value, currency=currency, fx=fx, base=base)
+        return _maybe_fx_converted(
+            value=value, currency=currency, fx=fx, base=base, forward=forward
+        )
 
 
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
     fx: FX_,
-    base: str | NoInput,
+    base: str_,
+    forward: datetime_,
 ) -> DualTypes:
     """Take an input Value and maybe FX convert it depending on the inputs"""
-    fx_, _ = _get_immediate_fx_scalar_and_base(currency=currency, fx=fx, base=base)
+    fx_, base = _get_immediate_fx_scalar_and_base(currency=currency, fx=fx, base=base)
+    if isinstance(forward, datetime) and base != currency:
+        fx_ = fx.rate(f"{currency}{base}", settlement=forward)
     return value * fx_
 
 
