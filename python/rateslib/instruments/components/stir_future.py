@@ -432,6 +432,7 @@ class STIRFuture(_BaseInstrument):
                 currency=self.leg1.settlement_params.currency,
                 fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
                 base=_drb(self.leg1.settlement_params.currency, base),
+                forward=forward,
             )
         else:
             return {self.leg1.settlement_params.currency: npv_immediate}
@@ -543,6 +544,7 @@ class STIRFuture(_BaseInstrument):
             currency=self.leg1.settlement_params.currency,
             fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
             base=base,
+            forward=forward,
         )
 
     def local_analytic_rate_fixings(

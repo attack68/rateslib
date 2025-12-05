@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
-    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
     _Vol,
     _WithPricingObjs,
 )
@@ -72,7 +72,7 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
             index_curve=_maybe_get_curve_maybe_from_solver(
                 _curves_meta, _curves, f"{prefix}index_curve", solver
             ),
-            fx_vol=_get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver),
+            fx_vol=_maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver),
             fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
             base=base,
             local=local,

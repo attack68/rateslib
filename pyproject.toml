@@ -150,7 +150,7 @@ files = ["python/"]
 exclude = [
     "python/tests",
     "/instruments/components/bonds",
-    "/instruments/components/fx_options",
+    "/instruments/fx_volatility",
     # "/instruments/components/protocols",
     # "/instruments/components/cds.py",
     # "/instruments/components/fly.py",

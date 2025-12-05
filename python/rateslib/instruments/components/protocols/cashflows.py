@@ -10,9 +10,9 @@ from rateslib.enums.generics import NoInput
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_object_maybe_from_solver,
     _maybe_get_curve_or_dict_object_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
     _WithPricingObjs,
 )
 
@@ -108,7 +108,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         _vol_meta: _Vol = self.kwargs.meta["vol"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
-        fx_vol = _get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
+        fx_vol = _maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
         legs_df = [
             self.legs[0].cashflows(
                 rate_curve=_maybe_get_curve_or_dict_object_maybe_from_solver(

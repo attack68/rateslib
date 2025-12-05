@@ -81,6 +81,8 @@ class FRA(_BaseInstrument):
        curves = [None, disc_curve, rate_curve, disc_curve]     # four curves applied to each leg
        curves = {"leg2_rate_curve": rate_curve, "disc_curve": disc_curve}  # dict form is explicit
 
+    The only ``metric`` is *'rate'*.
+
     .. role:: red
 
     .. role:: green
@@ -176,6 +178,27 @@ class FRA(_BaseInstrument):
         See XXX (working with fixings).
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
+    metric : str, :green:`optional` (set as 'rate')`
+        The pricing metric returned by :meth:`~rateslib.instruments.components.FRA.rate`.
+
+    Notes
+    -----
+
+    A *FRA* is modelled as a single period *IRS* whose payment date is overloaded to be
+    based on the 'accrual' effective date, and whose cashflow values are adjusted by a scaling
+    factor related to the floating rate, i.e. :math:`\\frac{1}{1 + d r}`, thus replicating the
+    payoff calculation for a traditional *FRA*.
 
     """  # noqa: E501
 
