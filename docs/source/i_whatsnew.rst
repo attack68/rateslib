@@ -52,6 +52,7 @@ flexibility of allowing MTM leg on either leg1 or leg2
 The ``convention`` arg is removed from `Value` and is now taken directly from the *Curve*
 that it intends to value.
 
+``curves`` for FXOptions are now set in a different way. Errors result for a list of 4 curves.
 
 .. list-table::
    :widths: 25 75

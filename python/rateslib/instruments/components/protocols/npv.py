@@ -6,8 +6,8 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols.kwargs import _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_maybe_from_solver,
-    _get_maybe_fx_vol_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
     _WithPricingObjs,
 )
 from rateslib.periods.components.utils import _maybe_fx_converted
@@ -106,7 +106,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
         _curves_meta: _Curves = self.kwargs.meta["curves"]
         _vol_meta: _Vol = self.kwargs.meta["vol"]
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
-        fx_vol = _get_maybe_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
+        fx_vol = _maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
 
         local_npv: dict[str, DualTypes] = {}
         for leg, names in zip(
@@ -142,7 +142,11 @@ class _WithNPV(_WithPricingObjs, Protocol):
             base_ = _drb(self.legs[0].settlement_params.currency, base)
             for k, v in local_npv.items():
                 single_value += _maybe_fx_converted(
-                    value=v, currency=k, fx=_fx_maybe_from_solver, base=base_
+                    value=v,
+                    currency=k,
+                    fx=_fx_maybe_from_solver,
+                    base=base_,
+                    forward=forward,
                 )
             return single_value
         else:

@@ -80,7 +80,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`eur_zcis <spec-eur-zcis>`
      -
      -
-     -
+     - :ref:`eurusd_call <spec-eurusd-call>`
      -
    * - GBP
      - :ref:`ldn <spec-gbp-ldn>`
@@ -293,6 +293,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/bill.rst
     spec/stir.rst
     spec/zcis.rst
+    spec/fxoption.rst
 
 
 The NoInput argument

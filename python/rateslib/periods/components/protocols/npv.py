@@ -385,7 +385,12 @@ class _WithNPV(Protocol):
             forward=forward,
         )
         return _maybe_local(
-            value=local_npv, local=local, currency=self.settlement_params.currency, fx=fx, base=base
+            value=local_npv,
+            local=local,
+            currency=self.settlement_params.currency,
+            fx=fx,
+            base=base,
+            forward=forward,
         )
 
 

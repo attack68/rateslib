@@ -86,10 +86,10 @@ from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
 from rateslib.periods import FixedPeriod as FixedPeriod
 from rateslib.periods import FloatPeriod as FloatPeriod
 from rateslib.periods import FXCallPeriod as FXCallPeriod
-from rateslib.periods import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import IndexCashflow as IndexCashflow
 from rateslib.periods import IndexFixedPeriod as IndexFixedPeriod
+from rateslib.periods.components import FXOptionPeriod as FXOptionPeriod
 from rateslib.periods.components.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.periods.components.parameters import _IndexParams as _IndexParams
 from rateslib.periods.components.parameters import _NonDeliverableParams as _NonDeliverableParams
@@ -173,10 +173,12 @@ _FXVolOption: TypeAlias = "_FXVolObj | DualTypes"
 _FXVolOption_: TypeAlias = "_FXVolOption | NoInput"
 
 FXVol: TypeAlias = "_FXVolOption | str"
-FXVol_: TypeAlias = "_FXVol | NoInput"
+FXVol_: TypeAlias = "FXVol | NoInput"
 
 VolT: TypeAlias = "FXVol | _Vol"
 VolT_: TypeAlias = "VolT | NoInput"
+FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | VolT | NoInput"
+SeqVolT_: TypeAlias = "Sequence[VolT_]"
 
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
 CurveOrId: TypeAlias = "_BaseCurve | str"
@@ -196,9 +198,6 @@ Curves_DiscTuple: TypeAlias = "tuple[CurveOption_, _BaseCurve_, CurveOption_, _B
 
 # this is a type for a wrapped `rate_curve`, `disc_curve` and `index_curve`
 PeriodCurves: TypeAlias = "tuple[CurveOption_, _BaseCurve_, _BaseCurve_]"
-
-FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | FXVol_"
-ListFXVol_: TypeAlias = "list[ListFXVol_ | FXVol_]"
 
 FX: TypeAlias = "DualTypes | FXRates | FXForwards"
 FX_: TypeAlias = "FX | NoInput"

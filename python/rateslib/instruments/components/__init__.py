@@ -11,7 +11,9 @@ from rateslib.instruments.components.fra import FRA
 from rateslib.instruments.components.fx_forward import FXForward
 from rateslib.instruments.components.fx_options import (
     FXCall,
+    FXOption,
     FXPut,
+    FXRiskReversal,
 )
 from rateslib.instruments.components.fx_swap import FXSwap
 from rateslib.instruments.components.fx_vol_value import FXVolValue
@@ -52,4 +54,6 @@ __all__ = [
     "Bill",
     "FXPut",
     "FXCall",
+    "FXOption",
+    "FXRiskReversal",
 ]

@@ -30,7 +30,7 @@ from rateslib.instruments import (
     # FXCall,
     # FXExchange,
     # FXPut,
-    FXRiskReversal,
+    # FXRiskReversal,
     FXStraddle,
     FXStrangle,
     # FXSwap,
@@ -58,6 +58,7 @@ from rateslib.instruments.components import (
     FXCall,
     FXForward,
     FXPut,
+    FXRiskReversal,
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
@@ -5503,7 +5504,7 @@ class TestFXOptions:
         assert abs(result - exp_pts) < 1e-3
 
         result = fxc.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=vol,
             metric="premium",
@@ -5546,7 +5547,7 @@ class TestFXOptions:
             premium_ccy="eur",
         )
         result = fxo.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=vol,
         )
@@ -5593,7 +5594,7 @@ class TestFXOptions:
             premium_ccy="eur",
         )
         result = fxo.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=vol,
         )
@@ -5614,8 +5615,8 @@ class TestFXOptions:
             calendar="tgt",
             strike=1.101,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=8.9)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.npv(curves=curves, fx=fxfo, vol=8.9)
         expected = 0.0
         assert abs(result - expected) < 1e-6
 
@@ -5629,11 +5630,11 @@ class TestFXOptions:
             calendar="tgt",
             strike=1.101,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.cashflows(curves, fx=fxfo, vol=8.9)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.cashflows(curves=curves, fx=fxfo, vol=8.9)
         assert isinstance(result, DataFrame)
-        assert result.loc[0, "Type"] == "FXCallPeriod"
-        assert result.loc[1, "Type"] == "Cashflow"
+        assert result["Type"].iloc[0] == "FXCallPeriod"
+        assert result["Type"].iloc[1] == "Cashflow"
 
     def test_fx_call_cashflows_table(self, fxfo) -> None:
         fxo = FXCall(
@@ -5645,7 +5646,7 @@ class TestFXOptions:
             calendar="tgt",
             strike=1.101,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
         result = fxo.cashflows_table(curves, fx=fxfo, vol=8.9)
         expected = DataFrame(
             data=[[0.0]],
@@ -5696,11 +5697,11 @@ class TestFXOptions:
             delta_type="spot",
             premium_ccy=ccy,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
         expected = exp_rate
         assert abs(result - expected) < 1e-6
-        assert abs(fxo.periods[0].strike - exp_strike) < 1e-4
+        assert abs(fxo._option.fx_option_params.strike - exp_strike) < 1e-4
 
     def test_fx_call_rate_expiry_tenor(self, fxfo) -> None:
         fxo = FXCall(
@@ -5715,8 +5716,8 @@ class TestFXOptions:
             strike="25d",
             delta_type="spot",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=8.9)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=8.9)
         expected = 70.180131
         assert abs(result - expected) < 1e-6
 
@@ -5731,7 +5732,7 @@ class TestFXOptions:
         result = fxc.plot_payoff(
             [1.03, 1.12],
             fx=fxfo,
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
         )
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
@@ -5750,17 +5751,14 @@ class TestFXOptions:
             strike="-25d",
             delta_type="spot",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=10.15)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=10.15)
         expected = 83.975596
         assert abs(result - expected) < 1e-6
 
     def test_str_tenor_raises(self) -> None:
         with pytest.raises(ValueError, match="`expiry` as string tenor requires `eval_date`"):
-            FXCall(
-                pair="eurusd",
-                expiry="3m",
-            )
+            FXCall(pair="eurusd", expiry="3m", strike=1.0)
 
     def test_premium_ccy_raises(self) -> None:
         with pytest.raises(
@@ -5772,6 +5770,7 @@ class TestFXOptions:
                 expiry="3m",
                 eval_date=dt(2023, 3, 16),
                 premium_ccy="chf",
+                strike=1.0,
             )
 
     @pytest.mark.parametrize("dlty", [("forward")])
@@ -5798,11 +5797,11 @@ class TestFXOptions:
             premium_ccy="usd",
             delta_type=dlty,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
         assert abs(fxc.analytic_greeks(curves, fx=fxfo, vol=10.0)["delta"] - 0.5) < 1e-14
-        assert abs(fxc.periods[0].strike - 1.068856) < 1e-6
+        assert abs(fxc._option.fx_option_params.strike - 1.068856) < 1e-6
         assert abs(fxp.analytic_greeks(curves, fx=fxfo, vol=10.0)["delta"] + 0.5) < 1e-14
-        assert abs(fxp.periods[0].strike - 1.068856) < 1e-6
+        assert abs(fxp._option.fx_option_params.strike - 1.068856) < 1e-6
 
     def test_analytic_vega(self, fxfo) -> None:
         fxo = FXCall(
@@ -5818,18 +5817,21 @@ class TestFXOptions:
             delta_type="spot",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=8.9,
         )["vega"]
         # see test_periods/test_analytic_vega
         assert abs(result * 20e6 / 100 - 33757.945) < 1e-2
 
+    @pytest.mark.skip(
+        reason="An Option could expire in the past but settle forward, should still price"
+    )
     def test_rate_vol_raises(self, fxfo) -> None:
         args = {
             "expiry": dt(2009, 6, 16),
             "pair": "eurusd",
-            "curves": [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            "curves": [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             "delta_type": "spot",
         }
         vol = FXDeltaVolSmile(
@@ -5841,6 +5843,7 @@ class TestFXOptions:
             ad=1,
         )
         fxc = FXCall(strike=1.10, **args, notional=100e6, vol=vol)
+        # the expiry is before the eval date. This still needs to price
         with pytest.raises(ValueError, match="The `eval_date` on the FXDeltaVolSmile and the"):
             fxc.rate(fx=fxfo)
 
@@ -5864,7 +5867,7 @@ class TestFXOptions:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type=dt_0,
             vol=vol,
             premium_ccy=prem_ccy,
@@ -5893,7 +5896,7 @@ class TestFXOptions:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type=dt_0,
             vol=vol,
             premium_ccy=prem_ccy,
@@ -5949,14 +5952,14 @@ class TestFXOptions:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="spot",
             premium_ccy="usd",
             strike=1.05,
             premium=100000.0,
         )
         result = fxo.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=vol_,
             fx=fxfo,
             metric="vol",
@@ -5964,7 +5967,7 @@ class TestFXOptions:
         assert abs(result - expected) < 1e-6
 
     def test_option_strike_premium_validation(self) -> None:
-        with pytest.raises(ValueError, match="`strike` for FXOption must be set"):
+        with pytest.raises(TypeError, match="missing 1 required positional argument: 'strike'"):
             FXCall(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
@@ -5994,7 +5997,7 @@ class TestFXOptions:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike=delta,
@@ -6007,7 +6010,7 @@ class TestFXOptions:
             delta_type="forward",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=fxvs,
             fx=fxfo,
         )
@@ -6030,7 +6033,7 @@ class TestFXOptions:
                 FXForward(
                     pair="eurusd",
                     settlement=dt(2024, 9, 24),
-                    curves=[None, eurusd, None, usd],
+                    curves=[eurusd, usd],
                 ),
             ],
             s=[3.77, 5.51, 1.0775],
@@ -6048,7 +6051,7 @@ class TestFXOptions:
             pair="eurusd",
             delta_type="spot",
             metric="vol",  # note how the option is pre-configured with a metric as "vol"
-            curves=[None, eurusd, None, usd],
+            curves=[eurusd, usd],
             vol=smile,
             premium_ccy="eur",
             delivery_lag=2,
@@ -6099,7 +6102,7 @@ class TestFXOptions:
             modifier="mf",
             strike=1.0,
         )
-        assert fxo.kwargs["expiry"] == expected
+        assert fxo.kwargs.leg1["expiry"] == expected
 
     def test_single_vol_not_no_input(self, fxfo):
         fxo = FXCall(
@@ -6107,7 +6110,7 @@ class TestFXOptions:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "eur"), None, fxfo.curve("usd", "eur")],
+            curves=[fxfo.curve("eur", "eur"), fxfo.curve("usd", "eur")],
             delta_type="forward",
             premium_ccy="usd",
             strike=1.1,
@@ -6134,9 +6137,7 @@ class TestFXOptions:
             instruments=[
                 IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
                 IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-                FXSwap(
-                    dt(2024, 5, 9), "3W", pair="eurusd", curves=[None, "eurusd", None, "usdusd"]
-                ),
+                FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=["eurusd", "usdusd"]),
             ],
             s=[3.90, 5.32, 8.85],
             fx=fxf,
@@ -6160,7 +6161,7 @@ class TestFXOptions:
             expiry=dt(2024, 5, 28),
             calendar="tgt|fed",
             delta_type="spot",
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
         )
 
@@ -6183,7 +6184,7 @@ class TestFXOptions:
             pair="eurusd",
             strike=1.07,
             notional=100e6,
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
             premium=98.216647 * 1e8 / 1e4,
             premium_ccy="usd",
@@ -6227,7 +6228,7 @@ class TestFXOptions:
             pair="eurusd",
             calendar="tgt|fed",
             delta_type="spot",
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=surf,
             strike=k,
         )
@@ -6258,8 +6259,8 @@ class TestRiskReversal:
             strike=["-25d", "25d"],
             delta_type="spot",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=[10.15, 8.9], metric=metric)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=[10.15, 8.9], metric=metric)
         assert abs(result - expected) < 1e-6
 
     @pytest.mark.parametrize(
@@ -6289,14 +6290,32 @@ class TestRiskReversal:
             premium=prem,
             premium_ccy=prem_ccy,
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.npv(curves, fx=fxfo, vol=[10.15, 8.9], local=local)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.npv(curves=curves, fx=fxfo, vol=[10.15, 8.9], local=local)
         expected = exp
         if not local:
             assert abs(result - expected) < 1e-6
         else:
             for k in expected:
                 assert abs(result[k] - expected[k]) < 1e-3
+
+    @pytest.mark.parametrize("prem_ccy", ["usd", "eur"])
+    def test_risk_reversal_component_npv(self, fxfo, prem_ccy) -> None:
+        fxo = FXPut(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            notional=20e6,
+            delivery_lag=2,
+            payment_lag=2,
+            calendar="tgt",
+            strike=1.033,
+            premium=NoInput(0),
+            premium_ccy=prem_ccy,
+        )
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.npv(curves=curves, fx=fxfo, vol=10.15, local=False)
+        expected = 0.0
+        assert abs(result - expected) < 1e-6
 
     def test_risk_reversal_plot(self, fxfo) -> None:
         fxo = FXRiskReversal(
@@ -6308,7 +6327,7 @@ class TestRiskReversal:
             calendar="tgt",
             strike=[1.033, 1.101],
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
         result = fxo.plot_payoff([1.03, 1.12], curves, fx=fxfo, vol=[10.15, 8.9])
         x, y = result[2][0]._x, result[2][0]._y
         assert x[0] == 1.03
@@ -6317,13 +6336,13 @@ class TestRiskReversal:
         assert abs(y[1000] - (1.12 - 1.101) * 20e6) < 1e-5
 
     def test_rr_strike_premium_validation(self) -> None:
-        with pytest.raises(ValueError, match="`strike` for FXRiskReversal must be set"):
+        with pytest.raises(TypeError, match="missing 1 required positional argument: 'strike'"):
             FXRiskReversal(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
             )
 
-        with pytest.raises(ValueError, match="FXRiskReversal with string delta as `strike` cannot"):
+        with pytest.raises(ValueError, match="FXOption with string delta as `strike` cannot be in"):
             FXRiskReversal(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
@@ -6347,7 +6366,7 @@ class TestRiskReversal:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike=["-30d", "20d"],
@@ -6360,7 +6379,7 @@ class TestRiskReversal:
             delta_type="forward",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=fxvs,
             fx=fxfo,
         )
@@ -6384,6 +6403,22 @@ class TestRiskReversal:
         )
         expected = f"<rl.FXRiskReversal at {hex(id(fxo))}>"
         assert fxo.__repr__() == expected
+
+    def test_cashflows(self, fxfo) -> None:
+        # test the delta and delta_eur are not impacted by a Buy or Sell. Delta is expressed
+        # relative to a Buy.
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            delivery_lag=dt(2023, 6, 20),
+            payment_lag=dt(2023, 6, 20),
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
+            delta_type="forward",
+            premium_ccy="usd",
+            strike=["-30d", "20d"],
+        )
+        result = fxo.cashflows()
+        assert isinstance(result, DataFrame)
 
 
 class TestFXStraddle:

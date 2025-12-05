@@ -98,6 +98,9 @@ Objects
    :include: Spread
    :include: Fly
    :include: Portfolio
+   :include: FXOption
+   :include: FXCall
+   :include: FXPut
 
 FX
 ===

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
         Any,
         CurvesT_,
         FXForwards_,
+        FXVol_,
         Solver,
         Solver_,
         VolT_,
@@ -127,7 +128,7 @@ class _Vol:
     def __init__(
         self,
         *,
-        fx_vol: _FXVolOption_ = NoInput(0),
+        fx_vol: FXVol_ = NoInput(0),
     ):
         self._fx_vol = fx_vol
 
@@ -363,7 +364,7 @@ def _parse_curve_or_id_from_solver_(curve: _BaseCurveOrId, solver: Solver) -> _B
 # Solver and Vol mapping
 
 
-def _get_maybe_fx_vol_maybe_from_solver(
+def _maybe_get_fx_vol_maybe_from_solver(
     vol_meta: _Vol,
     vol: _Vol,
     # name: str, = "fx_vol"

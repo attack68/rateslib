@@ -145,4 +145,5 @@ class _WithAnalyticDelta(Protocol):
             currency=self.periods[0].settlement_params.currency,
             fx=fx,
             base=base,
+            forward=forward,
         )
