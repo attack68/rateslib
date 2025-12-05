@@ -14,6 +14,8 @@ from rateslib.instruments.components.fx_options import (
     FXOption,
     FXPut,
     FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
 )
 from rateslib.instruments.components.fx_swap import FXSwap
 from rateslib.instruments.components.fx_vol_value import FXVolValue

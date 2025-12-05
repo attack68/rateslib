@@ -55,7 +55,7 @@ def _maybe_fx_converted(
     """Take an input Value and maybe FX convert it depending on the inputs"""
     fx_, base = _get_immediate_fx_scalar_and_base(currency=currency, fx=fx, base=base)
     if isinstance(forward, datetime) and base != currency:
-        fx_ = fx.rate(f"{currency}{base}", settlement=forward)
+        fx_ = fx.rate(f"{currency}{base}", settlement=forward)  # type: ignore[union-attr]
     return value * fx_
 
 
