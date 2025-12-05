@@ -308,8 +308,8 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
 
     def _set_strike_and_vol(
         self,
-        rate_curve: _BaseCurve,
-        disc_curve: _BaseCurve,
+        rate_curve: _BaseCurve_,
+        disc_curve: _BaseCurve_,
         fx: FX_,
         vol: _FXVolOption_,
     ) -> None:
@@ -337,7 +337,8 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         if isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface | FXSabrSmile | FXSabrSurface):
             eval_date = vol.meta.eval_date
         else:
-            eval_date = disc_curve.nodes.initial
+            _ = _validate_obj_not_no_input(disc_curve, "disc_curve")
+            eval_date = _.nodes.initial
             _pricing.vol = vol  # Not a vol model so set directly
         _pricing.t_e = self._option.fx_option_params.time_to_expiry(eval_date)
         self._update_pricing_for_strike(
@@ -361,7 +362,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         fx: FXForwards,
         pricing: _PricingMetrics,
         vol: _FXVolOption_,
-        rate_curve: _BaseCurve,
+        rate_curve: _BaseCurve_,
     ) -> None:
         """Update the _PricingMetrics object to populate values."""
         if not isinstance(strike, str):
@@ -375,27 +376,29 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             elif strike == "atm_spot":
                 pricing.k = fx.rate(self.kwargs.leg1["pair"], pricing.spot)
             elif strike == "atm_delta":
+                rc = _validate_obj_not_no_input(rate_curve, "rate_curve")
                 pricing.delta_index, pricing.vol, pricing.k = (
                     self._option._index_vol_and_strike_from_atm(
                         delta_type=self._option.fx_option_params.delta_type,
                         vol=_validate_obj_not_no_input(vol, "vol"),  # type: ignore[arg-type]
-                        w_deli=rate_curve[self.kwargs.leg1["delivery"]],
-                        w_spot=rate_curve[pricing.spot],
+                        w_deli=rc[self.kwargs.leg1["delivery"]],
+                        w_spot=rc[pricing.spot],
                         f=fx if isinstance(vol, FXSabrSurface) else pricing.f_d,
-                        t_e=pricing.t_e,
+                        t_e=pricing.t_e,  # type: ignore[arg-type]
                     )
                 )
                 return None
             elif strike[-1] == "d":  # representing a delta percentage
+                rc = _validate_obj_not_no_input(rate_curve, "rate_curve")
                 pricing.delta_index, pricing.vol, pricing.k = (
                     self._option._index_vol_and_strike_from_delta(
                         delta=float(strike[:-1]) / 100.0,
                         delta_type=self.kwargs.meta["delta_method"],
                         vol=_validate_obj_not_no_input(vol, "vol"),  # type: ignore[arg-type]
-                        w_deli=rate_curve[self.kwargs.leg1["delivery"]],
-                        w_spot=rate_curve[pricing.spot],
+                        w_deli=rc[self.kwargs.leg1["delivery"]],
+                        w_spot=rc[pricing.spot],
                         f=fx if isinstance(vol, FXSabrSurface) else pricing.f_d,
-                        t_e=pricing.t_e,
+                        t_e=pricing.t_e,  # type: ignore[arg-type]
                     )
                 )
                 return None
@@ -404,11 +407,12 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             # vol is only None if vol_ is a VolObj so can be safely type ignored.
             # a numeric vol has already been set on the 'pricing' object.
             # then an explicit strike is set so determine the vol from strike, set and return.
-            pricing.delta_index, pricing.vol, _ = vol.get_from_strike(
-                k=pricing.k,
-                f=pricing.f_d if not isinstance(vol, FXSabrSurface) else fx,
+            rc = _validate_obj_not_no_input(rate_curve, "rate_curve")
+            pricing.delta_index, pricing.vol, _ = vol.get_from_strike(  # type: ignore[union-attr]
+                k=pricing.k,  # type: ignore[arg-type]
+                f=pricing.f_d if not isinstance(vol, FXSabrSurface) else fx,  # type: ignore[arg-type]
                 expiry=self.kwargs.leg1["expiry"],
-                z_w=rate_curve[self.kwargs.leg1["delivery"]] / rate_curve[pricing.spot],
+                z_w=rc[self.kwargs.leg1["delivery"]] / rc[pricing.spot],
             )
         return None
 
@@ -730,29 +734,35 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
+        set_metrics: bool_ = True,
     ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
         """
-        curves_, fx_, base_, vol_ = _get_fxvol_curves_fx_and_base_maybe_from_solver(
-            curves_attr=self.curves,
-            vol_attr=self.vol,
-            solver=solver,
-            curves=curves,
-            fx=fx,
-            base=base,
-            vol=vol,
-            local_ccy=self.kwargs.leg1["pair"][3:],
+        _curves = self._parse_curves(curves)
+        _vol = self._parse_vol(vol)
+        rate_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
         )
-        self._set_strike_and_vol(curves_, fx_, vol_)
-        # self._set_premium(curves, fx)
+        disc_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
+        )
+        fx_vol = _maybe_get_fx_vol_maybe_from_solver(
+            vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
+        )
+        fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
 
-        return self._option_periods[0]._analytic_greeks(
-            disc_curve=_validate_obj_not_no_input(curves_[1], "curves_[1]"),
-            disc_curve_ccy2=_validate_obj_not_no_input(curves_[3], "curves_[3]"),
+        if set_metrics:
+            self._set_strike_and_vol(
+                rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=fx_vol
+            )
+            # self._set_premium(curves, fx)
+
+        return self._option._base_analytic_greeks(
+            rate_curve=_validate_obj_not_no_input(rate_curve, "rate_curve"),
+            disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
             fx=_validate_fx_as_forwards(fx_),
-            base=base_,
-            vol=self._pricing.vol,  # type: ignore[arg-type]
+            fx_vol=self._pricing.vol,
             premium=NoInput(0),
             _reduced=True,
         )  # none of the reduced greeks need a VolObj - faster to reuse from _pricing.vol
@@ -768,7 +778,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         window: list[float] | NoInput = NoInput(0),
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         vol: FXVol_ = NoInput(0),
@@ -781,11 +791,23 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
 
         _curves = self._parse_curves(curves)
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
+        rate_curve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="rate_curve",
+            ),
+            "rate_curve",
         )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
+        disc_curve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="disc_curve",
+            ),
+            "disc curve",
         )
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
@@ -802,12 +824,14 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         range: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         vol: float_ = NoInput(0),
     ) -> PlotOutput:
-        x, y = self._plot_payoff(range, curves, solver, fx, base, local, vol)
+        x, y = self._plot_payoff(
+            window=range, curves=curves, solver=solver, fx=fx, base=base, local=local, vol=vol
+        )
         return plot([x], [y])  # type: ignore
 
 
