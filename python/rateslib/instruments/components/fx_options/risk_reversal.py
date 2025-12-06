@@ -63,6 +63,7 @@ class FXOptionStrat(FXOption):
         rate_weight_vol: list[float],
         metric: str_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
+        vol: FXVolStrat_ = NoInput(0),
     ):
         if len(options) != len(rate_weight) or len(options) != len(rate_weight_vol):
             raise ValueError(
@@ -75,15 +76,16 @@ class FXOptionStrat(FXOption):
                 rate_weight_vol=rate_weight_vol,
                 instruments=tuple(options),
                 metric=metric,
-                curves=self._parse_curves(curves),
-                vol=NoInput(0),
+                vol=vol,
                 pair=options[0].kwargs.leg1["pair"],
             ),
             default_args=dict(
                 metric="vol",
             ),
-            meta_args=["metric", "curves", "vol", "instruments", "rate_weight", "rate_weight_vol"],
+            meta_args=["metric", "vol", "instruments", "rate_weight", "rate_weight_vol"],
         )
+        self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
+        self.kwargs.meta["curves"] = self._parse_curves(curves)
 
     # @property
     # def _vol_agg(self) -> FXVolStrat_:
@@ -685,9 +687,10 @@ class FXRiskReversal(FXOptionStrat):
             rate_weight=[-1.0, 1.0],
             rate_weight_vol=[-1.0, 1.0],
             metric=metric,
+            curves=curves,
+            vol=vol_,
         )
         self.kwargs.leg1["notional"] = notional_
-        self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
 
     def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
         if isinstance(vol, list | tuple):

@@ -12,35 +12,6 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
-from rateslib.instruments import (
-    # CDS,
-    # FRA,
-    # IIRS,
-    # IRS,
-    # NDF,
-    # SBS,
-    # XCS,
-    # ZCIS,
-    # ZCS,
-    # Bill,
-    # FixedRateBond,
-    # FloatRateNote,
-    # Fly,
-    FXBrokerFly,
-    # FXCall,
-    # FXExchange,
-    # FXPut,
-    # FXRiskReversal,
-    # FXStraddle,
-    # FXStrangle,
-    # FXSwap,
-    # IndexFixedRateBond,
-    # Portfolio,
-    # Spread,
-    # STIRFuture,
-    # Value,
-    # VolValue,
-)
 from rateslib.instruments.components import (
     CDS,
     FRA,
@@ -55,6 +26,7 @@ from rateslib.instruments.components import (
     FixedRateBond,
     FloatRateNote,
     Fly,
+    FXBrokerFly,
     FXCall,
     FXForward,
     FXPut,
@@ -6422,6 +6394,42 @@ class TestRiskReversal:
         result = fxo.cashflows()
         assert isinstance(result, DataFrame)
 
+    @pytest.mark.parametrize("ccy", ["usd", "eur"])
+    def test_populate_curves_on_init(self, ccy):
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            curves=["A", "B"],
+            premium_ccy=ccy,
+            strike=["-30d", "20d"],
+        )
+        if ccy == "usd":
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "B"
+        else:
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "A"
+
+    def test_populate_all_vols_on_init(self):
+        # test also validates FXStraddle and FXStrangle
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            vol=["a", "b"],
+            strike=[1.10, 1.12],
+        )
+        assert fxo.instruments[0].kwargs.meta["vol"].fx_vol == "a"
+        assert fxo.instruments[1].kwargs.meta["vol"].fx_vol == "b"
+
+    def test_populate_single_vols_on_init(self):
+        # test also validates FXStraddle and FXStrangle
+        fxo = FXRiskReversal(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            vol="myvol",
+            strike=[1.10, 1.12],
+        )
+        assert fxo.instruments[0].kwargs.meta["vol"].fx_vol == "myvol"
+        assert fxo.instruments[1].kwargs.meta["vol"].fx_vol == "myvol"
+
 
 class TestFXStraddle:
     @pytest.mark.parametrize(
@@ -6492,13 +6500,13 @@ class TestFXStraddle:
         assert abs(result - expected) < 1e-6
 
     def test_strad_strike_premium_validation(self) -> None:
-        with pytest.raises(ValueError, match="missing 1 required positional argument: 'strike'"):
+        with pytest.raises(TypeError, match="missing 1 required positional argument: 'strike'"):
             FXStraddle(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
             )
 
-        with pytest.raises(ValueError, match="FXStraddle with string delta as `strike` cannot"):
+        with pytest.raises(ValueError, match="FXOption with string delta as `strike` cannot be "):
             FXStraddle(
                 pair="eurusd",
                 expiry=dt(2023, 6, 16),
@@ -6559,6 +6567,20 @@ class TestFXStraddle:
         )
         expected = f"<rl.FXStraddle at {hex(id(fxo))}>"
         assert expected == fxo.__repr__()
+
+    @pytest.mark.parametrize("ccy", ["usd", "eur"])
+    def test_populate_curves_on_init(self, ccy):
+        fxo = FXStraddle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            curves=["A", "B"],
+            premium_ccy=ccy,
+            strike=1.10,
+        )
+        if ccy == "usd":
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "B"
+        else:
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "A"
 
 
 class TestFXStrangle:
@@ -6933,6 +6955,20 @@ class TestFXStrangle:
         expected = f"<rl.FXStrangle at {hex(id(fxo))}>"
         assert expected == fxo.__repr__()
 
+    @pytest.mark.parametrize("ccy", ["usd", "eur"])
+    def test_populate_curves_on_init(self, ccy):
+        fxo = FXStrangle(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            curves=["A", "B"],
+            premium_ccy=ccy,
+            strike=[1.10, 1.12],
+        )
+        if ccy == "usd":
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "B"
+        else:
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "A"
+
 
 class TestFXBrokerFly:
     @pytest.mark.parametrize(
@@ -7002,8 +7038,8 @@ class TestFXBrokerFly:
             premium_ccy=ccy,
             delta_type="forward",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
         assert abs(result - expected) < 3e-2
 
@@ -7041,8 +7077,8 @@ class TestFXBrokerFly:
             delta_type="spot",
         )
         vol = fxvs if smile else 9.5
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
         expected = (-111.2, 0.1) if ccy == "usd" else (-1.041, 0.02)
         assert abs(result - expected[0]) < expected[1]
 
@@ -7098,8 +7134,8 @@ class TestFXBrokerFly:
             delta_type="forward",
             metric="premium",
         )
-        curves = [None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")]
-        result = fxo.rate(curves, fx=fxfo, vol=vol)
+        curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
+        result = fxo.rate(curves=curves, fx=fxfo, vol=vol)
 
         tolerance = 300 if ccy == "usd" else 800
         expected = expected[0] if ccy == "usd" else expected[1]
@@ -7118,7 +7154,7 @@ class TestFXBrokerFly:
             delta_type="spot",
         )
         result = fxbf.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=[[10.15, 8.9], 1.0],
         )
@@ -7126,7 +7162,7 @@ class TestFXBrokerFly:
         assert abs(result - expected) < 1e-6
 
         result = fxbf.rate(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             fx=fxfo,
             vol=[[10.15, 8.9], 7.8],
             metric="pips_or_%",
@@ -7158,7 +7194,7 @@ class TestFXBrokerFly:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike=strikes,
@@ -7171,7 +7207,7 @@ class TestFXBrokerFly:
             delta_type="forward",
         )
         result = fxo.analytic_greeks(
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             vol=fxvs,
             fx=fxfo,
         )
@@ -7200,7 +7236,7 @@ class TestFXBrokerFly:
             expiry=dt(2023, 6, 16),
             delivery_lag=dt(2023, 6, 20),
             payment_lag=dt(2023, 6, 20),
-            curves=[None, fxfo.curve("eur", "usd"), None, fxfo.curve("usd", "usd")],
+            curves=[fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")],
             delta_type="forward",
             premium_ccy="usd",
             strike=[["-20d", "20d"], "atm_delta"],
@@ -7222,6 +7258,64 @@ class TestFXBrokerFly:
         )
         expected = f"<rl.FXBrokerFly at {hex(id(fxo))}>"
         assert expected == fxo.__repr__()
+
+    @pytest.mark.parametrize("ccy", ["usd", "eur"])
+    def test_populate_curves_on_init(self, ccy):
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            curves=["A", "B"],
+            premium_ccy=ccy,
+            strike=[[1.10, 1.12], 1.11],
+        )
+        if ccy == "usd":
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[0].kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[1].kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[0].instruments[0].kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[0].instruments[1].kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[1].instruments[0].kwargs.meta["curves"].leg2_disc_curve == "B"
+            assert fxo.instruments[1].instruments[1].kwargs.meta["curves"].leg2_disc_curve == "B"
+        else:
+            assert fxo.kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[0].kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[1].kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[0].instruments[0].kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[0].instruments[1].kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[1].instruments[0].kwargs.meta["curves"].leg2_disc_curve == "A"
+            assert fxo.instruments[1].instruments[1].kwargs.meta["curves"].leg2_disc_curve == "A"
+
+    def test_populate_all_vols_on_init(self):
+        # test also validates FXStraddle and FXStrangle
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            vol=[["a", "b"], ["c", "d"]],
+            strike=[[1.10, 1.12], 1.11],
+        )
+        assert fxo.kwargs.meta["vol"] == [["a", "b"], ["c", "d"]]
+        assert fxo.instruments[0].kwargs.meta["vol"] == ["a", "b"]
+        assert fxo.instruments[1].kwargs.meta["vol"] == ["c", "d"]
+        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"].fx_vol == "a"
+        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"].fx_vol == "b"
+        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"].fx_vol == "c"
+        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"].fx_vol == "d"
+
+    def test_populate_single_vol_on_init(self):
+        # test also validates FXStraddle and FXStrangle
+        fxo = FXBrokerFly(
+            pair="eurusd",
+            expiry=dt(2023, 6, 16),
+            vol="myvol",
+            strike=[[1.10, 1.12], 1.11],
+        )
+        assert fxo.kwargs.meta["vol"] == ("myvol", "myvol")
+        assert fxo.instruments[0].kwargs.meta["vol"] == ("myvol", "myvol")
+        assert fxo.instruments[1].kwargs.meta["vol"] == ("myvol", "myvol")
+        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"].fx_vol == "myvol"
+        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"].fx_vol == "myvol"
+        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"].fx_vol == "myvol"
+        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"].fx_vol == "myvol"
 
 
 class TestFXVolValue:
