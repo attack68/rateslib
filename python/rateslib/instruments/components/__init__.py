@@ -10,6 +10,7 @@ from rateslib.instruments.components.fly import Fly
 from rateslib.instruments.components.fra import FRA
 from rateslib.instruments.components.fx_forward import FXForward
 from rateslib.instruments.components.fx_options import (
+    FXBrokerFly,
     FXCall,
     FXOption,
     FXPut,
@@ -58,4 +59,7 @@ __all__ = [
     "FXCall",
     "FXOption",
     "FXRiskReversal",
+    "FXStraddle",
+    "FXStrangle",
+    "FXBrokerFly",
 ]

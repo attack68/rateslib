@@ -244,6 +244,8 @@ class FXStraddle(FXOptionStrat):
             rate_weight=[1.0, 1.0],
             rate_weight_vol=[0.5, 0.5],
             metric=metric,
+            curves=curves,
+            vol=vol_,
         )
         self.kwargs.leg1["notional"] = notional_
         self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
@@ -253,3 +255,12 @@ class FXStraddle(FXOptionStrat):
             return vol
         else:
             return (vol,) * 2
+
+    def _set_notionals(self, notional: DualTypes) -> None:
+        """
+        Set the notionals on each option period. Mainly used by Brokerfly for vega neutral
+        strangle and straddle.
+        """
+        for option in self.instruments:
+            option.kwargs.leg1["notional"] = notional
+            option._option.settlement_params._notional = notional

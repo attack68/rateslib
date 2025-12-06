@@ -262,6 +262,8 @@ class FXStrangle(FXOptionStrat):
             rate_weight=[1.0, 1.0],
             rate_weight_vol=[0.5, 0.5],
             metric=_drb("single_vol", metric),
+            curves=curves,
+            vol=vol_,
         )
         self.kwargs.leg1["notional"] = notional_
         self.kwargs.meta["fixed_delta"] = [
@@ -272,7 +274,6 @@ class FXStrangle(FXOptionStrat):
             and strike[1][-1].lower() == "d"
             and strike[1].lower() != "atm_forward",
         ]
-        self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
         self.kwargs.leg1["delivery"] = self.instruments[0].kwargs.leg1["delivery"]
         self.kwargs.leg1["delta_type"] = self.instruments[0].kwargs.leg1["delta_type"]
         self.kwargs.leg1["expiry"] = self.instruments[0].kwargs.leg1["expiry"]
