@@ -176,7 +176,7 @@ class TestGradients:
             r = [Dual(1.0, ["v1"], []), Dual(3.0, ["v1", "v2", "v3"], [2.0, 1.0, -2.0])]
             _J = None
             instruments = [
-                [Inst(Dual2(1.0, ["v1"], [1.0], [4.0])), tuple(), {}],
+                [Inst(Dual2(1.0, ["v1"], [1.0], [4.0])), {}],
                 [
                     Inst(
                         Dual2(
@@ -186,7 +186,6 @@ class TestGradients:
                             [-2.0, 1.0, 1.0, 1.0, -3.0, 2.0, 1.0, 2.0, -4.0],
                         ),
                     ),
-                    tuple(),
                     {},
                 ],
             ]
@@ -260,9 +259,9 @@ def test_basic_solver(algo) -> None:
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
     ]
     s = np.array([1.0, 1.6, 2.0])
     solver = Solver(
@@ -289,9 +288,9 @@ def test_solver_repr():
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
     ]
     s = np.array([1.0, 1.6, 2.0])
     solver = Solver(curves=[curve], instruments=instruments, s=s, id="S_ID")
@@ -347,9 +346,9 @@ def test_basic_solver_line_curve(algo) -> None:
         id="v",
     )
     instruments = [
-        (Value(dt(2022, 1, 1)), (curve,), {}),
-        (Value(dt(2023, 1, 1)), (curve,), {}),
-        (Value(dt(2024, 1, 1)), (curve,), {}),
+        (Value(dt(2022, 1, 1)), {"curves": curve}),
+        (Value(dt(2023, 1, 1)), {"curves": curve}),
+        (Value(dt(2024, 1, 1)), {"curves": curve}),
     ]
     s = np.array([3.0, 3.6, 4.0])
     solver = Solver(
@@ -386,9 +385,9 @@ def test_basic_spline_solver() -> None:
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (spline_curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (spline_curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (spline_curve,), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": spline_curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": spline_curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": spline_curve}),
     ]
     s = np.array([1.0, 1.6, 2.0])
     solver = Solver(
@@ -475,10 +474,10 @@ def test_basic_solver_weights() -> None:
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
     ]
     s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
     with default_context("algorithm", "gauss_newton"):
@@ -502,7 +501,7 @@ def test_basic_solver_weights() -> None:
         func_tol=1e-7,
         algorithm="gauss_newton",
     )
-    assert abs(float(instruments[2][0].rate(curve)) - 2.02) < 1e-4
+    assert abs(float(instruments[2][0].rate(curves=curve)) - 2.02) < 1e-4
 
     solver = Solver(
         curves=[curve],
@@ -512,7 +511,7 @@ def test_basic_solver_weights() -> None:
         func_tol=1e-7,
         algorithm="gauss_newton",
     )
-    assert abs(float(instruments[2][0].rate(curve)) - 1.98) < 1e-4
+    assert abs(float(instruments[2][0].rate(curves=curve)) - 1.98) < 1e-4
 
 
 def test_solver_independent_curve() -> None:
@@ -536,9 +535,9 @@ def test_solver_independent_curve() -> None:
         },
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), ([var_curve, independent_curve],), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), ([var_curve, independent_curve],), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), ([var_curve, independent_curve],), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": [var_curve, independent_curve]}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": [var_curve, independent_curve]}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": [var_curve, independent_curve]}),
     ]
     s = np.array([2.00, 2.00, 2.00])
     with default_context("curve_not_in_solver", "ignore"):
@@ -550,7 +549,7 @@ def test_solver_independent_curve() -> None:
             conv_tol=1e-13,
         )
     for i, instrument in enumerate(instruments):
-        assert abs(float(instrument[0].rate(*instrument[1], **instrument[2]) - s[i])) < 1e-7
+        assert abs(float(instrument[0].rate(**instrument[1]) - s[i])) < 1e-7
     assert independent_curve == expected
 
 
@@ -634,14 +633,14 @@ def test_non_unique_curves() -> None:
     curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     solver = Solver(
         curves=[curve],
-        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve})],
         s=[1],
     )
 
     with pytest.raises(ValueError, match="`curves` must each have their own unique"):
         Solver(
             curves=[curve2],
-            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve})],
             s=[2],
             pre_solvers=[solver],
         )
@@ -649,7 +648,7 @@ def test_non_unique_curves() -> None:
     with pytest.raises(ValueError, match="`curves` must each have their own unique"):
         Solver(
             curves=[curve, curve2],
-            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve})],
             s=[2],
         )
 
@@ -666,10 +665,10 @@ def test_max_iterations() -> None:
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
     ]
     s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
     with default_context("algorithm", "gauss_newton"):
@@ -697,9 +696,9 @@ def test_solver_pre_solver_dependency_generates_same_delta() -> None:
         id="eur",
     )
     eur_instruments = [
-        (IRS(dt(2022, 1, 1), "8M", "A"), (eur_disc_curve,), {}),
-        (IRS(dt(2022, 1, 1), "16M", "A"), (eur_disc_curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "A"), (eur_disc_curve,), {}),
+        (IRS(dt(2022, 1, 1), "8M", "A"), {"curves": eur_disc_curve}),
+        (IRS(dt(2022, 1, 1), "16M", "A"), {"curves": eur_disc_curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": eur_disc_curve}),
     ]
     eur_disc_s = [2.01, 2.22, 2.55]
     eur_disc_solver = Solver([eur_disc_curve], [], eur_instruments, eur_disc_s, id="estr")
@@ -709,8 +708,8 @@ def test_solver_pre_solver_dependency_generates_same_delta() -> None:
         id="eur_ibor",
     )
     eur_ibor_instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "A"), ([eur_ibor_curve, eur_disc_curve],), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "A"), ([eur_ibor_curve, eur_disc_curve],), {}),
+        (IRS(dt(2022, 1, 1), "1Y", "A"), {"curves": [eur_ibor_curve, eur_disc_curve]}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": [eur_ibor_curve, eur_disc_curve]}),
     ]
     eur_ibor_s = [2.25, 2.65]
     eur_solver2 = Solver(
@@ -731,11 +730,11 @@ def test_solver_pre_solver_dependency_generates_same_delta() -> None:
         id="eur_ibor",
     )
     eur_instruments2 = [
-        (IRS(dt(2022, 1, 1), "8M", "A"), (eur_disc_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "16M", "A"), (eur_disc_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "A"), (eur_disc_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "1Y", "A"), ([eur_ibor_curve2, eur_disc_curve2],), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "A"), ([eur_ibor_curve2, eur_disc_curve2],), {}),
+        (IRS(dt(2022, 1, 1), "8M", "A"), {"curves": eur_disc_curve2}),
+        (IRS(dt(2022, 1, 1), "16M", "A"), {"curves": eur_disc_curve2}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": eur_disc_curve2}),
+        (IRS(dt(2022, 1, 1), "1Y", "A"), {"curves": [eur_ibor_curve2, eur_disc_curve2]}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": [eur_ibor_curve2, eur_disc_curve2]}),
     ]
     eur_disc_s2 = [2.01, 2.22, 2.55, 2.25, 2.65]
     eur_solver_sim = Solver(
@@ -754,8 +753,8 @@ def test_solver_pre_solver_dependency_generates_same_delta() -> None:
         fixed_rate=3.0,
     )
 
-    delta_sim = eur_swap.delta([eur_ibor_curve2, eur_disc_curve2], eur_solver_sim)
-    delta_pre = eur_swap.delta([eur_ibor_curve, eur_disc_curve], eur_solver2)
+    delta_sim = eur_swap.delta(curves=[eur_ibor_curve2, eur_disc_curve2], solver=eur_solver_sim)
+    delta_pre = eur_swap.delta(curves=[eur_ibor_curve, eur_disc_curve], solver=eur_solver2)
     delta_pre.index = delta_sim.index
     assert_frame_equal(delta_sim, delta_pre)
 
@@ -770,8 +769,8 @@ def test_delta_gamma_calculation() -> None:
         id="estr_curve",
     )
     estr_instruments = [
-        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "10Y", "A"), {"curves": estr_curve}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": estr_curve}),
     ]
     estr_solver = Solver(
         [estr_curve],
@@ -784,28 +783,32 @@ def test_delta_gamma_calculation() -> None:
 
     # Mechanism 1: dynamic
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6)
-    assert 74430 < float(eur_swap.delta(estr_curve, estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma(estr_curve, estr_solver).sum().sum()) < -228
+    assert (
+        74430 < float(eur_swap.delta(curves=estr_curve, solver=estr_solver).sum().iloc[0]) < 74432
+    )
+    assert -229 < float(eur_swap.gamma(curves=estr_curve, solver=estr_solver).sum().sum()) < -228
 
     # Mechanism 1: dynamic names
-    assert 74430 < float(eur_swap.delta("estr_curve", estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma("estr_curve", estr_solver).sum().sum()) < -228
+    assert (
+        74430 < float(eur_swap.delta(curves="estr_curve", solver=estr_solver).sum().iloc[0]) < 74432
+    )
+    assert -229 < float(eur_swap.gamma(curves="estr_curve", solver=estr_solver).sum().sum()) < -228
 
     # Mechanism 1: fails on None curve specification
     with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
-        assert eur_swap.delta(NoInput(0), estr_solver)
+        assert eur_swap.delta(solver=estr_solver)
     with pytest.raises(TypeError, match="`curves` have not been supplied correctly"):
-        assert eur_swap.gamma(NoInput(0), estr_solver)
+        assert eur_swap.gamma(solver=estr_solver)
 
     # Mechanism 2: static specific
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves=estr_curve)
-    assert 74430 < float(eur_swap.delta(NoInput(0), estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
+    assert 74430 < float(eur_swap.delta(solver=estr_solver).sum().iloc[0]) < 74432
+    assert -229 < float(eur_swap.gamma(solver=estr_solver).sum().sum()) < -228
 
     # Mechanism 2: static named
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6, curves="estr_curve")
-    assert 74430 < float(eur_swap.delta(NoInput(0), estr_solver).sum().iloc[0]) < 74432
-    assert -229 < float(eur_swap.gamma(NoInput(0), estr_solver).sum().sum()) < -228
+    assert 74430 < float(eur_swap.delta(solver=estr_solver).sum().iloc[0]) < 74432
+    assert -229 < float(eur_swap.gamma(solver=estr_solver).sum().sum()) < -228
 
 
 def test_solver_delta_fx_noinput() -> None:
@@ -814,8 +817,8 @@ def test_solver_delta_fx_noinput() -> None:
         id="estr_curve",
     )
     estr_instruments = [
-        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "10Y", "A"), {"curves": estr_curve}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": estr_curve}),
     ]
     estr_solver = Solver(
         [estr_curve],
@@ -834,9 +837,9 @@ def test_solver_delta_fx_noinput() -> None:
 def test_solver_pre_solver_dependency_generates_same_gamma() -> None:
     estr_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
     estr_instruments = [
-        (IRS(dt(2022, 1, 1), "7Y", "A"), (estr_curve,), {}),
-        (IRS(dt(2022, 1, 1), "15Y", "A"), (estr_curve,), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "7Y", "A"), {"curves": estr_curve}),
+        (IRS(dt(2022, 1, 1), "15Y", "A"), {"curves": estr_curve}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": estr_curve}),
     ]
     estr_s = [2.0, 1.75, 1.5]
     estr_labels = ["7ye", "15ye", "20ye"]
@@ -852,8 +855,8 @@ def test_solver_pre_solver_dependency_generates_same_gamma() -> None:
 
     ibor_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
     ibor_instruments = [
-        (IRS(dt(2022, 1, 1), "10Y", "A"), ([ibor_curve, estr_curve],), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), ([ibor_curve, estr_curve],), {}),
+        (IRS(dt(2022, 1, 1), "10Y", "A"), {"curves": [ibor_curve, estr_curve]}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": [ibor_curve, estr_curve]}),
     ]
     ibor_s = [2.1, 1.65]
     ibor_labels = ["10Yi", "20Yi"]
@@ -869,17 +872,17 @@ def test_solver_pre_solver_dependency_generates_same_gamma() -> None:
     )
 
     eur_swap = IRS(dt(2032, 1, 1), "10Y", "A", notional=100e6)
-    gamma_pre = eur_swap.gamma([ibor_curve, estr_curve], ibor_solver)
-    delta_pre = eur_swap.delta([ibor_curve, estr_curve], ibor_solver)
+    gamma_pre = eur_swap.gamma(curves=[ibor_curve, estr_curve], solver=ibor_solver)
+    delta_pre = eur_swap.delta(curves=[ibor_curve, estr_curve], solver=ibor_solver)
 
     estr_curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
     ibor_curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
     sim_instruments = [
-        (IRS(dt(2022, 1, 1), "7Y", "A"), (estr_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "15Y", "A"), (estr_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), (estr_curve2,), {}),
-        (IRS(dt(2022, 1, 1), "10Y", "A"), ([ibor_curve2, estr_curve2],), {}),
-        (IRS(dt(2022, 1, 1), "20Y", "A"), ([ibor_curve2, estr_curve2],), {}),
+        (IRS(dt(2022, 1, 1), "7Y", "A"), {"curves": estr_curve2}),
+        (IRS(dt(2022, 1, 1), "15Y", "A"), {"curves": estr_curve2}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": estr_curve2}),
+        (IRS(dt(2022, 1, 1), "10Y", "A"), {"curves": [ibor_curve2, estr_curve2]}),
+        (IRS(dt(2022, 1, 1), "20Y", "A"), {"curves": [ibor_curve2, estr_curve2]}),
     ]
     simultaneous_solver = Solver(
         [estr_curve2, ibor_curve2],
@@ -890,8 +893,8 @@ def test_solver_pre_solver_dependency_generates_same_gamma() -> None:
         instrument_labels=estr_labels + ibor_labels,
         algorithm="gauss_newton",
     )
-    gamma_sim = eur_swap.gamma([ibor_curve2, estr_curve2], simultaneous_solver)
-    delta_sim = eur_swap.delta([ibor_curve2, estr_curve2], simultaneous_solver)
+    gamma_sim = eur_swap.gamma(curves=[ibor_curve2, estr_curve2], solver=simultaneous_solver)
+    delta_sim = eur_swap.delta(curves=[ibor_curve2, estr_curve2], solver=simultaneous_solver)
 
     # check arrays in construction of gamma
     grad_s_vT_sim = simultaneous_solver.grad_s_vT_pre
@@ -918,7 +921,7 @@ def test_solver_pre_solver_dependency_generates_same_gamma() -> None:
 def test_nonmutable_presolver_defaults() -> None:
     estr_curve = Curve({dt(2022, 1, 1): 1.0, dt(2032, 1, 1): 1.0})
     estr_instruments = [
-        (IRS(dt(2022, 1, 1), "10Y", "A"), (estr_curve,), {}),
+        (IRS(dt(2022, 1, 1), "10Y", "A"), {"curves": estr_curve}),
     ]
     estr_s = [2.0]
     estr_labels = ["10ye"]
@@ -946,11 +949,11 @@ def test_solver_grad_s_vT_methods_equivalent() -> None:
         },
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "2Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "1Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "2Y", "A"), (curve,), {}),
-        (IRS(dt(2022, 5, 1), "4Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "1Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "2Y", "A"), {"curves": curve}),
+        (IRS(dt(2022, 5, 1), "4Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "4Y", "A"), {"curves": curve}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
     solver = Solver([curve], [], instruments, s, algorithm="gauss_newton")
@@ -984,11 +987,11 @@ def test_solver_grad_s_vT_methods_equivalent_overspecified_curve() -> None:
         },
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "2Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "1Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "2Y", "A"), (curve,), {}),
-        (IRS(dt(2022, 5, 1), "4Y", "A"), (curve,), {}),
-        (IRS(dt(2023, 1, 1), "4Y", "A"), (curve,), {}),
+        (IRS(dt(2022, 1, 1), "2Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "1Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "2Y", "A"), {"curves": curve}),
+        (IRS(dt(2022, 5, 1), "4Y", "A"), {"curves": curve}),
+        (IRS(dt(2023, 1, 1), "4Y", "A"), {"curves": curve}),
     ]
     s = [1.2, 1.4, 1.6, 1.7, 1.9]
     solver = Solver([curve], [], instruments, s, algorithm="gauss_newton")
@@ -1014,7 +1017,7 @@ def test_solver_second_order_vars_raise_on_first_order() -> None:
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     solver = Solver(
         curves=[curve],
-        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve})],
         s=[1],
     )
 
@@ -1029,13 +1032,13 @@ def test_solver_second_order_vars_raise_on_first_order_pre_solvers() -> None:
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     solver = Solver(
         curves=[curve],
-        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+        instruments=[IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve)],
         s=[1],
     )
     curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="B")
     solver2 = Solver(
         curves=[curve2],
-        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve2,), {})],
+        instruments=[IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve2)],
         s=[1],
         pre_solvers=[solver],
     )
@@ -1052,7 +1055,7 @@ def test_bad_algo_raises() -> None:
     with pytest.raises(NotImplementedError, match="`algorithm`: bad_algo"):
         Solver(
             curves=[curve],
-            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+            instruments=[IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve)],
             s=[1],
             algorithm="bad_algo",
         )
@@ -1083,8 +1086,7 @@ def test_solver_float_rate_bond() -> None:
                 spread_compound_method="isda_compounding",
                 settle=2,
             ),
-            ([f_c, d_c],),
-            {"metric": "spread"},
+            {"metric": "spread", "curves": [f_c, d_c]},
         ),
         (
             FloatRateNote(
@@ -1093,8 +1095,8 @@ def test_solver_float_rate_bond() -> None:
                 "Q",
                 spread_compound_method="isda_compounding",
                 settle=2,
+                curves=[f_c, d_c],
             ),
-            ([f_c, d_c],),
             {"metric": "spread"},
         ),
         (
@@ -1104,8 +1106,8 @@ def test_solver_float_rate_bond() -> None:
                 "Q",
                 spread_compound_method="isda_compounding",
                 settle=2,
+                curves=[f_c, d_c],
             ),
-            ([f_c, d_c],),
             {"metric": "spread"},
         ),
     ]
@@ -1162,9 +1164,9 @@ def test_gamma_raises() -> None:
         id="v",
     )
     instruments = [
-        (IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "2Y", "Q"), (curve,), {}),
-        (IRS(dt(2022, 1, 1), "3Y", "Q"), (curve,), {}),
+        IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve),
+        IRS(dt(2022, 1, 1), "2Y", "Q", curves=curve),
+        IRS(dt(2022, 1, 1), "3Y", "Q", curves=curve),
     ]
     s = np.array([1.0, 1.6, 2.0])
     solver = Solver(
@@ -1207,7 +1209,8 @@ def test_delta_irs_guide() -> None:
         fixed_rate=6.0,
         curves="sofr",
     )
-    result = irs.delta(solver=usd_solver, base="eur", local=True)  # local overrides base to USD
+    result = irs.delta(solver=usd_solver, base="usd")  # local overrides base to USD
+    # result = irs.delta(solver=usd_solver, base="eur", local=True)  # local overrides base to USD
     expected = DataFrame(
         [[0], [16.77263], [32.60487]],
         index=MultiIndex.from_product(
@@ -1602,7 +1605,7 @@ def test_solver_non_unique_id_raises() -> None:
     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="A")
     solver = Solver(
         curves=[curve],
-        instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve,), {})],
+        instruments=[IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve)],
         s=[1],
         id="bad",
     )
@@ -1610,7 +1613,7 @@ def test_solver_non_unique_id_raises() -> None:
     with pytest.raises(ValueError, match="Solver `id`s must be unique"):
         Solver(
             curves=[curve2],
-            instruments=[(IRS(dt(2022, 1, 1), "1Y", "Q"), (curve2,), {})],
+            instruments=[IRS(dt(2022, 1, 1), "1Y", "Q", curves=curve2)],
             s=[1],
             id="bad",
             pre_solvers=[solver],
@@ -2116,7 +2119,7 @@ def test_solver_with_vol_smile() -> None:
     args = {
         "pair": "eurusd",
         "expiry": dt(2023, 4, 18),
-        "curves": [None, "eureur", None, "usdusd"],
+        "curves": ["eureur", "usdusd"],
         "delta_type": "spot",
         "vol": "smile",
     }
@@ -2150,9 +2153,8 @@ def test_solver_with_surface() -> None:
             FXSwap(
                 dt(2024, 5, 9),
                 "3W",
-                currency="eur",
-                leg2_currency="usd",
-                curves=[None, "eurusd", None, "usdusd"],
+                pair="eurusd",
+                curves=["eurusd", "usdusd"],
             ),
         ],
         s=[3.90, 5.32, 8.85],
@@ -2179,7 +2181,7 @@ def test_solver_with_surface() -> None:
         pair="eurusd",
         delta_type="spot",
         calendar="tgt",
-        curves=[None, "eurusd", None, "usdusd"],
+        curves=["eurusd", "usdusd"],
         vol="eurusd_vol",
     )
     instruments, s, labels = [], [], []
@@ -2480,7 +2482,7 @@ class TestStateManagement:
                 expiry=dt(2024, 5, 28),
                 calendar="tgt",
                 delta_type="spot",
-                curves=[None, "eurusd", None, "usdusd"],
+                curves=["eurusd", "usdusd"],
                 vol="eurusd_3w_smile",
             )
             Solver(

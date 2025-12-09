@@ -1,29 +1,7 @@
 from __future__ import annotations
 
-from rateslib.instruments.base import BaseDerivative, Metrics
-from rateslib.instruments.bonds import (
-    Bill,
-    BillCalcMode,
-    BondCalcMode,
-    BondFuture,
-    BondMixin,
-    FixedRateBond,
-    FloatRateNote,
-    IndexFixedRateBond,
-)
-from rateslib.instruments.credit import CDS
-from rateslib.instruments.fx_volatility import (
-    FXBrokerFly,
-    FXCall,
-    FXOption,
-    FXOptionStrat,
-    FXPut,
-    FXRiskReversal,
-    FXStraddle,
-    FXStrangle,
-)
-from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
-from rateslib.instruments.rates import (
+from rateslib.instruments.components import (
+    CDS,
     FRA,
     IIRS,
     IRS,
@@ -32,21 +10,38 @@ from rateslib.instruments.rates import (
     XCS,
     ZCIS,
     ZCS,
-    FXExchange,
+    Bill,
+    BillCalcMode,
+    BondCalcMode,
+    BondFuture,
+    FixedRateBond,
+    FloatRateNote,
+    Fly,
+    FXBrokerFly,
+    FXCall,
+    FXForward,
+    FXPut,
+    FXRiskReversal,
+    FXStraddle,
+    FXStrangle,
     FXSwap,
+    FXVolValue,
+    IndexFixedRateBond,
+    Portfolio,
+    Spread,
     STIRFuture,
+    Value,
 )
-from rateslib.instruments.sensitivities import Sensitivities
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 __all__ = [
-    "BaseDerivative",
-    "Metrics",
+    # "BaseDerivative",
+    # "Metrics",
     "Bill",
-    "BondMixin",
+    # "BondMixin",
     "BondCalcMode",
     "BillCalcMode",
     "BondFuture",
@@ -54,9 +49,9 @@ __all__ = [
     "FRA",
     "FXBrokerFly",
     "FXCall",
-    "FXExchange",
-    "FXOption",
-    "FXOptionStrat",
+    # "FXExchange",
+    # "FXOption",
+    # "FXOptionStrat",
     "FXPut",
     "FXRiskReversal",
     "FXStraddle",
@@ -72,10 +67,10 @@ __all__ = [
     "Portfolio",
     "SBS",
     "STIRFuture",
-    "Sensitivities",
+    # "Sensitivities",
     "Spread",
     "Value",
-    "VolValue",
+    "FXVolValue",
     "XCS",
     "ZCIS",
     "ZCS",

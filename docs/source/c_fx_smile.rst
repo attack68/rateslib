@@ -208,7 +208,7 @@ instruments, given in the market prices data table.
    # Setup the Solver instrument calibration for FXOptions and vol Smiles
    option_args=dict(
        pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
-       curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+       curves=["eurusd", "usdusd"], vol="eurusd_3w_smile"
    )
    dv_solver = Solver(
        pre_solvers=[pre_solver],
@@ -293,7 +293,7 @@ The *FXSabrSmile* can be similarly calibrated.
    # Setup the Solver instrument calibration for rates Curves and vol Smiles
    option_args=dict(
        pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt", delta_type="spot",
-       curves=[None, "eurusd", None, "usdusd"], vol="eurusd_3w_smile"
+       curves=["eurusd", "usdusd"], vol="eurusd_3w_smile"
    )
    pre_solver = Solver(
        curves=[eureur, eurusd, usdusd],

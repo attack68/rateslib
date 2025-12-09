@@ -48,21 +48,18 @@ an initial ``fx_fixings`` of 0.74074 (=1/1.35).
        termination="1y",
        frequency="q",
        notional=135e6,
-       fx_fixings=0.7407407407407407,
+       leg2_fx_fixings=0.7407407407407407,
+       leg2_mtm=True,
        currency="cad",
        leg2_currency="usd",
     )
 
-To see the cashflows of a *XCS* ``curves`` and ``fx`` are always required. Here we just use
-place holders to get a feel for the structure of this *Instrument*.
+To see the cashflows of a *XCS* ``curves`` and ``fx`` are always required. Here we ignore
+these to get a feel for the structure of this *Instrument*.
 
 .. ipython:: python
-   :okwarning:
 
-   xcs.cashflows(
-       curves=Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 1.0}),
-       fx=1.0, # this value is not used an raises a UserWarning
-   )
+   xcs.cashflows()
 
 Calculating the ``rate``
 ---------------------------

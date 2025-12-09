@@ -89,7 +89,7 @@ the result from percentage points to basis points.
 
 .. ipython:: python
 
-   irs.analytic_delta(curve)
+   irs.analytic_delta(curves=curve)
 
 .. ipython:: python
 
@@ -108,7 +108,7 @@ Exposure to the ``float_spread``? This is also covered by :meth:`~rateslib.instr
 
 .. ipython:: python
 
-   irs.analytic_delta(curve, leg=2)
+   irs.analytic_delta(curves=curve, leg=2)
 
 .. ipython:: python
 
@@ -264,7 +264,7 @@ just for a single *CDS Instrument*
        curves=["pfizer", "sofr"],
        notional=10e6,
    )
-   cds.analytic_rec_risk(hazard_curve, disc_curve)
+   cds.analytic_rec_risk(curves=[hazard_curve, disc_curve])
 
 We can also obtain this value by copying a curve, injecting sensitivity, as an
 **exogenous variable** into it and evaluating with

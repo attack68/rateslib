@@ -10,6 +10,8 @@
    from datetime import datetime as dt
    import numpy as np
    from pandas import DataFrame, option_context
+   defaults.convention = "Act360"
+   assert defaults.convention.lower() == "act360"
 
 MultiCsaCurves have discontinuous derivatives
 ******************************************************

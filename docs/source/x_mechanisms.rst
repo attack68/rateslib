@@ -348,7 +348,7 @@ The ``curves`` attribute on the ``Instrument`` is instructive of its pricing int
        fixed_rate=2.0,
        curves="sofr",  # or ["sofr", "sofr"] for forecasting and discounting
    )
-   irs.curves
+   irs.kwargs.meta["curves"]
 
 At any point a ``Curve`` could be constructed and used for dynamic pricing, even if
 its ``id`` does not match the instrument initialisation. This is usually used in sampling or
@@ -360,7 +360,7 @@ scenario analysis.
        nodes={dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98},
        id="not_sofr"
    )
-   irs.rate(curve)
+   irs.rate(curves=curve)
 
 Why is this best practice?
 ---------------------------
@@ -589,7 +589,7 @@ been iteratively solved.
    ibor_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.97}, id="ibor")
    solver = Solver(
        curves=[rfr_curve],
-       instruments=[(Value(dt(2023, 1, 1)), ("rfr",), {})],
+       instruments=[(Value(dt(2023, 1, 1)), {"curves": "rfr"})],
        s=[0.9825]
    )
 
@@ -602,7 +602,7 @@ effectively, ignores the disassociated ``solver``.
 
    irs = IRS(dt(2022, 1, 1), dt(2023, 1, 1), "A")
    defaults.curve_not_in_solver = "ignore"
-   irs.rate(ibor_curve, solver)
+   irs.rate(curves=ibor_curve, solver=solver)
 
 In the above the ``solver`` is not used for pricing, since it is decoupled from
 ``ibor_curve``. It is technically an error to list it as an argument.
@@ -614,14 +614,14 @@ Setting the option to `"warn"` or `"raise"` enforces a :class:`UserWarning` or a
       :okwarning:
 
       defaults.curve_not_in_solver = "warn"
-      irs.rate(ibor_curve, solver)
+      irs.rate(curves=ibor_curve, solver=solver)
 
 .. ipython:: python
    :okexcept:
 
    defaults.curve_not_in_solver = "raise"
    try:
-       irs.rate(ibor_curve, solver)
+       irs.rate(curves=ibor_curve, solver=solver)
    except Exception as e:
        print(e)
 
@@ -634,6 +634,6 @@ contain the requested curve and therefore cannot fulfill the request).
 
    defaults.curve_not_in_solver = "ignore"
    try:
-       irs.rate("ibor", solver)
+       irs.rate(curves="ibor", solver=solver)
    except Exception as e:
        print(e)

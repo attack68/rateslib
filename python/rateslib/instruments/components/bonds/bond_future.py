@@ -19,15 +19,15 @@ from rateslib.solver import Solver
 
 if TYPE_CHECKING:
     from rateslib.typing import (
-        FX_,
         Any,
         Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
         FixedRateBond,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         datetime_,
         float_,
         int_,
@@ -188,7 +188,7 @@ class BondFuture(_BaseInstrument):
        )
        solver = Solver(
            curves=[gilt_curve],
-           instruments=[(b, (), {"metric": "ytm"}) for b in bonds],
+           instruments=[(b, {"metric": "ytm"}) for b in bonds],
            s=ytms,
            id="gilt_solver",
            instrument_labels=["5.75% '09", "9% '11", "6.25% '10", "9% '12"],
@@ -645,7 +645,7 @@ class BondFuture(_BaseInstrument):
             metric = "clean_price"
         solver = Solver(
             curves=[bcurve],
-            instruments=[(_, (), {"curves": bcurve, "metric": metric}) for _ in basket],  # type: ignore[misc]
+            instruments=[(_, {"curves": bcurve, "metric": metric}) for _ in basket],  # type: ignore[misc]
             s=prices,
         )
         if solver.result["status"] != "SUCCESS":
@@ -1025,7 +1025,7 @@ class BondFuture(_BaseInstrument):
         curves: Curves_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -1097,11 +1097,15 @@ class BondFuture(_BaseInstrument):
 
     def npv(
         self,
-        curves: Curves_ = NoInput(0),
+        *,
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        base: str_ = NoInput(0),
         local: bool = False,
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         """
         Determine the monetary value of the bond future position.
@@ -1123,19 +1127,3 @@ class BondFuture(_BaseInstrument):
             return {currency: npv_}
         else:
             return npv_ * fx_
-
-    def delta(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the delta of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.delta()<rateslib.instruments.Sensitivities.delta>`.
-        """
-        return super().delta(*args, **kwargs)
-
-    def gamma(self, *args: Any, **kwargs: Any) -> DataFrame:
-        """
-        Calculate the gamma of the *Instrument*.
-
-        For arguments see :meth:`Sensitivities.gamma()<rateslib.instruments.Sensitivities.gamma>`.
-        """
-        return super().gamma(*args, **kwargs)

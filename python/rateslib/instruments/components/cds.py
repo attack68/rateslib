@@ -9,6 +9,7 @@ from rateslib.instruments.components.protocols import _BaseInstrument
 from rateslib.instruments.components.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
+    _get_fx_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
@@ -545,4 +546,27 @@ class CDS(_BaseInstrument):
             vol=vol,
             settlement=settlement,
             forward=forward,
+        )
+
+    def analytic_rec_risk(
+        self,
+        *,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        _curves = self._parse_curves(curves)
+        return self.leg2.analytic_rec_risk(
+            rate_curve=_maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
+            ),
+            disc_curve=_maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
+            ),
+            fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
+            base=base,
         )

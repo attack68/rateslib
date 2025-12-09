@@ -53,8 +53,8 @@ The :class:`~rateslib.solver.Solver` stores and uses this mapping to create the
        termination="6m",
        frequency="A",
        currency="usd",
+       curves="sofr"
    )
-   irs.curves = "sofr"
    irs.delta(solver=usd_solver)
 
 A typical scenario in which FX exposures are created (if the instrument is not

@@ -72,5 +72,5 @@ after the initial node date of the curve.
 .. ipython:: python
 
    bond_curve = Curve({dt(1999, 5, 26): 1.0, dt(2015, 12, 7): 0.483481})
-   bond.rate(bond_curve, metric="dirty_price")
-   bond.rate(bond_curve, metric="ytm")
+   bond.rate(curves=bond_curve, metric="dirty_price")
+   bond.rate(curves=bond_curve, metric="ytm")

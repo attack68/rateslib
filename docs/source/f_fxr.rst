@@ -56,23 +56,23 @@ currency.
        id="estr",
    )
    swap = IRS(dt(2022, 1, 1), "1Y", "A", fixed_rate=2.00, currency="eur")
-   swap.npv(curve)
-   swap.analytic_delta(curve)
+   swap.npv(curves=curve)
+   swap.analytic_delta(curves=curve)
 
 The :class:`~rateslib.fx.FXRates` class defined above can be used to directly return
 the above metrics in the specified base currency (USD).
 
 .. ipython:: python
 
-   swap.npv(curve, fx=fxr)
-   swap.analytic_delta(curve, fx=fxr)
-   swap.cashflows(curve, fx=fxr).transpose()
+   swap.npv(curves=curve, fx=fxr)
+   swap.analytic_delta(curves=curve, fx=fxr)
+   swap.cashflows(curves=curve, fx=fxr).transpose()
 
 Or, other currencies too, that are non-base, can also be displayed upon request.
 
 .. ipython:: python
 
-   swap.npv(curve, fx=fxr, base="nok")
+   swap.npv(curves=curve, fx=fxr, base="nok")
 
 .. _fx-dual-doc:
 

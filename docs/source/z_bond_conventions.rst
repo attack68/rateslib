@@ -92,7 +92,7 @@ following representation:
 
 .. ipython:: python
 
-   from rateslib.instruments.bonds.conventions import US_GB
+   from rateslib.instruments.components.bonds.conventions import US_GB
    US_GB.kwargs
 
 This differs from another convention, such as for a German Bund, which has the following
@@ -100,7 +100,7 @@ representation:
 
 .. ipython:: python
 
-   from rateslib.instruments.bonds.conventions import DE_GB
+   from rateslib.instruments.components.bonds.conventions import DE_GB
    DE_GB.kwargs
 
 A :class:`~rateslib.instruments.BondCalcMode` can be directly constructed

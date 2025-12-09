@@ -182,7 +182,7 @@ Let's build the traditional 5Y Pfizer CDS.
    )
    cds.rate(solver=pfizer_sv)  # this compares to BBG: "Trd Sprd (bp)"
    cds.npv(solver=pfizer_sv)  # this compares to BBG: "Cash Amount"
-   cds.analytic_delta(hazard_curve, disc_curve)
+   cds.analytic_delta(solver=pfizer_sv)
    cds.accrued(dt(2024, 10, 7))  # this is 17 days of accrued
    cds.delta(solver=pfizer_sv).groupby("solver").sum()  # this compares to: "Spread DV01" and "IR DV01"
 
@@ -191,7 +191,7 @@ the PnL purely for this contract.
 
 .. ipython:: python
 
-   cds.analytic_rec_risk(hazard_curve, disc_curve)
+   cds.analytic_rec_risk(solver=pfizer_sv)
 
 This does not compare with other systems `Rec Risk (1%)` of 78.75. To understand and return this
 value consider the follow up cookbook

@@ -66,7 +66,7 @@ and *Solve* a *Curve*.
    )
    solver = Solver(
        curves=[bcurve],
-       instruments=[(ust, (), {"metric": "ytm"})],
+       instruments=[(ust, {"metric": "ytm"})],
        s=[2.18098],
        instrument_labels=["bond ytm"],
        id="bonds",
@@ -165,7 +165,7 @@ we extend the *Curve* and *Solver* to have this relevant pricing component.
        curves=[bcurve],
        instruments=[
            IRS(dt(2017, 10, 9), dt(2017, 12, 29), spec="usd_irs", curves="bcurve"),
-           (ust, (), {"metric": "ytm"})
+           (ust, {"metric": "ytm"})
        ],
        s=[1.790, 2.18098],
        instrument_labels=["repo", "bond ytm"],

@@ -47,10 +47,12 @@ from rateslib.instruments.components.protocols.kwargs import (
 )
 from rateslib.instruments.components.protocols.pricing import (
     _Curves,
+    _Vol,
 )
-from rateslib.instruments.utils import (
-    _get_curves_fx_and_base_maybe_from_solver,
-)
+
+# from rateslib.instruments.utils import (
+#     _get_curves_fx_and_base_maybe_from_solver,
+# )
 from rateslib.legs.components import Amortization
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
@@ -175,7 +177,7 @@ def test_instrument_repr(inst):
 class TestCurvesandSolver:
     def test_get_curve_from_solver(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [(Value(dt(2023, 1, 1)), (), {"curves": "tagged"})]
+        inst = [(Value(dt(2023, 1, 1)), {"curves": "tagged"})]
         solver = Solver([curve], [], inst, [0.975])
 
         result = _map_curve_from_solver("tagged", solver)
@@ -203,150 +205,150 @@ class TestCurvesandSolver:
         with pytest.raises(AttributeError, match="`curve` has no attribute `id`, likely it not"):
             _map_curve_from_solver(100.0, solver)
 
-    @pytest.mark.parametrize("solver", [True, False])
-    @pytest.mark.parametrize("fxf", [True, False])
-    @pytest.mark.parametrize("fx", [NoInput(0), 2.0])
-    @pytest.mark.parametrize("crv", [True, False])
-    def test_get_curves_and_fx_from_solver(
-        self,
-        usdusd,
-        usdeur,
-        eureur,
-        solver,
-        fxf,
-        fx,
-        crv,
-    ) -> None:
-        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [Value(dt(2023, 1, 1), curves="tagged")]
-        fxfs = FXForwards(
-            FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
-            {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
-        )
-        solver = (
-            Solver([curve], [], inst, [0.975], fx=fxfs if fxf else NoInput(0))
-            if solver
-            else NoInput(0)
-        )
-        curve = curve if crv else NoInput(0)
+    # @pytest.mark.parametrize("solver", [True, False])
+    # @pytest.mark.parametrize("fxf", [True, False])
+    # @pytest.mark.parametrize("fx", [NoInput(0), 2.0])
+    # @pytest.mark.parametrize("crv", [True, False])
+    # def test_get_curves_and_fx_from_solver(
+    #     self,
+    #     usdusd,
+    #     usdeur,
+    #     eureur,
+    #     solver,
+    #     fxf,
+    #     fx,
+    #     crv,
+    # ) -> None:
+    #     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+    #     inst = [Value(dt(2023, 1, 1), curves="tagged")]
+    #     fxfs = FXForwards(
+    #         FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3)),
+    #         {"usdusd": usdusd, "usdeur": usdeur, "eureur": eureur},
+    #     )
+    #     solver = (
+    #         Solver([curve], [], inst, [0.975], fx=fxfs if fxf else NoInput(0))
+    #         if solver
+    #         else NoInput(0)
+    #     )
+    #     curve = curve if crv else NoInput(0)
+    #
+    #     if solver is not NoInput(0) and fxf and fx is not NoInput(0):
+    #         with pytest.warns(UserWarning):
+    #             #  Solver contains an `fx` attribute but an `fx` argument has been supplied
+    #             crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+    #                 NoInput(0),
+    #                 solver,
+    #                 curve,
+    #                 fx,
+    #                 NoInput(0),
+    #                 "usd",
+    #             )
+    #     else:
+    #         crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
+    #             NoInput(0),
+    #             solver,
+    #             curve,
+    #             fx,
+    #             NoInput(0),
+    #             "usd",
+    #         )
+    #
+    #     # check the fx results. If fx is specified directly it is returned
+    #     # otherwsie it is returned from a solver object if it is available.
+    #     if fx is not NoInput(0):
+    #         assert fx_result == 2.0
+    #     elif solver is NoInput(0):
+    #         assert fx_result is NoInput(0)
+    #     else:
+    #         if fxf:
+    #             assert fx_result == fxfs
+    #         else:
+    #             assert fx_result is NoInput(0)
+    #
+    #     assert crv_result == (curve, curve, curve, curve)
 
-        if solver is not NoInput(0) and fxf and fx is not NoInput(0):
-            with pytest.warns(UserWarning):
-                #  Solver contains an `fx` attribute but an `fx` argument has been supplied
-                crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                    NoInput(0),
-                    solver,
-                    curve,
-                    fx,
-                    NoInput(0),
-                    "usd",
-                )
-        else:
-            crv_result, fx_result, _ = _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0),
-                solver,
-                curve,
-                fx,
-                NoInput(0),
-                "usd",
-            )
+    # @pytest.mark.parametrize(
+    #     "obj",
+    #     [
+    #         (Curve({dt(2000, 1, 1): 1.0})),
+    #         (LineCurve({dt(2000, 1, 1): 1.0})),
+    #         (Curve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
+    #         (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
+    #         (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
+    #         (
+    #             FXDeltaVolSmile(
+    #                 {0.1: 1.0, 0.2: 2.0, 0.5: 3.0, 0.7: 4.0, 0.9: 5.0},
+    #                 dt(2023, 3, 16),
+    #                 dt(2023, 6, 16),
+    #                 "forward",
+    #             )
+    #         ),
+    #     ],
+    # )
+    # def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj) -> None:
+    #     crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+    #         obj,
+    #         NoInput(0),
+    #         NoInput(0),
+    #         NoInput(0),
+    #         NoInput(0),
+    #         NoInput(0),
+    #     )
+    #     assert crv_result == (obj,) * 4
 
-        # check the fx results. If fx is specified directly it is returned
-        # otherwsie it is returned from a solver object if it is available.
-        if fx is not NoInput(0):
-            assert fx_result == 2.0
-        elif solver is NoInput(0):
-            assert fx_result is NoInput(0)
-        else:
-            if fxf:
-                assert fx_result == fxfs
-            else:
-                assert fx_result is NoInput(0)
+    # def test_get_curves_and_fx_from_solver_raises(self) -> None:
+    #     from rateslib.solver import Solver
+    #
+    #     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+    #     inst = [Value(dt(2023, 1, 1), curves="tagged")]
+    #     solver = Solver([curve], [], inst, [0.975])
+    #
+    #     with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
+    #         _get_curves_fx_and_base_maybe_from_solver(
+    #             NoInput(0),
+    #             NoInput(0),
+    #             "tagged",
+    #             NoInput(0),
+    #             NoInput(0),
+    #             "",
+    #         )
+    #
+    #     with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
+    #         _get_curves_fx_and_base_maybe_from_solver(
+    #             NoInput(0),
+    #             solver,
+    #             "bad_id",
+    #             NoInput(0),
+    #             NoInput(0),
+    #             "",
+    #         )
+    #
+    #     with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
+    #         _get_curves_fx_and_base_maybe_from_solver(
+    #             NoInput(0),
+    #             solver,
+    #             ["tagged"] * 5,
+    #             NoInput(0),
+    #             NoInput(0),
+    #             "",
+    #         )
 
-        assert crv_result == (curve, curve, curve, curve)
-
-    @pytest.mark.parametrize(
-        "obj",
-        [
-            (Curve({dt(2000, 1, 1): 1.0})),
-            (LineCurve({dt(2000, 1, 1): 1.0})),
-            (Curve({dt(2000, 1, 1): 1.0}, index_base=100.0)),
-            (CompositeCurve([Curve({dt(2000, 1, 1): 1.0})])),
-            (MultiCsaCurve([Curve({dt(2000, 1, 1): 1.0})])),
-            (
-                FXDeltaVolSmile(
-                    {0.1: 1.0, 0.2: 2.0, 0.5: 3.0, 0.7: 4.0, 0.9: 5.0},
-                    dt(2023, 3, 16),
-                    dt(2023, 6, 16),
-                    "forward",
-                )
-            ),
-        ],
-    )
-    def test_get_curves_fx_and_base_maybe_from_solver_object_types(self, obj) -> None:
-        crv_result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            obj,
-            NoInput(0),
-            NoInput(0),
-            NoInput(0),
-            NoInput(0),
-            NoInput(0),
-        )
-        assert crv_result == (obj,) * 4
-
-    def test_get_curves_and_fx_from_solver_raises(self) -> None:
-        from rateslib.solver import Solver
-
-        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [Value(dt(2023, 1, 1), curves="tagged")]
-        solver = Solver([curve], [], inst, [0.975])
-
-        with pytest.raises(ValueError, match="`curves` must contain Curve, not str, if"):
-            _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0),
-                NoInput(0),
-                "tagged",
-                NoInput(0),
-                NoInput(0),
-                "",
-            )
-
-        with pytest.raises(ValueError, match="`curves` must contain str curve `id` s"):
-            _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0),
-                solver,
-                "bad_id",
-                NoInput(0),
-                NoInput(0),
-                "",
-            )
-
-        with pytest.raises(ValueError, match="Can only supply a maximum of 4 `curves`"):
-            _get_curves_fx_and_base_maybe_from_solver(
-                NoInput(0),
-                solver,
-                ["tagged"] * 5,
-                NoInput(0),
-                NoInput(0),
-                "",
-            )
-
-    @pytest.mark.parametrize("num", [1, 2, 3, 4])
-    def test_get_curves_from_solver_multiply(self, num) -> None:
-        from rateslib.solver import Solver
-
-        curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
-        inst = [Value(dt(2023, 1, 1), curves="tagged")]
-        solver = Solver([curve], [], inst, [0.975])
-        result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
-            NoInput(0),
-            solver,
-            ["tagged"] * num,
-            NoInput(0),
-            NoInput(0),
-            "",
-        )
-        assert result == (curve, curve, curve, curve)
+    # @pytest.mark.parametrize("num", [1, 2, 3, 4])
+    # def test_get_curves_from_solver_multiply(self, num) -> None:
+    #     from rateslib.solver import Solver
+    #
+    #     curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
+    #     inst = [Value(dt(2023, 1, 1), curves="tagged")]
+    #     solver = Solver([curve], [], inst, [0.975])
+    #     result, _, _ = _get_curves_fx_and_base_maybe_from_solver(
+    #         NoInput(0),
+    #         solver,
+    #         ["tagged"] * num,
+    #         NoInput(0),
+    #         NoInput(0),
+    #         "",
+    #     )
+    #     assert result == (curve, curve, curve, curve)
 
     def test_get_proxy_curve_from_solver(self, usdusd, usdeur, eureur) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0}, id="tagged")
@@ -3559,6 +3561,95 @@ class TestCDS:
 
         with pytest.raises(ValueError, match="CDS requires 2"):
             cds.npv(curves=curve)
+
+    def test_analytic_rec_risk(self):
+        irs_tenor = [
+            "1m",
+            "2m",
+            "3m",
+            "6m",
+            "12m",
+            "2y",
+            "3y",
+            "4y",
+            "5y",
+            "6y",
+            "7y",
+            "8y",
+            "9y",
+            "10y",
+            "12y",
+        ]
+        irs_rates = [
+            4.8457,
+            4.7002,
+            4.5924,
+            4.3019,
+            3.8992,
+            3.5032,
+            3.3763,
+            3.3295,
+            3.3165,
+            3.3195,
+            3.3305,
+            3.3450,
+            3.3635,
+            3.3830,
+            3.4245,
+        ]
+        cds_tenor = ["6m", "12m", "2y", "3y", "4y", "5y", "7y", "10y"]
+        cds_rates = [0.11011, 0.14189, 0.20750, 0.26859, 0.32862, 0.37861, 0.51068, 0.66891]
+
+        today = dt(2024, 10, 4)  # Friday 4th October 2024
+        spot = dt(2024, 10, 8)  # Tuesday 8th October 2024
+
+        disc_curve = Curve(
+            nodes={today: 1.0, **{add_tenor(spot, _, "mf", "nyc"): 1.0 for _ in irs_tenor}},
+            calendar="nyc",
+            convention="act360",
+            interpolation="log_linear",
+            id="sofr",
+        )
+
+        us_rates_sv = Solver(
+            curves=[disc_curve],
+            instruments=[IRS(spot, _, spec="usd_irs", curves="sofr") for _ in irs_tenor],
+            s=irs_rates,
+            instrument_labels=irs_tenor,
+            id="us_rates",
+        )
+
+        cds_eff = dt(2024, 9, 20)
+        cds_mats = [add_tenor(dt(2024, 12, 20), _, "mf", "all") for _ in cds_tenor]
+
+        hazard_curve = Curve(
+            nodes={today: 1.0, **{add_tenor(spot, _, "mf", "nyc"): 1.0 for _ in cds_tenor}},
+            calendar="all",
+            convention="act365f",
+            interpolation="log_linear",
+            id="pfizer",
+        )
+
+        pfizer_sv = Solver(
+            curves=[hazard_curve],
+            pre_solvers=[us_rates_sv],
+            instruments=[
+                CDS(cds_eff, _, spec="us_ig_cds", curves=["pfizer", "sofr"]) for _ in cds_mats
+            ],
+            s=cds_rates,
+            instrument_labels=cds_tenor,
+            id="pfizer_cds",
+        )
+        cds = CDS(
+            effective=dt(2024, 9, 20),
+            termination=dt(2029, 12, 20),
+            spec="us_ig_cds",
+            curves=["pfizer", "sofr"],
+            notional=10e6,
+        )
+
+        result = cds.analytic_rec_risk(solver=pfizer_sv)
+        assert abs(result + 3031.0076128941) < 1e-8
 
 
 class TestXCS:
@@ -7293,13 +7384,18 @@ class TestFXBrokerFly:
             vol=[["a", "b"], ["c", "d"]],
             strike=[[1.10, 1.12], 1.11],
         )
-        assert fxo.kwargs.meta["vol"] == [["a", "b"], ["c", "d"]]
-        assert fxo.instruments[0].kwargs.meta["vol"] == ["a", "b"]
-        assert fxo.instruments[1].kwargs.meta["vol"] == ["c", "d"]
-        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"].fx_vol == "a"
-        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"].fx_vol == "b"
-        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"].fx_vol == "c"
-        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"].fx_vol == "d"
+        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"] == _Vol(fx_vol="a")
+        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"] == _Vol(fx_vol="b")
+        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"] == _Vol(fx_vol="c")
+        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"] == _Vol(fx_vol="d")
+
+        assert fxo.instruments[0].kwargs.meta["vol"] == (_Vol(fx_vol="a"), _Vol(fx_vol="b"))
+        assert fxo.instruments[1].kwargs.meta["vol"] == (_Vol(fx_vol="c"), _Vol(fx_vol="d"))
+
+        assert fxo.kwargs.meta["vol"] == (
+            (_Vol(fx_vol="a"), _Vol(fx_vol="b")),
+            (_Vol(fx_vol="c"), _Vol(fx_vol="d")),
+        )
 
     def test_populate_single_vol_on_init(self):
         # test also validates FXStraddle and FXStrangle
@@ -7309,13 +7405,130 @@ class TestFXBrokerFly:
             vol="myvol",
             strike=[[1.10, 1.12], 1.11],
         )
-        assert fxo.kwargs.meta["vol"] == ("myvol", "myvol")
-        assert fxo.instruments[0].kwargs.meta["vol"] == ("myvol", "myvol")
-        assert fxo.instruments[1].kwargs.meta["vol"] == ("myvol", "myvol")
-        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"].fx_vol == "myvol"
-        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"].fx_vol == "myvol"
-        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"].fx_vol == "myvol"
-        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"].fx_vol == "myvol"
+        _ = _Vol(fx_vol="myvol")
+        assert fxo.kwargs.meta["vol"] == ((_, _), (_, _))
+        assert fxo.instruments[0].kwargs.meta["vol"] == (_, _)
+        assert fxo.instruments[1].kwargs.meta["vol"] == (_, _)
+        assert fxo.instruments[0].instruments[0].kwargs.meta["vol"] == _
+        assert fxo.instruments[0].instruments[1].kwargs.meta["vol"] == _
+        assert fxo.instruments[1].instruments[0].kwargs.meta["vol"] == _
+        assert fxo.instruments[1].instruments[1].kwargs.meta["vol"] == _
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            FXCall(
+                spec="eurusd_call",
+                expiry=dt(2023, 6, 16),
+                strike=1.10,
+                vol="smile",
+                curves=["eurusd", "usdusd"],
+            ),
+            FXStraddle(
+                spec="eurusd_call",
+                expiry=dt(2023, 6, 16),
+                strike=1.10,
+                vol="smile",
+                curves=["eurusd", "usdusd"],
+            ),
+            FXStrangle(
+                spec="eurusd_call",
+                expiry=dt(2023, 6, 16),
+                strike=[1.10, 1.11],
+                vol="smile",
+                curves=["eurusd", "usdusd"],
+            ),
+            FXRiskReversal(
+                spec="eurusd_call",
+                expiry=dt(2023, 6, 16),
+                strike=[1.10, 1.11],
+                vol="smile",
+                curves=["eurusd", "usdusd"],
+            ),
+            FXBrokerFly(
+                spec="eurusd_call",
+                expiry=dt(2023, 6, 16),
+                strike=[[1.10, 1.13], 1.11],
+                vol="smile",
+                curves=["eurusd", "usdusd"],
+            ),
+        ],
+    )
+    def test_str_vol_price_from_solver(self, inst, fxfo):
+        smile = FXDeltaVolSmile(
+            nodes={0.5: 10.0},
+            expiry=dt(2023, 6, 16),
+            eval_date=dt(2023, 3, 16),
+            delta_type="forward",
+            id="smile",
+        )
+        solver = Solver(
+            curves=[
+                smile,
+                fxfo.curve("eur", "eur"),
+                fxfo.curve("eur", "usd"),
+                fxfo.curve("usd", "usd"),
+            ],
+            instruments=[
+                FXVolValue(index_value=0.5, vol="smile"),
+                IRS(dt(2023, 3, 20), "1b", spec="eur_irs", curves="eureur"),
+                IRS(dt(2023, 3, 20), "1b", spec="eur_irs", curves="eurusd"),
+                IRS(dt(2023, 3, 20), "1b", spec="usd_irs", curves="usdusd"),
+            ],
+            s=[9.5, 2.4, 2.5, 4.5],
+            fx=fxfo,
+        )
+        result = inst.rate(solver=solver)
+        assert isinstance(result, Dual)
+
+    @pytest.mark.parametrize(
+        ("inst", "strike", "exp"),
+        [
+            (FXRiskReversal, [1.10, 1.12], 0.0),
+            (FXStraddle, "atm_delta", 11.0),
+            (FXStrangle, ["-20d", "20d"], 11.0),
+            (FXBrokerFly, [["-25d", "25d"], "atm_delta"], 0.0),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("vol_meta"), [NoInput(0), 11.0, "smile", [11.0, 11.0], ["smile", "smile"]]
+    )
+    @pytest.mark.parametrize(("vol"), [NoInput(0), 11.0, "smile", [11.0, 11.0], ["smile", "smile"]])
+    def test_vol_input_combinations(self, fxfo, inst, strike, exp, vol_meta, vol):
+        if isinstance(vol_meta, NoInput) and isinstance(vol, NoInput):
+            pytest.skip("Invalid parameter combinations")
+        obj = inst(
+            spec="eurusd_call",
+            expiry=dt(2023, 6, 16),
+            strike=strike,
+            vol=vol_meta,
+            curves=["eurusd", "usdusd"],
+        )
+        smile = FXDeltaVolSmile(
+            nodes={0.5: 10.0},
+            expiry=dt(2023, 6, 16),
+            eval_date=dt(2023, 3, 16),
+            delta_type="forward",
+            id="smile",
+        )
+        solver = Solver(
+            curves=[
+                smile,
+                fxfo.curve("eur", "eur"),
+                fxfo.curve("eur", "usd"),
+                fxfo.curve("usd", "usd"),
+            ],
+            instruments=[
+                FXVolValue(index_value=0.5, vol="smile"),
+                IRS(dt(2023, 3, 20), "1b", spec="eur_irs", curves="eureur"),
+                IRS(dt(2023, 3, 20), "1b", spec="eur_irs", curves="eurusd"),
+                IRS(dt(2023, 3, 20), "1b", spec="usd_irs", curves="usdusd"),
+            ],
+            s=[11.0, 2.4, 2.5, 4.5],
+            fx=fxfo,
+        )
+        result = obj.rate(solver=solver, vol=vol, metric="vol")
+        assert abs(result - exp) < 1e-6
 
 
 class TestFXVolValue:

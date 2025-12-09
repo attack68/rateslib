@@ -14,6 +14,8 @@ from rateslib.instruments.components.fx_options.risk_reversal import FXOptionStr
 from rateslib.instruments.components.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
+    _maybe_get_fx_vol_maybe_from_solver,
+    _Vol,
 )
 from rateslib.periods.components.utils import _validate_fx_as_forwards
 from rateslib.splines import evaluate
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
         FXVolStrat_,
         Solver_,
         VolT_,
-        _FXVolOption,
+        _Vol,
         bool_,
         datetime,
         datetime_,
@@ -278,11 +280,11 @@ class FXStrangle(FXOptionStrat):
         self.kwargs.leg1["delta_type"] = self.instruments[0].kwargs.leg1["delta_type"]
         self.kwargs.leg1["expiry"] = self.instruments[0].kwargs.leg1["expiry"]
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
-        if isinstance(vol, list | tuple):
-            return vol
-        else:
-            return (vol,) * 2
+    @classmethod
+    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+        if not isinstance(vol, list | tuple):
+            vol = (vol,) * 2
+        return FXPut._parse_vol(vol[0]), FXCall._parse_vol(vol[1])
 
     def rate(
         self,
@@ -373,6 +375,7 @@ class FXStrangle(FXOptionStrat):
         """
         # Get curves and vol
         _curves = self._parse_curves(curves)
+        _vol = self._parse_vol(vol)
         fxf = _validate_fx_as_forwards(_get_fx_forwards_maybe_from_solver(solver=solver, fx=fx))
         rate_curve = _validate_obj_not_no_input(
             _maybe_get_curve_maybe_from_solver(
@@ -392,10 +395,16 @@ class FXStrangle(FXOptionStrat):
             ),
             "disc_curve",
         )
-        vol_: FXVolStrat_ = self._parse_vol(vol)
-        # type assignment, instead of using assert
-        vol_0: _FXVolOption = vol_[0]  # type: ignore[assignment, index]
-        vol_1: _FXVolOption = vol_[1]  # type: ignore[assignment, index]
+        vol_0 = _maybe_get_fx_vol_maybe_from_solver(
+            vol_meta=self.kwargs.meta["vol"][0],
+            vol=_vol[0],
+            solver=solver,
+        )
+        vol_1 = _maybe_get_fx_vol_maybe_from_solver(
+            vol_meta=self.kwargs.meta["vol"][1],
+            vol=_vol[1],
+            solver=solver,
+        )
 
         # Get initial data from objects in their native AD order
         spot: datetime = fxf.pairs_settlement[self.kwargs.leg1["pair"]]

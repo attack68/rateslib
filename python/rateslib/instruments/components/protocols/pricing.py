@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
+from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
 
 if TYPE_CHECKING:
@@ -136,6 +137,12 @@ class _Vol:
     def fx_vol(self) -> _FXVolOption_:
         """The FX vol object used for modelling FX volatility."""
         return self._fx_vol
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _Vol):
+            return False
+        else:
+            return self.fx_vol == other.fx_vol
 
 
 # Solver and Curve mapping
@@ -370,13 +377,13 @@ def _maybe_get_fx_vol_maybe_from_solver(
     # name: str, = "fx_vol"
     solver: Solver_,
 ) -> _FXVolObj | NoInput:
-    vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
-    if isinstance(vol_, NoInput):
-        return vol_
+    fx_vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
+    if isinstance(fx_vol_, NoInput | float | Dual | Dual2 | Variable):
+        return fx_vol_
     elif isinstance(solver, NoInput):
-        return _validate_fx_vol_is_not_id(fx_vol=vol_)
+        return _validate_fx_vol_is_not_id(fx_vol=fx_vol_)
     else:
-        return _get_fx_vol_from_solver(fx_vol=vol_, solver=solver)
+        return _get_fx_vol_from_solver(fx_vol=fx_vol_, solver=solver)
 
 
 def _get_fx_vol_from_solver(fx_vol: _FXVolObj | str, solver: Solver) -> _FXVolObj:

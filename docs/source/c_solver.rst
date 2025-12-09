@@ -180,10 +180,10 @@ The values of the ``solver.s`` can be updated and the curves can be redetermined
 
 .. ipython:: python
 
-   print(instruments[1].rate(ll_curve).real)
+   print(instruments[1].rate(curves=ll_curve).real)
    solver.s[1] = 1.5
    solver.iterate()
-   print(instruments[1].rate(ll_curve).real)
+   print(instruments[1].rate(curves=ll_curve).real)
 
 Changing the hyper parameters of a curve does not require any fundamental
 change to the input arguments to the :class:`~rateslib.solver.Solver`.
@@ -394,6 +394,7 @@ example we establish a new cash-collateral discount curve and use
    kwargs={
        "currency": "eur",
        "leg2_currency": "usd",
+       "leg2_mtm": True,
        "curves": ["estr", "eurusd", "sofr", "sofr"],
    }
    xcs_instruments = [
@@ -476,6 +477,7 @@ example we establish a new cash-collateral discount curve and use
    kwargs={
        "currency": "eur",
        "leg2_currency": "usd",
+       "leg2_mtm": True,
        "curves": ["estr", "eurusd", "sofr", "sofr"],
    }
    xcs_instruments = [
@@ -571,7 +573,7 @@ defined with USD collateral, but calibrate a solver by
    instruments = [
        IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
        IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
-       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", leg2_mtm=True, curves=["eureur", "eureur", "usdusd", "usdeur"]),
    ]
    solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
 
@@ -607,7 +609,7 @@ We can plot all five curves defined above by the 3 fundamental curves,
    instruments = [
        IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
        IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
-       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", leg2_mtm=True, curves=["eureur", "eureur", "usdusd", "usdeur"]),
    ]
    solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
    fig, ax, lines = eureur.plot("1d", comparators=[eur3m, eurusd], labels=["eureur", "eur3m", "eurusd"])
@@ -638,7 +640,7 @@ We can plot all five curves defined above by the 3 fundamental curves,
    instruments = [
        IRS(dt(2022, 1, 1), "1Y", "A", currency="eur", curves=["eur3m", "eureur"]),
        IRS(dt(2022, 1, 1), "1Y", "A", currency="usd", curves="usdusd"),
-       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", curves=["eureur", "eureur", "usdusd", "usdeur"]),
+       XCS(dt(2022, 1, 1), "1Y", "A", currency="eur", leg2_currency="usd", leg2_mtm=True, curves=["eureur", "eureur", "usdusd", "usdeur"]),
    ]
    solver = Solver(curves=[eureur, eur3m, usdusd, eurusd, usdeur], instruments=instruments, s=[2.0, 2.7, -15], fx=fxf)
    fig, ax, lines = usdusd.plot("1d", comparators=[usdeur], labels=["usdusd", "usdeur"])

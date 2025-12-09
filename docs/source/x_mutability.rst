@@ -1,5 +1,12 @@
 .. _mutability-doc:
 
+.. ipython:: python
+   :suppress:
+
+   from rateslib import defaults
+   from rateslib import Curve, Solver, IRS, FXRates, FXForwards
+   defaults.reset_defaults()
+
 ******************
 Mutability
 ******************
@@ -125,7 +132,7 @@ Two examples are shown below. The **first example** updates the same *Curve* wit
 
 .. ipython:: python
 
-   curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0})
+   curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0}, convention="Act360")
    solver1 = Solver(curves=[curve], instruments=[IRS(dt(2025, 1, 1), "1m", spec="usd_irs", curves=curve)], s=[1.0])
    solver2 = Solver(curves=[curve], instruments=[IRS(dt(2025, 1, 1), "1m", spec="usd_irs", curves=curve)], s=[5.0])
 
@@ -140,7 +147,7 @@ perhaps directly mutates a *Curve*) but does not reiterate the *Solver*.
 
 .. ipython:: python
 
-   curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0})
+   curve = Curve({dt(2025, 1, 1): 1.0, dt(2026, 1, 1): 1.0}, convention="Act360")
    fxr = FXRates({"eurusd": 1.10}, settlement=dt(2025, 1, 5))
    fxf = FXForwards(fx_rates=fxr, fx_curves={"eureur": curve, "usdusd": curve, "eurusd": curve})
    solver1 = Solver(curves=[curve], instruments=[IRS(dt(2025, 1, 1), "1m", spec="usd_irs", curves=curve)], s=[1.0], fx=fxf)

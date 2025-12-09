@@ -415,6 +415,11 @@ is applicable between the reference date of 2nd Jan '22 and end date 3rd Jan '22
 is indexed according to the 2nd Jan '22.
 
 .. ipython:: python
+   :suppress:
+
+   from rateslib.periods.components import FloatPeriod
+
+.. ipython:: python
 
    rfr_curve = LineCurve(
        nodes={
@@ -423,13 +428,15 @@ is indexed according to the 2nd Jan '22.
            dt(2022, 1, 3): 4.0
        }
    )
-   irs = IRS(
-       dt(2022, 1, 2),
-       "1d",
-       "A",
-       leg2_fixing_method="rfr_payment_delay"
+   p = FloatPeriod(
+       start=dt(2022, 2, 1),
+       end=dt(2022, 2, 2),
+       payment=dt(2022, 2, 2),
+       frequency="1B",
+       convention="Act360",
+       fixing_series="usd_rfr"
    )
-   irs.rate(rfr_curve)
+   p.rate(rate_curve=rfr_curve)
 
 For an IBOR curve the ``nodes`` values are by publication date. The curve below has a
 lag of 2 business days. and the publication on 1st Jan '22 is applicable to the
@@ -444,14 +451,15 @@ reference value date of 3rd Jan.
            dt(2022, 1, 3): 4.5
        }
    )
-   irs = IRS(
-       dt(2022, 1, 3),
-       "3m",
-       "A",
-       leg2_fixing_method="ibor",
-       leg2_method_param=2
+   p = FloatPeriod(
+       start=dt(2022, 2, 3),
+       end=dt(2022, 3, 3),
+       payment=dt(2022, 3, 3),
+       frequency="1M",
+       convention="Act360",
+       fixing_series="usd_ibor"
    )
-   irs.rate(ibor_curve)
+   p.rate(rate_curve=ibor_curve)
 
 
 Mutable Pricing Objects

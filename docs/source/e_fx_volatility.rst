@@ -84,10 +84,10 @@ functionality via :class:`~rateslib.instruments.FXCall` and
       modifier="mf",
       premium_ccy="usd",
       eval_date=NoInput(0),
-      option_fixing=NoInput(0),
+      option_fixings=NoInput(0),
       premium=NoInput(0),
       delta_type="forward",
-      curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
+      curves=[fxf.curve("eur", "usd"), fxf.curve("usd","usd")],
       spec=NoInput(0),
    )
    fxc.rate(fx=fxf, vol=8.9)
@@ -132,7 +132,7 @@ explicitly stated. Suppose building a *FXCall* with a specified 25% delta.
        delta_type="spot",
    )
    fxc.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd","usd")],
        fx=fxf,
        vol=8.9
    )
@@ -145,11 +145,11 @@ automatically assigned, temporarily, to the attached **FXCallPeriod**
 .. ipython:: python
 
    fxc.analytic_greeks(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9
    )
-   fxc.periods[0].strike
+   fxc._option.fx_option_params.strike
 
 With altered pricing parameters, the *Option* strike will adapt accordingly to maintain the
 25% spot delta calculation.
@@ -157,16 +157,16 @@ With altered pricing parameters, the *Option* strike will adapt accordingly to m
 .. ipython:: python
 
    fxc.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd","usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd","usd")],
        fx=fxf,
        vol=10.0,   #  <- A different vol will imply a different strike to maintain the same delta
    )
    fxc.analytic_greeks(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=10.0
    )
-   fxc.periods[0].strike
+   fxc._option.fx_option_params.strike
 
 Straddles
 ==========
@@ -191,18 +191,18 @@ The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
        delta_type="spot",
    )
    fxstr.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9,
    )
    fxstr.analytic_greeks(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9,
    )
    fxstr.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9,
    )
@@ -241,7 +241,7 @@ The default pricing ``metric`` for an *FX Straddle* is *'vol'* points.
    )
    fxrr.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=8.9,
    )
@@ -273,13 +273,13 @@ quotations for each option.
        delta_type="spot",
    )
    fxrr.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=[10.15, 8.9]
    )
    fxrr.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=[10.15, 8.9]
    )
@@ -318,7 +318,7 @@ quotations for each option.
    )
    fxrr.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=[10.15, 8.9],
    )
@@ -348,13 +348,13 @@ an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate
        delta_type="spot",
    )
    fxstg.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=[10.15, 8.9]
    )
    fxstg.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
    )
@@ -393,7 +393,7 @@ an iteration to calculate this (see :meth:`~rateslib.instruments.FXStrangle.rate
    )
    fxstg.plot_payoff(
        range=[1.025, 1.11],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
    )
@@ -423,13 +423,13 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
        delta_type="spot",
    )
    fxbf.rate(
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=[[10.15, 8.9], 7.5]
    )
    fxbf.plot_payoff(
        range=[1.000, 1.150],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
    )
@@ -468,7 +468,7 @@ The default pricing ``metric`` is *'single_vol'* which calculates the single vol
    )
    fxbf.plot_payoff(
        range=[1.000, 1.150],
-       curves=[None, fxf.curve("eur", "usd"), None, fxf.curve("usd", "usd")],
+       curves=[fxf.curve("eur", "usd"), fxf.curve("usd", "usd")],
        fx=fxf,
        vol=9.533895,
    )

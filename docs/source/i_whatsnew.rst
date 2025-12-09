@@ -54,6 +54,8 @@ that it intends to value.
 
 ``curves`` for FXOptions are now set in a different way. Errors result for a list of 4 curves.
 
+Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args only.
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1

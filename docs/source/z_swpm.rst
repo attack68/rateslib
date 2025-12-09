@@ -81,7 +81,7 @@ Next we will create an IRS and generate the metrics for *npv*, *delta* (DV01), *
    irs.npv(solver=solver)
    irs.delta(solver=solver).sum()
    irs.gamma(solver=solver).sum().sum()
-   irs.analytic_delta(curve=sofr)
+   irs.analytic_delta(solver=solver)
 
 Finally we can double check the *cashflows* and *cashflows_table* of the swap.
 

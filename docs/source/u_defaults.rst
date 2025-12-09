@@ -333,12 +333,12 @@ of a swap to infer what a user might expect when just inputting a small subset o
        notional=50e6,
        amortization=10e6
    )
-   irs.leg1.schedule.frequency
-   irs.leg1.notional
-   irs.leg1.amortization
-   irs.leg2.schedule.frequency  # <- Inherited
-   irs.leg2.notional  # <- Inherited with negate
-   irs.leg2.amortization  # <- Inherited with negate
+   irs.kwargs.leg1["schedule"].frequency
+   irs.kwargs.leg1["notional"]
+   irs.kwargs.leg1["amortization"]
+   irs.kwargs.leg2["schedule"].frequency  # <- Inherited
+   irs.kwargs.leg2["notional"]  # <- Inherited with negate
+   irs.kwargs.leg2["amortization"]  # <- Inherited with negate
 
 
 Defaults
@@ -351,9 +351,9 @@ by default.
 
 .. ipython:: python
 
-   irs.leg1.schedule.modifier
-   irs.leg1.convention
-   irs.leg1.currency
+   irs.kwargs.leg1["schedule"].modifier
+   irs.kwargs.leg1["convention"]
+   irs.kwargs.leg1["currency"]
 
 The defaults values can be seen by calling its :meth:`~rateslib.defaults.Defaults.print` method.
 
@@ -369,8 +369,8 @@ These values can also be set:
    defaults.convention = "ACT365F"
    defaults.base_currency = "gbp"
    irs = IRS(effective=dt(2022, 1, 1), termination="1Y", frequency="A")
-   irs.leg1.convention  # <- uses new default value
-   irs.leg1.currency  # <- uses new default value
+   irs.kwargs.leg1["convention"]  # <- uses new default value
+   irs.kwargs.leg1["currency"]  # <- uses new default value
 
 .. ipython:: python
 

@@ -162,7 +162,7 @@ class Bill(_BaseBondInstrument):
 
        bill_curve = Curve({dt(2004, 1, 21): 1.0, dt(2004, 3, 21): 1.0}, id="bill_curve")
        instruments = [
-           (bill, (), {"metric": "ytm"}),
+           (bill, {"metric": "ytm"}),
        ]
        solver = Solver(
            curves=[bill_curve],
@@ -172,7 +172,7 @@ class Bill(_BaseBondInstrument):
            id="bill_solver",
        )
        bill.npv(solver=solver)
-       bill.analytic_delta(disc_curve=bill_curve)
+       bill.analytic_delta(curves=bill_curve)
        bill.rate(solver=solver, metric="price")
 
     The sensitivities are also available. In this case the *Solver* is calibrated

@@ -174,7 +174,7 @@ be supplied manually if and when required.
              frequency="Q",
              calendar="nyc",
              convention="act360",
-             method_param=2,
+             leg2_method_param=2,
              fixed_rate=2.5
          )
 
@@ -220,11 +220,11 @@ these values are all expressed in the *Instrument's* local USD currency.
 
       .. ipython:: python
 
-         irs.npv(usd_curve)
+         irs.npv(curves=usd_curve)
 
       .. ipython:: python
 
-         irs.cashflows(usd_curve)
+         irs.cashflows(curves=usd_curve)
 
    .. group-tab:: STIRFuture
 
@@ -244,7 +244,7 @@ these values are all expressed in the *Instrument's* local USD currency.
 
       .. ipython:: python
 
-         fra.rate([usd_legacy_3mIBOR, usd_curve])
+         fra.rate(curves=[usd_legacy_3mIBOR, usd_curve])
 
    .. group-tab:: CDS
 
@@ -254,25 +254,25 @@ these values are all expressed in the *Instrument's* local USD currency.
 
       .. ipython:: python
 
-         cds.rate([pfizer_hazard, usd_curve])
+         cds.rate(curves=[pfizer_hazard, usd_curve])
 
       .. ipython:: python
 
-         cds.cashflows([pfizer_hazard, usd_curve])
+         cds.cashflows(curves=[pfizer_hazard, usd_curve])
 
    .. group-tab:: ZCIS
 
       .. ipython:: python
 
-         zcis.npv([usd_cpi, usd_curve])
+         zcis.npv(curves=[usd_cpi, usd_curve])
 
       .. ipython:: python
 
-         zcis.rate([usd_cpi, usd_curve])
+         zcis.rate(curves=[usd_cpi, usd_curve])
 
       .. ipython:: python
 
-         zcis.cashflows([usd_cpi, usd_curve])
+         zcis.cashflows(curves=[usd_cpi, usd_curve])
 
 .. raw:: html
 
@@ -311,8 +311,8 @@ We now have a mechanism by which to specify values in other currencies.
 
       .. ipython:: python
 
-         irs.npv(usd_curve, fx=fxr, base="usd")
-         irs.npv(usd_curve, fx=fxr, base="eur")
+         irs.npv(curves=usd_curve, fx=fxr, base="usd")
+         irs.npv(curves=usd_curve, fx=fxr, base="eur")
 
    .. group-tab:: STIRFuture
 
@@ -325,22 +325,22 @@ We now have a mechanism by which to specify values in other currencies.
 
       .. ipython:: python
 
-         fra.npv([usd_legacy_3mIBOR, usd_curve], fx=fxr, base="usd")
-         fra.npv([usd_legacy_3mIBOR, usd_curve], fx=fxr, base="eur")
+         fra.npv(curves=[usd_legacy_3mIBOR, usd_curve], fx=fxr, base="usd")
+         fra.npv(curves=[usd_legacy_3mIBOR, usd_curve], fx=fxr, base="eur")
 
    .. group-tab:: CDS
 
       .. ipython:: python
 
-         cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="usd")
-         cds.npv([pfizer_hazard, usd_curve], fx=fxr, base="eur")
+         cds.npv(curves=[pfizer_hazard, usd_curve], fx=fxr, base="usd")
+         cds.npv(curves=[pfizer_hazard, usd_curve], fx=fxr, base="eur")
 
    .. group-tab:: ZCIS
 
       .. ipython:: python
 
-         zcis.npv([usd_cpi, usd_curve], fx=fxr, base="usd")
-         zcis.npv([usd_cpi, usd_curve], fx=fxr, base="eur")
+         zcis.npv(curves=[usd_cpi, usd_curve], fx=fxr, base="usd")
+         zcis.npv(curves=[usd_cpi, usd_curve], fx=fxr, base="eur")
 
 .. raw:: html
 
@@ -446,24 +446,24 @@ around target mid-market rates, and generate market risks.
              notional=20e6,
              calendar="tgt|fed",
          )
-         fxs.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
-         fxs.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxs.rate(curves=[eurusd_curve, usd_curve], fx=fxf)
+         fxs.cashflows_table(curves=[eurusd_curve, usd_curve], fx=fxf)
 
    .. tab:: FXExchange
 
-      An :class:`~rateslib.instruments.FXExchange` is a forward FX transaction.
+      An :class:`~rateslib.instruments.FXForward` is a forward FX transaction.
 
       .. ipython:: python
 
-         fxe = FXExchange(
+         fxe = FXForward(
              settlement=dt(2022, 4, 1),
              pair="eurusd",
              notional=10e6,
              fx_rate=1.035,
          )
-         fxe.rate(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
-         fxe.npv(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
-         fxe.cashflows_table(curves=[None, eurusd_curve, None, usd_curve], fx=fxf)
+         fxe.rate(curves=[eurusd_curve, usd_curve], fx=fxf)
+         fxe.npv(curves=[eurusd_curve, usd_curve], fx=fxf)
+         fxe.cashflows_table(curves=[eurusd_curve, usd_curve], fx=fxf)
 
    .. tab:: XCS
 
@@ -554,7 +554,7 @@ Securities and bonds
              payment_lag=0,
              fixing_method="ibor",
              method_param=0,  # fixing lag is 0 business days
-             fixings=[2.00, 2.14],
+             rate_fixings=[2.00, 2.14],
              ex_div=1,
              settle=1,
              currency="usd",
