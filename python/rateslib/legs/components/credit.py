@@ -257,8 +257,8 @@ class CreditProtectionLeg(_BaseLeg):
            schedule=Schedule(dt(2022, 1, 1), "9M", "Z"),
            notional=1000000,
        )
-       protection_leg.cashflows(hazard_curve, disc_curve)
-       protection_leg.npv(hazard_curve, disc_curve)
+       protection_leg.cashflows(rate_curve=hazard_curve, disc_curve=disc_curve)
+       protection_leg.npv(rate_curve=hazard_curve, disc_curve=disc_curve)
     """  # noqa: E501
 
     @property

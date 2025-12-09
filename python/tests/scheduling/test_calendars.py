@@ -505,8 +505,8 @@ def test_calendar_aligns_with_fixings_tyo() -> None:
         calendar="tyo",
     )
     fixings_ = fixings["jpy_rfr"][1]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings_, calendar="tyo")
-    irs.rate(curve)
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_rate_fixings=fixings_, calendar="tyo")
+    irs.rate(curves=curve)
 
 
 def test_calendar_aligns_with_fixings_syd() -> None:
@@ -518,8 +518,8 @@ def test_calendar_aligns_with_fixings_syd() -> None:
         calendar="syd",
     )
     fixings_ = fixings["aud_rfr"][1]
-    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_fixings=fixings_, calendar="syd")
-    irs.rate(curve)
+    irs = IRS(dt(2015, 6, 10), dt(2024, 6, 3), "A", leg2_rate_fixings=fixings_, calendar="syd")
+    irs.rate(curves=curve)
 
 
 def test_book_example() -> None:

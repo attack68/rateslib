@@ -1180,8 +1180,8 @@ class TestVariable:
         result = irs.exo_delta(vars=["N", "R", "z"], vars_scalar=[1.0, 0.01, 1.0], solver=solver)
 
         exp0 = irs.npv(solver=solver) / 5e6
-        exp1 = irs.analytic_delta(curve)
-        exp2 = irs.analytic_delta(curve, leg=2)
+        exp1 = irs.analytic_delta(curves=curve)
+        exp2 = irs.analytic_delta(curves=curve, leg=2)
 
         assert abs(exp0 - result.iloc[0, 0]) < 1e-8
         assert abs(exp1 + result.iloc[1, 0]) < 1e-8

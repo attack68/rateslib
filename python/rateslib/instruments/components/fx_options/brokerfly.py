@@ -48,7 +48,7 @@ class FXBrokerFly(FXOptionStrat):
 
        fxc = FXRiskReversal(
            expiry="3m",
-           strike="atm_delta"],
+           strike="atm_delta",
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
        )
@@ -264,11 +264,11 @@ class FXBrokerFly(FXOptionStrat):
         )
         self.kwargs.leg1["notional"] = notional_
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
-        if isinstance(vol, list | tuple):
-            return vol
-        else:
-            return (vol,) * 2
+    @classmethod
+    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[FXVolStrat_, FXVolStrat_]:  # type: ignore[override]
+        if not isinstance(vol, list | tuple):
+            vol = (vol, vol)
+        return (FXStrangle._parse_vol(vol[0]), FXStrangle._parse_vol(vol[1]))
 
     def _maybe_set_vega_neutral_notional(
         self,
@@ -434,7 +434,7 @@ class FXBrokerFly(FXOptionStrat):
 
     def _plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),  # noqa: A002
+        window: list[float] | NoInput = NoInput(0),  # noqa: A002
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
@@ -444,7 +444,7 @@ class FXBrokerFly(FXOptionStrat):
     ) -> tuple[Any, Any]:
         vol_ = self._parse_vol(vol)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
-        return super()._plot_payoff(range, curves, solver, fx, base, local, vol_)
+        return super()._plot_payoff(window, curves, solver, fx, base, local, vol_)
 
 
 #

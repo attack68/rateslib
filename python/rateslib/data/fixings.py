@@ -337,8 +337,8 @@ class FXFixing(_BaseFixing):
 
         Parameters
         ----------
-        fx: FXForwards_:
-            The :class:`FXForwards` object to forecast the forward FX rate.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
 
         Returns
         -------
@@ -357,7 +357,7 @@ class FXFixing(_BaseFixing):
         Parameters
         ----------
         fx: FXForwards, optional
-            The :class:`FXForwards` object to forecast the forward FX rate.
+            The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
 
         Returns
         -------

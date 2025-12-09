@@ -5495,7 +5495,7 @@ class TestFXOption:
             expiry=dt(2024, 5, 28),
             calendar="tgt|fed",
             delta_type="spot",
-            curves=[None, "eurusd", None, "usd"],
+            curves=["eurusd", "usd"],
             vol="smile",
         )
 

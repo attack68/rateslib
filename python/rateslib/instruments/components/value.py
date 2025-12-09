@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NoReturn
 
-from rateslib import defaults
 from rateslib.curves.utils import _CurveType
 from rateslib.dual.utils import dual_log
 from rateslib.enums.generics import NoInput, _drb
@@ -19,7 +18,6 @@ from rateslib.scheduling import dcf
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
-        Convention,
         CurvesT_,
         DualTypes,
         FXForwards_,
@@ -105,17 +103,15 @@ class Value(_BaseInstrument):
         self,
         effective: datetime,
         *,
-        convention: Convention | str_ = NoInput(0),
         metric: str_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
     ) -> None:
         user_args = dict(
             effective=effective,
-            convention=convention,
             curves=self._parse_curves(curves),
             metric=metric,
         )
-        default_args = dict(convention=defaults.convention, metric="curve_value")
+        default_args = dict(metric="curve_value")
         self._kwargs = _KWArgs(
             spec=NoInput(0),
             user_args=user_args,

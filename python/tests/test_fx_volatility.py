@@ -1387,7 +1387,7 @@ class TestFXSabrSmile:
             expiry=dt(2024, 5, 28),
             calendar="tgt|fed",
             delta_type="spot",
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
         )
 
@@ -1411,7 +1411,7 @@ class TestFXSabrSmile:
             pair="eurusd",
             strike=1.07,
             notional=100e6,
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
             premium=98.216647 * 1e8 / 1e4,
             premium_ccy="usd",
@@ -1656,7 +1656,7 @@ class TestFXSabrSurface:
             id="usd",
         )
         fxswaps = [
-            FXSwap(dt(2024, 5, 30), _, pair="eurusd", curves=[None, "eurusd", None, "sofr"])
+            FXSwap(dt(2024, 5, 30), _, pair="eurusd", curves=["eurusd", "sofr"])
             for _ in mkt_data["tenor"][0:14]
         ]
         fxswap_rates = mkt_data["fx_swap"][0:14].tolist()
@@ -1714,7 +1714,7 @@ class TestFXSabrSurface:
         )
         fx_args = dict(
             pair="eurusd",
-            curves=[None, "eurusd", None, "sofr"],
+            curves=["eurusd", "sofr"],
             calendar="tgt",
             delivery_lag=2,
             payment_lag=2,
