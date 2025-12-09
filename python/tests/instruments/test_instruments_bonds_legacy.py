@@ -2664,7 +2664,7 @@ class TestBill:
         assert result == 0.4985413405436174
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.bonds import BillCalcMode
+        from rateslib.instruments.components.bonds import BillCalcMode
 
         cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
         bill = Bill(
@@ -3778,11 +3778,11 @@ class TestBondFuture:
             contracts=10,
             currency="gbp",
         )
-        result = future.npv(NoInput(0), solver, local=False)
+        result = future.npv(solver=solver, local=False)
         expected = 1129798.770872
         assert abs(result - expected) < 1e-5
 
-        result2 = future.npv(NoInput(0), solver, local=True)
+        result2 = future.npv(solver=solver, local=True)
         assert abs(result2["gbp"] - expected) < 1e-5
 
     @pytest.mark.parametrize("delivery", [NoInput(0), dt(2000, 6, 30)])

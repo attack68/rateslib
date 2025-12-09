@@ -1,5 +1,7 @@
 from rateslib.instruments.components.bonds import (
     Bill,
+    BillCalcMode,
+    BondCalcMode,
     BondFuture,
     FixedRateBond,
     FloatRateNote,
@@ -62,4 +64,6 @@ __all__ = [
     "FXStraddle",
     "FXStrangle",
     "FXBrokerFly",
+    "BondCalcMode",
+    "BillCalcMode",
 ]

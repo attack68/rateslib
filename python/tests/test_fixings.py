@@ -21,7 +21,7 @@ def test_calendar_matches_fixings_corra() -> None:
         effective=dt(2017, 1, 1),
         termination=dt(2023, 7, 1),
         frequency="A",
-        leg2_fixings=fixings["corra"][1],
+        leg2_rate_fixings=fixings["corra"][1],
         calendar="tro",
         fixed_rate=1.0,
     )

@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FXVolStrat_,
         VolT_,
+        _Vol,
         bool_,
         datetime,
         datetime_,
@@ -250,11 +251,11 @@ class FXStraddle(FXOptionStrat):
         self.kwargs.leg1["notional"] = notional_
         self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
-        if isinstance(vol, list | tuple):
-            return vol
-        else:
-            return (vol,) * 2
+    @classmethod
+    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+        if not isinstance(vol, list | tuple):
+            vol = (vol,) * 2
+        return FXPut._parse_vol(vol[0]), FXCall._parse_vol(vol[1])
 
     def _set_notionals(self, notional: DualTypes) -> None:
         """

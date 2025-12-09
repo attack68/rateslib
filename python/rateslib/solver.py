@@ -135,7 +135,7 @@ class Gradients:
                     f"Cannot perform second derivative calculations when ad mode is {self._ad}.",
                 )
 
-            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
             # solver is passed in order to extract curves as string
             _ = np.array([gradient(rate, self.variables, order=2) for rate in rates])
             self._J2 = np.transpose(_, (1, 2, 0))
@@ -314,7 +314,7 @@ class Gradients:
                 ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
-            rates = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
             # solver is passed in order to extract curves as string
             _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
             J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
@@ -1012,16 +1012,15 @@ class Solver(Gradients, _WithState):
     representative of a consistent *FXForwards* object for all *Instruments*.
 
     If the pricing objects and/or *metric* are not preset then the *Solver* ``instruments`` can be
-    given as a tuple where the second and third items are a tuple and dict representing positional
-    and keyword arguments passed directly to the :meth:`~rateslib.instruments.Metrics.rate`
-    method. Usually using the keyword arguments, and using an empty positional arguments tuple,
-    is more explicit. An example is:
+    given as a tuple where the second item is a dict representing keyword arguments passed
+    directly to the :meth:`~rateslib.instruments.Metrics.rate`
+    method. An example is:
 
     .. code-block:: python
 
        instruments=[
            ...
-           (FixedRateBond([args]), (), {"curves": bond_curve, "metric": "ytm"}),
+           (FixedRateBond([args]), {"curves": bond_curve, "metric": "ytm"}),
            ...
        ]
 
@@ -1113,7 +1112,7 @@ class Solver(Gradients, _WithState):
         self.pre_curves: dict[str, Curve | _FXVolObj] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
-        self.pre_instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = ()
+        self.pre_instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
         curve_collection: list[Curve | _FXVolObj] = []
@@ -1155,7 +1154,7 @@ class Solver(Gradients, _WithState):
             raise ValueError(
                 "`fx` argument to Solver must be either FXRates, FXForwards or NoInput(0)."
             )
-        self.instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...] = tuple(
+        self.instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = tuple(
             self._parse_instrument(inst) for inst in instruments
         )
         self.pre_instruments += self.instruments
@@ -1242,8 +1241,8 @@ class Solver(Gradients, _WithState):
         return _
 
     def _parse_instrument(
-        self, value: SupportsRate | tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]
-    ) -> tuple[SupportsRate, tuple[Any, ...], dict[str, Any]]:
+        self, value: SupportsRate | tuple[SupportsRate, dict[str, Any]]
+    ) -> tuple[SupportsRate, dict[str, Any]]:
         """
         Parses different input formats for an instrument given to the ``Solver``.
 
@@ -1275,28 +1274,23 @@ class Solver(Gradients, _WithState):
         """
         if not isinstance(value, tuple):
             # is a direct Instrument so convert to tuple with pricing params
-            _: tuple[SupportsRate, tuple[Any, ...], dict[str, Any]] = (
+            _: tuple[SupportsRate, dict[str, Any]] = (
                 value,
-                tuple(),
                 {"solver": self, "fx": self.fx},
             )
             return _
         else:
             # object is tuple
-            if len(value) != 3:
+            if len(value) != 2:
                 raise ValueError(
-                    "`Instrument` supplied to `Solver` as tuple must be a 3-tuple of "
-                    "signature: (Instrument, positional args[tuple], keyword "
-                    "args[dict]).",
+                    "`Instrument` supplied to `Solver` as tuple must be a 2-tuple of "
+                    "signature: (Instrument, keyword args[dict]).",
                 )
             ret0 = value[0]
-            ret1: tuple[Any, ...] = tuple()
-            ret2: dict[str, Any] = {"solver": self, "fx": self.fx}
-            if not (value[1] is None or value[1] == ()):
-                ret1 = value[1]
-            if not (value[2] is None or value[2] == {}):
-                ret2 = {**ret2, **value[2]}
-            return ret0, ret1, ret2
+            ret1: dict[str, Any] = {"solver": self, "fx": self.fx}
+            if not (value[1] is None or value[1] == {}):
+                ret1 = {**ret1, **value[1]}
+            return ret0, ret1
 
     def _reset_properties_(self, dual2_only: bool = False) -> None:
         """
@@ -1410,7 +1404,7 @@ class Solver(Gradients, _WithState):
         Depends on ``self.pre_curves`` and ``self.instruments``.
         """
         if self._r is None:
-            self._r = np.array([_[0].rate(*_[1], **_[2]) for _ in self.instruments])
+            self._r = np.array([_[0].rate(**_[1]) for _ in self.instruments])
             # solver and fx are passed by default via parse_args to get string curves
         return self._r
 
@@ -2106,7 +2100,7 @@ class Solver(Gradients, _WithState):
         r_0 = self.r_pre
         r_1 = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
+                _[0].rate(**{**_[1], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
             ],
         )
@@ -2201,7 +2195,7 @@ class Solver(Gradients, _WithState):
         # Get the instrument rates for self solver evaluated using the curves and links of other
         r = np.array(
             [
-                _[0].rate(*_[1], **{**_[2], "solver": solver, "fx": solver.fx})
+                _[0].rate(**{**_[1], "solver": solver, "fx": solver.fx})
                 for _ in self.pre_instruments
             ],
         )

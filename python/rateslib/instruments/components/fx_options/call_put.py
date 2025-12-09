@@ -145,7 +145,8 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         else:
             raise ValueError(f"{type(self).__name__} requires 2 curve types.")
 
-    def _parse_vol(self, vol: VolT_) -> _Vol:
+    @classmethod
+    def _parse_vol(cls, vol: VolT_) -> _Vol:
         """
         FXoptions requires only a single FXVolObj or a scalar.
         """

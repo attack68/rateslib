@@ -21,6 +21,7 @@ if TYPE_CHECKING:
         Sequence,
         Solver_,
         VolT_,
+        _Vol,
         bool_,
         datetime,
         datetime_,
@@ -65,7 +66,8 @@ class FXOptionStrat(FXOption):
         curves: CurvesT_ = NoInput(0),
         vol: FXVolStrat_ = NoInput(0),
     ):
-        if len(options) != len(rate_weight) or len(options) != len(rate_weight_vol):
+        self._n = len(options)
+        if self._n != len(rate_weight) or self._n != len(rate_weight_vol):
             raise ValueError(
                 "`rate_weight` and `rate_weight_vol` must have same length as `options`.",
             )
@@ -76,13 +78,14 @@ class FXOptionStrat(FXOption):
                 rate_weight_vol=rate_weight_vol,
                 instruments=tuple(options),
                 metric=metric,
-                vol=vol,
                 pair=options[0].kwargs.leg1["pair"],
+                curves=NoInput(0),
+                vol=vol,
             ),
             default_args=dict(
                 metric="vol",
             ),
-            meta_args=["metric", "vol", "instruments", "rate_weight", "rate_weight_vol"],
+            meta_args=["metric", "vol", "curves", "instruments", "rate_weight", "rate_weight_vol"],
         )
         self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
         self.kwargs.meta["curves"] = self._parse_curves(curves)
@@ -162,11 +165,9 @@ class FXOptionStrat(FXOption):
     #             ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
     #     return ret
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
-        if isinstance(vol, list | tuple):
-            return vol
-        else:
-            return (vol,) * len(self.instruments)
+    @classmethod
+    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+        raise NotImplementedError(f"{type(cls).__name__} must implement `_parse_vol`.")
 
     @property
     def instruments(self) -> tuple[FXOption | FXOptionStrat, ...]:
@@ -634,6 +635,7 @@ class FXRiskReversal(FXOptionStrat):
         vol: VolT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ) -> None:
+        self._n = 2
         vol_ = self._parse_vol(vol)
         notional_ = _drb(defaults.notional, notional)
         options = [
@@ -692,8 +694,8 @@ class FXRiskReversal(FXOptionStrat):
         )
         self.kwargs.leg1["notional"] = notional_
 
-    def _parse_vol(self, vol: FXVolStrat_) -> FXVolStrat_:  # type: ignore[override]
-        if isinstance(vol, list | tuple):
-            return vol
-        else:
-            return (vol,) * 2
+    @classmethod
+    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+        if not isinstance(vol, list | tuple):
+            vol = (vol,) * 2
+        return FXPut._parse_vol(vol[0]), FXCall._parse_vol(vol[1])

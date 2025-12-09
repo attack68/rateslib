@@ -75,6 +75,7 @@ class Spread(_BaseInstrument):
     """  # noqa: E501
 
     _instruments: Sequence[_BaseInstrument]
+    _rate_scalar = 100.0
 
     @property
     def instruments(self) -> Sequence[_BaseInstrument]:
