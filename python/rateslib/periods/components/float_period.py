@@ -31,7 +31,7 @@ from rateslib.periods.components.parameters import (
     _PeriodParams,
 )
 from rateslib.periods.components.protocols import _BasePeriodStatic
-from rateslib.periods.utils import _get_rfr_curve_from_dict
+from rateslib.periods.components.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling import Adjuster, Frequency, dcf, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention

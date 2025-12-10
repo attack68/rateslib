@@ -247,3 +247,17 @@ def _validate_credit_curves(
             )
         )
     return Ok((rate_curve, disc_curve))
+
+
+def _get_rfr_curve_from_dict(d: dict[str, _BaseCurve]) -> _BaseCurve:
+    for s in ["rfr", "RFR", "Rfr"]:
+        try:
+            ret: _BaseCurve = d[s]
+        except KeyError:
+            continue
+        else:
+            return ret
+    raise ValueError(
+        "A `rate_curve` supplied as dict to an RFR based calculation must contain a key "
+        "entry 'rfr'."
+    )

@@ -12,7 +12,7 @@ from rateslib.instruments.components.protocols.pricing import (
     _maybe_get_fx_vol_maybe_from_solver,
     _Vol,
 )
-from rateslib.periods.utils import _validate_fx_as_forwards
+from rateslib.periods.components.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover

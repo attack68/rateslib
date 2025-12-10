@@ -13,7 +13,7 @@ from rateslib.enums.parameters import (
     _get_float_fixing_method,
     _get_spread_compound_method,
 )
-from rateslib.periods.utils import _get_rfr_curve_from_dict
+from rateslib.periods.components.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
