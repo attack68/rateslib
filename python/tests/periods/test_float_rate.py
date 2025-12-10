@@ -10,7 +10,7 @@ from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, _RFRRate
 from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput
 from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
-from rateslib.periods.components.float_rate import rate_value
+from rateslib.periods.float_rate import rate_value
 from rateslib.scheduling import Adjuster, Convention, Frequency, NamedCal
 
 

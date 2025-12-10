@@ -13,7 +13,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.enums.generics import _drb
 from rateslib.fx import FXForwards, FXRates
-from rateslib.legs.components import (
+from rateslib.legs import (
     Amortization,
     CreditPremiumLeg,
     CreditProtectionLeg,
@@ -24,8 +24,8 @@ from rateslib.legs.components import (
     ZeroFloatLeg,
     ZeroIndexLeg,
 )
-from rateslib.legs.components.amortization import _AmortizationType
-from rateslib.periods.components import (
+from rateslib.legs.amortization import _AmortizationType
+from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
     CreditProtectionPeriod,

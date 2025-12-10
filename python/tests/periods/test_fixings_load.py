@@ -18,7 +18,7 @@ from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.enums.generics import NoInput
 from rateslib.enums.parameters import IndexMethod
 from rateslib.errors import VE_INDEX_BASE_NO_STR
-from rateslib.periods.components import Cashflow, FloatPeriod
+from rateslib.periods import Cashflow, FloatPeriod
 from rateslib.scheduling.frequency import Frequency
 
 

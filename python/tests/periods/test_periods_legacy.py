@@ -21,7 +21,7 @@ from rateslib.enums.parameters import FXDeltaMethod, IndexMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
-from rateslib.periods.components import (
+from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
     CreditProtectionPeriod,
@@ -36,7 +36,7 @@ from rateslib.periods.components import (
     # NonDeliverableFixedPeriod,
     ZeroFixedPeriod,
 )
-from rateslib.periods.components.float_rate import rate_value
+from rateslib.periods.float_rate import rate_value
 from rateslib.scheduling import Cal, Frequency, RollDay, Schedule
 
 

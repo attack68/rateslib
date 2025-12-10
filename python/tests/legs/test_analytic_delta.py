@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib.curves import Curve
-from rateslib.legs.components import FixedLeg
+from rateslib.legs import FixedLeg
 from rateslib.scheduling import Schedule
 
 

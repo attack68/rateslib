@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import pytest
 import rateslib.errors as err
-from rateslib.periods.components import (
+from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
     CreditProtectionPeriod,
@@ -19,7 +19,7 @@ from rateslib.periods.components import (
     # NonDeliverableIndexFloatPeriod,
     ZeroFixedPeriod,
 )
-from rateslib.periods.components.cashflow import MtmCashflow
+from rateslib.periods.cashflow import MtmCashflow
 from rateslib.scheduling import Schedule
 
 
