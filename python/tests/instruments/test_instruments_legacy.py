@@ -12,7 +12,7 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
-from rateslib.instruments.components import (
+from rateslib.instruments import (
     CDS,
     FRA,
     IIRS,
@@ -41,11 +41,11 @@ from rateslib.instruments.components import (
     STIRFuture,
     Value,
 )
-from rateslib.instruments.components.bonds.conventions import US_GB
-from rateslib.instruments.components.protocols.kwargs import (
+from rateslib.instruments.bonds.conventions import US_GB
+from rateslib.instruments.protocols.kwargs import (
     _KWArgs,
 )
-from rateslib.instruments.components.protocols.pricing import (
+from rateslib.instruments.protocols.pricing import (
     _Curves,
     _Vol,
 )
@@ -53,7 +53,7 @@ from rateslib.instruments.components.protocols.pricing import (
 # from rateslib.instruments.utils import (
 #     _get_curves_fx_and_base_maybe_from_solver,
 # )
-from rateslib.legs.components import Amortization
+from rateslib.legs import Amortization
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
 
@@ -5254,7 +5254,7 @@ class TestSpec:
             spec="us_gbb",
             convention="act365f",
         )
-        from rateslib.instruments.components.bonds.conventions import US_GBB
+        from rateslib.instruments.bonds.conventions import US_GBB
 
         assert bill.kwargs.meta["calc_mode"] == US_GBB
         assert bill.kwargs.leg1["convention"] == "act365f"

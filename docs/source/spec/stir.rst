@@ -4,7 +4,7 @@
    :suppress:
 
    from rateslib import defaults
-   from rateslib.instruments.components import STIRFuture
+   from rateslib.instruments import STIRFuture
 
 *************
 STIR Futures

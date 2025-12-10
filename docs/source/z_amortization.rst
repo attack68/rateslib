@@ -5,7 +5,7 @@
 
    from rateslib.curves import *
    from rateslib.instruments import *
-   from rateslib.legs.components import *
+   from rateslib.legs import *
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np

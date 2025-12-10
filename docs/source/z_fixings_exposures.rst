@@ -6,7 +6,7 @@
    from rateslib.curves import *
    from rateslib.instruments import *
    from rateslib.scheduling import get_imm
-   from rateslib.instruments.components import STIRFuture
+   from rateslib.instruments import STIRFuture
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np

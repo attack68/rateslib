@@ -149,7 +149,7 @@ be supplied manually if and when required.
       .. ipython:: python
          :suppress:
 
-         from rateslib.instruments.components import STIRFuture
+         from rateslib.instruments import STIRFuture
 
       .. ipython:: python
 

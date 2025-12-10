@@ -76,7 +76,7 @@ Instruments
 Objects
 ^^^^^^^^
 
-.. automodapi:: rateslib.instruments.components
+.. automodapi:: rateslib.instruments
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
@@ -125,7 +125,7 @@ Link to the :ref:`Legs<legs-doc>` section in the user guide.
 Objects
 ^^^^^^^^
 
-.. automodapi:: rateslib.legs.components
+.. automodapi:: rateslib.legs
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
@@ -134,7 +134,7 @@ Objects
 Protocols
 ^^^^^^^^^
 
-.. automodapi:: rateslib.legs.components.protocols
+.. automodapi:: rateslib.legs.protocols
    :no-inheritance-diagram:
    :headings: "^-"
    :no-heading:
@@ -147,7 +147,7 @@ Link to the :ref:`Periods<periods-doc>` section in the user guide.
 Objects
 ^^^^^^^^
 
-.. automodapi:: rateslib.periods.components
+.. automodapi:: rateslib.periods
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
@@ -158,7 +158,7 @@ Protocols
 
 *Period* protocols establish common functionality and methods that all *Periods* share consistently.
 
-.. automodapi:: rateslib.periods.components.protocols
+.. automodapi:: rateslib.periods.protocols
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
@@ -169,7 +169,7 @@ Parameters
 
 *Period* parameters define containers for input values used in the construction of functionality.
 
-.. automodapi:: rateslib.periods.components.parameters
+.. automodapi:: rateslib.periods.parameters
    :no-inheritance-diagram:
    :headings: "^-"
    :inherited-members:
@@ -184,7 +184,7 @@ Parameters
 Class Inheritance Diagram
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. inheritance-diagram:: rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.protocols._BasePeriodStatic rateslib.periods.components.protocols._BasePeriod rateslib.periods.components.FloatPeriod rateslib.periods.components.Cashflow rateslib.periods.components.FixedPeriod
+.. inheritance-diagram:: rateslib.periods.protocols._BasePeriod rateslib.periods.protocols._BasePeriodStatic rateslib.periods.protocols._BasePeriod rateslib.periods.FloatPeriod rateslib.periods.Cashflow rateslib.periods.FixedPeriod
    :private-bases:
    :parts: 1
 

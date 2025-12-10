@@ -417,7 +417,7 @@ is indexed according to the 2nd Jan '22.
 .. ipython:: python
    :suppress:
 
-   from rateslib.periods.components import FloatPeriod
+   from rateslib.periods import FloatPeriod
 
 .. ipython:: python
 
