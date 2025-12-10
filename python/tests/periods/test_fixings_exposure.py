@@ -8,7 +8,7 @@ from rateslib import fixings
 from rateslib.curves import Curve
 from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.instruments import IRS
-from rateslib.periods.components import FixedPeriod, FloatPeriod
+from rateslib.periods import FixedPeriod, FloatPeriod
 from rateslib.solver import Solver
 
 

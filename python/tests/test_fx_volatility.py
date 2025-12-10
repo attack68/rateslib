@@ -26,7 +26,7 @@ from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _FXSabrSmileNodes,
 )
-from rateslib.periods.components import FXCallPeriod
+from rateslib.periods import FXCallPeriod
 from rateslib.scheduling import get_calendar
 
 

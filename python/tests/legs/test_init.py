@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib.legs.components.fixed import FixedLeg
+from rateslib.legs.fixed import FixedLeg
 from rateslib.scheduling import Schedule
 
 

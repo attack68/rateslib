@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib.curves import Curve
-from rateslib.periods.components import Cashflow
+from rateslib.periods import Cashflow
 
 
 class TestStaticNPV:

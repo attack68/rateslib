@@ -10,7 +10,7 @@ from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.fx import FXForwards, FXRates
-from rateslib.instruments.components import (
+from rateslib.instruments import (
     IRS,
     Bill,
     BondFuture,
@@ -18,7 +18,7 @@ from rateslib.instruments.components import (
     FloatRateNote,
     IndexFixedRateBond,
 )
-from rateslib.instruments.components.bonds.conventions import US_GBB, BondCalcMode
+from rateslib.instruments.bonds.conventions import US_GBB, BondCalcMode
 from rateslib.scheduling import dcf, get_calendar
 from rateslib.solver import Solver
 
@@ -2664,7 +2664,7 @@ class TestBill:
         assert result == 0.4985413405436174
 
     def test_custom_calc_mode(self):
-        from rateslib.instruments.components.bonds import BillCalcMode
+        from rateslib.instruments.bonds import BillCalcMode
 
         cm = BillCalcMode(price_type="simple", ytm_clone_kwargs="uk_gb")
         bill = Bill(
