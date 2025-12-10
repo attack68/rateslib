@@ -11,7 +11,9 @@ from rateslib.curves import Curve
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.components.protocols import _BaseInstrument, _KWArgs
-from rateslib.periods.utils import _get_fx_and_base
+from rateslib.periods.components.utils import (
+    _maybe_local,
+)
 from rateslib.rs import Adjuster, Cal, RollDay
 from rateslib.scheduling import add_tenor
 from rateslib.scheduling.calendars import _get_years_and_months
@@ -1120,10 +1122,12 @@ class BondFuture(_BaseInstrument):
         future_price = self.rate(
             curves=curves, solver=solver, fx=fx, base=base, metric="future_price"
         )
-        currency = self.kwargs.meta["currency"].lower()  # type: ignore[union-attr]
-        fx_, base_ = _get_fx_and_base(currency, fx, base)
-        npv_ = future_price / 100 * -self.notional
-        if local:
-            return {currency: npv_}
-        else:
-            return npv_ * fx_
+        local_npv = future_price / 100 * -self.notional
+        return _maybe_local(
+            value=local_npv,
+            local=local,
+            currency=self.kwargs.meta["currency"].lower(),
+            fx=fx,
+            base=base,
+            forward=forward,
+        )

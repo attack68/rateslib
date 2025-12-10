@@ -26,7 +26,7 @@ from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _FXSabrSmileNodes,
 )
-from rateslib.periods.fx_volatility import FXCallPeriod
+from rateslib.periods.components import FXCallPeriod
 from rateslib.scheduling import get_calendar
 
 
@@ -1961,7 +1961,6 @@ class TestFXSabrSurface:
             pair="eurusd",
             expiry=option_expiry,
             delivery=option_expiry,
-            payment=option_expiry,
             strike=NoInput(0),
             delta_type="forward",
         )

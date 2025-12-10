@@ -115,10 +115,6 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
-    IndexCashflow,
-    IndexFixedPeriod,
-    NonDeliverableCashflow,
-    NonDeliverableFixedPeriod,
 )
 from rateslib.scheduling import (
     Adjuster,
@@ -224,12 +220,8 @@ __all__ = [
     "FixedPeriod",
     "FloatPeriod",
     "Cashflow",
-    "IndexCashflow",
-    "IndexFixedPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
-    "NonDeliverableCashflow",
-    "NonDeliverableFixedPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py
