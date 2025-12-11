@@ -63,20 +63,20 @@ earlier pre-rust 1.1.0 version.
      - Recommended Version
      - Earliest Tested
    * - Python
+     - 3.14
      - 3.13
-     - 3.12
      - 3.10 (Oct '21)
    * - NumPy
-     - 2.2.2
-     - 2.2.2
+     - 2.3.5
+     - 2.2.6
      - 1.21.5 (Dec '21)
    * - Pandas
-     - 2.2.3
+     - 2.3.3
      - 2.2.3
      - 1.4.1 (Feb '22)
    * - Matplotlib
-     - 3.10.0
-     - 3.9.3
+     - 3.10.8
+     - 3.9.4
      - 3.5.1 (Dec '21)
 
 

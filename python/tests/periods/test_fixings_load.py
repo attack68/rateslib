@@ -417,14 +417,15 @@ class TestRateParams:
         assert p.rate_params.rate_fixing.identifier == "TEST_12M"
 
     def test_ibor_stub_fixing_identifier(self):
-        p = FloatPeriod(
-            start=dt(2000, 1, 1),
-            end=dt(2000, 3, 1),
-            frequency=Frequency.Months(3, None),
-            payment=dt(2000, 1, 4),
-            fixing_method=FloatFixingMethod.IBOR,
-            stub=True,
-            rate_fixings="TEST",
-        )
-        assert p.rate_params.fixing_identifier == "TEST"
-        assert p.rate_params.rate_fixing.identifier == "TEST"
+        with pytest.warns(UserWarning, match=err.UW_NO_TENORS[:15]):
+            p = FloatPeriod(
+                start=dt(2000, 1, 1),
+                end=dt(2000, 3, 1),
+                frequency=Frequency.Months(3, None),
+                payment=dt(2000, 1, 4),
+                fixing_method=FloatFixingMethod.IBOR,
+                stub=True,
+                rate_fixings="TEST",
+            )
+            assert p.rate_params.fixing_identifier == "TEST"
+            assert p.rate_params.rate_fixing.identifier == "TEST"

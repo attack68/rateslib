@@ -56,6 +56,8 @@ that it intends to value.
 
 Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args only.
 
+
+
 .. list-table::
    :widths: 25 75
    :header-rows: 1
@@ -137,6 +139,10 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
        - The TYO calendar corrects an Autumnal Equinox and adds *Bridge Holiday*.
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
+   * - **Developers**
+     - - The PyO3 version is upgraded to 0.27. (`1110 <https://github.com/attack68/rateslib/pull/1110>`_)
+       - Supporting versions of Python 3.14, pandas 2.3.3 and numpy 2.3.5 are now integrated
+         into the CI tests.
 
 2.1.1 (12th August 2025)
 ***************************

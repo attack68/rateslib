@@ -1505,20 +1505,22 @@ class _IBORRate:
         if isinstance(rate_fixings, str | Series):
             if isinstance(rate_fixings, str):
                 identifier = rate_fixings
-                fixings_ = fixings[identifier][1]
+                _, fixings_, bounds = fixings[identifier]
             else:
                 identifier = "<SERIES_OBJECT>"
                 fixings_ = rate_fixings
+                bounds = (rate_fixings.index.min(), rate_fixings.index.max())
 
-            try:
-                fixing = fixings_.loc[fixing_date]
-                return Ok(fixing + float_spread / 100.0)
-            except KeyError:
-                warnings.warn(
-                    f"Fixings are provided in series: '{identifier}', but the value for required"
-                    f" date: {fixing_date} is not found.\nAttempting to forecast from "
-                    f"the `rate_curve`.",
-                )
+            if fixing_date <= bounds[1]:
+                try:
+                    fixing = fixings_.loc[fixing_date]
+                    return Ok(fixing + float_spread / 100.0)
+                except KeyError:
+                    warnings.warn(
+                        f"Fixings are provided in series: '{identifier}', but the value for "
+                        f" date: {fixing_date} is not found.\nAttempting to forecast from "
+                        f"the `rate_curve`.",
+                    )
             return _IBORRate._rate_tenor_forecast_from_curve(
                 rate_curve=rate_curve,
                 fixing_date=fixing_date,

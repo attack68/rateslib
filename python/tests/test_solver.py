@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 from pandas import DataFrame, MultiIndex
+from pandas.errors import PerformanceWarning
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
@@ -1569,9 +1570,12 @@ def test_solver_gamma_pnl_explain() -> None:
             names=["type", "solver", "label"],
         ),
     )
-    assert_frame_equal(
-        gamma_base.loc[("all", "eur")], expected_gamma.loc[("eur", "eur")], atol=1e-2, rtol=1e-4
-    )
+    with warnings.catch_warnings():
+        # TODO: pandas 3.0.0 can optionally turn off these PerformanceWarnings
+        warnings.simplefilter(action="ignore", category=PerformanceWarning)
+        assert_frame_equal(
+            gamma_base.loc[("all", "eur")], expected_gamma.loc[("eur", "eur")], atol=1e-2, rtol=1e-4
+        )
 
 
 def test_gamma_with_fxrates_ad_order_1_raises() -> None:
