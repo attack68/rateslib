@@ -559,11 +559,11 @@ class BondFuture(_BaseInstrument):
             ],
             index=range(len(basket)),
         )
-        df["Price"] = prices
-        df["YTM"] = [bond.ytm(prices[i], settlement, dirty=dirty) for i, bond in enumerate(basket)]
-        df["C.Factor"] = self.cfs
-        df["Gross Basis"] = self.gross_basis(future_price, prices, settlement, dirty=dirty)
-        df["Implied Repo"] = self.implied_repo(
+        df["Price"] = prices  # type: ignore[assignment]
+        df["YTM"] = [bond.ytm(prices[i], settlement, dirty=dirty) for i, bond in enumerate(basket)]  # type: ignore[assignment]
+        df["C.Factor"] = self.cfs  # type: ignore[assignment]
+        df["Gross Basis"] = self.gross_basis(future_price, prices, settlement, dirty=dirty)  # type: ignore[assignment]
+        df["Implied Repo"] = self.implied_repo(  # type: ignore[assignment]
             future_price,
             prices,
             settlement,
@@ -571,8 +571,8 @@ class BondFuture(_BaseInstrument):
             convention,
             dirty=dirty,
         )
-        df["Actual Repo"] = r_
-        df["Net Basis"] = self.net_basis(
+        df["Actual Repo"] = r_  # type: ignore[assignment]
+        df["Net Basis"] = self.net_basis(  # type: ignore[assignment]
             future_price,
             prices,
             r_,
