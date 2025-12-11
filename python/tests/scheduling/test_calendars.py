@@ -675,3 +675,16 @@ def test_fed_sunday_to_monday():
     fed = get_calendar("fed")
     assert fed.is_bus_day(dt(2021, 12, 24))
     assert not fed.is_bus_day(dt(2022, 12, 26))
+
+
+def test_syd_nsw_holidays():
+    cal = get_calendar("syd")
+    assert not cal.is_bus_day(dt(1970, 8, 3))
+    assert not cal.is_bus_day(dt(1970, 10, 5))
+
+
+def test_wlg_changes():
+    cal = get_calendar("wlg")
+    assert not cal.is_bus_day(dt(2022, 9, 26))
+    assert not cal.is_bus_day(dt(2025, 1, 20))
+    assert not cal.is_bus_day(dt(2025, 1, 27))

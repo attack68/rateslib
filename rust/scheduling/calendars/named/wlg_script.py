@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 from dateutil.relativedelta import MO
@@ -57,18 +57,43 @@ def matariki_hol(dt: datetime) -> datetime:
     return dt
 
 
+def monday_nearest(dt: datetime) -> datetime:
+    """
+    Return the Monday nearest to the given date (dt);
+    Used for Wellington and Auckland anniversaries.
+    """
+    # If already Monday
+    if dt.weekday() == 0:
+        return dt
+
+    # Previous Monday
+    prev_mon = dt - timedelta(days=dt.weekday())
+    # Next Monday
+    next_mon = prev_mon + timedelta(days=7)
+
+    # Pick whichever Monday is closer
+    if (dt - prev_mon) <= (next_mon - dt):
+        return prev_mon
+    else:
+        return next_mon
+
+
 RULES = [
-    Holiday("New Year's Day", month=1, day=1),
-    Holiday("Day After New Year's Day", month=1, day=2),
+    Holiday("New Year's Day", month=1, day=1, observance=next_monday),
+    Holiday("Day After New Year's Day", month=1, day=2, observance=next_monday_or_tuesday),
+    Holiday("Wellington Anniversary Day", month=1, day=22, observance=monday_nearest),
+    Holiday("Auckland Anniversary Day", month=1, day=29, observance=monday_nearest),
     Holiday("Waitangi Day", month=2, day=6, observance=next_monday),
     Holiday("Good Friday", month=1, day=1, offset=[Easter(), Day(-2)]),
     Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)]),
-    Holiday("Anzac Day", month=4, day=25),
-    Holiday("King's Birthday", month=6, day=1, offset=DateOffset(weekday=MO(2))),
+    Holiday("Anzac Day", month=4, day=25, observance=next_monday),
+    Holiday("King's Birthday", month=6, day=1, offset=DateOffset(weekday=MO(1))),
     Holiday("Matariki", month=1, day=1, observance=matariki_hol),
-    Holiday("Labour Day", month=10, day=31, offset=DateOffset(weekday=MO(-1))),
+    Holiday("Labour Day", month=10, day=1, offset=DateOffset(weekday=MO(4))),
     Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday),
     Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday),
+    # one off
+    Holiday("Queen Elizabeth II Memorial Day", year=2022, month=9, day=26),
 ]
 
 CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]
