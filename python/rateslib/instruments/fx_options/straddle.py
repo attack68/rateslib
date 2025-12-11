@@ -213,7 +213,7 @@ class FXStraddle(FXOptionStrat):
                 premium=premium[0],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[0],  # type: ignore[index]
+                vol=vol_[0],
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -235,7 +235,7 @@ class FXStraddle(FXOptionStrat):
                 premium=premium[1],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[1],  # type: ignore[index]
+                vol=vol_[1],
                 metric=NoInput(0),
                 spec=spec,
             ),

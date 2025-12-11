@@ -594,7 +594,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
             return self._index_vol_and_strike_from_atm_sabr(f, eta_0, vol)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             f_: DualTypes = f  # type: ignore[assignment]
-            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol
+            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_atm_dv(
                 f_,
                 eta_0,
@@ -620,7 +620,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
             f_d: DualTypes = f.rate(self.fx_option_params.pair, self.fx_option_params.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            f_d = f
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes, f_d: DualTypes, fx: DualTypes | FXForwards, as_float: bool
@@ -638,7 +638,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
@@ -765,7 +765,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
             return self._index_vol_and_strike_from_delta_sabr(delta, delta_type, vol, z_w, f)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             f_: DualTypes = f  # type: ignore[assignment]
-            vol_: DualTypes | FXDeltaVolSmile = vol
+            vol_: DualTypes | FXDeltaVolSmile = vol  # type: ignore[assignment]
             return self._index_vol_and_strike_from_delta_dv(
                 f_,
                 delta,
@@ -854,7 +854,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
             f_d: DualTypes = f.rate(self.fx_option_params.pair, self.fx_option_params.delivery)
             # _ad = _set_ad_order_objects([0], [f])  # GH755
         else:
-            f_d = f
+            f_d = f  # type: ignore[assignment]
 
         def root1d(
             k: DualTypes,
@@ -893,7 +893,7 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol
+            vol_: FXSabrSurface = vol  # type: ignore[assignment]
             expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha

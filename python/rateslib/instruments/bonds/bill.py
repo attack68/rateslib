@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import NoInput, _drb
@@ -15,7 +16,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import FixedLeg
@@ -24,12 +25,12 @@ from rateslib.scheduling.frequency import _get_frequency
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
         FXForwards_,
         Number,
+        Sequence,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -200,7 +201,7 @@ class Bill(_BaseBondInstrument):
         return self._leg1
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -217,7 +218,7 @@ class Bill(_BaseBondInstrument):
         convention: str_ = NoInput(0),
         settle: int_ = NoInput(0),
         calc_mode: BillCalcMode | str_ = NoInput(0),
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
         metric: str = "price",
     ):
@@ -271,7 +272,7 @@ class Bill(_BaseBondInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         A Bill has one curve requirements: a disc_curve.
 
@@ -298,15 +299,17 @@ class Bill(_BaseBondInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires only 1 curve types. Got {len(curves)}."
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                disc_curve=curves,
+                disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         vol: VolT_ = NoInput(0),
@@ -314,7 +317,7 @@ class Bill(_BaseBondInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         """
         Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
@@ -345,17 +348,20 @@ class Bill(_BaseBondInstrument):
         -------
         float, Dual, Dual2
         """
-        disc_curve_ = _maybe_get_curve_or_dict_maybe_from_solver(
-            solver=solver,
-            name="disc_curve",
-            curves=self._parse_curves(curves),
-            curves_meta=self.kwargs.meta["curves"],
+        disc_curve_ = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                solver=solver,
+                name="disc_curve",
+                curves=self._parse_curves(curves),
+                curves_meta=self.kwargs.meta["curves"],
+            ),
+            "disc_curve",
         )
         settlement_ = self._maybe_get_settlement(settlement=settlement, disc_curve=disc_curve_)
 
         # scale price to par 100 and make a fwd adjustment according to curve
         price = (
-            self.npv(curves=curves, solver=solver, fx=fx, base=base, local=False)
+            self.npv(curves=curves, solver=solver, local=False)  # type: ignore[operator]
             * 100
             / (-self.leg1.settlement_params.notional * disc_curve_[settlement_])
         )
@@ -387,7 +393,7 @@ class Bill(_BaseBondInstrument):
         """
         acc_frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.leg1._regular_periods[0].period_params.dcf
-        return ((100 / price - 1) / dcf) * 100
+        return ((100 / price - 1) / dcf) * 100  # type: ignore[no-any-return]
 
     def discount_rate(self, price: DualTypes, settlement: datetime) -> DualTypes:
         """
@@ -407,7 +413,7 @@ class Bill(_BaseBondInstrument):
         acc_frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.leg1._regular_periods[0].period_params.dcf
         rate = ((1 - price / 100) / dcf) * 100
-        return rate
+        return rate  # type: ignore[no-any-return]
 
     def price(
         self,
@@ -444,14 +450,14 @@ class Bill(_BaseBondInstrument):
     def _price_discount(self, rate: DualTypes, settlement: datetime) -> DualTypes:
         acc_frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.leg1._regular_periods[0].period_params.dcf
-        return 100 - rate * dcf
+        return 100 - rate * dcf  # type: ignore[no-any-return]
 
     def _price_simple(self, rate: DualTypes, settlement: datetime) -> DualTypes:
         acc_frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, 0)
         dcf = (1 - acc_frac) * self.leg1._regular_periods[0].period_params.dcf
-        return 100 / (1 + rate * dcf / 100)
+        return 100 / (1 + rate * dcf / 100)  # type: ignore[no-any-return]
 
-    def ytm(
+    def ytm(  # type: ignore[override]
         self,
         price: DualTypes,
         settlement: datetime,
@@ -492,11 +498,11 @@ class Bill(_BaseBondInstrument):
         while quasi_ustart > settlement:
             quasi_ustart = frequency.uprevious(quasi_ustart)
 
-        equiv_bond = FixedRateBond(
+        equiv_bond = FixedRateBond(  # type: ignore[abstract]
             effective=quasi_ustart,
             termination=self.leg1.schedule.utermination,
             fixed_rate=0.0,
-            **calc_mode_._ytm_clone_kwargs,
+            **calc_mode_._ytm_clone_kwargs,  # type: ignore[arg-type]
         )
         return equiv_bond.ytm(price, settlement)
 
@@ -527,9 +533,7 @@ class Bill(_BaseBondInstrument):
         # TODO: this is not AD safe: returns only float
         ytm_: float = _dual_float(ytm)
         if metric == "duration":
-            price_: Dual | Dual2 = _to_number(  # type: ignore[assignment]
-                self.price(Variable(ytm_, ["y"]), settlement, dirty=True)
-            )
+            price_ = _to_number(self.price(Variable(ytm_, ["y"]), settlement, dirty=True))
             freq = _get_frequency(
                 self.kwargs.meta["frequency"],
                 self.leg1.schedule.utermination.day,

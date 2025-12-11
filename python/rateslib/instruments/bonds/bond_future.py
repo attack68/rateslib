@@ -22,10 +22,8 @@ from rateslib.solver import Solver
 if TYPE_CHECKING:
     from rateslib.typing import (
         Any,
-        Curves_,
         CurvesT_,
         DualTypes,
-        DualTypes_,
         FixedRateBond,
         FXForwards_,
         Solver_,
@@ -240,7 +238,7 @@ class BondFuture(_BaseInstrument):
             calc_mode=calc_mode,
             metric=metric,
         )
-        instrument_args = dict()
+        instrument_args: dict[str, Any] = dict()
         # set defaults for missing values
         default_args = dict(
             calc_mode=defaults.calc_mode_futures,
@@ -273,7 +271,7 @@ class BondFuture(_BaseInstrument):
         elif isinstance(kw["delivery"], NoInput):
             raise ValueError("`delivery` must be a datetime or sequence of datetimes.")
         else:
-            kw["delivery"] = tuple(kw["delivery"])  # type: ignore[assignment, arg-type]
+            kw["delivery"] = tuple(kw["delivery"])
 
         if isinstance(kw["coupon"], NoInput):
             raise ValueError("`coupon` must be value.")
@@ -292,8 +290,8 @@ class BondFuture(_BaseInstrument):
         -------
         float
         """
-        nominal: DualTypes = self.kwargs.meta["nominal"]  # type: ignore[assignment]
-        contracts: DualTypes = self.kwargs.meta["contracts"]  # type: ignore[assignment]
+        nominal: DualTypes = self.kwargs.meta["nominal"]
+        contracts: DualTypes = self.kwargs.meta["contracts"]
         _: DualTypes = nominal * contracts * -1
         return _  # long positions is negative notn
 
@@ -369,23 +367,23 @@ class BondFuture(_BaseInstrument):
         }
 
     def _conversion_factors(self) -> tuple[DualTypes, ...]:
-        calc_mode: str = self.kwargs.meta["calc_mode"].lower()  # type: ignore[union-attr]
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
+        calc_mode: str = self.kwargs.meta["calc_mode"].lower()
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         try:
             return tuple(self._cf_funcs[calc_mode](bond) for bond in basket)
         except KeyError:
             raise ValueError("`calc_mode` must be in {'ytm', 'ust_short', 'ust_long'}")
 
     def _cfs_ytm(self, bond: FixedRateBond) -> DualTypes:
-        coupon: DualTypes = self.kwargs.meta["coupon"]  # type: ignore[assignment]
-        delivery: tuple[datetime, datetime] = self.kwargs.meta["delivery"]  # type: ignore[assignment]
+        coupon: DualTypes = self.kwargs.meta["coupon"]
+        delivery: tuple[datetime, datetime] = self.kwargs.meta["delivery"]
         return bond.price(coupon, delivery[0]) / 100
 
     def _cfs_ust(self, bond: FixedRateBond, short: bool) -> float:
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See CME pdf in doc Notes for formula.
-        coupon = _dual_float(bond.fixed_rate / 100.0)
-        delivery: datetime = self.kwargs.meta["delivery"][0]  # type: ignore[assignment, index]
+        coupon = _dual_float(bond.fixed_rate / 100.0)  # type: ignore[operator]  # fixed rate is given
+        delivery: datetime = self.kwargs.meta["delivery"][0]
         n, z = _get_years_and_months(delivery, bond.leg1.schedule.termination)
         if not short:
             mapping = {
@@ -429,7 +427,7 @@ class BondFuture(_BaseInstrument):
     def _cfs_eurex_eur(self, bond: FixedRateBond) -> float:
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See EUREX specs
-        dd: datetime = self.kwargs.meta["delivery"][1]  # type: ignore[index, assignment, misc]
+        dd: datetime = self.kwargs.meta["delivery"][1]
         i = bond.leg1._period_index(dd)
         ncd = bond.leg1._regular_periods[i].period_params.end
         ncd1y = add_tenor(ncd, "-1y", "none")
@@ -449,9 +447,9 @@ class BondFuture(_BaseInstrument):
             act2 = float((ncd1y - ncd2y).days)
 
         f = 1.0 + d_e / act1
-        c = bond.fixed_rate
+        c: DualTypes = bond.fixed_rate  # type: ignore[assignment]
         n = round((bond.leg1.schedule.termination - ncd).days / 365.25)
-        not_: DualTypes = self.kwargs.meta["coupon"]  # type: ignore[assignment]
+        not_: DualTypes = self.kwargs.meta["coupon"]
 
         _ = 1.0 + not_ / 100
 
@@ -463,7 +461,7 @@ class BondFuture(_BaseInstrument):
         # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
         # See EUREX specs
 
-        dd: datetime = self.kwargs.meta["delivery"][1]  # type: ignore[index, assignment, misc]
+        dd: datetime = self.kwargs.meta["delivery"][1]
         mat = bond.leg1.schedule.termination
         # get full years and full months
         cal = Cal([], [])
@@ -500,8 +498,8 @@ class BondFuture(_BaseInstrument):
         #     n = n - 1
 
         f = f / 12.0
-        c = bond.fixed_rate
-        not_: DualTypes = self.kwargs.meta["coupon"]  # type: ignore[assignment]
+        c: DualTypes = bond.fixed_rate  # type: ignore[assignment]
+        not_: DualTypes = self.kwargs.meta["coupon"]
 
         v = 1.0 / (1.0 + not_ / 100.0)
         cf = v**f * (c / not_ * (1.0 + not_ / 100.0 - v**n) + v**n) - c * (1 - f) / 100.0
@@ -542,7 +540,7 @@ class BondFuture(_BaseInstrument):
         -------
         DataFrame
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         if not isinstance(repo_rate, tuple | list):
             r_ = (repo_rate,) * len(basket)
         else:
@@ -622,10 +620,10 @@ class BondFuture(_BaseInstrument):
         -----
         This method only operates when the CTD basket has multiple securities
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         if len(basket) == 1:
             raise ValueError("Multi-security analysis cannot be performed with one security.")
-        delivery = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        delivery = _drb(self.kwargs.meta["delivery"][1], delivery)
 
         # build a curve for pricing
         today = basket[0].leg1.schedule.calendar.lag_bus_days(
@@ -704,7 +702,7 @@ class BondFuture(_BaseInstrument):
         -------
         tuple
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         if dirty:
             if isinstance(settlement, NoInput):
                 raise ValueError("`settlement` must be specified if `dirty` is True.")
@@ -751,8 +749,8 @@ class BondFuture(_BaseInstrument):
         -------
         tuple
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
-        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
+        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
         if not isinstance(repo_rate, Sequence):
             r_: Sequence[DualTypes] = (repo_rate,) * len(basket)
@@ -821,8 +819,8 @@ class BondFuture(_BaseInstrument):
         -------
         tuple
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
-        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
+        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
         implied_repos: tuple[DualTypes, ...] = tuple()
         for i, bond in enumerate(basket):
@@ -859,8 +857,8 @@ class BondFuture(_BaseInstrument):
         -------
         tuple
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
-        settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
+        settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
         adjusted_prices = [future_price * cf for cf in self.cfs]
         yields = tuple(bond.ytm(adjusted_prices[i], settlement) for i, bond in enumerate(basket))
         return yields
@@ -906,8 +904,8 @@ class BondFuture(_BaseInstrument):
            future.ytm(112.98)
            future.ytm(112.98 + risk[0] / 100)
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
-        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
+        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
         _: tuple[float, ...] = ()
         for i, bond in enumerate(basket):
@@ -960,8 +958,8 @@ class BondFuture(_BaseInstrument):
            future.duration(112.98 + risk[0] / 100)
         """
         # TODO: Not AD safe becuase dependent convexity method is not AD safe. Returns float.
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
-        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)  # type: ignore[index, misc]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
+        f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
         _: tuple[float, ...] = ()
         for i, bond in enumerate(basket):
@@ -1024,7 +1022,7 @@ class BondFuture(_BaseInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         vol: VolT_ = NoInput(0),
@@ -1032,7 +1030,7 @@ class BondFuture(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
+    ) -> DualTypes:
         """
         Return various pricing metrics of the security calculated from
         :class:`~rateslib.curves.Curve` s.
@@ -1071,12 +1069,12 @@ class BondFuture(_BaseInstrument):
         This method determines the *'futures_price'* and *'ytm'*  by assuming a net
         basis of zero and pricing from the cheapest to delivery (CTD).
         """
-        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]  # type: ignore[assignment]
+        basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
         if metric_ not in ["future_price", "ytm"]:
             raise ValueError("`metric` must be in {'future_price', 'ytm'}.")
 
-        f_settlement = _drb(self.kwargs.meta["delivery"][1], settlement)  # type: ignore[index, misc]
+        f_settlement = _drb(self.kwargs.meta["delivery"][1], settlement)
         prices_: list[DualTypes] = [
             bond.rate(
                 curves=curves,

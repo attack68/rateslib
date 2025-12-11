@@ -25,7 +25,12 @@ from rateslib.scheduling import get_calendar
 from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number
+    from rateslib.typing import (  # pragma: no cover
+        CalInput,
+        CurveInterpolator,
+        DualTypes,
+        Number,
+    )
 
 
 class CurveRs:

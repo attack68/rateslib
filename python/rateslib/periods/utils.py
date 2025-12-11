@@ -18,6 +18,7 @@ if TYPE_CHECKING:
         Any,
         CurveOption_,
         DualTypes,
+        FXForwards_,
         _BaseCurve,
         _BaseCurve_,
         _FXVolOption_,
@@ -30,7 +31,7 @@ def _maybe_local(
     value: DualTypes,
     local: bool,
     currency: str,
-    fx: FX_,
+    fx: FXForwards_,
     base: str_,
     forward: datetime_,
 ) -> dict[str, DualTypes] | DualTypes:
@@ -48,7 +49,7 @@ def _maybe_local(
 def _maybe_fx_converted(
     value: DualTypes,
     currency: str,
-    fx: FX_,
+    fx: FXForwards_,
     base: str_,
     forward: datetime_,
 ) -> DualTypes:
@@ -61,7 +62,7 @@ def _maybe_fx_converted(
 
 def _get_immediate_fx_scalar_and_base(
     currency: str,
-    fx: FX_,
+    fx: FXForwards_,
     base: str_,
 ) -> tuple[DualTypes, str]:
     """
@@ -70,11 +71,11 @@ def _get_immediate_fx_scalar_and_base(
     FX rate is 1.0
     """
     if isinstance(base, NoInput) or base is None:
-        if isinstance(fx, NoInput | (FXRates | FXForwards)):
+        if isinstance(fx, NoInput | FXRates | FXForwards):
             return 1.0, currency
         else:  # fx is DualTypes
-            if abs(fx - 1.0) < 1e-10:
-                return fx, currency  # base is assumed
+            if abs(fx - 1.0) < 1e-10:  # type: ignore[operator]
+                return fx, currency  # type: ignore[return-value]  # base is assumed
             else:
                 warnings.warn(
                     "It is not best practice to provide `fx` as numeric since this can "
@@ -86,7 +87,7 @@ def _get_immediate_fx_scalar_and_base(
                     f"[fx=FXRates({{'{currency}bas': {fx}}}), base='bas'].",
                     UserWarning,
                 )
-            return fx, "Unspecified"  # base is unknown
+            return fx, "Unspecified"  # type: ignore[return-value]  # base is unknown
     else:  # base is str
         if isinstance(fx, NoInput):
             if base != currency:
@@ -104,7 +105,7 @@ def _get_immediate_fx_scalar_and_base(
             else:
                 return fx.rate(pair=f"{currency}{base}"), base
         else:  # FX is DualTypes
-            if abs(fx - 1.0) < 1e-10:
+            if abs(fx - 1.0) < 1e-10:  # type: ignore[operator]
                 pass  # no warning when fx == 1.0
             elif base == currency:
                 raise ValueError(
@@ -122,7 +123,7 @@ def _get_immediate_fx_scalar_and_base(
                     f"[fx=FXRates({{'{currency}{base}': {fx}}}), base='{base}'].",
                     DeprecationWarning,
                 )
-            return fx, base
+            return fx, base  # type: ignore[return-value]
 
 
 def _get_vol_maybe_from_obj(

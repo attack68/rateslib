@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
@@ -12,7 +13,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import FixedLeg
@@ -20,13 +21,13 @@ from rateslib.legs import FixedLeg
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
         Frequency,
         FXForwards_,
         RollDay,
+        Sequence,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -163,7 +164,7 @@ class FixedRateBond(_BaseBondInstrument):
         return self._leg1
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -188,11 +189,11 @@ class FixedRateBond(_BaseBondInstrument):
         # settlement parameters
         currency: str_ = NoInput(0),
         notional: float_ = NoInput(0),
-        amortization: float_ = NoInput(0),
+        # amortization: float_ = NoInput(0),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         calc_mode: BondCalcMode | str_ = NoInput(0),
         settle: int_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -217,7 +218,7 @@ class FixedRateBond(_BaseBondInstrument):
             # settlement
             currency=currency,
             notional=notional,
-            amortization=amortization,
+            # amortization=amortization,
             # rate
             fixed_rate=fixed_rate,
             # meta
@@ -257,7 +258,7 @@ class FixedRateBond(_BaseBondInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An FRB has one curve requirements: a disc_curve.
 
@@ -284,15 +285,17 @@ class FixedRateBond(_BaseBondInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires only 1 curve types. Got {len(curves)}."
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                disc_curve=curves,
+                disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         vol: VolT_ = NoInput(0),
@@ -302,28 +305,31 @@ class FixedRateBond(_BaseBondInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
-        if metric_ in ["clean_price", "dirty_price", "ytm"]:
-            _curves = self._parse_curves(curves)
-            disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+
+        _curves = self._parse_curves(curves)
+        disc_curve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
                 curves=_curves,
                 name="disc_curve",
                 solver=solver,
-            )
-            settlement_ = self._maybe_get_settlement(settlement=settlement, disc_curve=disc_curve)
-            npv = self.leg1.local_npv(
-                disc_curve=disc_curve,
-                settlement=settlement_,
-                forward=settlement_,
-            )
-            # scale price to par 100 (npv is already projected forward to settlement)
-            dirty_price = npv * 100 / -self.leg1.settlement_params.notional
+            ),
+            "disc_curve",
+        )
+        settlement_ = self._maybe_get_settlement(settlement=settlement, disc_curve=disc_curve)
+        npv = self.leg1.local_npv(
+            disc_curve=disc_curve,
+            settlement=settlement_,
+            forward=settlement_,
+        )
+        # scale price to par 100 (npv is already projected forward to settlement)
+        dirty_price = npv * 100 / -self.leg1.settlement_params.notional
 
-            if metric_ == "dirty_price":
-                return dirty_price
-            elif metric_ == "clean_price":
-                return dirty_price - self.accrued(settlement_)
-            elif metric_ == "ytm":
-                return self.ytm(dirty_price, settlement_, True)
+        if metric_ == "dirty_price":
+            return dirty_price
+        elif metric_ == "clean_price":
+            return dirty_price - self.accrued(settlement_)
+        elif metric_ == "ytm":
+            return self.ytm(dirty_price, settlement_, True)
         else:
             raise ValueError("`metric` must be in {'dirty_price', 'clean_price', 'ytm'}.")

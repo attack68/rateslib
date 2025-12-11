@@ -9,16 +9,23 @@ from rateslib.instruments.bonds.protocols.accrued import _WithAccrued
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions import (  # pragma: no cover
-        AccrualFunction,
         BondCalcMode,
+    )
+    from rateslib.instruments.bonds.conventions.accrued import (  # pragma: no cover
+        AccrualFunction,
+    )
+    from rateslib.instruments.bonds.conventions.discounting import (  # pragma: no cover
         CashflowFunction,
         YtmDiscountFunction,
     )
     from rateslib.typing import (  # pragma: no cover
+        Cashflow,
         CurveOption_,
         DualTypes,
         FixedLeg,
+        FixedPeriod,
         FloatLeg,
+        FloatPeriod,
         Number,
         _KWArgs,
         datetime,
@@ -134,7 +141,7 @@ class _WithYTM(_WithAccrued, Protocol):
                 d += cfi * v2 ** (i - 1) * v2i * v1
 
         # Add the redemption payment discounted by relevant factors
-        redemption: Cashflow | IndexCashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]
+        redemption: Cashflow = self.leg1._exchange_periods[1]  # type: ignore[assignment]
         if i == 0:  # only looped 1 period, only use the last discount
             d += self._period_cashflow(redemption, rate_curve) * v1
         elif i == 1:  # only looped 2 periods, no need for v2
@@ -257,7 +264,7 @@ class _WithYTM(_WithAccrued, Protocol):
         return self._ytm(price=price, settlement=settlement, dirty=dirty, rate_curve=rate_curve)
 
     def _period_cashflow(
-        self, period: Cashflow | FixedPeriod, rate_curve: CurveOption_
-    ) -> DualTypes:  # type: ignore[override]
+        self, period: Cashflow | FixedPeriod | FloatPeriod, rate_curve: CurveOption_
+    ) -> DualTypes:
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
-        return period.unindexed_cashflow(rate_curve=rate_curve)  # type: ignore[return-value]  # FixedRate on bond cannot be NoInput
+        return period.unindexed_cashflow(rate_curve=rate_curve)

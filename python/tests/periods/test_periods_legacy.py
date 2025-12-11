@@ -1273,6 +1273,7 @@ class TestFloatPeriod:
         result = float_period.local_analytic_rate_fixings(rate_curve=line_curve, disc_curve=curve)
         assert abs(result.iloc[0, 0] + 24.402790080357686) < 1e-10
 
+    @pytest.mark.skip(reason="`right` removed by v2.5")
     def test_ibor_fixing_table_right(self, line_curve, curve) -> None:
         float_period = FloatPeriod(
             start=dt(2022, 1, 4),
@@ -1878,6 +1879,7 @@ class TestFloatPeriod:
         fixings.pop(f"{name}_1B")
         assert_frame_equal(result, exp)
 
+    @pytest.mark.skip(reason="`right` removed by v2.5")
     @pytest.mark.parametrize(
         ("right", "exp"),
         [
@@ -1907,6 +1909,7 @@ class TestFloatPeriod:
         assert isinstance(result, DataFrame)
         assert len(result.index) == exp
 
+    @pytest.mark.skip(reason="`right` removed by v2.5")
     def test_rfr_fixings_table_right_non_bus_day(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2022, 11, 19): 0.98}, calendar="tgt")
         float_period = FloatPeriod(
@@ -2499,6 +2502,7 @@ class TestFloatPeriod:
         assert abs(result.iloc[0, 0] + 8.0601) < 1e-4
         assert abs(result.iloc[0, 1] + 8.32877) < 1e-4
 
+    @pytest.mark.skip(reason="`right` removed by v2.5")
     def test_ibor_stub_fixings_table_right(self) -> None:
         period = FloatPeriod(
             start=dt(2023, 2, 1),

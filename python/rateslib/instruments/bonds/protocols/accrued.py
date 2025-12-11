@@ -5,14 +5,28 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.instruments.bonds.conventions import AccrualFunction
-    from rateslib.typing import DualTypes, FixedLeg, FloatLeg, _KWArgs, datetime  # pragma: no cover
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction  # pragma: no cover
+    from rateslib.typing import (  # pragma: no cover
+        Cashflow,
+        DualTypes,
+        FixedLeg,
+        FixedPeriod,
+        FloatLeg,
+        FloatPeriod,
+        _BaseCurveOrDict_,
+        _KWArgs,
+        datetime,
+    )
 
 
 class _WithAccrued(Protocol):
     """
     Protocol to determine the *yield-to-maturity* of a bond type *Instrument*.
     """
+
+    def _period_cashflow(
+        self, period: Cashflow | FixedPeriod | FloatPeriod, rate_curve: _BaseCurveOrDict_
+    ) -> DualTypes: ...
 
     @property
     def leg1(self) -> FixedLeg | FloatLeg: ...

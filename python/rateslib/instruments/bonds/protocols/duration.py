@@ -6,7 +6,13 @@ from rateslib.dual import Dual, Dual2, gradient
 from rateslib.dual.utils import _dual_float
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, FixedLeg, FloatLeg, datetime  # pragma: no cover
+    from rateslib.typing import (  # pragma: no cover
+        Any,
+        DualTypes,
+        FixedLeg,
+        FloatLeg,
+        datetime,
+    )
 
 
 class _WithDuration(Protocol):
@@ -14,7 +20,7 @@ class _WithDuration(Protocol):
     Protocol to determine the *yield-to-maturity* of a bond type *Instrument*.
     """
 
-    def price(self, *args, **kwargs) -> DualTypes: ...
+    def price(self, *args: Any, **kwargs: Any) -> DualTypes: ...
 
     @property
     def leg1(self) -> FixedLeg | FloatLeg: ...

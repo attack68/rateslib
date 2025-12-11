@@ -174,6 +174,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
 
     def cashflows_table(
         self,
+        *,
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),

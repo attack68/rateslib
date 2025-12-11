@@ -6,24 +6,26 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib import defaults
 from rateslib.curves._parsers import (
     _maybe_set_ad_order,
+    _validate_obj_not_no_input,
 )
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.protocols import _WithAccrued
 from rateslib.instruments.protocols.pricing import (
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
 )
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolOption_,
         Solver_,
+        VolT_,
         _BaseCurve,
+        _BaseCurveOrDict_,
         _Curves,
         datetime_,
         float_,
@@ -36,15 +38,15 @@ class _WithOASpread(_WithAccrued, Protocol):
     Protocol to determine the *yield-to-maturity* of a bond type *Instrument*.
     """
 
-    def _parse_curves(self, curves: Curves_) -> _Curves: ...
+    def _parse_curves(self, curves: CurvesT_) -> _Curves: ...
 
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        fx_vol: FXVolOption_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -54,9 +56,10 @@ class _WithOASpread(_WithAccrued, Protocol):
     def oaspread(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
         base: str_ = NoInput(0),
         price: DualTypes_ = NoInput(0),
         metric: str_ = NoInput(0),
@@ -145,7 +148,7 @@ class _WithOASpread(_WithAccrued, Protocol):
         _curves = self._parse_curves(curves)
 
         def s_with_args(
-            g: DualTypes, curve: CurveOption_, disc_curve: _BaseCurve, metric: str_
+            g: DualTypes, curve: _BaseCurveOrDict_, disc_curve: _BaseCurve, metric: str_
         ) -> DualTypes:
             """
             Return the price of a bond given an OASpread.
@@ -164,10 +167,13 @@ class _WithOASpread(_WithAccrued, Protocol):
             DualTypes
             """
             _shifted_discount_curve = disc_curve.shift(g)
-            return self.rate(curves=[curve, _shifted_discount_curve], metric=metric)
+            return self.rate(curves=[curve, _shifted_discount_curve], metric=metric)  # type: ignore[list-item]
 
-        disc_curve_ = _maybe_get_curve_or_dict_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
+        disc_curve_ = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "disc_curve", solver
+            ),
+            "disc_curve",
         )
 
         _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
