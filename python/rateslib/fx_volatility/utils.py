@@ -510,7 +510,7 @@ def _validate_weights(
         w[s:e] = (  # type: ignore[misc]
             w[s:e] * days / w[s:e].sum()  # type: ignore[misc]
         )  # scale the weights to allocate the correct time between nodes.
-    w[eval_date] = 0.0
+    w[eval_date] = 0.0  # type: ignore[call-overload]
     return w
 
 

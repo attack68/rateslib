@@ -933,7 +933,7 @@ class RFRFixing(_BaseFixing):
         self._accrual_end = accrual_end
         self._fixing_method = _get_float_fixing_method(fixing_method)
         self._method_param = method_param
-        self._populated = Series(index=[], data=[], dtype=float)
+        self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
 
     @property
     def fixing_method(self) -> FloatFixingMethod:
