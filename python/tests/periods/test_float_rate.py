@@ -1,3 +1,4 @@
+import os
 from datetime import datetime as dt
 
 import pytest
@@ -190,19 +191,18 @@ class TestIBORRate:
 
     def test_tenor_rate_from_fixing_str_fallback(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a curve when no fixing date exists
-        fixings.add("TEST_VALUES_3M", Series(index=[dt(1900, 1, 1)], data=[1.2]))
+        name = str(hash(os.urandom(8)))
+        fixings.add(f"{name}_3M", Series(index=[dt(2001, 1, 1)], data=[1.2]))
         for rate_curve in [
             curve,
             line_curve,
             {"3m": curve, "6m": curve2},
             {"3m": line_curve, "6m": line_curve2},
         ]:
-            with pytest.warns(
-                UserWarning, match="Fixings are provided in series: 'TEST_VALUES_3M',"
-            ):
+            with pytest.warns(UserWarning, match=f"Fixings are provided in series: '{name}_3M',"):
                 result = rate_value(
                     rate_curve=rate_curve,
-                    rate_fixings="TEST_VALUES_3M",
+                    rate_fixings=f"{name}_3M",
                     start=dt(2000, 1, 3),
                     end=dt(2000, 4, 3),
                     stub=False,
@@ -212,7 +212,7 @@ class TestIBORRate:
                     float_spread=18.0,
                 )
             assert abs(result - 2.18) < 1e-12
-        fixings.pop("TEST_VALUES_3M")
+        fixings.pop(f"{name}_3M")
 
     def test_stub_rate_from_fixing_dict(self, curve, line_curve, curve2, line_curve2):
         # test an IBOR rate is calculated correctly from a fixing series

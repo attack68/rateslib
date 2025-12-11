@@ -2663,11 +2663,11 @@ class TestNonMtmXCS:
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
-                "Period": [None, "Regular"],
+                "Period": [np.nan, "Regular"],
                 "Ccy": ["NOK", "USD"],
                 "Notional": [-10000000, -10000000.0],
                 "FX Rate": [0.10002256337062124, 1.0],
-                "FX Fixing": [None, 0.09967340252423884],
+                "FX Fixing": [np.nan, 0.09967340252423884],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 8)]),
         )
@@ -2950,11 +2950,11 @@ class TestNonMtmFixedFloatXCS:
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod"],
-                "Period": [None, "Regular"],
+                "Period": [np.nan, "Regular"],
                 "Ccy": ["NOK", "USD"],
                 "Notional": [-10000000, -10000000.0],
                 "FX Rate": [0.10002256337062124, 1.0],
-                "FX Fixing": [None, 0.09967340252423884],
+                "FX Fixing": [np.nan, 0.09967340252423884],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 8)]),
         )
@@ -3731,12 +3731,12 @@ class TestXCS:
         expected = DataFrame(
             {
                 "Type": ["Cashflow", "FloatPeriod", "MtmCashflow"],
-                "Period": [None, "Regular", None],
+                "Period": [np.nan, "Regular", np.nan],
                 "Ccy": ["NOK", "USD", "USD"],
                 "Notional": [-10000000, -10000000.0, 10000000.0],
-                "Rate": [None, 8.181151773810475, None],
+                "Rate": [np.nan, 8.181151773810475, np.nan],
                 "FX Rate": [0.10002256337062124, 1.0, 1.0],
-                "FX Fixing": [None, 0.0990019249688802, 0.09829871161519926],
+                "FX Fixing": [np.nan, 0.0990019249688802, 0.09829871161519926],
             },
             index=MultiIndex.from_tuples([("leg1", 0), ("leg2", 11), ("leg2", 14)]),
         )

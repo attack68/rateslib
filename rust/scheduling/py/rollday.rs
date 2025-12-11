@@ -22,9 +22,11 @@ impl<'py> IntoPyObject<'py> for RollDayNewArgs {
     }
 }
 
-impl<'py> FromPyObject<'py> for RollDayNewArgs {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ext: PyResult<(u32,)> = ob.extract();
+impl<'py> FromPyObject<'py, 'py> for RollDayNewArgs {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let ext: PyResult<(u32,)> = obj.extract();
         match ext {
             Ok(v) => Ok(RollDayNewArgs::U32(v.0)),
             Err(_) => Ok(RollDayNewArgs::NoArgs()),
