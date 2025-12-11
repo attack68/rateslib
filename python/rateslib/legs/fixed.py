@@ -503,7 +503,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         currency: str_ = NoInput(0),
         # non-deliverable
         pair: str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        fx_fixings: LegFixings = NoInput(0),
         mtm: bool = False,
         # period
         convention: str_ = NoInput(0),

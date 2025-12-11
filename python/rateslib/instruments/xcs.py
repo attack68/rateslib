@@ -454,12 +454,12 @@ class XCS(_BaseInstrument):
         fixed_rate: DualTypes_ = NoInput(0),
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
-        rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        rate_fixings: FixingsRates_ = NoInput(0),
         fixing_method: str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        fx_fixings: LegFixings = NoInput(0),
         leg2_fixed: bool = False,
         leg2_mtm: bool = False,
         leg2_fixed_rate: DualTypes_ = NoInput(0),

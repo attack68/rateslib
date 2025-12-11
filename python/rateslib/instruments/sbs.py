@@ -306,7 +306,7 @@ class SBS(_BaseInstrument):
         # rate parameters
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
-        rate_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        rate_fixings: LegFixings = NoInput(0),
         fixing_method: str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),

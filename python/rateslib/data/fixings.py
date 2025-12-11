@@ -2431,7 +2431,7 @@ def _maybe_get_rate_series_from_curve(
             return rate_series
 
 
-def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[PeriodFixings]:  # type: ignore[type-var]
+def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[PeriodFixings]:
     """Perform a conversion of 'LegRateFixings' into a list of PeriodFixings."""
     if isinstance(rate_fixings, NoInput):
         # NoInput is converted to a list of NoInputs
