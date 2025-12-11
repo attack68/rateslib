@@ -1747,7 +1747,7 @@ class Solver(Gradients, _WithState):
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
         if not isinstance(base, NoInput):
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)  # type: ignore[index]
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
         ret: DataFrame = df.loc[:, sorted_cols].astype("float64")
@@ -2291,7 +2291,7 @@ class Solver(Gradients, _WithState):
             df.loc[indexes[key[0]], (key[1], key[2])] = array
 
         if not isinstance(base, NoInput):
-            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)  # type: ignore[index]
+            df.loc[r_idx, ("all", base)] = df.loc[r_idx, (slice(None), base)].sum(axis=1)
 
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
