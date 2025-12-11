@@ -139,6 +139,12 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
        - The TYO calendar corrects an Autumnal Equinox and adds *Bridge Holiday*.
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
+       - The SYD calendar adds NSW state specific bank holiday and labour day.
+         (`1111 <https://github.com/attack68/rateslib/pull/1111>`_)
+       - The WLG calendar adds 'Anniversary Day', amends the 'King's Birthday',
+         add observation rules for 'New Year's Day' and the day after and 'Anzac Day',
+         and adds the one off 'Queen Elizabeth II Memorial Day'.
+         (`1111 <https://github.com/attack68/rateslib/pull/1111>`_)
    * - **Developers**
      - - The PyO3 version is upgraded to 0.27. (`1110 <https://github.com/attack68/rateslib/pull/1110>`_)
        - Supporting versions of Python 3.14, pandas 2.3.3 and numpy 2.3.5 are now integrated
