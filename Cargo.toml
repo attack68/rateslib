@@ -32,7 +32,7 @@ path = "rust/main.rs"
 serde = { version = "1.0", features = ["derive", "rc"] }
 chrono = { version = "0.4", features = ["serde"] }
 indexmap = { version = "2.7", features = ["serde"] }
-ndarray = { version = "0.16", features = ["serde"] }
+ndarray = { version = "0.17", features = ["serde"] }
 internment = {  version = "0.8", features = ["serde"] }
 pyo3 = "0.27"
 num-traits = "0.2"
