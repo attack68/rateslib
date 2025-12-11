@@ -17,6 +17,8 @@ RULES = [
     Holiday("Easter Monday", month=1, day=1, offset=[Easter(), Day(1)]),
     Holiday("Anzac Day", month=4, day=25),
     Holiday("King's Birthday", month=6, day=1, offset=DateOffset(weekday=MO(2))),
+    Holiday("NSW Bank Holiday", month=8, day=1, offset=DateOffset(weekday=MO(1))),
+    Holiday("NSW Labour Day", month=10, day=1, offset=DateOffset(weekday=MO(1))),
     Holiday("Christmas Day Holiday", month=12, day=25, observance=next_monday),
     Holiday("Boxing Day Holiday", month=12, day=26, observance=next_monday_or_tuesday),
     # One Off
