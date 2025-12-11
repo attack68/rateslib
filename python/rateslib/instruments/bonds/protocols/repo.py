@@ -99,7 +99,7 @@ class _WithRepo(_WithAccrued, Protocol):
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
             c_period = self.leg1._regular_periods[p_idx]
-            c_cashflow: DualTypes = c_period.cashflow()  # type: ignore[assignment]
+            c_cashflow: DualTypes = c_period.cashflow()
             # TODO handle FloatPeriod cashflow fetch if need a curve.
             if method.lower() == "proceeds":
                 dcf_ = dcf(c_period.settlement_params.payment, forward_settlement, convention_)
@@ -196,7 +196,7 @@ class _WithRepo(_WithAccrued, Protocol):
         for p_idx in range(settlement_idx, fwd_settlement_idx):
             # deduct accrued coupon from dirty price
             c_period = self.leg1._regular_periods[p_idx]
-            c_cashflow: DualTypes = c_period.cashflow()  # type: ignore[assignment]
+            c_cashflow: DualTypes = c_period.cashflow()
             # TODO handle FloatPeriod if it needs a Curve to forecast cashflow
             dcf_ = dcf(
                 start=c_period.settlement_params.payment,

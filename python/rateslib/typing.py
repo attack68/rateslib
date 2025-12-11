@@ -101,6 +101,9 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+
+CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
+
 from rateslib.rs import Convention as Convention
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
@@ -197,24 +200,24 @@ FX_: TypeAlias = "FX | NoInput"
 FXRevised_: TypeAlias = "FXRates | FXForwards | NoInput"
 FXForwards_: TypeAlias = "FXForwards | NoInput"
 
-NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
+# NPV: TypeAlias = "DualTypes | dict[str, DualTypes]"
+#
 
-CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
-Leg: TypeAlias = "FixedLeg | FloatLeg | IndexFixedLeg | ZeroFloatLeg | ZeroFixedLeg | ZeroIndexLeg | CreditPremiumLeg | CreditProtectionLeg"
-Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | IndexFixedPeriod | IndexCashflow | CreditPremiumPeriod | CreditProtectionPeriod"
-
-Security: TypeAlias = "FixedRateBond | FloatRateNote | Bill | IndexFixedRateBond"
-FXOptionTypes: TypeAlias = (
-    "FXCall | FXPut | FXRiskReversal | FXStraddle | FXStrangle | FXBrokerFly | FXOptionStrat"
-)
-RatesDerivative: TypeAlias = "IRS | SBS | FRA | ZCS | STIRFuture"
-IndexDerivative: TypeAlias = "IIRS | ZCIS"
-CurrencyDerivative: TypeAlias = "XCS | FXSwap | FXExchange"
-Combinations: TypeAlias = "Portfolio | Fly | Spread | Value | VolValue"
-
-Instrument: TypeAlias = (
-    "Combinations | Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
-)
+# Leg: TypeAlias = "FixedLeg | FloatLeg | ZeroFloatLeg | ZeroFixedLeg | ZeroIndexLeg | CreditPremiumLeg | CreditProtectionLeg"
+# Period: TypeAlias = "FixedPeriod | FloatPeriod | Cashflow | CreditPremiumPeriod | CreditProtectionPeriod"
+#
+# Security: TypeAlias = "FixedRateBond | FloatRateNote | Bill | IndexFixedRateBond"
+# FXOptionTypes: TypeAlias = (
+#     "FXCall | FXPut | FXRiskReversal | FXStraddle | FXStrangle | FXBrokerFly | FXOptionStrat"
+# )
+# RatesDerivative: TypeAlias = "IRS | SBS | FRA | ZCS | STIRFuture"
+# IndexDerivative: TypeAlias = "IIRS | ZCIS"
+# CurrencyDerivative: TypeAlias = "XCS | FXSwap | FXForward"
+# Combinations: TypeAlias = "Portfolio | Fly | Spread | Value | VolValue"
+#
+# Instrument: TypeAlias = (
+#     "Combinations | Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
+# )
 
 
 class SupportsRate:
@@ -225,7 +228,7 @@ class SupportsRate:
 
 class SupportsMetrics:
     def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
-    def npv(self, *args: Any, **kwargs: Any) -> NPV: ...  # type: ignore[empty-body]
+    def npv(self, *args: Any, **kwargs: Any) -> DualTypes | dict[str, DualTypes]: ...  # type: ignore[empty-body]
     def delta(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def gamma(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]
     def cashflows(self, *args: Any, **kwargs: Any) -> DataFrame: ...  # type: ignore[empty-body]

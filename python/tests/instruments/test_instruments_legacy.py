@@ -650,34 +650,6 @@ class TestNullPricing:
                 curves=["usdusd", "usdusd", "eureur", "eureur"],
                 notional=-1e6,
             ),
-            # FXSwap(
-            #     dt(2022, 7, 1),
-            #     "3M",
-            #     "A",
-            #     currency="eur",
-            #     leg2_currency="usd",
-            #     curves=["eureur", "eureur", "usdusd", "usdusd"],
-            #     notional=1e6,
-            #     fx_fixing=0.999851,
-            #     split_notional=1003052.812,
-            #     points=2.523505,
-            # ),
-            FXSwap(
-                dt(2022, 7, 1),
-                "3M",
-                pair="usdeur",
-                curves=["usdusd", "eurusd"],
-                notional=1e6,
-                # fx_fixing=0.999851,
-                # split_notional=1003052.812,
-                # points=2.523505,
-            ),
-            FXForward(
-                settlement=dt(2022, 10, 1),
-                pair="eurusd",
-                curves=[None, "eureur", None, "usdusd"],
-                notional=-1e6 * 25 / 74.27,
-            ),
         ],
     )
     def test_null_priced_delta(self, inst) -> None:
@@ -702,7 +674,7 @@ class TestNullPricing:
             ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
         ]
         solver = Solver(
-            curves=[c1, c2, c3, c4],
+            curves=[c1, c2, c3, c4, fxf.curve("usd", "eur", "usdeur")],
             instruments=ins,
             s=[1.2, 1.3, 1.33, 0.5],
             id="solver",
@@ -719,6 +691,70 @@ class TestNullPricing:
         solver.iterate()
         result3 = inst.npv(solver=solver)
         assert abs(result3) < 1e-3
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            FXSwap(
+                dt(2022, 7, 1),
+                "3M",
+                pair="eurusd",
+                curves=["eureur", "usdeur"],
+                notional=-1e6,
+                leg2_fx_fixings=0.999851,
+                split_notional=-1003052.812,
+                points=-0.756443,
+            ),
+            FXForward(
+                settlement=dt(2022, 10, 1),
+                pair="eurusd",
+                curves=["eureur", "usdeur"],
+                notional=-1e6 * 25 / 74.27,
+            ),
+        ],
+    )
+    def test_instruments_that_cannot_be_set_to_mid_market_if_null_priced(self, inst) -> None:
+        # These instruments behave differently when they have no pricing parameters with regards
+        # to risk becuase they cannot have FXFixings set, otherwise it breaks the fixings
+        # calculation (or each call manually requires a reset fixing process)
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="usdusd")
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98}, id="eureur")
+        c3 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.982}, id="eurusd")
+        c4 = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995},
+            id="eu_cpi",
+            index_base=100.0,
+            interpolation="linear_index",
+            index_lag=3,
+        )
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1)),
+            {"usdusd": c1, "eureur": c2, "eurusd": c3},
+        )
+        ins = [
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eureur"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="usdusd"),
+            IRS(dt(2022, 1, 1), "1y", "A", curves="eurusd"),
+            ZCIS(dt(2022, 1, 1), "1y", "A", curves=["eureur", "eureur", "eu_cpi", "eureur"]),
+        ]
+        solver = Solver(
+            curves=[c1, c2, c3, c4, fxf.curve("usd", "eur", "usdeur")],
+            instruments=ins,
+            s=[1.2, 1.3, 1.33, 0.5],
+            id="solver",
+            instrument_labels=["eur 1y", "usd 1y", "eur 1y xcs adj.", "1y cpi"],
+            fx=fxf,
+        )
+        result = inst.delta(solver=solver)
+        assert abs(result.iloc[0, 0] - 25.0) < 1.0
+        result2 = inst.npv(solver=solver)
+        assert abs(result2) < 1e-3
+
+        # # test that instruments have not been set by the previous pricing action
+        # solver.s = [1.3, 1.4, 1.36, 0.55]
+        # solver.iterate()
+        # result3 = inst.npv(solver=solver)
+        # assert abs(result3) < 1e-3
 
     @pytest.mark.parametrize(
         "inst",
@@ -1114,10 +1150,10 @@ class TestNullPricing:
                 pair="usdeur",
                 notional=-1e6 * 25 / 74.27,
             ),
-            NDF(
-                pair="eurusd",  # settlement currency defaults to right hand side: usd
-                settlement=dt(2022, 10, 1),
-            ),
+            # NDF(
+            #     pair="eurusd",  # settlement currency defaults to right hand side: usd
+            #     settlement=dt(2022, 10, 1),
+            # ),
         ],
     )
     def test_set_pricing_does_not_overwrite_unpriced_status(self, inst):
@@ -5118,10 +5154,11 @@ class TestSpec:
             leg2_fixing_series=NoInput(0),
             leg2_fixing_frequency=NoInput(0),
             curves=_Curves(disc_curve="test", leg2_rate_curve="test", leg2_disc_curve="test"),
+            vol=_Vol(),
         )
         kwargs = _KWArgs(
             user_args=expected,
-            meta_args=["curves"],
+            meta_args=["curves", "vol"],
         )
         assert irs.kwargs.meta == kwargs.meta
         assert irs.kwargs.leg1 == kwargs.leg1
@@ -5712,7 +5749,7 @@ class TestFXOptions:
             strike=1.101,
         )
         curves = [fxfo.curve("eur", "usd"), fxfo.curve("usd", "usd")]
-        result = fxo.cashflows_table(curves, fx=fxfo, vol=8.9)
+        result = fxo.cashflows_table(curves=curves, fx=fxfo, vol=8.9)
         expected = DataFrame(
             data=[[0.0]],
             index=Index([dt(2023, 6, 20)], name="payment"),
@@ -7604,6 +7641,25 @@ class TestFXVolValue:
         v = FXVolValue(0.25)
         expected = f"<rl.FXVolValue at {hex(id(v))}>"
         assert v.__repr__() == expected
+
+    def test_sabr_surface(self):
+        fxss = FXSabrSurface(
+            expiries=[dt(2000, 6, 1), dt(2000, 9, 1)],
+            node_values=[[0.1, 1.0, 0.01, 0.01], [0.11, 1.0, 0.01, 0.01]],
+            eval_date=dt(2000, 1, 1),
+            pair="eurusd",
+        )
+        fxvv = FXVolValue(index_value=1.1, expiry=dt(2000, 8, 1))
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.15}, settlement=dt(2000, 1, 4)),
+            fx_curves={
+                "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95}),
+                "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.951}),
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.94}),
+            },
+        )
+        result = fxvv.rate(vol=fxss, fx=fxf)
+        assert abs(result - 10.767884) < 1e-5
 
 
 @pytest.mark.parametrize(

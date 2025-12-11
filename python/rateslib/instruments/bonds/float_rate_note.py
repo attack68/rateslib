@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.instruments.bonds.conventions import (
@@ -13,6 +14,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
     _Vol,
 )
@@ -24,10 +26,13 @@ if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
         CurveOption_,
-        Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
+        FloatRateSeries,
         FXForwards_,
+        LegFixings,
+        Sequence,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -158,7 +163,7 @@ class FloatRateNote(_BaseBondInstrument):
         return self._leg1
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -186,13 +191,13 @@ class FloatRateNote(_BaseBondInstrument):
         # rate params
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
-        rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        rate_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         fixing_method: str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         calc_mode: BondCalcMode | str_ = NoInput(0),
         settle: int_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -262,7 +267,7 @@ class FloatRateNote(_BaseBondInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An FRN has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
 
@@ -292,16 +297,18 @@ class FloatRateNote(_BaseBondInstrument):
                 raise ValueError(
                     f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
                 )
+        elif isinstance(curves, _Curves):
+            return curves
         else:  # `curves` is just a single input which is copied across all curves
             return _Curves(
-                rate_curve=curves,
-                disc_curve=curves,
+                rate_curve=curves,  # type: ignore[arg-type]
+                disc_curve=curves,  # type: ignore[arg-type]
             )
 
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         vol: VolT_ = NoInput(0),
@@ -313,11 +320,14 @@ class FloatRateNote(_BaseBondInstrument):
         metric = _drb(self.kwargs.meta["metric"], metric).lower()
         _curves = self._parse_curves(curves)
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
-            disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                solver=solver,
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                name="disc_curve",
+            disc_curve = _validate_obj_not_no_input(
+                _maybe_get_curve_maybe_from_solver(
+                    solver=solver,
+                    curves=_curves,
+                    curves_meta=self.kwargs.meta["curves"],
+                    name="disc_curve",
+                ),
+                "disc_curve",
             )
             rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
                 solver=solver,
@@ -463,9 +473,9 @@ class FloatRateNote(_BaseBondInstrument):
                 -self.leg1._regular_periods[acc_idx].settlement_params.notional
                 * self.leg1._regular_periods[acc_idx].period_params.dcf
                 * rate
-                / 100
+                / 100.0
             )
-            return frac * cashflow / -self.leg1.settlement_params.notional * 100
+            return frac * cashflow / -self.leg1.settlement_params.notional * 100.0  # type: ignore[no-any-return]
 
         else:  # is "rfr"
             p = FloatPeriod(
@@ -499,11 +509,16 @@ class FloatRateNote(_BaseBondInstrument):
                 return 0.0
 
             rate_to_settle = p.rate(rate_curve)
-            accrued_to_settle = 100 * p.period_params.dcf * rate_to_settle / 100
+            accrued_to_settle = 100.0 * p.period_params.dcf * rate_to_settle / 100.0
 
             if is_ex_div:
                 rate_to_end = self.leg1._regular_periods[acc_idx].rate(rate_curve=rate_curve)
-                accrued_to_end = 100 * self.leg1._regular_periods[acc_idx].dcf * rate_to_end / 100
+                accrued_to_end = (
+                    100.0
+                    * self.leg1._regular_periods[acc_idx].period_params.dcf
+                    * rate_to_end
+                    / 100.0
+                )
                 return accrued_to_settle - accrued_to_end
             else:
                 return accrued_to_settle

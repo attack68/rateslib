@@ -134,7 +134,7 @@ class _Vol:
         self._fx_vol = fx_vol
 
     @property
-    def fx_vol(self) -> _FXVolOption_:
+    def fx_vol(self) -> FXVol_:
         """The FX vol object used for modelling FX volatility."""
         return self._fx_vol
 
@@ -332,7 +332,7 @@ def _parse_curve_or_id_from_solver_(curve: _BaseCurveOrId, solver: Solver) -> _B
         # Proxy curves and MultiCsaCurves can exist outside of Solvers but be constructed
         # directly from an FXForwards object tied to a Solver using only a Solver's
         # dependent curves and AD variables.
-        return curve
+        return curve  # type: ignore[no-any-return]  # mypy error
     else:
         try:
             # it is a safeguard to load curves from solvers when a solver is
@@ -376,7 +376,7 @@ def _maybe_get_fx_vol_maybe_from_solver(
     vol: _Vol,
     # name: str, = "fx_vol"
     solver: Solver_,
-) -> _FXVolObj | NoInput:
+) -> _FXVolOption_:
     fx_vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
     if isinstance(fx_vol_, NoInput | float | Dual | Dual2 | Variable):
         return fx_vol_
@@ -444,32 +444,6 @@ def _get_fx_forwards_maybe_from_solver(solver: Solver_, fx: FXForwards_) -> FXFo
                 fx_ = NoInput(0)
             else:
                 # TODO disallow `fx` on Solver as FXRates. Only allow FXForwards.
-                fx_ = solver._get_fx()  # type: ignore[assignment]
-    else:
-        fx_ = fx
-        if (
-            not isinstance(solver, NoInput)
-            and not isinstance(solver.fx, NoInput)
-            and id(fx) != id(solver.fx)
-        ):
-            warnings.warn(
-                "Solver contains an `fx` attribute but an `fx` argument has been "
-                "supplied which will be used but is not the same. This can lead "
-                "to calculation inconsistencies, mathematically.",
-                UserWarning,
-            )
-
-    return fx_
-
-
-def _get_fx_maybe_from_solver(solver: Solver_, fx: FX_) -> FX_:
-    if isinstance(fx, NoInput):
-        if isinstance(solver, NoInput):
-            fx_: FX_ = NoInput(0)
-        else:
-            if isinstance(solver.fx, NoInput):
-                fx_ = NoInput(0)
-            else:
                 fx_ = solver._get_fx()
     else:
         fx_ = fx
@@ -486,3 +460,29 @@ def _get_fx_maybe_from_solver(solver: Solver_, fx: FX_) -> FX_:
             )
 
     return fx_
+
+
+def _get_fx_maybe_from_solver(solver: Solver_, fx: FXForwards_) -> FXForwards_:
+    if isinstance(fx, NoInput):
+        if isinstance(solver, NoInput):
+            fx_: FX_ = NoInput(0)
+        else:
+            if isinstance(solver.fx, NoInput):
+                fx_ = NoInput(0)
+            else:
+                fx_ = solver._get_fx()  # will validate the state
+    else:
+        fx_ = fx
+        if (
+            not isinstance(solver, NoInput)
+            and not isinstance(solver.fx, NoInput)
+            and id(fx) != id(solver.fx)
+        ):
+            warnings.warn(
+                "Solver contains an `fx` attribute but an `fx` argument has been "
+                "supplied which will be used but is not the same. This can lead "
+                "to calculation inconsistencies, mathematically.",
+                UserWarning,
+            )
+
+    return fx_  # type: ignore[return-value]

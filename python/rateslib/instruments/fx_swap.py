@@ -27,7 +27,6 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        PeriodFixings,
         RollDay,
         Sequence,
         Solver_,
@@ -252,8 +251,8 @@ class FXSwap(_BaseInstrument):
         leg2_notional: DualTypes_ = NoInput(0),
         split_notional: DualTypes_ = NoInput(0),
         # rate
-        fx_fixings: PeriodFixings = NoInput(0),
-        leg2_fx_fixings: PeriodFixings = NoInput(0),
+        fx_fixings: DualTypes_ = NoInput(0),
+        leg2_fx_fixings: DualTypes_ = NoInput(0),
         points: DualTypes_ = NoInput(0),
         # meta
         curves: CurvesT_ = NoInput(0),
@@ -394,8 +393,8 @@ class FXSwap(_BaseInstrument):
         self,
         notional: DualTypes_,
         leg2_notional: DualTypes_,
-        fx_fixings: PeriodFixings,
-        leg2_fx_fixings: PeriodFixings,
+        fx_fixings: DualTypes_,
+        leg2_fx_fixings: DualTypes_,
         points: DualTypes_,
     ) -> None:
         if not isinstance(fx_fixings, NoInput):

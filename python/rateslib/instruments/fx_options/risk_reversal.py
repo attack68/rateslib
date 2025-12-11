@@ -144,7 +144,7 @@ class FXOptionStrat(FXOption):
     #                 if isinstance(obj, FXOptionStrat):
     #                     ret.append(obj._parse_vol_sequence(vol_))
     #                 else:
-    #                     assert isinstance(vol_, str) or not isinstance(vol_, Sequence)  # noqa: S101
+    #                     assert isinstance(vol_, str) or not isinstance(vol_, Sequence)
     #                     ret.append(vol_)
     #     return ret
     #
@@ -162,7 +162,9 @@ class FXOptionStrat(FXOption):
     #             ret.append(obj._get_fxvol_maybe_from_solver_recursive(vol__, solver))
     #         else:
     #             assert isinstance(vol__, str) or not isinstance(vol__, Sequence)  # noqa: S101
-    #             ret.append(_get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver))
+    #             ret.append(
+    #             _get_fxvol_maybe_from_solver(vol_attr=obj.vol, vol=vol__, solver=solver)
+    #             )
     #     return ret
 
     @classmethod
@@ -306,11 +308,11 @@ class FXOptionStrat(FXOption):
                 fx=fx,
                 base=base,
                 local=local,
-                vol=vol__,  # type: ignore[arg-type]
+                vol=vol__,
                 forward=forward,
                 settlement=settlement,
             )
-            for (option, vol__) in zip(self.instruments, vol_, strict=True)  # type: ignore[arg-type]
+            for (option, vol__) in zip(self.instruments, vol_, strict=True)
         ]
 
         if local:
@@ -657,7 +659,7 @@ class FXRiskReversal(FXOptionStrat):
                 premium=premium[0],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[0],  # type: ignore[index]
+                vol=vol_[0],
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -679,7 +681,7 @@ class FXRiskReversal(FXOptionStrat):
                 premium=premium[1],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[1],  # type: ignore[index]
+                vol=vol_[1],
                 metric=NoInput(0),
                 spec=spec,
             ),

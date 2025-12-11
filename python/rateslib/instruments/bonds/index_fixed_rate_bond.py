@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
@@ -12,7 +13,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import FixedLeg
@@ -21,15 +22,15 @@ from rateslib.periods.parameters import _IndexParams
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
-        CurveOption_,
-        Curves_,
+        CurvesT_,
         DualTypes,
         DualTypes_,
         Frequency,
         FXForwards_,
         IndexMethod,
+        LegFixings,
         RollDay,
-        Series,
+        Sequence,
         Solver_,
         VolT_,
         _BaseCurve_,
@@ -167,7 +168,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         return self._leg1
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -192,16 +193,16 @@ class IndexFixedRateBond(_BaseBondInstrument):
         # settlement parameters
         currency: str_ = NoInput(0),
         notional: float_ = NoInput(0),
-        amortization: float_ = NoInput(0),
+        # amortization: float_ = NoInput(0),
         # index params
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),
+        index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         # meta parameters
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         calc_mode: BondCalcMode | str_ = NoInput(0),
         settle: int_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -226,7 +227,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
             # settlement
             currency=currency,
             notional=notional,
-            amortization=amortization,
+            # amortization=amortization,
             # index_params
             index_base=index_base,
             index_lag=index_lag,
@@ -275,13 +276,11 @@ class IndexFixedRateBond(_BaseBondInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()
 
-    def _parse_curves(self, curves: CurveOption_) -> _Curves:
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
         """
         An IFRB has two curve requirements: an index_curve and a disc_curve.
 
-        1 element will be assigned as the discount curve only. fixings might be published.
-
-        When given as 2 elements the first is treated as the index curve and the 2nd as disc curve.
+        No available index curve can be input as None or NoInput
         """
         if isinstance(curves, NoInput):
             return _Curves()
@@ -291,25 +290,19 @@ class IndexFixedRateBond(_BaseBondInstrument):
                 index_curve=curves.get("index_curve", NoInput(0)),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 1:
+            if len(curves) == 2:
                 return _Curves(
-                    disc_curve=curves[0],
-                    index_curve=NoInput(0),
-                )
-            elif len(curves) == 2:
-                return _Curves(
-                    index_curve=curves[0],
+                    index_curve=curves[0] if curves[0] is not None else NoInput(0),
                     disc_curve=curves[1],
                 )
             else:
                 raise ValueError(
                     f"{type(self).__name__} requires 2 curve types. Got {len(curves)}."
                 )
-        else:  # `curves` is just a single input which is set as the discount curve.
-            return _Curves(
-                disc_curve=curves,
-                index_curve=NoInput(0),
-            )
+        elif isinstance(curves, _Curves):
+            return curves
+        else:
+            raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
 
     def index_ratio(self, settlement: datetime, index_curve: _BaseCurve_ = NoInput(0)) -> DualTypes:
         """
@@ -355,7 +348,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         """  # noqa: E501
 
         left_index = self.leg1._period_index(settlement)
-        period_index_params = self.leg1._regular_periods[left_index].index_params
+        period_index_params: _IndexParams = self.leg1._regular_periods[left_index].index_params  # type: ignore[assignment]
 
         new_index_params = _IndexParams(
             _index_method=period_index_params.index_method,
@@ -371,7 +364,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
     def rate(
         self,
         *,
-        curves: Curves_ = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         vol: VolT_ = NoInput(0),
@@ -379,92 +372,54 @@ class IndexFixedRateBond(_BaseBondInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
-    ) -> DualTypes_:
-        """
-        Return various pricing metrics of the security calculated from
-        :class:`~rateslib.curves.Curve` s.
-
-        Parameters
-        ----------
-        curves : Curve, str or list of such
-            A single :class:`Curve` or id or a list of such. A list defines the
-            following curves in the order:
-
-              - Forecasting :class:`Curve` for ``leg1``.
-              - Discounting :class:`Curve` for ``leg1``.
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            ``FXRates`` or ``FXForwards`` object, converts from local currency
-            into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx`` is an ``FXRates`` or ``FXForwards`` object.
-        metric : str, optional
-            Metric returned by the method. Available options are {"clean_price",
-            "dirty_price", "ytm", "index_clean_price", "index_dirty_price"}
-        forward_settlement : datetime, optional
-            The forward settlement date. If not given uses the discount *Curve* and the ``settle``
-            attribute of the bond.
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
+    ) -> DualTypes:
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
-        if metric_ in [
-            "clean_price",
-            "dirty_price",
-            "index_clean_price",
-            "ytm",
-            "index_dirty_price",
-        ]:
-            _curves = self._parse_curves(curves)
-            disc_curve = _maybe_get_curve_or_dict_maybe_from_solver(
+        _curves = self._parse_curves(curves)
+        disc_curve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
                 curves_meta=self.kwargs.meta["curves"],
                 curves=_curves,
                 name="disc_curve",
                 solver=solver,
-            )
-            index_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                curves_meta=self.kwargs.meta["curves"],
-                curves=_curves,
-                name="index_curve",
-                solver=solver,
-            )
+            ),
+            "disc_curve",
+        )
+        index_curve = _maybe_get_curve_maybe_from_solver(
+            curves_meta=self.kwargs.meta["curves"],
+            curves=_curves,
+            name="index_curve",
+            solver=solver,
+        )
 
-            if isinstance(settlement, NoInput):
-                settlement_ = self.leg1.schedule.calendar.lag_bus_days(
-                    disc_curve.nodes.initial,
-                    self.kwargs.meta["settle"],
-                    True,
-                )
-            else:
-                settlement_ = settlement
-            npv = self.leg1.local_npv(
-                index_curve=index_curve,
-                disc_curve=disc_curve,
-                settlement=settlement_,
-                forward=settlement_,
+        if isinstance(settlement, NoInput):
+            settlement_ = self.leg1.schedule.calendar.lag_bus_days(
+                disc_curve.nodes.initial,
+                self.kwargs.meta["settle"],
+                True,
             )
-            # scale price to par 100 (npv is already projected forward to settlement)
-            index_dirty_price = npv * 100 / -self.leg1.settlement_params.notional
-            index_ratio = self.index_ratio(settlement_, index_curve)
-            dirty_price = index_dirty_price / index_ratio
+        else:
+            settlement_ = settlement
+        npv = self.leg1.local_npv(
+            index_curve=index_curve,
+            disc_curve=disc_curve,
+            settlement=settlement_,
+            forward=settlement_,
+        )
+        # scale price to par 100 (npv is already projected forward to settlement)
+        index_dirty_price = npv * 100 / -self.leg1.settlement_params.notional
+        index_ratio = self.index_ratio(settlement_, index_curve)
+        dirty_price = index_dirty_price / index_ratio
 
-            if metric_ == "dirty_price":
-                return dirty_price
-            elif metric_ == "clean_price":
-                return dirty_price - self.accrued(settlement_)
-            elif metric_ == "ytm":
-                return self.ytm(dirty_price, settlement_, True)
-            elif metric_ == "index_dirty_price":
-                return index_dirty_price
-            elif metric_ == "index_clean_price":
-                return index_dirty_price - self.accrued(settlement_) * index_ratio
+        if metric_ == "dirty_price":
+            return dirty_price
+        elif metric_ == "clean_price":
+            return dirty_price - self.accrued(settlement_)
+        elif metric_ == "ytm":
+            return self.ytm(dirty_price, settlement_, True)
+        elif metric_ == "index_dirty_price":
+            return index_dirty_price
+        elif metric_ == "index_clean_price":
+            return index_dirty_price - self.accrued(settlement_) * index_ratio
         else:
             raise ValueError(
                 "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
@@ -751,6 +706,6 @@ class IndexFixedRateBond(_BaseBondInstrument):
             metric=metric,
         )
         if metric == "risk" and indexed:
-            return value * self.index_ratio(settlement=settlement, index_curve=index_curve)
+            return value * self.index_ratio(settlement=settlement, index_curve=index_curve)  # type: ignore[return-value]
         else:
             return value

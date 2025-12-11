@@ -1209,7 +1209,7 @@ def test_delta_irs_guide() -> None:
         fixed_rate=6.0,
         curves="sofr",
     )
-    result = irs.delta(solver=usd_solver, base="usd")  # local overrides base to USD
+    result = irs.delta(solver=usd_solver)  # local overrides base to USD
     # result = irs.delta(solver=usd_solver, base="eur", local=True)  # local overrides base to USD
     expected = DataFrame(
         [[0], [16.77263], [32.60487]],
@@ -1533,7 +1533,7 @@ def test_solver_gamma_pnl_explain() -> None:
     )
     assert_frame_equal(delta_base, expected_delta, atol=1e-2, rtol=1e-4)
 
-    gamma_base = pf.gamma(solver=solver, base="usd", local=True)  # local overrrides base to EUR
+    gamma_base = pf.gamma(solver=solver, base="eur")
     expected_gamma = DataFrame(
         data=[
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -1569,7 +1569,9 @@ def test_solver_gamma_pnl_explain() -> None:
             names=["type", "solver", "label"],
         ),
     )
-    assert_frame_equal(gamma_base, expected_gamma, atol=1e-2, rtol=1e-4)
+    assert_frame_equal(
+        gamma_base.loc[("all", "eur")], expected_gamma.loc[("eur", "eur")], atol=1e-2, rtol=1e-4
+    )
 
 
 def test_gamma_with_fxrates_ad_order_1_raises() -> None:

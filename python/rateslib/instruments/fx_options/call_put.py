@@ -252,7 +252,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
 
         self._leg1 = CustomLeg(
             [
-                FXCallPeriod(
+                FXCallPeriod(  # type: ignore[abstract]
                     pair=self.kwargs.leg1["pair"],
                     expiry=self.kwargs.leg1["expiry"],
                     delivery=self.kwargs.leg1["delivery"],
@@ -267,7 +267,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
                     metric=self.kwargs.meta["metric_period"],
                 )
                 if call
-                else FXPutPeriod(
+                else FXPutPeriod(  # type: ignore[abstract]
                     pair=self.kwargs.leg1["pair"],
                     expiry=self.kwargs.leg1["expiry"],
                     delivery=self.kwargs.leg1["delivery"],
@@ -286,7 +286,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         self._leg2 = CustomLeg(
             [
                 Cashflow(
-                    notional=self.kwargs.leg2["premium"],
+                    notional=_drb(0.0, self.kwargs.leg2["premium"]),
                     payment=self.kwargs.leg2["payment"],
                     currency=self.kwargs.leg2["premium_ccy"],
                 ),
@@ -619,6 +619,34 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
+        try:
+            _curves = self._parse_curves(curves)
+            _vol = self._parse_vol(vol)
+            rate_curve = _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="rate_curve",
+            )
+            disc_curve = _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="disc_curve",
+            )
+            fx_vol = _maybe_get_fx_vol_maybe_from_solver(
+                vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
+            )
+            fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
+            self._set_strike_and_vol(
+                rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=fx_vol
+            )
+            self._set_premium(
+                rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, pricing=self._pricing
+            )
+        except Exception:  # noqa: S110
+            pass  # `cashflows` proceed without pricing determined values
+
         return self._cashflows_from_legs(
             curves=curves,
             solver=solver,
@@ -626,6 +654,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             base=base,
             settlement=settlement,
             forward=forward,
+            vol=vol,
         )
 
     def analytic_greeks(
@@ -732,7 +761,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         self,
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
         set_metrics: bool_ = True,
@@ -763,7 +792,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             rate_curve=_validate_obj_not_no_input(rate_curve, "rate_curve"),
             disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
             fx=_validate_fx_as_forwards(fx_),
-            fx_vol=self._pricing.vol,
+            fx_vol=self._pricing.vol,  # type: ignore[arg-type]  # vol is set and != None
             premium=NoInput(0),
             _reduced=True,
         )  # none of the reduced greeks need a VolObj - faster to reuse from _pricing.vol
@@ -834,6 +863,31 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
             window=range, curves=curves, solver=solver, fx=fx, base=base, local=local, vol=vol
         )
         return plot([x], [y])  # type: ignore
+
+    def local_analytic_rate_fixings(
+        self,
+        *,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        return DataFrame()
+
+    def spread(
+        self,
+        *,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
 
 class FXCall(FXOption):

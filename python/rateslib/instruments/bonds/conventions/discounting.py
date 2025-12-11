@@ -148,14 +148,14 @@ def _v1_compounded(
     Method: compounds "v2" with exponent in terms of the accrual fraction of the period.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
-        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[attr-defined]
     else:
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
         fd0 = 1 - acc_frac
-    return v2**fd0
+    return v2**fd0  # type: ignore[no-any-return]
 
 
 def _v1_simple(
@@ -172,14 +172,14 @@ def _v1_simple(
     Use simple rates with a yield which matches the frequency of the coupon.
     """
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[attr-defined]
     else:
         fd0 = 1 - acc_frac
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
-    return v_
+    return v_  # type: ignore[no-any-return]
 
 
 def _v1_simple_act365f(
@@ -211,18 +211,18 @@ def _v1_simple_pay_adjust(
     period_idx: int,
 ) -> DualTypes:
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         # is a stub so must account for discounting in a different way.
         fd0 = (
-            obj.leg1.periods[acc_idx].period_params.dcf
+            obj.leg1.periods[acc_idx].period_params.dcf  # type: ignore[attr-defined]
             * f
             * (1 - acc_frac + _pay_adj(obj, period_idx))
-        )  # type: ignore[union-attr]
+        )
     else:
         fd0 = 1 - acc_frac + _pay_adj(obj, period_idx)
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
-    return v_
+    return v_  # type: ignore[no-any-return]
 
 
 def _v1_compounded_pay_adjust(
@@ -236,18 +236,18 @@ def _v1_compounded_pay_adjust(
     period_idx: int,
 ) -> DualTypes:
     acc_frac = accrual(obj, settlement, acc_idx)
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
         fd0 = (
-            obj.leg1.periods[acc_idx].period_params.dcf
+            obj.leg1.periods[acc_idx].period_params.dcf  # type: ignore[attr-defined]
             * f
             * (1 - acc_frac + _pay_adj(obj, period_idx))
-        )  # type: ignore[union-attr]
+        )
     else:
         # 1 minus acc_fra is the fraction of the period remaining until the next cashflow.
         fd0 = 1 - acc_frac + _pay_adj(obj, period_idx)
-    return v2**fd0
+    return v2**fd0  # type: ignore[no-any-return]
 
 
 def _v1_compounded_final_simple(
@@ -331,7 +331,7 @@ def _v1_comp_stub_act365f(
     period_idx: int,
 ) -> DualTypes:
     """Compounds the yield. In a stub period the act365f DCF is used"""
-    if not obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if not obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         return _v1_compounded(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
     else:
         fd0 = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "Act365F")
@@ -355,19 +355,19 @@ def _v1_simple_long_stub(
     discount param ``v``.
     """
     if (
-        obj.leg1.periods[acc_idx].period_params.stub
-        and obj.leg1.periods[acc_idx].period_params.dcf * f > 1
-    ):  # type: ignore[union-attr]
+        obj.leg1._regular_periods[acc_idx].period_params.stub
+        and obj.leg1._regular_periods[acc_idx].period_params.dcf * f > 1
+    ):
         # long stub
         acc_frac = accrual(obj, settlement, acc_idx)
-        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f * (1 - acc_frac)  # type: ignore[attr-defined]
         if fd0 > 1.0:
             # then there is a whole quasi-coupon period until payment of next cashflow
             v_ = v2 * 1 / (1 + (fd0 - 1) * ytm / (100 * f))
         else:
             # this is standard _v1_simple formula
             v_ = 1 / (1 + fd0 * ytm / (100 * f))
-        return v_
+        return v_  # type: ignore[no-any-return]
     else:
         return _v1_simple(obj, ytm, f, settlement, acc_idx, v2, accrual, period_idx)
 
@@ -391,13 +391,13 @@ def _v3_compounded(
     Final period uses a compounding approach where the power is determined by the DCF of that
     period under the bond's specified convention.
     """
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         # If it is a stub then the remaining fraction must be scaled by the relative size of the
         # stub period compared with a regular period.
-        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[attr-defined]
     else:
         fd0 = 1
-    return v2**fd0
+    return v2**fd0  # type: ignore[no-any-return]
 
 
 def _v3_compounded_pay_adjust(
@@ -434,10 +434,10 @@ def _v3_30e360_u_simple(
     The YTM is assumed to have the same frequency as the coupons.
     """
     d_ = dcf(
-        obj.leg1.periods[acc_idx].period_params.start,
-        obj.leg1.periods[acc_idx].period_params.end,
+        obj.leg1._regular_periods[acc_idx].period_params.start,
+        obj.leg1._regular_periods[acc_idx].period_params.end,
         "30E360",
-    )  # type: ignore[union-attr]
+    )
     return 1 / (1 + d_ * ytm / 100)  # simple interest
 
 
@@ -451,14 +451,14 @@ def _v3_simple(
     accrual: AccrualFunction,
     period_idx: int,
 ) -> DualTypes:
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         # is a stub so must account for discounting in a different way.
-        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[union-attr]
+        fd0 = obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[attr-defined]
     else:
         fd0 = 1.0
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
-    return v_
+    return v_  # type: ignore[no-any-return]
 
 
 def _v3_simple_pay_adjust(
@@ -471,14 +471,14 @@ def _v3_simple_pay_adjust(
     accrual: AccrualFunction,
     period_idx: int,
 ) -> DualTypes:
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[attr-defined]
         # is a stub so must account for discounting in a different way.
-        fd0 = (1.0 + _pay_adj(obj, period_idx)) * obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[union-attr]
+        fd0 = (1.0 + _pay_adj(obj, period_idx)) * obj.leg1.periods[acc_idx].period_params.dcf * f  # type: ignore[attr-defined]
     else:
         fd0 = 1.0 + _pay_adj(obj, period_idx)
 
     v_ = 1 / (1 + fd0 * ytm / (100 * f))
-    return v_
+    return v_  # type: ignore[no-any-return]
 
 
 V1_FUNCS: dict[str, YtmStubDiscountFunction] = {
@@ -522,7 +522,7 @@ def _c_from_obj(
     Return the cashflow as it has been calculated directly on the object according to the
     native schedule and conventions, for the specified period index.
     """
-    return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)  # type: ignore[arg-type]
+    return obj._period_cashflow(obj.leg1._regular_periods[p_idx], curve)  # type: ignore[no-any-return, attr-defined]
 
 
 def _c_full_coupon(
@@ -538,7 +538,7 @@ def _c_full_coupon(
     Ignore the native schedule and conventions and return an amount based on the period
     notional, the bond coupon, and the bond frequency.
     """
-    return -obj.leg1._regular_periods[p_idx].settlement_params.notional * obj.fixed_rate / (100 * f)  # type: ignore[operator, union-attr]
+    return -obj.leg1._regular_periods[p_idx].settlement_params.notional * obj.fixed_rate / (100 * f)  # type: ignore[attr-defined, no-any-return]
 
 
 C_FUNCS: dict[str, CashflowFunction] = {

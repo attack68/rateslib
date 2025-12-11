@@ -515,7 +515,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_fixings: LegFixings = NoInput(0),
         index_only: bool = False,
     ) -> None:
         self._fixed_rate = fixed_rate

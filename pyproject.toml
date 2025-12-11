@@ -137,7 +137,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"typing.py" = ["E501"]
+"typing.py" = ["E501", "E402"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN", "D"]
 "rust/*" = ["D"]
 
@@ -149,9 +149,7 @@ max-complexity = 14
 files = ["python/"]
 exclude = [
     "python/tests",
-    "/instruments/components/bonds",
-    "/instruments/fx_options",
-    # "/instruments/components/protocols",
+    # "/instruments/bonds/bond_future.py",
 ]
 strict = true
 #packages = [
@@ -163,12 +161,3 @@ omit = [
     "/typing.py",
     # "python/tests/*"
 ]
-
-[tool.isort]
-profile = "black"
-line_length = 100
-src_paths = ["python"]
-
-[tool.black]
-line-length = 100
-target-version = ['py310']

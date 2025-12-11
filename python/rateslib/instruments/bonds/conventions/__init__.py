@@ -12,13 +12,13 @@ from rateslib.instruments.bonds.conventions.discounting import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import (
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction  # pragma: no cover
+    from rateslib.instruments.bonds.conventions.discounting import (  # pragma: no cover
         CashflowFunction,
         YtmDiscountFunction,
         YtmStubDiscountFunction,
     )
-    from rateslib.typing import Security
+    from rateslib.typing import Any  # pragma: no cover
 
 
 class BondCalcMode:
@@ -724,7 +724,7 @@ def _get_bill_calc_mode(calc_mode: str | BillCalcMode) -> BillCalcMode:
 
 
 def _get_calc_mode_for_class(
-    obj: Security, calc_mode: str | BondCalcMode | BillCalcMode
+    obj: Any, calc_mode: str | BondCalcMode | BillCalcMode
 ) -> BondCalcMode | BillCalcMode:
     if isinstance(calc_mode, str):
         map_: dict[str, dict[str, BondCalcMode] | dict[str, BillCalcMode]] = {

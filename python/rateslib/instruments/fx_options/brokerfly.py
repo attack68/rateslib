@@ -181,7 +181,7 @@ class FXBrokerFly(FXOptionStrat):
         strike: tuple[tuple[DualTypes | str, DualTypes | str], DualTypes | str],
         pair: str_ = NoInput(0),
         *,
-        notional: tuple[DualTypes_, DualTypes_] = NoInput(0),
+        notional: tuple[DualTypes_, DualTypes_] | NoInput = NoInput(0),
         eval_date: datetime | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         modifier: str_ = NoInput(0),
@@ -202,10 +202,10 @@ class FXBrokerFly(FXOptionStrat):
     ) -> None:
         vol_ = self._parse_vol(vol)
         if isinstance(notional, NoInput):
-            notional_ = (defaults.notional, NoInput(0))
+            notional_: tuple[DualTypes_, DualTypes_] = (defaults.notional, NoInput(0))
         elif isinstance(notional, tuple | list):
             notional_ = notional
-            notional_[1] = NoInput(0) if notional_[1] is None else notional_[1]
+            notional_[1] = NoInput(0) if notional_[1] is None else notional_[1]  # type: ignore[index]
         else:
             raise ValueError("FXBrokerFly `notional` must be a 2 element sequence if given.")
         strategies = [
@@ -227,7 +227,7 @@ class FXBrokerFly(FXOptionStrat):
                 premium=premium[0],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[0],  # type: ignore[arg-type, index]
+                vol=vol_[0],  # type: ignore[arg-type]
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -249,7 +249,7 @@ class FXBrokerFly(FXOptionStrat):
                 premium=premium[1],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[1],  # type: ignore[arg-type, index]
+                vol=vol_[1],  # type: ignore[arg-type]
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -264,6 +264,12 @@ class FXBrokerFly(FXOptionStrat):
         )
         self.kwargs.leg1["notional"] = notional_
 
+    @property
+    def instruments(self) -> tuple[FXStrangle, FXStraddle]:
+        """A tuple containing the :class:`~rateslib.instruments.FXStrangle` and
+        :class:`~rateslib.instruments.FXStraddle` of the *Fly*."""
+        return self.kwargs.meta["instruments"]  # type: ignore[no-any-return]
+
     @classmethod
     def _parse_vol(cls, vol: FXVolStrat_) -> tuple[FXVolStrat_, FXVolStrat_]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
@@ -276,7 +282,7 @@ class FXBrokerFly(FXOptionStrat):
         solver: Solver_,
         fx: FXForwards_,
         base: str_,
-        vol: FXVolStrat_,
+        vol: tuple[FXVolStrat_, FXVolStrat_],
         metric: str_,
     ) -> None:
         """
@@ -292,7 +298,7 @@ class FXBrokerFly(FXOptionStrat):
             "pips_or_%",
             "premium",
         ]:
-            self.instruments[0]._rate(  # type: ignore[union-attr]
+            self.instruments[0]._rate(
                 curves,
                 solver,
                 fx,
@@ -317,7 +323,7 @@ class FXBrokerFly(FXOptionStrat):
             self.instruments[1].kwargs.leg1["notional"] = _dual_float(
                 self.instruments[0].kwargs.leg1["notional"] * -scalar,
             )
-            self.instruments[1]._set_notionals(self.instruments[1].kwargs.leg1["notional"])  # type: ignore[union-attr]
+            self.instruments[1]._set_notionals(self.instruments[1].kwargs.leg1["notional"])
             # BrokerFly -> Strangle -> FXPut -> FXPutPeriod
 
     def rate(
@@ -353,9 +359,12 @@ class FXBrokerFly(FXOptionStrat):
            more standardised choice.
         """
         # Get curves and vol
-        vol_ = [
-            _drb(d, b) for (d, b) in zip(self.kwargs.meta["vol"], self._parse_vol(vol), strict=True)
-        ]
+        vol_ = tuple(
+            [
+                _drb(d, b)
+                for (d, b) in zip(self.kwargs.meta["vol"], self._parse_vol(vol), strict=True)
+            ]
+        )
         _curves = self._parse_curves(curves)
 
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
@@ -363,8 +372,8 @@ class FXBrokerFly(FXOptionStrat):
 
         if metric_ == "pips_or_%":
             straddle_scalar = (
-                self.instruments[1].instruments[0]._option.settlement_params.notional  # type: ignore[union-attr]
-                / self.instruments[0].instruments[0]._option.settlement_params.notional  # type: ignore[union-attr]
+                self.instruments[1].instruments[0]._option.settlement_params.notional
+                / self.instruments[0].instruments[0]._option.settlement_params.notional
             )
             weights: Sequence[DualTypes] = [1.0, straddle_scalar]
         elif metric_ == "premium":
@@ -402,11 +411,11 @@ class FXBrokerFly(FXOptionStrat):
         vol_ = self._parse_vol(vol)
 
         # TODO: this meth can be optimised because it calculates greeks at multiple times in frames
-        g_grks = self.instruments[0].analytic_greeks(curves, solver, fx, base, vol_[0])  # type: ignore[index, arg-type]
-        d_grks = self.instruments[1].analytic_greeks(curves, solver, fx, base, vol_[1])  # type: ignore[index, arg-type]
+        g_grks = self.instruments[0].analytic_greeks(curves, solver, fx, base, vol_[0])
+        d_grks = self.instruments[1].analytic_greeks(curves, solver, fx, base, vol_[1])
         sclr = abs(
-            self.instruments[1].instruments[0]._option.settlement_params.notional  # type: ignore[union-attr]
-            / self.instruments[0].instruments[0]._option.settlement_params.notional,  # type: ignore[union-attr]
+            self.instruments[1].instruments[0]._option.settlement_params.notional
+            / self.instruments[0].instruments[0]._option.settlement_params.notional,
         )
 
         _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
@@ -445,124 +454,3 @@ class FXBrokerFly(FXOptionStrat):
         vol_ = self._parse_vol(vol)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
         return super()._plot_payoff(window, curves, solver, fx, base, local, vol_)
-
-
-#
-#
-# class FXBrokerFly(FXOptionStrat):
-#     """
-#     Create an *FX BrokerFly* option strategy.
-#
-#     An *FXBrokerFly* is composed of an :class:`~rateslib.instruments.FXStrangle` and an
-#     :class:`~rateslib.instruments.FXStraddle`, in that order.
-#
-#     For additional arguments see :class:`~rateslib.instruments.FXOption`.
-#
-#     Parameters
-#     ----------
-#     args: tuple
-#         Positional arguments to :class:`~rateslib.instruments.FXOption`.
-#     strike: 2-element sequence
-#         The first element should be a 2-element sequence of strikes of the *FXStrangle*.
-#         The second element should be a single element for the strike of the *FXStraddle*.
-#         call, e.g. `[["-25d", "25d"], "atm_delta"]`.
-#     premium: 2-element sequence, optional
-#         The premiums associated with each option of the strategy;
-#         The first element contains 2 values for the premiums of each *FXOption* in the *Strangle*.
-#         The second element contains 2 values for the premiums of each *FXOption* in the *Straddle*.
-#     notional: 2-element sequence, optional
-#         The first element is the notional associated with the *Strangle*. If the second element
-#         is *None*, it will be implied in a vega neutral sense at price time.
-#     metric: str, optional
-#         The default metric to apply in the method :meth:`~rateslib.instruments.FXOptionStrat.rate`
-#     kwargs: tuple
-#         Keyword arguments to :class:`~rateslib.instruments.FXOption`.
-#
-#     Notes
-#     -----
-#     Buying a *BrokerFly* equates to buying an :class:`~rateslib.instruments.FXStrangle` and
-#     selling a :class:`~rateslib.instruments.FXStraddle`, where the convention is to set the
-#     notional on the *Straddle* such that the entire strategy is *vega* neutral at inception.
-#
-#     When supplying ``strike`` as a string delta the strike will be determined at price time from
-#     the provided volatility.
-#
-#     .. warning::
-#
-#        The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an iterative
-#        algorithm to solve.
-#        For defined strikes it is accurate but for strikes defined by delta it
-#        will return a solution within 0.1 pips. This means it is both slower than other instruments
-#        and inexact.
-#
-#     """
-#
-#     rate_weight = [1.0, 1.0]
-#     rate_weight_vol = [1.0, -1.0]
-#     _rate_scalar = 100.0
-#
-#     periods: list[FXOptionStrat]  # type: ignore[assignment]
-#     vol: FXVolStrat_
-#
-#     def __init__(
-#         self,
-#         *args: Any,
-#         strike: tuple[tuple[DualTypes | str_, DualTypes | str_], DualTypes | str_] = (
-#             (NoInput(0), NoInput(0)),
-#             NoInput(0),
-#         ),
-#         premium: tuple[tuple[DualTypes_, DualTypes_], tuple[DualTypes_, DualTypes_]] = (
-#             (NoInput(0), NoInput(0)),
-#             (NoInput(0), NoInput(0)),
-#         ),
-#         notional: tuple[DualTypes_, DualTypes_] = (NoInput(0), NoInput(0)),
-#         metric: str = "single_vol",
-#         **kwargs: Any,
-#     ) -> None:
-#         super(FXOptionStrat, self).__init__(  # type: ignore[misc]
-#             *args,
-#             premium=list(premium),  # type: ignore[arg-type]
-#             strike=list(strike),  # type: ignore[arg-type]
-#             notional=list(notional),  # type: ignore[arg-type]
-#             **kwargs,
-#         )
-#         self.kwargs["notional"][1] = (
-#             NoInput(0) if self.kwargs["notional"][1] is None else self.kwargs["notional"][1]
-#         )
-#         self.kwargs["metric"] = metric
-#         self._strat_elements = (
-#             FXStrangle(
-#                 pair=self.kwargs["pair"],
-#                 expiry=self.kwargs["expiry"],
-#                 delivery_lag=self.kwargs["delivery"],
-#                 payment_lag=self.kwargs["payment"],
-#                 calendar=self.kwargs["calendar"],
-#                 modifier=self.kwargs["modifier"],
-#                 strike=self.kwargs["strike"][0],
-#                 notional=self.kwargs["notional"][0],
-#                 option_fixing=self.kwargs["option_fixing"],
-#                 delta_type=self.kwargs["delta_type"],
-#                 premium=self.kwargs["premium"][0],
-#                 premium_ccy=self.kwargs["premium_ccy"],
-#                 metric=self.kwargs["metric"],
-#                 curves=self.curves,
-#                 vol=self.vol,
-#             ),
-#             FXStraddle(
-#                 pair=self.kwargs["pair"],
-#                 expiry=self.kwargs["expiry"],
-#                 delivery_lag=self.kwargs["delivery"],
-#                 payment_lag=self.kwargs["payment"],
-#                 calendar=self.kwargs["calendar"],
-#                 modifier=self.kwargs["modifier"],
-#                 strike=self.kwargs["strike"][1],
-#                 notional=self.kwargs["notional"][1],
-#                 option_fixing=self.kwargs["option_fixing"],
-#                 delta_type=self.kwargs["delta_type"],
-#                 premium=self.kwargs["premium"][1],
-#                 premium_ccy=self.kwargs["premium_ccy"],
-#                 metric="vol" if self.kwargs["metric"] == "single_vol" else self.kwargs["metric"],
-#                 curves=self.curves,
-#                 vol=self.vol,
-#             ),
-#         )

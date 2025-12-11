@@ -223,9 +223,9 @@ class NDF(_BaseInstrument):
         eom: bool_ = NoInput(0),
         # rate
         fx_rate: DualTypes_ = NoInput(0),
-        fx_fixings: PeriodFixings = NoInput(0),
+        fx_fixings: PeriodFixings = NoInput(0),  # type: ignore[type-var]
         leg2_fx_fixings: PeriodFixings = NoInput(0),
-        reversed: bool = False,
+        reversed: bool = False,  # noqa: A002
         leg2_reversed: bool = False,
         # meta
         curves: CurvesT_ = NoInput(0),
