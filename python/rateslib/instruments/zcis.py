@@ -238,7 +238,7 @@ class ZCIS(_BaseInstrument):
         leg2_index_base: DualTypes_ = NoInput(0),
         leg2_index_lag: int_ = NoInput(0),
         leg2_index_method: IndexMethod | str_ = NoInput(0),
-        leg2_index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        leg2_index_fixings: LegFixings = NoInput(0),
         # meta parameters
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),

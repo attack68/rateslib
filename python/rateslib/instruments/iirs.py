@@ -308,12 +308,12 @@ class IIRS(_BaseInstrument):
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        index_fixings: LegFixings = NoInput(0),
         # rate params
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         # meta params

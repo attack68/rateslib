@@ -311,7 +311,7 @@ class ZCS(_BaseInstrument):
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
