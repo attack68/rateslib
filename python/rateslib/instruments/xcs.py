@@ -318,7 +318,11 @@ class XCS(_BaseInstrument):
 
     """  # noqa: E501
 
-    _rate_scalar = 1.0
+    def _rate_scalar_calc(self) -> float:
+        if self.kwargs.meta["metric"] == "leg1":
+            return 1.0 if isinstance(self.leg1, FixedLeg) else 100.0
+        else:
+            return 1.0 if isinstance(self.leg2, FixedLeg) else 100.0
 
     @property
     def fixed_rate(self) -> DualTypes_:
@@ -455,7 +459,7 @@ class XCS(_BaseInstrument):
         method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),
+        fx_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         leg2_fixed: bool = False,
         leg2_mtm: bool = False,
         leg2_fixed_rate: DualTypes_ = NoInput(0),
@@ -637,6 +641,7 @@ class XCS(_BaseInstrument):
         else:
             self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
+        self._rate_scalar = self._rate_scalar_calc()
 
     def rate(
         self,
@@ -822,6 +827,25 @@ class XCS(_BaseInstrument):
                 metric="leg2",
             )
             self.leg2.fixed_rate = _dual_float(mid_price)
+
+        elif (
+            isinstance(self.leg1, FloatLeg)
+            and isinstance(self.kwargs.leg1["float_spread"], NoInput)
+            and isinstance(self.leg2, FloatLeg)
+            and isinstance(self.kwargs.leg2["float_spread"], NoInput)
+        ):
+            # then no FloatLeg pricing parameters are provided
+            mid_price = self.rate(
+                curves=curves,
+                solver=solver,
+                fx=fx,
+                settlement=settlement,
+                forward=forward,
+            )
+            if self.kwargs.meta["metric"].lower() == "leg1":
+                self.leg1.float_spread = _dual_float(mid_price)
+            else:
+                self.leg2.float_spread = _dual_float(mid_price)
 
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()

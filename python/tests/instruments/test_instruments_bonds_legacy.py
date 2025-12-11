@@ -1321,7 +1321,7 @@ class TestFixedRateBond:
             gilt.rate(curves=curve, metric="bad_metric")
 
     def test_fixed_rate_bond_no_amortization(self) -> None:
-        with pytest.raises(NotImplementedError, match="`amortization` for"):
+        with pytest.raises(TypeError, match="got an unexpected keyword argument 'amortization"):
             FixedRateBond(
                 effective=dt(1998, 12, 7),
                 termination=dt(2015, 12, 7),
@@ -1835,7 +1835,7 @@ class TestIndexFixedRateBond:
             )
 
     def test_fixed_rate_bond_no_amortization(self) -> None:
-        with pytest.raises(NotImplementedError, match="`amortization` for"):
+        with pytest.raises(TypeError, match="got an unexpected keyword argument 'amortization"):
             IndexFixedRateBond(
                 effective=dt(1998, 12, 7),
                 termination=dt(2015, 12, 7),
@@ -1865,7 +1865,13 @@ class TestIndexFixedRateBond:
         )
         curve = Curve({dt(1998, 12, 7): 1.0, dt(2015, 12, 7): 0.50})
         with pytest.raises(ValueError, match="`metric` must be in"):
-            gilt.rate(curves=curve, metric="bad_metric")
+            gilt.rate(
+                curves=[
+                    Curve({dt(1992, 1, 1): 1.0, dt(2070, 1, 1): 0.13}, index_base=100.0),
+                    curve,
+                ],
+                metric="bad_metric",
+            )
 
     def test_initialisation_rate_metric(self) -> None:
         gilt = IndexFixedRateBond(
@@ -2364,7 +2370,7 @@ class TestIndexFixedRateBond:
             spec="us_gb_tsy",
             fixed_rate=0.75,
             notional=-100e6,
-            curves="sofr",
+            curves=["sofr", "sofr"],
             index_lag=3,
             index_method="monthly",
             index_base=251.01658,

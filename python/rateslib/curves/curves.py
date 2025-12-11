@@ -2982,7 +2982,7 @@ def _try_index_value(
             return _index_value_from_mixed_series_and_curve(
                 index_lag=index_lag,
                 index_method=index_method,
-                index_fixings=fixings_series[1],  # type: ignore[arg-type]
+                index_fixings=fixings_series[1],
                 index_date=index_date,
                 index_curve=index_curve,
             )

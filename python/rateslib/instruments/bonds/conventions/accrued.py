@@ -8,8 +8,6 @@ from rateslib.scheduling import dcf
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         Any,
-        BondMixin,
-        Security,
         _SupportsFixedFloatLeg1,
     )
 
@@ -24,7 +22,7 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 class AccrualFunction(Protocol):
     # Callable type for Accrual Functions
     def __call__(
-        self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+        self, obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
     ) -> float: ...
 
 
@@ -58,13 +56,13 @@ def _acc_linear_proportion_by_days_long_stub_split(
     """
     # TODO: handle this union attribute by segregating Securities periods into different
     # categories, perhaps when also integrating deterministic amortised bonds.
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         f = obj.leg1.schedule.periods_per_annum
         freq = obj.leg1.schedule.frequency_obj
         adjuster = obj.leg1.schedule.accrual_adjuster
         calendar = obj.leg1.schedule.calendar
 
-        if obj.leg1.periods[acc_idx].period_params.dcf * f > 1:  # type: ignore[union-attr]
+        if obj.leg1._regular_periods[acc_idx].period_params.dcf * f > 1:
             # long stub
 
             if acc_idx > 0:
@@ -128,8 +126,8 @@ def _acc_linear_proportion_by_days_long_stub_split(
                     r_bar_u = (quasi_acoupon - obj.leg1.schedule.aschedule[acc_idx]).days
 
             return (r_bar_u / s_bar_u + r_u / s_u) / (
-                obj.leg1.periods[acc_idx].period_params.dcf * f
-            )  # type: ignore[union-attr]
+                obj.leg1._regular_periods[acc_idx].period_params.dcf * f
+            )
 
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
@@ -144,7 +142,7 @@ def _acc_30e360_backward(
 
     If stub revert to linear proportioning.
     """
-    if obj.leg1.periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = obj.leg1.schedule.periods_per_annum
     _: float = (
@@ -194,7 +192,7 @@ def _acc_act365_with_1y_and_stub_adjustment(
     If the period is a stub reverts to a straight line interpolation
     [this is primarily designed for Canadian Government Bonds]
     """
-    if obj.leg1._regular_periods[acc_idx].period_params.stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = obj.leg1.schedule.periods_per_annum
     r = (settlement - obj.leg1.schedule.aschedule[acc_idx]).days

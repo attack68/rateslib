@@ -173,13 +173,25 @@ class FXVolValue(_BaseInstrument):
                 return vol_._get_index(
                     delta_index=self.kwargs.leg1["index_value"], expiry=self.kwargs.leg1["expiry"]
                 )
-            elif isinstance(vol_, FXSabrSmile | FXSabrSurface):
+            elif isinstance(vol_, FXSabrSmile):
                 fx_ = _validate_fx_as_forwards(
                     _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
                 )
+                # if Sabr VolObj is not initialised with a `pair` this will create an error
+                pair: str = vol_.meta.pair  # type: ignore[assignment]
                 return vol_.get_from_strike(
                     k=self.kwargs.leg1["index_value"],
-                    f=fx_.rate(pair=vol_.meta.pair, settlement=vol_.meta.delivery),
+                    f=fx_.rate(pair=pair, settlement=vol_.meta.delivery),
+                    expiry=self.kwargs.leg1["expiry"],
+                )[1]
+            elif isinstance(vol_, FXSabrSurface):
+                fx_ = _validate_fx_as_forwards(
+                    _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
+                )
+                # if Sabr VolObj is not initialised with a `pair` this will create an error
+                return vol_.get_from_strike(
+                    k=self.kwargs.leg1["index_value"],
+                    f=fx_,
                     expiry=self.kwargs.leg1["expiry"],
                 )[1]
             else:

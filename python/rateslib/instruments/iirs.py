@@ -26,8 +26,8 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards_,
         IndexMethod,
+        LegFixings,
         RollDay,
-        Series,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -308,7 +308,7 @@ class IIRS(_BaseInstrument):
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),
+        index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         # rate params
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),

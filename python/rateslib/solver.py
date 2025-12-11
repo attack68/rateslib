@@ -44,6 +44,7 @@ if TYPE_CHECKING:
         DualTypes,
         FXDeltaVolSmile,
         FXDeltaVolSurface,
+        FXForwards_,
         FXSabrSmile,
         FXSabrSurface,
         Sequence,
@@ -92,7 +93,7 @@ class Gradients:
     pre_variables: tuple[str, ...]  # string tags for AD coordination
     pre_rate_scalars: list[float]  # scalars for the rate attribute of instruments
     _ad: int  # ad order
-    instruments: tuple[tuple[SupportsRate, tuple[Any, ...], dict[str, Any]], ...]  # calibrators
+    instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...]  # calibrators
 
     @property
     def J(self) -> NDArray[Nf64]:
@@ -1039,7 +1040,7 @@ class Solver(Gradients, _WithState):
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
         algorithm: str_ = NoInput(0),
-        fx: FXForwards | FXRates | NoInput = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         instrument_labels: Sequence[str] | NoInput = NoInput(0),
         id: str_ = NoInput(0),  # noqa: A002
         pre_solvers: Sequence[Solver] = (),
@@ -1147,13 +1148,11 @@ class Solver(Gradients, _WithState):
 
         # Final elements
         self._ad = 1
-        self.fx: FXRates | FXForwards | NoInput = fx
+        self.fx: FXForwards_ = fx
         if isinstance(self.fx, FXRates | FXForwards):
             self.fx._set_ad_order(1)
         elif not isinstance(self.fx, NoInput):
-            raise ValueError(
-                "`fx` argument to Solver must be either FXRates, FXForwards or NoInput(0)."
-            )
+            raise ValueError("`fx` argument to Solver must be either FXForwards or NoInput(0).")
         self.instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = tuple(
             self._parse_instrument(inst) for inst in instruments
         )
@@ -1366,7 +1365,7 @@ class Solver(Gradients, _WithState):
             )
 
     @_validate_states
-    def _get_fx(self) -> FXRates | FXForwards | NoInput:
+    def _get_fx(self) -> FXForwards_:
         return self.fx
 
     # Attributes
@@ -1699,7 +1698,7 @@ class Solver(Gradients, _WithState):
         association exists and a direct ``fx`` object is supplied a warning may be
         emitted if they are not the same object.
         """
-        self._do_not_validate = True  # state is validated prior to the call
+        # self._do_not_validate = True  # state is validated prior to the call
         base, fx = self._get_base_and_fx(base, fx)
         if isinstance(fx, FXRates | FXForwards):
             fx_vars: tuple[str, ...] = fx.variables
@@ -1752,7 +1751,7 @@ class Solver(Gradients, _WithState):
 
         sorted_cols = df.columns.sort_values()
         ret: DataFrame = df.loc[:, sorted_cols].astype("float64")
-        self._do_not_validate = False
+        # self._do_not_validate = False
         return ret
 
     def _get_base_and_fx(self, base: str_, fx: FX_) -> tuple[str_, FX_]:
@@ -1770,8 +1769,11 @@ class Solver(Gradients, _WithState):
             # then a valid fx object that can convert is required.
             if not isinstance(fx, FXRates | FXForwards) and isinstance(self.fx, NoInput):
                 raise ValueError(
-                    "`base` is given but `fx` is not given as either FXRates or FXForwards, "
-                    "and Solver does not contain its own `fx` attributed which can be substituted."
+                    f"`base` is given as '{base}', but `fx` is not available.\n"
+                    "Either provide an FXForwards object directly as `fx` or ensure that Solver.fx "
+                    "is a valid object.\n"
+                    "Alternatively, omit the `base` argument altogether and get results displayed "
+                    "in local currency without base currency conversion."
                 )
 
         if isinstance(fx, NoInput):

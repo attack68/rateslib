@@ -24,8 +24,8 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards_,
         IndexMethod,
+        LegFixings,
         RollDay,
-        Series,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -238,7 +238,7 @@ class ZCIS(_BaseInstrument):
         leg2_index_base: DualTypes_ = NoInput(0),
         leg2_index_lag: int_ = NoInput(0),
         leg2_index_method: IndexMethod | str_ = NoInput(0),
-        leg2_index_fixings: Series[DualTypes] | str_ = NoInput(0),
+        leg2_index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
         # meta parameters
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),

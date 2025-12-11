@@ -262,7 +262,7 @@ class FXForward(_BaseInstrument):
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
         fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
-        if isinstance(fx_, FXRates | FXForwards):
+        if isinstance(fx_, FXForwards | FXRates):
             imm_fx: DualTypes = fx_.rate(self.kwargs.leg2["pair"])
         elif isinstance(fx_, NoInput):
             raise ValueError(
@@ -270,7 +270,8 @@ class FXForward(_BaseInstrument):
                 "Note: it can be attached to, and then fetched from, a Solver.",
             )
         else:
-            imm_fx = fx_
+            # this is a mypy error since FXForwards is a case above
+            imm_fx = fx_  # type: ignore[assignment]
 
         curve_domestic = _maybe_get_curve_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "disc_curve", solver

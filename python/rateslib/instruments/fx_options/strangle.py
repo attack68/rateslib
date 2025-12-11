@@ -30,10 +30,10 @@ if TYPE_CHECKING:
         FXForwards,
         FXForwards_,
         FXOptionPeriod,
-        FXVol,
         FXVolStrat_,
         Solver_,
         VolT_,
+        _FXVolOption,
         _Vol,
         bool_,
         datetime,
@@ -232,7 +232,7 @@ class FXStrangle(FXOptionStrat):
                 premium=premium[0],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[0],  # type: ignore[index]
+                vol=vol_[0],
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -254,7 +254,7 @@ class FXStrangle(FXOptionStrat):
                 premium=premium[1],
                 premium_ccy=premium_ccy,
                 curves=curves,
-                vol=vol_[1],  # type: ignore[index]
+                vol=vol_[1],
                 metric=NoInput(0),
                 spec=spec,
             ),
@@ -395,15 +395,21 @@ class FXStrangle(FXOptionStrat):
             ),
             "disc_curve",
         )
-        vol_0 = _maybe_get_fx_vol_maybe_from_solver(
-            vol_meta=self.kwargs.meta["vol"][0],
-            vol=_vol[0],
-            solver=solver,
+        vol_0: _FXVolOption = _validate_obj_not_no_input(  # type: ignore[assignment]
+            _maybe_get_fx_vol_maybe_from_solver(
+                vol_meta=self.kwargs.meta["vol"][0],
+                vol=_vol[0],
+                solver=solver,
+            ),
+            "`vol` at index [0]",
         )
-        vol_1 = _maybe_get_fx_vol_maybe_from_solver(
-            vol_meta=self.kwargs.meta["vol"][1],
-            vol=_vol[1],
-            solver=solver,
+        vol_1: _FXVolOption = _validate_obj_not_no_input(  # type: ignore[assignment]
+            _maybe_get_fx_vol_maybe_from_solver(
+                vol_meta=self.kwargs.meta["vol"][1],
+                vol=_vol[1],
+                solver=solver,
+            ),
+            "`vol` at index [1]",
         )
 
         # Get initial data from objects in their native AD order
@@ -608,7 +614,7 @@ def _d_c_mkt_d_sigma_hat(
     g: dict[str, Any],  # greeks
     sg: dict[str, Any],  # smile_greeks
     expiry: datetime,
-    vol: FXVol,
+    vol: _FXVolOption,
     eta1: float | None,
     fixed_delta: bool,
     fzw1zw0: DualTypes | None,

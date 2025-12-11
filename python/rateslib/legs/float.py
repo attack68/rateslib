@@ -258,7 +258,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         final_exchange: bool = False,
         # rate params
         float_spread: DualTypes_ = NoInput(0),
-        rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        rate_fixings: LegFixings = NoInput(0),
         fixing_method: FloatFixingMethod | str_ = NoInput(0),
         method_param: int_ = NoInput(0),
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
@@ -268,7 +268,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_fixings: LegFixings = NoInput(0),
     ) -> None:
         self._schedule = schedule
         self._notional: DualTypes = _drb(defaults.notional, notional)
