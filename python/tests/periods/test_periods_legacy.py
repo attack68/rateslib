@@ -1536,7 +1536,8 @@ class TestFloatPeriod:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")
         lcurve = LineCurve({dt(2022, 1, 1): 2.0, dt(2025, 1, 1): 4.0}, calendar="bus")
         fixings_ = Series([2.801], index=[dt(2023, 3, 1)])
-        fixings.add("TEST_VALUES_3M", fixings_)
+        name = str(hash(os.urandom(8)))
+        fixings.add(f"{name}_3M", fixings_)
         float_period = FloatPeriod(
             start=dt(2023, 3, 20),
             end=dt(2023, 6, 20),
@@ -1545,13 +1546,13 @@ class TestFloatPeriod:
             fixing_method="ibor",
             method_param=2,
             calendar="bus",
-            rate_fixings="TEST_VALUES",
+            rate_fixings=name,
         )
         result = float_period.rate(curve)  # fixing occurs 18th Mar, not in `fixings`
         assert abs(result - 3.476095729528156) < 1e-5
         result = float_period.rate(lcurve)  # fixing occurs 18th Mar, not in `fixings`
         assert abs(result - 2.801094890510949) < 1e-5
-        fixings.pop("TEST_VALUES_3M")
+        fixings.pop(f"{name}_3M")
 
     def test_ibor_fixings_exposure_with_fixing(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2025, 1, 1): 0.90}, calendar="bus")

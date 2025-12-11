@@ -62,14 +62,16 @@ impl<'py> IntoPyObject<'py> for PyAdjusterNewArgs {
     }
 }
 
-impl<'py> FromPyObject<'py> for PyAdjusterNewArgs {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ext: PyResult<(u8,)> = ob.extract();
+impl<'py> FromPyObject<'py, 'py> for PyAdjusterNewArgs {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let ext: PyResult<(u8,)> = obj.extract();
         if ext.is_ok() {
             let (x,) = ext.unwrap();
             return Ok(PyAdjusterNewArgs::NoArgs(x));
         }
-        let ext: PyResult<(i32, u8)> = ob.extract();
+        let ext: PyResult<(i32, u8)> = obj.extract();
         if ext.is_ok() {
             let (x, y) = ext.unwrap();
             return Ok(PyAdjusterNewArgs::I32(x, y));
