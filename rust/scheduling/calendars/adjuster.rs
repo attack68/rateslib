@@ -137,7 +137,7 @@ impl Adjustment for Adjuster {
                 }
                 let date = calendar.add_bus_days(adate, -n, false).unwrap();
                 Adjuster::Previous {}.reverse(&date, calendar)
-            }, // no vector
+            } // no vector
         }
     }
 
@@ -158,7 +158,7 @@ impl Adjustment for Adjuster {
             }
             Adjuster::BusDaysLagSettleInAdvance(_n) => {
                 for i in (1..udates.len()).rev() {
-                    non_vector_adates[i] = non_vector_adates[i-1];
+                    non_vector_adates[i] = non_vector_adates[i - 1];
                 }
             }
             _ => {}
