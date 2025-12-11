@@ -198,7 +198,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: LegFixings = NoInput(0),  # type: ignore[type-var]
+        index_fixings: LegFixings = NoInput(0),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         # meta parameters

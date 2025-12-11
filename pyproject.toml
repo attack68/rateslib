@@ -40,7 +40,7 @@ dev = [
     "coverage>=7.6.1,<8.0",
     # style/linting
     "ruff>=0.6.3,<1.0",
-    "mypy>=1.13,<1.18",
+    "mypy>=1.13,<1.20",
     "pandas-stubs>2.0,<3.0",
     # doc building
     "sphinx>=8.0,<8.2",

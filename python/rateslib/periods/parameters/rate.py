@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 def _init_FloatRateParams(
     _float_spread: DualTypes_,
-    _rate_fixings: PeriodFixings,  # type: ignore[type-var]
+    _rate_fixings: PeriodFixings,
     _fixing_method: FloatFixingMethod | str_,
     _method_param: int_,
     _spread_compound_method: SpreadCompoundMethod | str_,

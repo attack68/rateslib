@@ -309,7 +309,7 @@ class FRA(_BaseInstrument):
         notional: DualTypes_ = NoInput(0),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),  # type: ignore[type-var]
+        leg2_rate_fixings: FixingsRates_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
