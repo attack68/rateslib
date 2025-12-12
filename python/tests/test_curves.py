@@ -15,7 +15,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _try_index_value
+from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _CurveMeta, _try_index_value
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
 from rateslib.data.loader import FixingMissingDataError
 from rateslib.dual import Dual, Dual2, Variable, gradient
@@ -66,6 +66,11 @@ def index_curve():
         ad=1,
         index_base=110.0,
     )
+
+
+def test_meta_attribute(curve, line_curve):
+    assert isinstance(curve._meta, _CurveMeta)
+    assert isinstance(line_curve._meta, _CurveMeta)
 
 
 @pytest.mark.parametrize("method", ["flat_forward", "flat_backward"])
@@ -529,6 +534,9 @@ def test_curve_shift_ad_order(ad_order) -> None:
     )
     assert np.all(np.abs(diff) < 1e-7)
 
+    result_curve._set_ad_order((ad_order + 1) % 3)
+    assert result_curve.ad == (ad_order + 1) % 3
+
 
 @pytest.mark.skip(reason="composite argument removed from shift method in v2.1")
 def test_curve_shift_association() -> None:
@@ -914,6 +922,10 @@ def test_curve_translate(crv, tol) -> None:
         projected_base = crv.index_value(dt(2023, 1, 1), crv.meta.index_lag)
         assert abs(result_curve.meta.index_base - projected_base) < 1e-14
 
+    # test date between original initial and translated initial is zero
+    assert result_curve[dt(1900, 1, 1)] == 0.0
+    assert result_curve[dt(2022, 12, 31)] == 0.0
+
 
 @pytest.mark.parametrize(
     "crv",
@@ -964,9 +976,17 @@ def test_curve_translate(crv, tol) -> None:
         ),
     ],
 )
-def test_curve_roll(crv) -> None:
-    rolled_curve = crv.roll("10d")
-    rolled_curve2 = crv.roll("-10d")
+@pytest.mark.parametrize(
+    "dates",
+    [
+        ("10d", "-10d"),
+        (dt(2022, 1, 11), dt(2021, 12, 22)),
+        (10, -10),
+    ],
+)
+def test_curve_roll(crv, dates) -> None:
+    rolled_curve = crv.roll(dates[0])
+    rolled_curve2 = crv.roll(dates[1])
 
     expected = np.array(
         [
@@ -988,6 +1008,9 @@ def test_curve_roll(crv) -> None:
     )
     assert np.all(np.abs(result - expected) < 1e-7)
     assert np.all(np.abs(result2 - expected) < 1e-7)
+
+    # value prior to initial node
+    assert rolled_curve[dt(1900, 1, 1)] == 0.0
 
 
 @pytest.mark.skip(reason="v2.1 uses a RolledCurve and does not return a compatible object for eq")
