@@ -678,7 +678,7 @@ def test_fed_sunday_to_monday():
 
 
 def test_syd_nsw_holidays():
-    cal = get_calendar("syd")
+    cal = get_calendar("nsw")
     assert not cal.is_bus_day(dt(1970, 8, 3))
     assert not cal.is_bus_day(dt(1970, 10, 5))
 

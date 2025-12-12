@@ -139,8 +139,8 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
        - The TYO calendar corrects an Autumnal Equinox and adds *Bridge Holiday*.
          (`1070 <https://github.com/attack68/rateslib/pull/1070>`_)
-       - The SYD calendar adds NSW state specific bank holiday and labour day.
-         (`1111 <https://github.com/attack68/rateslib/pull/1111>`_)
+       - Add the NSW calendar to extend SYD with NSW state specific bank holiday and labour day.
+         (`1112 <https://github.com/attack68/rateslib/pull/1112>`_)
        - The WLG calendar adds 'Anniversary Day', amends the 'King's Birthday',
          add observation rules for 'New Year's Day' and the day after and 'Anzac Day',
          and adds the one off 'Queen Elizabeth II Memorial Day'.

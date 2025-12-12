@@ -161,7 +161,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
      -
    * - AUD
-     - :ref:`syd <spec-aud-syd>`
+     - :ref:`syd <spec-aud-syd>`, :ref:`nsw <spec-aud-nsw>`
      - :ref:`aud_irs <spec-aud-irs>`, :ref:`aud_irs3 <spec-aud-irs3>`, :ref:`aud_irs3_gt_3y <spec-aud-irs3-gt-3y>`, :ref:`aud_irs6 <spec-aud-irs6>`
      - :ref:`audusd_xcs <spec-audusd-xcs>`, :ref:`audusd_xcs3 <spec-audusd-xcs3>`
      -
