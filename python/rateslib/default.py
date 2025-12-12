@@ -51,6 +51,7 @@ class Defaults:
             "tro": NamedCal("tro"),
             "tyo": NamedCal("tyo"),
             "syd": NamedCal("syd"),
+            "nsw": NamedCal("nsw"),
             "wlg": NamedCal("wlg"),
             "mum": NamedCal("mum"),
         }
