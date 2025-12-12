@@ -118,7 +118,7 @@ class _WithOperations:
         return TranslatedCurve(curve=_, start=start, id=id)
 
     @_validate_states
-    def roll(self, tenor: datetime | str, id: str_ = NoInput(0)) -> RolledCurve:  # noqa: A002
+    def roll(self, tenor: datetime | str | int, id: str_ = NoInput(0)) -> RolledCurve:  # noqa: A002
         """
         Create a :class:`~rateslib.curves.RolledCurve`: translating the rate space of *Self* in
         time.
@@ -574,7 +574,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
             m1_, m2_ = m1.unwrap(), m2.unwrap()
             return Ok(m1_ + (index_date.day - 1) / n * (m2_ - m1_))
         else:
-            return Err(
+            return Err(  # pragma: no cover
                 ValueError(
                     "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
                 )
