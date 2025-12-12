@@ -19,6 +19,7 @@ from rateslib.instruments import (
     IndexFixedRateBond,
 )
 from rateslib.instruments.bonds.conventions import US_GBB, BondCalcMode
+from rateslib.instruments.protocols.pricing import _Curves
 from rateslib.scheduling import dcf, get_calendar
 from rateslib.solver import Solver
 
@@ -1178,10 +1179,12 @@ class TestFixedRateBond:
         )
         curve = Curve({dt(1998, 12, 9): 1.0, dt(2015, 12, 7): 0.50})
         clean_price = gilt.rate(curves=curve, metric="clean_price")
-        result = gilt.rate(curves=curve, metric="clean_price", settlement=dt(1998, 12, 9))
+        result = gilt.rate(
+            curves={"disc_curve": curve}, metric="clean_price", settlement=dt(1998, 12, 9)
+        )
         assert abs(result - clean_price) < 1e-8
 
-        result = gilt.rate(curves=curve, metric="dirty_price")
+        result = gilt.rate(curves=_Curves(disc_curve=curve), metric="dirty_price")
         expected = clean_price + gilt.accrued(dt(1998, 12, 9))
         assert result == expected
         result = gilt.rate(curves=curve, metric="dirty_price", settlement=dt(1998, 12, 9))
@@ -1787,6 +1790,12 @@ class TestFixedRateBond:
 
         price = bond.price(ytm=20.0, settlement=dt(2002, 1, 15))
         assert abs(price - 100.0) < 5e-1
+
+    def test_coupon_setter(self):
+        frb = FixedRateBond(dt(2000, 1, 1), dt(2005, 1, 1), fixed_rate=2.0, spec="uk_gb")
+        frb.fixed_rate = 3.0
+        assert frb.fixed_rate == 3.0
+        assert frb.kwargs.leg1["fixed_rate"] == 3.0
 
 
 class TestIndexFixedRateBond:
