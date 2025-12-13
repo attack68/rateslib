@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.instruments.fx_options.risk_reversal import FXOptionStrat
+from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 from rateslib.instruments.fx_options.straddle import FXStraddle
 from rateslib.instruments.fx_options.strangle import FXStrangle
 
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     )
 
 
-class FXBrokerFly(FXOptionStrat):
+class FXBrokerFly(_BaseFXOptionStrat):
     """
-    An *FX Strangle* :class:`~rateslib.instruments.FXOptionStrat`.
+    An *FX Strangle* :class:`~rateslib.instruments._FXOptionStrat`.
 
     A *Straddle* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
     and a higher strike :class:`~rateslib.instruments.FXCall`.
@@ -41,7 +41,7 @@ class FXBrokerFly(FXOptionStrat):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXStraddle
+       from rateslib.instruments import FXRiskReversal
        from datetime import datetime as dt
 
     .. ipython:: python
@@ -168,7 +168,7 @@ class FXBrokerFly(FXOptionStrat):
     the provided volatility.
 
     This class is an alias constructor for an
-    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    :class:`~rateslib.instruments._FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically overloaded for
     convenience.
     """
@@ -341,7 +341,7 @@ class FXBrokerFly(FXOptionStrat):
         """
         Returns the rate of the *FXBrokerFly* according to a pricing metric.
 
-        For parameters see :meth:`FXOptionStrat.rate <rateslib.instruments.FXOptionStrat.rate>`.
+        For parameters see :meth:`_FXOptionStrat.rate <rateslib.instruments._FXOptionStrat.rate>`.
 
         Notes
         ------
@@ -433,7 +433,7 @@ class FXBrokerFly(FXOptionStrat):
 
         _.update(
             {
-                "__class": "FXOptionStrat",
+                "__class": "_FXOptionStrat",
                 "__strategies": {"FXStrangle": g_grks, "FXStraddle": d_grks},
                 "__delta_type": g_grks["__delta_type"],
                 "__notional": self.kwargs.leg1["notional"],

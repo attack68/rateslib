@@ -41,13 +41,13 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards,
         FXForwards_,
-        FXOptionPeriod,
         FXVol_,
         Sequence,
         Solver_,
         VolT_,
         _BaseCurve,
         _BaseCurve_,
+        _BaseFXOptionPeriod,
         _BaseLeg,
         _FXVolOption_,
         bool_,
@@ -70,9 +70,11 @@ class _PricingMetrics:
     f_d: DualTypes
 
 
-class FXOption(_BaseInstrument, metaclass=ABCMeta):
+class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
     """
     An abstract base class for implementing *FXOptions*.
+
+    See :class:`~rateslib.instruments.FXCall` and :class:`~rateslib.instruments.FXPut`.
     """
 
     _rate_scalar: float = 1.0
@@ -96,7 +98,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         return self._legs
 
     @property
-    def _option(self) -> FXOptionPeriod:
+    def _option(self) -> _BaseFXOptionPeriod:
         return self.leg1.periods[0]  # type: ignore[return-value]
 
     @property
@@ -799,7 +801,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
         """Not implemented for Option types.
-        Use :class:`~rateslib.instruments.FXOption.analytic_greeks`.
+        Use :class:`~rateslib.instruments._FXOption.analytic_greeks`.
         """
         raise NotImplementedError("For Option types use `analytic_greeks`.")
 
@@ -890,7 +892,7 @@ class FXOption(_BaseInstrument, metaclass=ABCMeta):
         raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
 
-class FXCall(FXOption):
+class FXCall(_BaseFXOption):
     """
     An *FX Call* option.
 
@@ -1054,11 +1056,11 @@ class FXCall(FXOption):
         super().__init__(*args, call=True, **kwargs)
 
 
-class FXPut(FXOption):
+class FXPut(_BaseFXOption):
     """
     Create an *FX Put* option.
 
-    For parameters see :class:`~rateslib.instruments.FXOption`.
+    For parameters see :class:`~rateslib.instruments._FXOption`.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

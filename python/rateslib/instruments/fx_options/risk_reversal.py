@@ -6,7 +6,7 @@ from pandas import DataFrame
 
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.instruments.fx_options.call_put import FXCall, FXOption, FXPut
+from rateslib.instruments.fx_options.call_put import FXCall, FXPut, _BaseFXOption
 from rateslib.instruments.protocols import _KWArgs
 
 if TYPE_CHECKING:
@@ -30,10 +30,11 @@ if TYPE_CHECKING:
     )
 
 
-class FXOptionStrat(FXOption):
+class _BaseFXOptionStrat(_BaseFXOption):
     """
-    A custom option strategy composed of a list of :class:`~rateslib.instruments.FXOption`,
-    or other :class:`~rateslib.instruments.FXOptionStrat` objects, of the same currency ``pair``.
+    A custom option strategy composed of a list of :class:`~rateslib.instruments._BaseFXOption`,
+    or other :class:`~rateslib.instruments._BaseFXOptionStrat` objects, of the same
+    currency ``pair``.
 
     Parameters
     ----------
@@ -50,7 +51,7 @@ class FXOptionStrat(FXOption):
     """
 
     _greeks: dict[str, Any] = {}
-    _strat_elements: tuple[FXOption | FXOptionStrat, ...]
+    _strat_elements: tuple[_BaseFXOption | _BaseFXOptionStrat, ...]
 
     @property
     def kwargs(self) -> _KWArgs:
@@ -59,7 +60,7 @@ class FXOptionStrat(FXOption):
 
     def __init__(
         self,
-        options: Sequence[FXOption | FXOptionStrat],
+        options: Sequence[_BaseFXOption | _BaseFXOptionStrat],
         rate_weight: list[float],
         rate_weight_vol: list[float],
         metric: str_ = NoInput(0),
@@ -172,7 +173,7 @@ class FXOptionStrat(FXOption):
         raise NotImplementedError(f"{type(cls).__name__} must implement `_parse_vol`.")
 
     @property
-    def instruments(self) -> tuple[FXOption | FXOptionStrat, ...]:
+    def instruments(self) -> tuple[_BaseFXOption | _BaseFXOptionStrat, ...]:
         return self.kwargs.meta["instruments"]  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
@@ -421,7 +422,7 @@ class FXOptionStrat(FXOption):
         vol_: FXVolStrat_ = self._parse_vol(vol=vol)
         gks = []
         for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
-            if isinstance(inst, FXOptionStrat):
+            if isinstance(inst, _BaseFXOptionStrat):
                 gks.append(
                     inst.analytic_greeks(
                         curves=curves,
@@ -468,7 +469,7 @@ class FXOptionStrat(FXOption):
         return _
 
 
-class FXRiskReversal(FXOptionStrat):
+class FXRiskReversal(_BaseFXOptionStrat):
     """
     An *FX Risk Reversal* :class:`~rateslib.instruments.FXOptionStrat`.
 

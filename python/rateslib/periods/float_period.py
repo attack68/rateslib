@@ -556,6 +556,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
       :suppress:
 
       from rateslib.periods import ZeroFloatPeriod
+      from rateslib.legs import CustomLeg
       from rateslib.scheduling import Schedule
       from datetime import datetime as dt
 
@@ -573,6 +574,13 @@ class ZeroFloatPeriod(_BasePeriodStatic):
            method_param=0,
        )
        period.cashflows()
+
+    For more details of the individual compounded periods one can compose a
+    :class:`~rateslib.legs.CustomLeg` and view the pseudo-cashflows.
+
+    .. ipython:: python
+
+       CustomLeg(period.float_periods).cashflows()
 
     .. ipython:: python
        :suppress:

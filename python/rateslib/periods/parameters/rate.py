@@ -275,9 +275,13 @@ class _FloatRateParams:
         of the floating rate for the period.
     _method_param: int
         A specific parameter that is used by the specific ``fixing_method``.
-    _fixing_index: FloatRateIndex,
-        The :class:`~rateslib.enums.parameters.FloatRateIndex` defining the specific interest
+    _fixing_series: FloatRateSeries,
+        The :class:`~rateslib.enums.parameters.FloatRateSeries` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex` defining the specific interest
         rate index and some of its calculation parameters.
+    _fixing_frequency: Frequency,
+        The :class:`~rateslib.scheduling.Frequency` of the
+        :class:`~rateslib.enums.parameters.FloatRateIndex`.
     _float_spread: float, Dual, Dual2, Variable
         The amount (in bps) added to the rate in the period rate determination.
     _spread_compound_method: SpreadCompoundMethod
@@ -288,13 +292,6 @@ class _FloatRateParams:
         The appropriate rate fixing class that is used to determine if known, published
         values are available for the *Period*.
     """
-
-    _fixing_method: FloatFixingMethod
-    _method_param: int
-    _fixing_index: FloatRateIndex
-    _float_spread: DualTypes
-    _spread_compound_method: SpreadCompoundMethod
-    _rate_fixing: IBORFixing | IBORStubFixing | RFRFixing
 
     def __init__(
         self,
@@ -308,15 +305,15 @@ class _FloatRateParams:
         _rate_fixing: IBORFixing | IBORStubFixing | RFRFixing,
     ) -> None:
         self._fixing_method: FloatFixingMethod = _fixing_method
-        self._spread_compound_method = _spread_compound_method
+        self._spread_compound_method: SpreadCompoundMethod = _spread_compound_method
         self._fixing_series = _fixing_series
         self._fixing_index = FloatRateIndex(
             frequency=_fixing_frequency,
             series=_fixing_series,
         )
-        self._float_spread = _float_spread
+        self._float_spread: DualTypes = _float_spread
         self._method_param: int = _method_param
-        self._rate_fixing = _rate_fixing
+        self._rate_fixing: IBORFixing | IBORStubFixing | RFRFixing = _rate_fixing
 
         self._validate_combinations_args()
 
