@@ -270,12 +270,15 @@ class MtmCashflow(_BasePeriodStatic):
 
     .. math::
 
-       \mathbb{E^Q} [\bar{C}_t] = -N ( f_{not:ref}(m_{a.e}) - f_{not:ref}(m_{a.s}) )
+       \mathbb{E^Q} [\bar{C}_t] = -N ( f_{ref:loc}(m_{a.e}) - f_{ref:loc}(m_{a.s}) )
 
     There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
 
     Examples
     --------
+
+    This *MTMCashflow* is the movement of the EURUSD FX rate from 1.1 to 1.2 on a notional of
+    125,000 EUR resulting in a cashflow of -12,500 USD.
 
     .. ipython:: python
        :suppress:

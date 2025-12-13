@@ -79,9 +79,9 @@ if TYPE_CHECKING:
     )
 
 
-class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
+class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
     r"""
-    An abstract base class for implementing FX option *Periods*.
+    Abstract base class for *FXOptionPeriods* types.
 
     **See Also**: :class:`~rateslib.periods.FXCallPeriod`,
     :class:`~rateslib.periods.FXPutPeriod`
@@ -940,9 +940,9 @@ class FXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=A
         return x, y
 
 
-class FXCallPeriod(FXOptionPeriod):
+class FXCallPeriod(_BaseFXOptionPeriod):
     r"""
-    A *Period* defined by an FX call option.
+    A *Period* defined by a European FX call option.
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`, where `direction` is
     set to 1.0.
@@ -960,9 +960,9 @@ class FXCallPeriod(FXOptionPeriod):
         super().__init__(*args, **{**kwargs, "direction": OptionType.Call})
 
 
-class FXPutPeriod(FXOptionPeriod):
+class FXPutPeriod(_BaseFXOptionPeriod):
     r"""
-    A *Period* defined by an FX put option.
+    A *Period* defined by a European FX put option.
 
     For parameters see :class:`~rateslib.periods.FXOptionPeriod`, where `direction` is
     set to -1.0.

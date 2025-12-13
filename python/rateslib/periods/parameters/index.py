@@ -221,17 +221,8 @@ class _IndexParams:
         index_curve: _BaseCurve_ = NoInput(0),
     ) -> Result[tuple[DualTypes, DualTypes, DualTypes]]:
         """
-        Calculate the index ratio for the *Period*, including the numerator and denominator,
-        with lazy error raising.
-
-        .. math::
-
-           I(m) = \\frac{I_{val}(m)}{I_{base}}
-
-        Parameters
-        ----------
-        index_curve : _BaseCurve, optional
-            The curve from which index values are forecast if required.
+        Replicates :meth:`~rateslib.periods.parameters._IndexParams.index_ratio` with
+        lazy error raising.
 
         Returns
         -------

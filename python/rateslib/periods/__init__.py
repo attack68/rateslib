@@ -22,27 +22,21 @@ from rateslib.periods.float_period import (
     # NonDeliverableIndexFloatPeriod,
     ZeroFloatPeriod,
 )
-from rateslib.periods.fx_volatility import FXCallPeriod, FXOptionPeriod, FXPutPeriod
+from rateslib.periods.fx_volatility import FXCallPeriod, FXPutPeriod, _BaseFXOptionPeriod
+from rateslib.periods.protocols import _BasePeriod, _BasePeriodStatic
 
 __all__ = [
-    "Cashflow",
-    # "IndexCashflow",
-    # "NonDeliverableCashflow",
-    # "NonDeliverableIndexCashflow",
-    "MtmCashflow",
     "FixedPeriod",
-    # "IndexFixedPeriod",
-    # "NonDeliverableFixedPeriod",
-    # "NonDeliverableIndexFixedPeriod",
     "FloatPeriod",
-    # "IndexFloatPeriod",
-    # "NonDeliverableFloatPeriod",
-    # "NonDeliverableIndexFloatPeriod",
     "ZeroFixedPeriod",
     "ZeroFloatPeriod",
+    "Cashflow",
+    "MtmCashflow",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
-    "FXOptionPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
+    "_BasePeriod",
+    "_BasePeriodStatic",
+    "_BaseFXOptionPeriod",
 ]

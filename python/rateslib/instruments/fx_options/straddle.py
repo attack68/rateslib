@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.fx_options.call_put import FXCall, FXPut
-from rateslib.instruments.fx_options.risk_reversal import FXOptionStrat
+from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -24,9 +24,9 @@ if TYPE_CHECKING:
     )
 
 
-class FXStraddle(FXOptionStrat):
+class FXStraddle(_BaseFXOptionStrat):
     """
-    An *FX Straddle* :class:`~rateslib.instruments.FXOptionStrat`.
+    An *FX Straddle* :class:`~rateslib.instruments._FXOptionStrat`.
 
     A *Straddle* is composed of a :class:`~rateslib.instruments.FXPut`
     and :class:`~rateslib.instruments.FXCall` with the same strike.
@@ -43,7 +43,7 @@ class FXStraddle(FXOptionStrat):
 
        fxc = FXRiskReversal(
            expiry="3m",
-           strike="atm_delta"],
+           strike="atm_delta",
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
        )
@@ -163,7 +163,7 @@ class FXStraddle(FXOptionStrat):
     the provided volatility.
 
     This class is an alias constructor for an
-    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    :class:`~rateslib.instruments._FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically overloaded for
     convenience.
     """

@@ -4,6 +4,7 @@ from rateslib.instruments.bonds.conventions import BillCalcMode, BondCalcMode
 from rateslib.instruments.bonds.fixed_rate_bond import FixedRateBond
 from rateslib.instruments.bonds.float_rate_note import FloatRateNote
 from rateslib.instruments.bonds.index_fixed_rate_bond import IndexFixedRateBond
+from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 
 __all__ = [
     "FixedRateBond",
@@ -13,4 +14,5 @@ __all__ = [
     "FloatRateNote",
     "BillCalcMode",
     "BondCalcMode",
+    "_BaseBondInstrument",
 ]

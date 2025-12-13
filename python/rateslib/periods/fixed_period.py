@@ -410,6 +410,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
        :suppress:
 
        from rateslib.periods import ZeroFixedPeriod
+       from rateslib.legs import CustomLeg
        from rateslib.scheduling import Schedule
        from datetime import datetime as dt
 
@@ -421,6 +422,13 @@ class ZeroFixedPeriod(_BasePeriodStatic):
            convention="1",
        )
        period.cashflows()
+
+    For more details of the individual compounded periods one can compose a
+    :class:`~rateslib.legs.CustomLeg` and view the pseudo-cashflows.
+
+    .. ipython:: python
+
+       CustomLeg(period.fixed_periods).cashflows()
 
     .. role:: red
 
@@ -523,6 +531,14 @@ class ZeroFixedPeriod(_BasePeriodStatic):
             for i in range(self.schedule.n_periods)
         )
 
+    @property
+    def fixed_periods(self) -> list[FixedPeriod]:
+        """
+        The individual :class:`~rateslib.periods.FixedPeriod` that are
+        compounded.
+        """
+        return self._fixed_periods
+
     def __init__(
         self,
         *,
@@ -578,6 +594,29 @@ class ZeroFixedPeriod(_BasePeriodStatic):
             _index_reference_date=self.schedule.aschedule[-1],
         )
         self._rate_params = _FixedRateParams(fixed_rate)
+        self._fixed_periods: list[FixedPeriod] = [
+            FixedPeriod(
+                fixed_rate=fixed_rate,
+                # currency args:
+                payment=self.schedule.pschedule[i + 1],
+                notional=notional,
+                currency=currency,
+                ex_dividend=self.schedule.pschedule3[i + 1],
+                # period params
+                start=self.schedule.aschedule[i],
+                end=self.schedule.aschedule[i + 1],
+                frequency=self.schedule.frequency_obj,
+                convention=convention,
+                termination=self.schedule.aschedule[-1],
+                stub=self.schedule._stubs[i],
+                roll=NoInput(0),  # inferred from frequency obj
+                calendar=self.schedule.calendar,
+                adjuster=self.schedule.modifier,
+                # Each individual period is not genuine Period, only psuedo periods to derive the
+                # cashflow calculation so no 'non-deliverable' or 'index' params are required.
+            )
+            for i in range(self.schedule.n_periods)
+        ]
 
     def unindexed_reference_cashflow(
         self,

@@ -139,7 +139,7 @@ class _WithOperations:
         """  # noqa: E501
         _: _BaseCurve = self  # type: ignore[assignment]
         if isinstance(tenor, str):
-            tenor_ = add_tenor(_._nodes.initial, tenor, "NONE", NoInput(0))
+            tenor_: datetime | int = add_tenor(_._nodes.initial, tenor, "NONE", NoInput(0))
         else:
             tenor_ = tenor
 

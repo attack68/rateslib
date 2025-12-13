@@ -10,7 +10,7 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_options.call_put import FXCall, FXPut
-from rateslib.instruments.fx_options.risk_reversal import FXOptionStrat
+from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 from rateslib.instruments.protocols.pricing import (
     _get_fx_forwards_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
@@ -29,10 +29,10 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards,
         FXForwards_,
-        FXOptionPeriod,
         FXVolStrat_,
         Solver_,
         VolT_,
+        _BaseFXOptionPeriod,
         _FXVolOption,
         _Vol,
         bool_,
@@ -43,9 +43,9 @@ if TYPE_CHECKING:
     )
 
 
-class FXStrangle(FXOptionStrat):
+class FXStrangle(_BaseFXOptionStrat):
     """
-    An *FX Strangle* :class:`~rateslib.instruments.FXOptionStrat`.
+    An *FX Strangle* :class:`~rateslib.instruments._FXOptionStrat`.
 
     A *Straddle* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
     and a higher strike :class:`~rateslib.instruments.FXCall`.
@@ -55,14 +55,14 @@ class FXStrangle(FXOptionStrat):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXStraddle
+       from rateslib.instruments import FXRiskReversal
        from datetime import datetime as dt
 
     .. ipython:: python
 
        fxc = FXRiskReversal(
            expiry="3m",
-           strike="atm_delta"],
+           strike="atm_delta",
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
        )
@@ -182,7 +182,7 @@ class FXStrangle(FXOptionStrat):
     the provided volatility.
 
     This class is an alias constructor for an
-    :class:`~rateslib.instruments.FXOptionStrat` where the number
+    :class:`~rateslib.instruments._FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically overloaded for
     convenience.
     """
@@ -301,7 +301,7 @@ class FXStrangle(FXOptionStrat):
         """
         Returns the rate of the *FXStrangle* according to a pricing metric.
 
-        For parameters see :meth:`FXOptionStrat.rate <rateslib.instruments.FXOptionStrat.rate>`.
+        For parameters see :meth:`_FXOptionStrat.rate <rateslib.instruments._FXOptionStrat.rate>`.
 
         Notes
         ------
@@ -473,8 +473,8 @@ class FXStrangle(FXOptionStrat):
         g0: DualTypes = gks[0]["__vol"] * gks[0]["vega"] + gks[1]["__vol"] * gks[1]["vega"]
         g0 /= gks[0]["vega"] + gks[1]["vega"]
 
-        put_op_period: FXOptionPeriod = self.instruments[0]._option
-        call_op_period: FXOptionPeriod = self.instruments[1]._option
+        put_op_period: _BaseFXOptionPeriod = self.instruments[0]._option
+        call_op_period: _BaseFXOptionPeriod = self.instruments[1]._option
 
         def root1d(
             tgt_vol: DualTypes, fzw1zw0: DualTypes, as_float: bool
