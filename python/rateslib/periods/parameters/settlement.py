@@ -153,8 +153,7 @@ class _NonDeliverableParams:
 
     @cached_property
     def fx_reversed(self) -> bool:
-        """Whether the *FX* rate fixing is reversed relative to the ``referency_currency``
-        and ``currency``."""
+        """Is *True* if the ``referency_currency`` is the RHS of ``pair``."""
         return self.pair[3:6] == self.reference_currency
 
 

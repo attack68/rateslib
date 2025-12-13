@@ -97,7 +97,7 @@ def _screen_ex_div_and_forward(
 
 class _WithNPV(Protocol):
     r"""
-    Protocol to establish value of any *Period* type.
+    Protocol to define value of any *Period* type.
 
     .. rubric:: Required methods
 
@@ -109,10 +109,11 @@ class _WithNPV(Protocol):
 
     .. autosummary::
 
-      ~_WithNPV.try_local_npv
-      ~_WithNPV.try_immediate_local_npv
       ~_WithNPV.local_npv
       ~_WithNPV.npv
+      ~_WithNPV.try_immediate_local_npv
+      ~_WithNPV.try_local_npv
+
 
     Notes
     -----
@@ -223,7 +224,7 @@ class _WithNPV(Protocol):
         r"""
         Calculate the NPV of the *Period* in local settlement currency.
 
-        This method adjusts the immediate NPV for ex-dividend and forward projected value,
+        This method adjusts the immediate NPV for ex-dividend, settlement and forward projected value,
         according to,
 
         .. math::
@@ -368,7 +369,7 @@ class _WithNPV(Protocol):
         Notes
         -----
         If ``base`` is not provided then this function will return the value obtained from
-        :meth:`~rateslib.periods.protocols._WithNPV.try_local_npv`.
+        :meth:`~rateslib.periods.protocols._WithNPV.local_npv`.
 
         If ``base`` is provided this then an :class:`~rateslib.fx.FXForwards` object may be
         required to perform conversions. An :class:`~rateslib.fx.FXRates` object is also allowed
@@ -545,18 +546,18 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
 
     .. autosummary::
 
-       ~_WithNPVStatic.try_unindexed_reference_cashflow
-       ~_WithNPVStatic.try_reference_cashflow
-       ~_WithNPVStatic.try_unindexed_cashflow
-       ~_WithNPVStatic.try_cashflow
-       ~_WithNPVStatic.try_immediate_local_npv
-       ~_WithNPVStatic.try_local_npv
        ~_WithNPVStatic.reference_cashflow
        ~_WithNPVStatic.unindexed_cashflow
        ~_WithNPVStatic.cashflow
        ~_WithNPVStatic.immediate_local_npv
        ~_WithNPVStatic.local_npv
        ~_WithNPVStatic.npv
+       ~_WithNPVStatic.try_unindexed_reference_cashflow
+       ~_WithNPVStatic.try_reference_cashflow
+       ~_WithNPVStatic.try_unindexed_cashflow
+       ~_WithNPVStatic.try_cashflow
+       ~_WithNPVStatic.try_immediate_local_npv
+       ~_WithNPVStatic.try_local_npv
 
     Notes
     -----
@@ -886,7 +887,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
-        Calculate the NPV of the *Period* in local settlement currency, with lazy error raising.
+        Calculate the NPV of the *Period* in local settlement currency.
 
         This method does **not** adjust for ex-dividend and is an immediate measure according to,
 

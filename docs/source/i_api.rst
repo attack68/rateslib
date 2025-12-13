@@ -81,26 +81,6 @@ Objects
    :headings: "^-"
    :inherited-members:
    :no-heading:
-   :include: IRS
-   :include: SBS
-   :include: ZCS
-   :include: XCS
-   :include: FRA
-   :include: IIRS
-   :include: ZCIS
-   :include: FXForward
-   :include: FXSwap
-   :include: CDS
-   :include: NDF
-   :include: Value
-   :include: FXVolValue
-   :include: STIRFuture
-   :include: Spread
-   :include: Fly
-   :include: Portfolio
-   :include: FXOption
-   :include: FXCall
-   :include: FXPut
 
 FX
 ===
@@ -163,6 +143,8 @@ Protocols
    :headings: "^-"
    :inherited-members:
    :no-heading:
+   :skip: _BasePeriod
+   :skip: _BasePeriodStatic
 
 Parameters
 ^^^^^^^^^^

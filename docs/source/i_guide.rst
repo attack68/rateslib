@@ -24,19 +24,19 @@ are used in practice.
 .. |ico3| image:: _static/rlxl32.png
    :height: 20px
 
-.. note::
+..
+   .. note::
 
-   If you see this icon |ico3| at any point after a section it will link to a section in the
-   *rateslib-excel* documentation which may demonstrate the equivalent Python example in Excel.
+      If you see this icon |ico3| at any point after a section it will link to a section in the
+      *rateslib-excel* documentation which may demonstrate the equivalent Python example in Excel.
 
 Let's start with some fundamental *Curve* and *Instrument* constructors.
 
 Trivial derivatives examples
 ----------------------------
 
-*Rateslib* has two fundamental :ref:`Curve types<c-curves-doc>`. Both can be constructed
-independently by providing basic inputs. Most of the time you will only need to use
-a :class:`~rateslib.curves.Curve`.
+*Rateslib* has two fundamental :ref:`Curve types<c-curves-doc>`. Most of the time you
+will only need to use a :class:`~rateslib.curves.Curve`.
 
 .. tabs::
 
@@ -65,7 +65,7 @@ a :class:`~rateslib.curves.Curve`.
       A :class:`~rateslib.curves.LineCurve` is value based and is constructed
       by providing curve values on specific node dates. Interpolation between ``nodes`` is
       configurable, with the default being *"linear"* interpolation (hence *LineCurve*). This type
-      has no DFs so can't be used for discounting.
+      has no DFs so can't be used for discounting cashflows.
 
       .. ipython:: python
 
