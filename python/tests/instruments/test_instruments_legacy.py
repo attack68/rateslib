@@ -6340,6 +6340,55 @@ class TestFXOptions:
         assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) > 49.2)
         assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) < 50.6)
 
+    @pytest.mark.skip(reason="non-deliverability for FXOption instruments not yet implemented")
+    @pytest.mark.parametrize("ndpair", ["usdbrl", "brlusd"])
+    def test_non_deliverable_fx_option_npv_vol_from_delta(self, ndpair):
+        # see the equivalent test for an FXOptionPeriod with static vol
+        fxf = FXForwards(
+            fx_rates=FXRates({"usdbrl": 5.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.98}),
+                "brlusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.983}),
+                "brlbrl": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.984}),
+            },
+        )
+        fxv = FXDeltaVolSmile(
+            nodes={0.4: 10.0, 0.6: 11.0},
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 2, 28),
+            delta_type="forward",
+        )
+        fxo = FXCall(
+            delivery_lag=dt(2000, 3, 1),
+            pair="USDBRL",
+            strike="50d",
+            delta_type="spot",
+            expiry=dt(2000, 2, 28),
+        )
+        fxond = FXCall(
+            delivery_lag=dt(2000, 3, 1),
+            pair="USDBRL",
+            nd_pair=ndpair,
+            delta_type="spot",
+            strike="50d",
+            expiry=dt(2000, 2, 28),
+        )
+
+        npv = fxo.local_npv(
+            fx=fxf,
+            vol=fxv,
+            curves=[fxf.curve("usd", "usd"), fxf.curve("brl", "usd")],
+        )
+        npv_nd = fxond.local_npv(
+            fx=fxf,
+            vol=fxv,
+            curves=[fxf.curve("usd", "usd"), fxf.curve("usd", "usd")],
+        )
+
+        # local NPV should be expressed in USD for ND type
+        result = npv / 5.0 - npv_nd
+        assert abs(result) < 1e-9
+
 
 class TestRiskReversal:
     @pytest.mark.parametrize(
