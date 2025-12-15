@@ -39,14 +39,14 @@ class _WithAnalyticDelta(Protocol):
 
     .. autosummary::
 
-      ~_WithAnalyticDelta.try_immediate_local_analytic_delta
+       ~_WithAnalyticDelta.try_immediate_local_analytic_delta
 
     .. rubric:: Provided methods
 
     .. autosummary::
 
-      ~_WithAnalyticDelta.try_local_analytic_delta
-      ~_WithAnalyticDelta.analytic_delta
+       ~_WithAnalyticDelta.try_local_analytic_delta
+       ~_WithAnalyticDelta.analytic_delta
 
     Notes
     -----
@@ -103,7 +103,7 @@ class _WithAnalyticDelta(Protocol):
 
         Returns
         -------
-        Result[DualTypes]
+        Result[float, Dual, Dual2, Variable]
         """
         pass
 
@@ -154,7 +154,7 @@ class _WithAnalyticDelta(Protocol):
 
         Returns
         -------
-        Result[DualTypes]
+        Result[float, Dual, Dual2, Variable]
         """  # noqa: E501
         local_immediate_result = self.try_immediate_local_analytic_delta(
             rate_curve=rate_curve,
@@ -212,16 +212,25 @@ class _WithAnalyticDelta(Protocol):
         disc_curve: _BaseCurve, optional
             Used to discount cashflows.
         fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
             ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
         base: str, optional
-            The currency to return the result in. If not given is set to the *local settlement*
-            ``currency``.
+            The currency to convert the *local settlement* NPV to.
+        local: bool, optional
+            An override flag to return a dict of values indexed by string currency.
+        settlement: datetime, optional, (set as immediate date)
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional, (set as ``settlement``)
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
-        float, Dual, Dual2, Variable
+        float, Dual, Dual2, Variable or dict
         """
         local_delta = self.try_local_analytic_delta(
             rate_curve=rate_curve,
@@ -252,18 +261,18 @@ class _WithAnalyticDeltaStatic(
 
     .. autosummary::
 
-      ~_WithAnalyticDeltaStatic.try_unindexed_reference_cashflow_analytic_delta
+       ~_WithAnalyticDeltaStatic.try_unindexed_reference_cashflow_analytic_delta
 
     .. rubric:: Provided methods
 
     .. autosummary::
 
-      ~_WithAnalyticDeltaStatic.try_reference_cashflow_analytic_delta
-      ~_WithAnalyticDeltaStatic.try_unindexed_cashflow_analytic_delta
-      ~_WithAnalyticDeltaStatic.try_cashflow_analytic_delta
-      ~_WithAnalyticDeltaStatic.try_immediate_local_analytic_delta
-      ~_WithAnalyticDeltaStatic.try_local_analytic_delta
-      ~_WithAnalyticDeltaStatic.analytic_delta
+       ~_WithAnalyticDeltaStatic.try_reference_cashflow_analytic_delta
+       ~_WithAnalyticDeltaStatic.try_unindexed_cashflow_analytic_delta
+       ~_WithAnalyticDeltaStatic.try_cashflow_analytic_delta
+       ~_WithAnalyticDeltaStatic.try_immediate_local_analytic_delta
+       ~_WithAnalyticDeltaStatic.try_local_analytic_delta
+       ~_WithAnalyticDeltaStatic.analytic_delta
 
     Notes
     -----
@@ -298,7 +307,7 @@ class _WithAnalyticDeltaStatic(
 
         Returns
         -------
-        float, Dual, Dual2, Variable
+        Result[float, Dual, Dual2, Variable]
         """
         raise NotImplementedError(
             f"type {type(self).__name__} has not implemented "
@@ -320,6 +329,18 @@ class _WithAnalyticDeltaStatic(
 
            I_r \frac{\partial \mathbb{E^Q}[\bar{C}_t]}{\partial \xi}
 
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
         """
         rrad = self.try_unindexed_reference_cashflow_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve
@@ -340,6 +361,21 @@ class _WithAnalyticDeltaStatic(
         .. math::
 
            f(m_d) \frac{\partial \mathbb{E^Q}[\bar{C}_t]}{\partial \xi}
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
         """
         rrad = self.try_unindexed_reference_cashflow_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve
@@ -362,6 +398,27 @@ class _WithAnalyticDeltaStatic(
         .. math::
 
            I_r f(m_d) \frac{\partial \mathbb{E^Q}[\bar{C}_t]}{\partial \xi}
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+
         """
         rad = self.try_reference_cashflow_analytic_delta(
             rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve

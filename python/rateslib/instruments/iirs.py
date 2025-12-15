@@ -220,6 +220,23 @@ class IIRS(_BaseInstrument):
 
         .. note::
 
+           The following parameters define **indexation**.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value applied as the base index value for all *Periods*.
+        If not given and ``index_fixings`` is a string fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The index value for the reference date.
+        Best practice is to supply this value as string identifier relating to the global
+        ``fixings`` object.
+
+        .. note::
+
            The following are **meta parameters**.
 
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`

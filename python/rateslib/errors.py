@@ -49,9 +49,10 @@ VE_HAS_ND_CURRENCY_PARAMS = (
 )
 
 VE_MISMATCHED_FX_PAIR_ND_PAIR = (
-    "A non-deliverable FXOption must be configured with a non-deliverable currency `pair`"
-    "which includes the RHS currency of the `fx_pair` specific to the FXOption.\nGot "
-    "`pair': {0}' and RHS of `fx_pair`: '{1}'."
+    "Non-deliverable FXOptions into a third currency are not allowed.\n"
+    "Got nd-currency: '{0}' and option index pair: '{1}'.\n"
+    "FXOptions of this nature require quanto volatility adjustements that the basic models"
+    "do not include."
 )
 
 # Fixings

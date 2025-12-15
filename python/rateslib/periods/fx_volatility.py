@@ -44,7 +44,6 @@ from rateslib.fx_volatility.utils import (
 from rateslib.periods.parameters import (
     _FXOptionParams,
     _IndexParams,
-    _init_or_none_IndexParams,
     _NonDeliverableParams,
     _SettlementParams,
 )
@@ -64,17 +63,14 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        IndexMethod,
         Number,
         Series,
         _BaseCurve,
         _BaseCurve_,
         _FXVolOption,
         _FXVolOption_,
-        bool_,
         datetime,
         datetime_,
-        int_,
         str_,
     )
 
@@ -85,95 +81,6 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
 
     **See Also**: :class:`~rateslib.periods.FXCallPeriod`,
     :class:`~rateslib.periods.FXPutPeriod`
-
-    .. role:: red
-
-    .. role:: green
-
-    Parameters
-    ----------
-    .
-        .. note::
-
-           The following define **fx option** and generalised **settlement** parameters.
-
-    direction: OptionType, :red:`required`
-        Call or put. The value :math:`\phi` value in option formulae.
-    delivery: datetime, :red:`required`
-        The settlement date of the underlying FX rate of the option. Also used as the implied
-        payment date of the cashflow valuation date.
-    pair: str, :red:`required`
-        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` against which the option
-        will settle.
-    expiry: datetime, :red:`required`
-        The expiry date of the option, when the option fixing is determined.
-    strike: float, Dual, Dual2, Variable, :green:`optional`
-        The strike price of the option. Can be set after initialisation.
-    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
-        The notional of the option expressed in units of LHS currency of `pair`.
-    delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
-        The definition of the delta for the option.
-    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
-        The metric used by default in the
-        :meth:`~rateslib.periods.fx_volatility.FXOptionPeriod.rate` method.
-    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
-        directly. If a string identifier, links to the central ``fixings`` object and data loader.
-    ex_dividend: datetime, :green:`optional (set as 'delivery')`
-        The ex-dividend date of the settled cashflow.
-
-        .. note::
-
-           The following parameters define **non-deliverability**. A non-deliverable FX option is
-           one whose cash settlement value in RHS currency of ``pair`` is converted to a third
-           deliverable currency via a rate defined by ``fx_fixings``. The ``nd_pair`` must contain
-           RHS currency of `pair` in order to correctly define this conversion.
-
-           If the *Period* is directly deliverable do not set these parameters.
-
-    nd_pair: str, :green:`optional`
-        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
-        non-deliverable settlement. The *reference currency* is implied from ``pair``.
-        Must include ``currency``.
-    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        The value of the non-deliverable :class:`~rateslib.data.fixings.FXFixing`. If a scalar is
-        used directly. If a string identifier will link to the central ``fixings`` object and
-        data loader.
-
-        .. note::
-
-           The following parameters define **indexation**. The *Period* will be considered
-           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
-           are given. FX Options are rarely, if ever, indexed so frequently these parameters
-           should be ignored.
-
-    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
-        The interpolation method, or otherwise, to determine index values from reference dates.
-    index_lag: int, :green:`optional (set by 'defaults')`
-        The indexation lag, in months, applied to the determination of index values.
-    index_base: float, Dual, Dual2, Variable, :green:`optional`
-        The specific value set of the base index value.
-        If not given and ``index_fixings`` is a str fixings identifier that will be
-        used to determine the base index value.
-    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        The index value for the reference date.
-        If a scalar value this is used directly. If a string identifier will link to the
-        central ``fixings`` object and data loader.
-    index_base_date: datetime, :green:`optional`
-        The reference date for determining the base index value. Not required if ``_index_base``
-        value is given directly.
-    index_reference_date: datetime, :green:`optional (set as 'end')`
-        The reference date for determining the index value. Not required if ``_index_fixings``
-        is given as a scalar value.
-    index_only: bool, :green:`optional (set as False)`
-        A flag which determines non-payment of notional on supported *Periods*.
-
-
-    Notes
-    ------
-
-    Pricing model uses Black 76 log-normal volatility calculations with calendar day time
-    reference.
 
     """
 
@@ -246,27 +153,28 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         # currency args:
         ex_dividend: datetime_ = NoInput(0),
-        # non-deliverable args:
-        nd_pair: str_ = NoInput(0),
-        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-        # index-args:
-        index_base: DualTypes_ = NoInput(0),
-        index_lag: int_ = NoInput(0),
-        index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-        index_only: bool_ = NoInput(0),
-        index_base_date: datetime_ = NoInput(0),
-        index_reference_date: datetime_ = NoInput(0),
+        # # non-deliverable args:
+        # nd_pair: str_ = NoInput(0),
+        # fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        # # index-args:
+        # index_base: DualTypes_ = NoInput(0),
+        # index_lag: int_ = NoInput(0),
+        # index_method: IndexMethod | str_ = NoInput(0),
+        # index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  #type: ignore[type-var]
+        # index_only: bool_ = NoInput(0),
+        # index_base_date: datetime_ = NoInput(0),
+        # index_reference_date: datetime_ = NoInput(0),
     ) -> None:
-        self._index_params = _init_or_none_IndexParams(
-            _index_base=index_base,
-            _index_lag=index_lag,
-            _index_method=index_method,
-            _index_fixings=index_fixings,
-            _index_only=index_only,
-            _index_base_date=index_base_date,
-            _index_reference_date=_drb(delivery, index_reference_date),
-        )
+        # self._index_params = _init_or_none_IndexParams(
+        #     _index_base=index_base,
+        #     _index_lag=index_lag,
+        #     _index_method=index_method,
+        #     _index_fixings=index_fixings,
+        #     _index_only=index_only,
+        #     _index_base_date=index_base_date,
+        #     _index_reference_date=_drb(delivery, index_reference_date),
+        # )
+        self._index_params = None
         self._fx_option_params = _FXOptionParams(
             _direction=direction,
             _expiry=expiry,
@@ -280,6 +188,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         self._rate_params = None
         self._period_params = None
 
+        nd_pair = NoInput(0)
         if isinstance(nd_pair, NoInput):
             # then option is directly deliverable
             self._non_deliverable_params: _NonDeliverableParams | None = None
@@ -291,27 +200,32 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
                 _ex_dividend=ex_dividend,
             )
         else:
-            fx_ccy1, fx_ccy2 = self.fx_option_params.pair[:3], self.fx_option_params.pair[3:]
-            nd_ccy1, nd_ccy2 = nd_pair.lower()[:3], nd_pair.lower()[3:]
-            if fx_ccy2 == nd_ccy1:
-                currency = nd_ccy2
-            elif fx_ccy2 != nd_ccy2:
-                currency = nd_ccy1
-            else:
-                raise ValueError(err.VE_MISMATCHED_FX_PAIR_ND_PAIR.format(nd_pair.lower(), fx_ccy2))
-            self._non_deliverable_params = _NonDeliverableParams(
-                _currency=currency,
-                _pair=nd_pair,
-                _delivery=delivery,
-                _fx_fixings=fx_fixings,
-            )
-            self._settlement_params = _SettlementParams(
-                _notional=_drb(defaults.notional, notional),
-                _payment=delivery,
-                _currency=currency,
-                _notional_currency=fx_ccy1,
-                _ex_dividend=ex_dividend,
-            )
+            pass
+            # fx_ccy1, fx_ccy2 = self.fx_option_params.pair[:3], self.fx_option_params.pair[3:]
+            # nd_ccy1, nd_ccy2 = nd_pair.lower()[:3], nd_pair.lower()[3:]
+            #
+            # if nd_ccy1 != fx_ccy1 and nd_ccy1 != fx_ccy2:
+            #     raise ValueError(
+            #         err.VE_MISMATCHED_FX_PAIR_ND_PAIR.format(nd_ccy1, self.fx_option_params.pair)
+            #     )
+            # elif nd_ccy2 != fx_ccy1 and nd_ccy2 != fx_ccy2:
+            #     raise ValueError(
+            #         err.VE_MISMATCHED_FX_PAIR_ND_PAIR.format(nd_ccy2, self.fx_option_params.pair)
+            #     )
+            #
+            # self._non_deliverable_params = _NonDeliverableParams(
+            #     _currency=fx_ccy1,
+            #     _pair=nd_pair,
+            #     _delivery=delivery,
+            #     _fx_fixings=fx_fixings,
+            # )
+            # self._settlement_params = _SettlementParams(
+            #     _notional=_drb(defaults.notional, notional),
+            #     _payment=delivery,
+            #     _currency=fx_ccy1,
+            #     _notional_currency=fx_ccy1,
+            #     _ex_dividend=ex_dividend,
+            # )
 
     def __repr__(self) -> str:
         return f"<rl.{type(self).__name__} at {hex(id(self))}>"
@@ -944,28 +858,106 @@ class FXCallPeriod(_BaseFXOptionPeriod):
     r"""
     A *Period* defined by a European FX call option.
 
-    For parameters see :class:`~rateslib.periods.FXOptionPeriod`, where `direction` is
-    set to 1.0.
-
     The expected unindexed reference cashflow is given by,
 
     .. math::
 
        \mathbb{E^Q}[\bar{C}_t] = \left \{ \begin{matrix} \max(f_d - K, 0) & \text{after expiry} \\ B76(f_d, K, t, \sigma) & \text{before expiry} \end{matrix} \right .
 
-    where :math:`B76(.)` is the Black-76 option pricing formula.
+    where :math:`B76(.)` is the Black-76 option pricing formula, using log-normal volatility
+    calculations with calendar day time reference.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import FXCallPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       fxo = FXCallPeriod(
+           delivery=dt(2000, 3, 1),
+           pair="eurusd",
+           expiry=dt(2000, 2, 28),
+           strike=1.10,
+           delta_type="forward",
+       )
+       fxo.cashflows()
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define **fx option** and generalised **settlement** parameters.
+
+    delivery: datetime, :red:`required`
+        The settlement date of the underlying FX rate of the option. Also used as the implied
+        payment date of the cashflow valuation date.
+    pair: str, :red:`required`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` against which the option
+        will settle.
+    expiry: datetime, :red:`required`
+        The expiry date of the option, when the option fixing is determined.
+    strike: float, Dual, Dual2, Variable, :green:`optional`
+        The strike price of the option. Can be set after initialisation.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional of the option expressed in units of LHS currency of `pair`.
+    delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
+        The definition of the delta for the option.
+    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
+        The metric used by default in the
+        :meth:`~rateslib.periods.fx_volatility.FXOptionPeriod.rate` method.
+    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier, links to the central ``fixings`` object and data loader.
+    ex_dividend: datetime, :green:`optional (set as 'delivery')`
+        The ex-dividend date of the settled cashflow.
+
+        .. note::
+
+           This *Period* type has not implemented **indexation** or **non-deliverability**.
+
     """  # noqa: E501
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **{**kwargs, "direction": OptionType.Call})
+    def __init__(
+        self,
+        *,
+        # option params:
+        delivery: datetime,  # otherwise termed the 'payment' of the period
+        pair: str,
+        expiry: datetime,
+        strike: DualTypes_ = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
+        delta_type: FXDeltaMethod | str_ = NoInput(0),
+        metric: FXOptionMetric | str_ = NoInput(0),
+        option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        # currency args:
+        ex_dividend: datetime_ = NoInput(0),
+    ) -> None:
+        super().__init__(
+            direction=OptionType.Call,
+            delivery=delivery,
+            pair=pair,
+            expiry=expiry,
+            strike=strike,
+            notional=notional,
+            delta_type=delta_type,
+            metric=metric,
+            option_fixings=option_fixings,
+            ex_dividend=ex_dividend,
+        )
 
 
 class FXPutPeriod(_BaseFXOptionPeriod):
     r"""
     A *Period* defined by a European FX put option.
-
-    For parameters see :class:`~rateslib.periods.FXOptionPeriod`, where `direction` is
-    set to -1.0.
 
     The expected unindexed reference cashflow is given by,
 
@@ -973,8 +965,92 @@ class FXPutPeriod(_BaseFXOptionPeriod):
 
        \mathbb{E^Q}[\bar{C}_t] = \left \{ \begin{matrix} \max(K - f_d, 0) & \text{after expiry} \\ B76(f_d, K, t, \sigma) & \text{before expiry} \end{matrix} \right .
 
-    where :math:`B76(.)` is the Black-76 option pricing formula.
+    where :math:`B76(.)` is the Black-76 option pricing formula, using log-normal volatility
+    calculations with calendar day time reference.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import FXPutPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       fxo = FXPutPeriod(
+           delivery=dt(2000, 3, 1),
+           pair="eurusd",
+           expiry=dt(2000, 2, 28),
+           strike=1.10,
+           delta_type="forward",
+       )
+       fxo.cashflows()
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define **fx option** and generalised **settlement** parameters.
+
+    delivery: datetime, :red:`required`
+        The settlement date of the underlying FX rate of the option. Also used as the implied
+        payment date of the cashflow valuation date.
+    pair: str, :red:`required`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` against which the option
+        will settle.
+    expiry: datetime, :red:`required`
+        The expiry date of the option, when the option fixing is determined.
+    strike: float, Dual, Dual2, Variable, :green:`optional`
+        The strike price of the option. Can be set after initialisation.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional of the option expressed in units of LHS currency of `pair`.
+    delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
+        The definition of the delta for the option.
+    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
+        The metric used by default in the
+        :meth:`~rateslib.periods.fx_volatility.FXOptionPeriod.rate` method.
+    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier, links to the central ``fixings`` object and data loader.
+    ex_dividend: datetime, :green:`optional (set as 'delivery')`
+        The ex-dividend date of the settled cashflow.
+
+        .. note::
+
+           This *Period* type has not implemented **indexation** or **non-deliverability**.
+
     """  # noqa: E501
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **{**kwargs, "direction": OptionType.Put})
+    def __init__(
+        self,
+        *,
+        # option params:
+        delivery: datetime,  # otherwise termed the 'payment' of the period
+        pair: str,
+        expiry: datetime,
+        strike: DualTypes_ = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
+        delta_type: FXDeltaMethod | str_ = NoInput(0),
+        metric: FXOptionMetric | str_ = NoInput(0),
+        option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0), # type: ignore[type-var]
+        # currency args:
+        ex_dividend: datetime_ = NoInput(0),
+    ) -> None:
+        super().__init__(
+            direction=OptionType.Put,
+            delivery=delivery,
+            pair=pair,
+            expiry=expiry,
+            strike=strike,
+            notional=notional,
+            delta_type=delta_type,
+            metric=metric,
+            option_fixings=option_fixings,
+            ex_dividend=ex_dividend,
+        )
