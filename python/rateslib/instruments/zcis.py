@@ -66,7 +66,7 @@ class ZCIS(_BaseInstrument):
            leg2_index_method="daily",
        )
        zcis.cashflows()
-       
+
     .. ipython:: python
        :suppress:
 
@@ -182,7 +182,7 @@ class ZCIS(_BaseInstrument):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-        
+
         .. note::
 
            The following parameters define **indexation**.

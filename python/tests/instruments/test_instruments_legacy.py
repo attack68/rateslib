@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from pandas import DataFrame, Index, MultiIndex, Series, isna
 from pandas.testing import assert_frame_equal
-from rateslib import default_context, fixings
+from rateslib import default_context, defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
@@ -1240,7 +1240,7 @@ class TestIRS:
             notional=1e9,
             convention="Act360",
             frequency="Q",
-            fixed_rate=4.03,
+            fixed_rate=fixed_rate,
             stub="ShortFront",
             leg2_float_spread=float_spread,
         )
@@ -1550,6 +1550,301 @@ class TestIRS:
         with pytest.raises(AttributeError, match="Attribute not available on IRS"):
             irs.leg2_fixed_rate
         assert irs.leg2_float_spread == 0.0
+
+    def test_irs_parse_curves(self, curve):
+        irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", fixed_rate=2.0)
+        r1 = irs.npv(curves=[curve])
+        r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
+        assert r1 == r2
+
+
+class TestNDIRS:
+    def test_irs_analytic_dv01(self, eureur, usdeur, usdusd) -> None:
+        # test the mid-market rate ignores the given fixed_rate and reacts to float_spread
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            currency="usd",
+            pair="eurusd",
+            frequency="Q",
+            fixed_rate=1.05,
+            stub="ShortFront",
+            leg2_float_spread=1.0,
+        )
+        anal_delta_l1_local = irs.analytic_delta(curves=[eureur, usdusd], fx=fxf)
+        anal_delta_l1_eur = irs.analytic_delta(curves=[eureur, usdusd], fx=fxf, base="eur")
+        anal_delta_l2_local = irs.analytic_delta(curves=[eureur, usdusd], fx=fxf, leg=2)
+        anal_delta_l2_eur = irs.analytic_delta(curves=[eureur, usdusd], fx=fxf, base="eur", leg=2)
+
+        assert abs(anal_delta_l1_local + anal_delta_l2_local) < 1e-8
+        assert abs(anal_delta_l1_eur + anal_delta_l2_eur) < 1e-8
+        assert abs(anal_delta_l1_local - anal_delta_l1_eur) > 4000
+        assert abs(anal_delta_l1_eur - 5 / 12 * 1e5) < 213
+
+    @pytest.mark.parametrize(
+        ("float_spread", "fixed_rate", "expected"),
+        [
+            (0, 1.05, 1.2033904812590062),
+            (3, 1.05, 1.2333904812590062),
+            (0, 1.25, 1.2033904812590062),
+        ],
+    )
+    def test_irs_rate(self, float_spread, fixed_rate, expected, eureur, usdeur, usdusd) -> None:
+        # test the mid-market rate ignores the given fixed_rate and reacts to float_spread
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            currency="usd",
+            pair="eurusd",
+            frequency="Q",
+            fixed_rate=fixed_rate,
+            stub="ShortFront",
+            leg2_float_spread=float_spread,
+        )
+        result = irs.rate(curves=[eureur, usdusd], fx=fxf)
+        assert abs(result - expected) < 1e-7
+
+    @pytest.mark.parametrize(
+        ("float_spread", "fixed_rate", "expected"),
+        [
+            (0, 1.05, -15.33904812590061),
+            (200, 1.05, -15.33904812590061),
+            (500, 1.05, -15.33904812590061),
+            (0, 1.02, -18.33904812590061),
+        ],
+    )
+    def test_irs_spread_none_simple(
+        self, curve, float_spread, fixed_rate, expected, eureur, usdeur, usdusd
+    ) -> None:
+        # test the mid-market float spread ignores the given float_spread and react to fixed
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            fixed_rate=fixed_rate,
+            leg2_float_spread=float_spread,
+            leg2_fixing_method="rfr_payment_delay",
+            leg2_spread_compound_method="none_simple",
+            stub="ShortFront",
+        )
+        result = irs.spread(curves=[eureur, usdusd], fx=fxf)
+        assert abs(result - expected) < 1e-7
+
+        irs.leg2_float_spread = result
+        validate = irs.npv(curves=[eureur, usdusd], fx=fxf)
+        assert abs(validate) < 1e-8
+
+    @pytest.mark.parametrize(
+        ("float_spread", "fixed_rate", "expected"),
+        [
+            (0, 1.05, -15.301676945861795),
+            (200, 1.05, -15.301676945861795),
+            (500, 1.05, -15.301676945861795),
+            (0, 1.02, -18.294961421921645),
+        ],
+    )
+    def test_irs_spread_isda_compound(
+        self, float_spread, fixed_rate, expected, eureur, usdeur, usdusd
+    ) -> None:
+        # test the mid-market float spread ignores the given float_spread and react to fixed
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            fixed_rate=fixed_rate,
+            leg2_float_spread=float_spread,
+            leg2_fixing_method="rfr_payment_delay",
+            leg2_spread_compound_method="isda_compounding",
+            stub="ShortFront",
+        )
+        result = irs.spread(curves=[eureur, usdusd], fx=fxf)
+        assert abs(result - expected) < 1e-7
+
+        irs.leg2_float_spread = result
+        validate = irs.npv(curves=[eureur, usdusd], fx=fxf)
+        assert abs(validate) < 5e-2
+
+    @pytest.mark.parametrize(
+        ("float_spread", "fixed_rate", "expected"),
+        [
+            (0, 1.05, -15.319076706336164),
+            (200, 1.05, -15.319076706336164),
+            (500, 1.05, -15.319076706336164),
+            (0, 1.02, -18.315170710463878),
+        ],
+    )
+    def test_irs_spread_isda_flat_compound(
+        self, float_spread, fixed_rate, expected, eureur, usdeur, usdusd
+    ) -> None:
+        # test the mid-market float spread ignores the given float_spread and react to fixed
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            fixed_rate=fixed_rate,
+            leg2_float_spread=float_spread,
+            leg2_fixing_method="rfr_payment_delay",
+            leg2_spread_compound_method="isda_flat_compounding",
+            stub="ShortFront",
+        )
+        result = irs.spread(curves=[eureur, usdusd], fx=fxf)
+        assert abs(result - expected) < 1e-7
+
+        irs.leg2_float_spread = result
+        validate = irs.npv(curves=[eureur, usdusd], fx=fxf)
+        assert abs(validate) < 5e-2
+
+    def test_irs_npv(self, eureur, usdeur, usdusd) -> None:
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            fixed_rate=1.24,
+            leg2_float_spread=3.0,
+            leg2_fixing_method="rfr_payment_delay",
+            stub="ShortFront",
+            curves=[eureur, usdusd],
+        )
+
+        result = irs.npv(fx=fxf)
+        expected = irs.analytic_delta(fx=fxf) * (1.24 - irs.rate(fx=fxf)) * -100
+        assert abs(result - expected) < 1e-7
+        assert abs(result + 30138.5056568) < 1e-7
+
+    def test_irs_cashflows(self, eureur, usdeur, usdusd) -> None:
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            fixed_rate=1.24,
+            leg2_float_spread=3.0,
+            leg2_fixing_method="rfr_payment_delay",
+            stub="ShortFront",
+            curves=[eureur, usdusd],
+        )
+
+        result = irs.cashflows(fx=fxf)
+        assert isinstance(result, DataFrame)
+        assert all(result[defaults.headers["reference_currency"]] == ["EUR", "EUR", "EUR", "EUR"])
+        assert irs.kwargs.leg1["mtm"]
+        assert irs.kwargs.leg2["mtm"]
+
+    def test_irs_npv_mid_mkt_zero(self, eureur, usdeur, usdusd) -> None:
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            leg2_float_spread=3.0,
+            leg2_fixing_method="rfr_payment_delay",
+            stub="ShortFront",
+            curves=[eureur, usdusd],
+        )
+
+        result = irs.npv(fx=fxf)
+        assert abs(result) < 1e-8
+
+        irs.fixed_rate = 1.0  # pay fixed low rate implies positive NPV
+        assert irs.npv(fx=fxf) > 1
+
+        irs.fixed_rate = NoInput(0)  # fixed rate set back to initial
+        assert abs(irs.npv(fx=fxf)) < 1e-8
+
+        irs.fixed_rate = float(irs.rate(fx=fxf))
+        irs.leg2_float_spread = 100
+        assert irs.npv(fx=fxf) > 1
+
+    def test_fixings_table(self, eureur, usdeur, usdusd):
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2022, 1, 3)),
+            fx_curves={"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        irs = IRS(
+            effective=dt(2022, 1, 1),
+            termination=dt(2022, 6, 1),
+            payment_lag=2,
+            notional=1e9,
+            convention="Act360",
+            frequency="Q",
+            currency="usd",
+            pair="eurusd",
+            leg2_float_spread=3.0,
+            leg2_fixing_method="rfr_payment_delay",
+            stub="ShortFront",
+            curves=[eureur, usdusd],
+        )
+        result = irs.local_analytic_rate_fixings(fx=fxf)
+        assert isinstance(result, DataFrame)
+        assert isinstance(result.iloc[0, 0], Dual)
+        assert abs(result.iloc[0, 0] - 304.26949) < 1e-5
+        assert abs(gradient(result.iloc[0, 0], vars=["fx_eurusd"])[0] - 276.6) < 1e-1
 
     def test_irs_parse_curves(self, curve):
         irs = IRS(dt(2000, 1, 1), dt(2000, 5, 1), "M", fixed_rate=2.0)
@@ -5109,6 +5404,12 @@ class TestSpec:
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
+            pair=NoInput(0),
+            leg2_pair=NoInput(1),
+            fx_fixings=NoInput(0),
+            leg2_fx_fixings=NoInput(1),
+            mtm=False,
+            leg2_mtm=False,
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
                 termination=dt(2024, 2, 26),
