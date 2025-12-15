@@ -51,13 +51,13 @@ class _WithCashflows(_WithNPV, Protocol):
 
     .. autosummary::
 
-      ~_WithNPVCashflows.try_cashflow
+       ~_WithCashflows.try_cashflow
 
     .. rubric:: Provided methods
 
     .. autosummary::
 
-      ~_WithNPVCashflows.cashflows
+       ~_WithCashflows.cashflows
 
     """
 
@@ -71,7 +71,7 @@ class _WithCashflows(_WithNPV, Protocol):
         fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
-        Calculate the cashflow for the *Period* with settlement currency adjustment
+        Calculate the cashflow for the *Period* with any non-deliverable currency adjustment
         **and** indexation.
 
         Parameters
@@ -80,9 +80,15 @@ class _WithCashflows(_WithNPV, Protocol):
             Used to forecast floating period rates, if necessary.
         index_curve: _BaseCurve, optional
             Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
         fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForward` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary.
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -181,7 +187,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
 
     .. autosummary::
 
-      ~_WithNPVCashflows.cashflows
+       ~_WithCashflowsStatic.cashflows
 
     """
 

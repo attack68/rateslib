@@ -430,7 +430,7 @@ class _WithIndexingStatic(Protocol):
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
         if self.index_params is None:
             # then no indexation of the cashflow will occur.
@@ -446,6 +446,13 @@ class _WithIndexingStatic(Protocol):
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithIndexingStatic.index_up`
         with lazy exception handling.
+
+        Parameters
+        ----------
+        value: Result[float, Dual, Dual2, Variable]
+            The possible value to apply indexation to.
+        index_curve: _BaseCurve, optional
+            The index curve used to forecast index values, if necessary.
 
         Returns
         -------
@@ -489,18 +496,18 @@ class _WithNonDeliverableStatic(Protocol):
     def convert_deliverable(self, value: DualTypes, fx: FXForwards_) -> DualTypes:
         """
         Apply settlement currency conversion to a *Static Period* using its
-        ``non_deliverable_params``, with lazy error raising.
+        ``non_deliverable_params``.
 
         Parameters
         ----------
-        value: Result[float, Dual, Dual2, Variable]
+        value: float, Dual, Dual2, Variable
             The possible value to apply settlement currency conversion to.
         fx: FXForwards, optional
             The object used to forecast forward FX rates, if necessary.
 
         Returns
         -------
-        Result[float, Dual, Dual2, Variable]
+        float, Dual, Dual2, Variable
         """
         if self.non_deliverable_params is None:
             # then cashflow is directly deliverable
@@ -514,8 +521,15 @@ class _WithNonDeliverableStatic(Protocol):
         self, value: Result[DualTypes], fx: FXForwards_
     ) -> Result[DualTypes]:
         r"""
-        Replicate :meth:`~rateslib.periods.protocols._WithNonDeliverable.convert_deliverable`
+        Replicate :meth:`~rateslib.periods.protocols._WithNonDeliverableStatic.convert_deliverable`
         with lazy exception handling.
+
+        Parameters
+        ----------
+        value: Result[float, Dual, Dual2, Variable]
+            The possible value to apply settlement currency conversion to.
+        fx: FXForwards, optional
+            The object used to forecast forward FX rates, if necessary.
 
         Returns
         -------

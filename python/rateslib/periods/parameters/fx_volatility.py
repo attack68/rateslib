@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 
 
 class _FXOptionParams:
+    """
+    Parameters for *FX Option Period* cashflows.
+    """
     _expiry: datetime
     _delivery: datetime
     _pair: str

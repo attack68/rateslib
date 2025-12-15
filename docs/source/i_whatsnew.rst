@@ -15,9 +15,69 @@ email contact, see `rateslib <https://rateslib.com>`_.
 2.5.0 (not released)
 ***********************
 
-This release drops semantic versioning and is semantically `rateslib 2 and a half`.
-Many elements of its core functionality have been re-written and this has created numerous
-breaking changes.
+This release drops semantic versioning and is effectively `rateslib 2 and a half`.
+
+Many elements of its core functionality have been re-written and improved and this has created
+numerous breaking changes.
+
+**Advancement of Keyword Only Arguments**
+
+For many methods and class initializers in the library (but not all), many of the arguments are
+now defined as **keywords** only. Due to, often, large numbers of arguments this
+promotes clarity and restricts argument input errors especially as the library matures and
+extends functionality further. Migration issues that result in errors akin to
+
+.. code-block::
+
+   TypeError: some_method() takes X positional arguments but X+Y were given
+
+are likely due to this change and the solution is to review documentation for the required keyword
+arguments of the method or class and amend the call appropriately, i.e. change
+
+.. code-block::
+
+   some_method(a, b)                     #  <- previous version
+   some_method(some_arg=a, other_arg=b)  #  <- new keywords only
+
+This also affects the :class:`~rateslib.solver.Solver` which can now no longer pass through
+positional arguments, only keyword arguments.
+
+.. code-block::
+
+   solver = Solver(
+       curves=[some_curve],
+       instruments=[
+           SomeInstrument(...),                                          #  <- explicit input is unchanged
+           (SomeInstrument(...), ("curve"), {"metric": "ytm"}),          #  <- 3-tuple is not allowed
+           (SomeInstrument(...), {"curves": "curve", "metric": "ytm"}),  #  <- 2-tuple is new format
+       ],
+       s = [...]
+   )
+
+**Pricing Object Changes**
+
+With different *Instruments* often requiring different pricing objects, `rateslib` has moved away
+from requiring objects to fit into a generic pricing object structure. Now each *Instrument*
+possesses its own specific pricing objects structrue which is documented and exemplified on every
+*Instrument's* own class documentation page. For example FX instruments which require only
+two discounting curves no longer require the 4-curve list general structure.
+
+.. code-block::
+
+   fxswap.rate(curves=[None, "eurusd", None, "usdusd"])     #  <- previous version
+   fxswap.rate(curves=["eurusd", "usdusd"])                 #  <- new keywords FX specific
+
+
+**Performance**
+
+The new structure of objects is expected to enhance performance in some areas but degrade it in
+others. For example *XCS* pricing and curve generation is faster due to improved treatment of
+non-deliverability. Performance degradations are expected where specific code for individual
+methods or objects has been replaced by a more generic version, e.g. the *spread()* method
+of a *FloatLeg* in cases such as having an 'ISDACompounded' ``spread_compound_method``.
+Reports of such degragations
+are welcome on the issues board for consideration in upcoming releases.
+
 
 Must note: period.float_spread does not work anymore. Periods now have specific parameter objects,
 fixings exposure is completely re-engineered, approximations are not currently available.
@@ -25,37 +85,12 @@ Signature of some functions for Periods is now uses a more explicit keyword argu
 only. This is due to certain objects being used primarily internally with a UI focused more on
 higher level instrumenst than their constructing objects.
 
-The `get_from_strike` method for FX SMiles / Surfaces refactored to use `z_w` as n input.
 
-The fixings exposure table no longer yields notional equivalent. It just returns monetary
-sensitivity to the fixing.
 
-Performance of the _spread for a float leg might be reduced for ISDA ``spread_compound_method``.
-
-The ``VolValue`` is renamed to ``FXVolValue`` and it can now also be used to calibrate SABR Objects (bug).
-The doc pages should be expanded and examples given.
-
-The `STIRFuture` has been refactored to make ``bp_value`` redundant and instead replaced by
-a designed notional and DCF for the period.
-
-FXExchange renamed to FXForward.
 
 IndexFixedBond has new ``accrued`` and ``fwd_from_repo`` to handle indexation.
 IndexFixedRateBond duration now allows a ``risk`` metric to be expressed with indexation or
 without.
-
-Add specs 'uk_gbi' and 'us_gbi'.
-
-By default non-mtm-XCS are constructed which differed to previous becuase of the new
-flexibility of allowing MTM leg on either leg1 or leg2
-
-The ``convention`` arg is removed from `Value` and is now taken directly from the *Curve*
-that it intends to value.
-
-``curves`` for FXOptions are now set in a different way. Errors result for a list of 4 curves.
-
-Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args only.
-
 
 
 .. list-table::
@@ -68,11 +103,30 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
      - - Add the ability to add a fixings *Series* directly to the
          :class:`~rateslib.defaults.Fixings` defaults object without having to load from CSV file.
          (`1033 <https://github.com/attack68/rateslib/pull/1033>`_).
+       - Add specific fixings classes: :class:`~rateslib.data.fixings.FXFixing`,
+         :class:`~rateslib.data.fixings.IndexFixing`, :class:`~rateslib.data.fixings.RFRFixing`,
+         :class:`~rateslib.data.fixings.IBORFixing`, :class:`~rateslib.data.fixings.IBORStubFixing`.
        - Add a new method to extract relevant fixing *Series* for IBOR type stub
          interpolations: :meth:`~rateslib.defaults.Fixings.get_stub_ibor_fixings`.
          (`1033 <https://github.com/attack68/rateslib/pull/1033>`_)
+       - Add various enum containers to define floating rate calculations:
+         :class:`~rateslib.data.fixings.FloatRateIndex`,
+         :class:`~rateslib.data.fixings.FloatRateSeries`.
    * - **Instruments**
-     - - Custom amortization for certain *Instruments* (a good example being an
+     - - :red:`Major Breaking Change!` The *Instrument* :class:`~rateslib.instruments.FXExchange` is
+         renamed to :class:`~rateslib.instruments.FXForward`.
+       - :red:`Major Breaking Change!` The *Instrument* :class:`~rateslib.instruments.XCS` no longer
+         defaults to a mark-to-market ``leg2``. When using ``spec`` arguments, e.g. *'eurusd_xcs'*
+         this will not matter becuase arguments are populated directly. If inputting arguments
+         direclty a *XCS* should have the ``leg2_mtm=True`` added to the class initialization.
+       - :red:`Minor Breaking Change!` A :class:`~rateslib.instruments.STIRFuture` has removed
+         its ``bp_value``, which is now implied from its ``nominal`` and ``convention`` arguments
+         as measured over its period.
+       - :red:`Minor Breaking Change!` Some *Instruments* now permit only a keyword only
+         argument structure after the positional
+         arguments ``effective``, ``termination`` and ``frequency``.
+         (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
+       - Custom amortization for certain *Instruments* (a good example being an
          :class:`~rateslib.instruments.IRS`) is now available via custom ``amortization``
          schedules to the *Instrument* configuration or by using the new
          :class:`~rateslib.legs.Amortization`
@@ -82,9 +136,65 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
        - Add *'nz_gb'* ``spec`` for New Zealand government bonds, and the associated functions
          for YTM required by its convention.
          (`1021 <https://github.com/attack68/rateslib/pull/1021>`_)
-       - Some *Instruments* now permit only a keyword only argument structure after the positional
-         arguments ``effective``, ``termination`` and ``frequency``.
-         (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
+       - Add the ``spec`` defaults *'uk_gbi'* and *'us_gbi'* for inflation linked bonds of the
+         United Kingdom and United States respectively.
+       - :class:`~rateslib.instruments.XCS` now allows more flexible parameterization including
+         mark-to-market elements either on leg1 or leg2, and amortization is now available for
+         this *Instruments*.
+   * - **Legs**
+     - - **Add** an :class:`~rateslib.legs.Amortization` class to create custom amortization
+         schedules on *Legs*.
+       - **Add** a :class:`~rateslib.legs._BaseLeg`.
+       - **Add** the following protocols to derive trait like behaviour of objects:
+         :class:`~rateslib.legs.protocols._WithNPV`,
+         :class:`~rateslib.legs.protocols._WithCashflows`,
+         :class:`~rateslib.legs.protocols._WithAnalyticDelta`,
+         :class:`~rateslib.legs.protocols._WithAnalyticRateFixings`,
+         :class:`~rateslib.legs.protocols._WithExDiv`,
+       - :red:`Major Breaking Change!` **Remove** the following objects:
+         :class:`~rateslib.legs.BaseLeg`
+         :class:`~rateslib.legs.BaseLegMtm`
+         :class:`~rateslib.legs.IndexFixedLeg`
+         :class:`~rateslib.legs.FloatLegMtm`
+         :class:`~rateslib.legs.FixedLegMtm`
+   * - **Periods**
+     - - **Add** a new set of parameter containers for *Period* initialization:
+         :class:`~rateslib.periods.parameters._IndexParams`,
+         :class:`~rateslib.periods.parameters._SettlementParams`,
+         :class:`~rateslib.periods.parameters._PeriodParams`,
+         :class:`~rateslib.periods.parameters._FixedRateParams`,
+         :class:`~rateslib.periods.parameters._FloatRateParams`,
+         :class:`~rateslib.periods.parameters._NonDeliverableParams`,
+         :class:`~rateslib.periods.parameters._CreditParams`,
+         :class:`~rateslib.periods.parameters._MtmParams`,
+         :class:`~rateslib.periods.parameters._FXOptionParams`,
+       - **Add** the following objects:
+         :class:`~rateslib.periods.MtmCashflow`,
+         :class:`~rateslib.periods.ZeroFixedPeriod`,
+         :class:`~rateslib.periods.ZeroFloatPeriod`,
+         :class:`~rateslib.periods._BasePeriod`,
+         :class:`~rateslib.periods._BasePeriodStatic`,
+         :class:`~rateslib.periods._BaseFXOptionPeriod`,
+       - **Add** the following protocols to derive trait like behaviour of objects:
+         :class:`~rateslib.periods.protocols._WithNPV`,
+         :class:`~rateslib.periods.protocols._WithCashflows`,
+         :class:`~rateslib.periods.protocols._WithAnalyticDelta`,
+         :class:`~rateslib.periods.protocols._WithAnalyticRateFixings`,
+         :class:`~rateslib.periods.protocols._WithAnalyticFXOptionGreeks`,
+         :class:`~rateslib.periods.protocols._WithNPVStatic`,
+         :class:`~rateslib.periods.protocols._WithCashflowsStatic`,
+         :class:`~rateslib.periods.protocols._WithAnalyticDeltaStatic`,
+         :class:`~rateslib.periods.protocols._WithAnalyticRateFixingsStatic`,
+         :class:`~rateslib.periods.protocols._WithIndexingStatic`,
+         :class:`~rateslib.periods.protocols._WithNonDeliverableStatic`,
+       - :red:`Major Breaking Change!` **Remove** the following objects:
+         :class:`~rateslib.periods.BasePeriod`
+         :class:`~rateslib.periods.FXOptionPeriod`
+         :class:`~rateslib.periods.NonDeliverableCashflow`
+         :class:`~rateslib.periods.IndexCashflow`
+         :class:`~rateslib.periods.IndexFixedPeriod`
+         :class:`~rateslib.periods.NonDeliverableFixedPeriod`
+         :class:`~rateslib.periods.IndexMixin`
    * - **Scheduling**
      - - The :class:`~rateslib.scheduling.Convention` is now a central DCF component for all
          DCF calculations. While string UI input still available, these types are now
@@ -94,9 +204,9 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          (`1015 <https://github.com/attack68/rateslib/pull/1015>`_)
        - :red:`Minor Breaking Change!` The :meth:`~rateslib.scheduling.dcf` method has revised
          arguments to work directly with the :class:`~rateslib.scheduling.Convention`.
-       - :red:`Minor Breaking Change!` Any :class:`~rateslib.periods.BasePeriod` now requires
+       - :red:`Minor Breaking Change!` Any :class:`~rateslib.periods._BasePeriod` now requires
          an additional argument, :class:`~rateslib.scheduling.Adjuster`, to fully define its
-         period specification (most used by the internal :meth:`~rateslib.scheduling.dcf` call).
+         period specification (mostly used by the internal :meth:`~rateslib.scheduling.dcf` call).
          (`1012 <https://github.com/attack68/rateslib/pull/1012>`_)
        - A :meth:`~rateslib.scheduling.Adjuster.reverse` method is added to an
          :class:`~rateslib.scheduling.Adjuster` for deriving unadjusted date potentials (which is
@@ -109,18 +219,44 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          logic direction to a :class:`~rateslib.scheduling.Schedule`. This should be noted for
          all *Instruments* and *Legs* with notional exchanges.
    * - **Refactors**
-     - - The scheduling arguments for any :class:`~rateslib.legs.BaseLeg` have been removed
+     - - :red:`Major Breaking Change!` The scheduling arguments for any
+         :class:`~rateslib.legs.BaseLeg` have been removed
          in favour of using a ``schedule`` argument containing a generated
          :class:`~rateslib.scheduling.Schedule`.
          (`1009 <https://github.com/attack68/rateslib/pull/1009>`_)
+       - :red:`Major Breaking Change!` The method :meth:`~rateslib.instruments.IRS.fixings_table`
+         has been removed and replaced by a new method
+         :meth:`~rateslib.instruments.IRS.local_analytic_rate_fixings` which is more concise in
+         its output but more consistent across all *Instrument* types.
+       - :red:`Major Breaking Change!` The following *Legs* have been removed:
+         :class:`~rateslib.legs.BaseLegMtm`, :class:`~rateslib.legs.IndexFixedLeg`,
+         :class:`~rateslib.legs.FixedLegMtm`, :class:`~rateslib.legs.FloatLegMtm`.
+         The purpose of these classes is now redundant given the new approach to **indexation**
+         and **non-deliverability** and the addition of a :class:`~rateslib.periods.MtmCashflow`,
+         and all features are completely replicable using only a :class:`~rateslib.legs.FixedLeg`
+         and :class:`~rateslib.legs.FloatLeg`.
+       - :red:`Minor Breaking Change!` The method :class:`~rateslib.solver.Solver`
+         no longer permits a 3-tuple as a valid *Instrument*, but instead allows a 2-tuple
+         where the middle, positional-args item has been removed. Only an *Instrument* class and
+         keyword items as a dict now form the tuple.
        - The attribute ``adjuster`` is added to any :class:`~rateslib.periods.BasePeriod` and the
          ``frequency`` is now associated with a :class:`~rateslib.scheduling.Frequency`, rather than
          a string identifier.
          (`1010 <https://github.com/attack68/rateslib/pull/1010>`_)
-       - The ``cashflow`` property on many *BasePeriod* types is now a callable method consistent
+       - :red:`Minor Breaking Change!` The ``cashflow`` **attribute** on many *BasePeriod* types is
+         changed to now be a **callable method** consistent
          with other *Period* types, such as a *FloatPeriod*. Its result is unchanged when
          provided with no arguments.
          (`1025 <https://github.com/attack68/rateslib/pull/1025>`_)
+       - :red:`Minor Breaking Change!` The psuedo-*Instrument* :class:`~rateslib.instruments.VolValue`
+         is renamed to :class:`~rateslib.instruments.FXVolValue`.
+       - :red:`Minor Breaking Change!` The arguments ``w_deli`` and ``w_spot`` have been removed
+         from *Volatility Objects*
+         :meth:`~rateslib.fx_volatility.FXDeltaVolSmile.get_from_strike` method and replaced by
+         ``z_w`` to better align with externally documented formulae.
+       - :red:`Minor Breaking Change!` The argument ``convention`` has been removed
+         from a :class:`~rateslib.instruments.Value`. When used to calibrate any *Curve* the
+         ``convention`` will be directly taken from the **meta** attribute of that *Curve*.
    * - **Automatic Differentiation**
      - - The :class:`~rateslib.dual.gradient` method can now be called on `float` and `int` datatypes
          and will return an array of zeros the length of requested variables.
@@ -145,6 +281,9 @@ Solver does not accept 3-tuple of *Instruments* just a 2-tuple with keyword args
          add observation rules for 'New Year's Day' and the day after and 'Anzac Day',
          and adds the one off 'Queen Elizabeth II Memorial Day'.
          (`1111 <https://github.com/attack68/rateslib/pull/1111>`_)
+       - The :class:`~rateslib.instruments.FXVolValue` now has parameters which allow it to
+         be used to calibrate :class:`~rateslib.fx_volatility.FXSabrSmile` and
+         :class:`~rateslib.fx_volatility.FXSabrSurface`.
    * - **Developers**
      - - The PyO3 version is upgraded to 0.27. (`1110 <https://github.com/attack68/rateslib/pull/1110>`_)
        - Supporting versions of Python 3.14, pandas 2.3.3 and numpy 2.3.5 are now integrated

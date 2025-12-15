@@ -12,23 +12,17 @@ Release Notes
 The History and Context of Rateslib
 ************************************
 
-*Rateslib beta* was first released in April 2023 and *rateslib v1.0* in Feb 2024.
+*Rateslib beta* was released in April 2023, *rateslib v1.0* in Feb 2024 and *v2.0* in June 2025.
 
-The foundation of *rateslib* comes from two parts:
+Modern *rateslib* is historically derived from three parts:
 
-- The code library introduced in `Book IRDS3 <https://github.com/attack68/book_irds3>`_, which laid down
-  basic principles and was a sandbox code environment for the
+- The code library introduced in `Book IRDS3 <https://github.com/attack68/book_irds3>`_:
+  a sandbox code environment for the
   publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
-  This code prioritised a pedagogical style with an API as simple and intuitive as possible, with
-  the aim of communicating relevant aspects of fixed income to those even with limited coding experience.
-- Code and algorithms dating back to the author's
-  time trading IRSs as a market-maker between 2006 and 2017.
-  This code prioritised accuracy and capturing market nuances with the aim of
-  maximising profit from a market-maker's perspective.
-
-Since those foundations, on going development has been substantial and arises due to interactions
-with industry professionals and identified gaps in features and products. There is always a
-focus on performance enhancement and documentation improvement.
+  This code prioritised a pedagogical style with an API as simple and intuitive as possible.
+- Code and algorithms dating back to the author's time trading IRSs as a market-maker between 2006 and 2017.
+- Collaborations with other quant groups and users to implement more complex and nuanced areas of
+  fixed income and FX pricing into an accessible and scalable UI.
 
 The algorithms and mathematical code developments of *rateslib* are all characterised and
 explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455562>`_.
@@ -68,15 +62,10 @@ This is a user interface (UI) objective. *Rateslib* aims to
 make technical and complex financial instrument analysis easily accessible and
 consumable. This philosophy has shaped the the entire design and API architecture of *rateslib*.
 
-For example, this library will not add esoteric or complex algorithms for valuing a
+For example, this library will not add esoteric and non-standard algorithms for valuing a
 financial instrument. Although doing so satisfies the philosophy of maximising
 flexibility, every addition adds documentation obfuscation, uncertainty
 about market practice and likely extends parameter numbers. It breaks the
-philosophy.
-
-On the other hand this library will allow various *Curve* construction interpolation
-algorithms because these are market standard and their parametrisation is simple and
-well documented, and these have considerable impact on all users. It satisfies the
 philosophy.
 
 2) Prioritise sensitivities above valuation
@@ -98,22 +87,16 @@ same arguments signature, which promotes usability.
 3) Unify asset classes within a single UI
 -------------------------------------------------------
 
-This defines scope. *Rateslib* aims to unify interest rates, FX and inflation
-in its first version.
-The ambition is to incorporate volatility products into version two. Within
-this unification we must include the commonly traded instruments within
-each of these classes.
-
+This defines scope. As of *v3.0* *rateslib* aims to unify interest rates, FX, inflation,
+FX vol and IR vol within the same framework and pricing mechanics.
 
 4) Achieve scalable performance
 --------------------------------------------
 
-This is a functionality objective.
-Version one of *rateslib* is pure Python. The performance constraints this places are
-restrictive. However, every method *rateslib* offers must be capable of producing
-results in practical time. A fixed income library written in Python cannot achieve
-what *rateslib* achieves without AD. Additionally many manual optimisations are
-implemented and are documented.
+This is a functionality objective. *Rateslib* uses Rust extensions for bottlenecks and aims
+to port as much core calculation code to Rust as possible to drive performance.
+*Rateslib* also seeks to expand its *serialization* tools for effective persistent storage and
+network transfer of data.
 
 A wider article about
 `performance in rateslib <https://www.linkedin.com/pulse/rateslib-performance-1000-irs-rateslib>`_

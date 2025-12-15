@@ -43,6 +43,49 @@ class ZCIS(_BaseInstrument):
     An *indexed zero coupon swap (ZCIS)* composing a :class:`~rateslib.legs.ZeroFixedLeg`
     and a :class:`~rateslib.legs.ZeroIndexLeg`.
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import ZCIS
+       from datetime import datetime as dt
+       from rateslib import fixings
+       from pandas import Series
+
+    .. ipython:: python
+
+       fixings.add("CPI_UK", Series(index=[dt(1999, 10, 1), dt(1999, 11, 1)], data=[110.0, 112.0]))
+       zcis = ZCIS(
+           effective=dt(2000, 1, 10),
+           termination="2Y",
+           frequency="A",
+           fixed_rate=3.5,
+           currency="gbp",
+           leg2_index_fixings="CPI_UK",
+           leg2_index_method="daily",
+       )
+       zcis.cashflows()
+       
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("CPI_UK")
+
+    .. rubric:: Pricing
+
+    The methods of a *ZCIS* require a *disc curve* applicable to both legs and a *leg2 index curve*.
+    The following input formats are allowed:
+
+    .. code-block:: python
+
+       curves = [index_curve, disc_curve]                         # two curves
+       curves = [None, disc_curve, leg2_index_curve, disc_curve]  # four curves
+       curves = {  # dict form is explicit
+           "disc_curve": disc_curve,
+           "leg2_index_curve": leg2_index_curve,
+       }
+
     .. role:: red
 
     .. role:: green
@@ -137,9 +180,25 @@ class ZCIS(_BaseInstrument):
            The following are **rate parameters**.
 
     fixed_rate : float or None
-        The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
+        The fixed rate applied to the :class:`~rateslib.legs.ZeroFixedLeg`. If `None`
         will be set to mid-market when curves are provided.
+        
+        .. note::
 
+           The following parameters define **indexation**.
+
+    leg2_index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    leg2_index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    leg2_index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value applied as the base index value for all *Periods*.
+        If not given and ``index_fixings`` is a string fixings identifier that will be
+        used to determine the base index value.
+    leg2_index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The index value for the reference date.
+        Best practice is to supply this value as string identifier relating to the global
+        ``fixings`` object.
         .. note::
 
            The following are **meta parameters**.
@@ -162,9 +221,6 @@ class ZCIS(_BaseInstrument):
     ``leg2_fixings``, but a cookbook article is also produced for
     :ref:`working with fixings <cook-fixings-doc>`.
 
-    Examples
-    --------
-    Construct a curve to price the example.
 
     """  # noqa: E501
 

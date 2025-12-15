@@ -61,6 +61,25 @@ class CreditPremiumPeriod(_BasePeriod):
 
     For *analytic delta* purposes the :math:`\xi=-S`.
 
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import CreditPremiumPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       cp = CreditPremiumPeriod(
+           start=dt(2000, 3, 20),
+           end=dt(2000, 6, 20),
+           payment=dt(2000, 6, 20),
+           frequency="Q",
+           fixed_rate=1.00,
+       )
+       cp.cashflows()
+
     .. role:: red
 
     .. role:: green
@@ -346,9 +365,31 @@ class CreditProtectionPeriod(_BasePeriod):
 
     The immediate expected valuation of the *Period* cashflow is defined as;
 
-    [TODO: NEEDS INPUT]
+    .. math::
+
+       \mathbb{E^Q}[V(m_T)C_T] = -N(1-RR) \int_{max(m_{a.s}, m_{today})}^{m_{a.e}} w_{loc:col}(m_s) Q(m_s) \lambda(s) ds
+
+    where the integral is numerically determined.
 
     There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import CreditProtectionPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       cp = CreditProtectionPeriod(
+           start=dt(2000, 3, 20),
+           end=dt(2000, 6, 20),
+           payment=dt(2000, 6, 20),
+           frequency="Q",
+       )
+       cp.cashflows()
 
     .. role:: red
 

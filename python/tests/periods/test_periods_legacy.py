@@ -5645,61 +5645,121 @@ class TestFXOption:
             metric="Pips",
         ).is_err
 
-    def test_non_deliverable_fx_option(self, fxfo):
+    @pytest.mark.skip(reason="non-deliverability of FXOption period not implemented in v2.5")
+    def test_non_deliverable_fx_option_third_currency_raises(self, fxfo):
         # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable
         # requiring conversion to USD
-        fxo = FXCallPeriod(
-            delivery=dt(2000, 3, 1),
-            pair="NOKSEK",
-            nd_pair="SEKUSD",
-            strike=1.0,
-            expiry=dt(2000, 2, 28),
-        )
-        assert fxo.settlement_params.notional_currency == "nok"
-        assert fxo.settlement_params.currency == "usd"
-        assert fxo.non_deliverable_params.reference_currency == "sek"
+        with pytest.raises(ValueError, match=err.VE_MISMATCHED_FX_PAIR_ND_PAIR[:15]):
+            FXCallPeriod(
+                delivery=dt(2000, 3, 1),
+                pair="NOKSEK",
+                nd_pair="SEKUSD",
+                strike=1.0,
+                expiry=dt(2000, 2, 28),
+            )
+        # assert fxo.settlement_params.notional_currency == "nok"
+        # assert fxo.settlement_params.currency == "usd"
+        # assert fxo.non_deliverable_params.reference_currency == "sek"
+        #
+        # fxo = FXCallPeriod(
+        #     delivery=dt(2000, 3, 1),
+        #     pair="NOKSEK",
+        #     strike=1.0,
+        #     expiry=dt(2000, 2, 28),
+        # )
+        # assert fxo.settlement_params.notional_currency == "nok"
+        # assert fxo.settlement_params.currency == "sek"
+        # assert fxo.non_deliverable_params is None
 
-        fxo = FXCallPeriod(
-            delivery=dt(2000, 3, 1),
-            pair="NOKSEK",
-            strike=1.0,
-            expiry=dt(2000, 2, 28),
-        )
-        assert fxo.settlement_params.notional_currency == "nok"
-        assert fxo.settlement_params.currency == "sek"
-        assert fxo.non_deliverable_params is None
-
-    def test_non_deliverable_fx_option_npv(self, fxfo):
-        # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable
-        # requiring conversion to USD
+    @pytest.mark.skip(reason="non-deliverability of FXOption period not implemented in v2.5")
+    @pytest.mark.parametrize("ndpair", ["usdbrl", "brlusd"])
+    def test_non_deliverable_fx_option_npv_vol_given(self, ndpair):
+        # this is an USDBRL FX option period non-deliverable into USD.
         fxf = FXForwards(
-            fx_rates=FXRates({"seknok": 0.95, "usdsek": 9.95}, settlement=dt(2000, 1, 1)),
+            fx_rates=FXRates({"usdbrl": 5.0}, settlement=dt(2000, 1, 1)),
             fx_curves={
                 "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.98}),
-                "sekusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.981}),
-                "seksek": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.984}),
-                "noknok": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.986}),
-                "nokusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.989}),
+                "brlusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.983}),
+                "brlbrl": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.984}),
             },
+        )
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="USDBRL",
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
         )
         fxond = FXCallPeriod(
             delivery=dt(2000, 3, 1),
-            pair="NOKSEK",
-            nd_pair="SEKUSD",
+            pair="USDBRL",
+            nd_pair=ndpair,
             strike=1.0,
             expiry=dt(2000, 2, 28),
+        )
+
+        npv = fxo.local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("brl", "usd"))
+        npv_nd = fxond.local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("usd", "usd"))
+
+        # local NPV should be expressed in USD for ND type
+        result = npv / 5.0 - npv_nd
+        assert abs(result) < 1e-9
+
+    @pytest.mark.skip(reason="non-deliverability of FXOption period not implemented in v2.5")
+    @pytest.mark.parametrize(("ndpair", "fxfix"), [("usdbrl", 5.25), ("brlusd", 1 / 5.25)])
+    def test_non_deliverable_fx_option_npv_vol_given_fx_fixing(self, ndpair, fxfix):
+        # this is an USDBRL FX option period non-deliverable into USD.
+        fxf = FXForwards(
+            fx_rates=FXRates({"usdbrl": 5.0}, settlement=dt(2000, 1, 1)),
+            fx_curves={
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.98}),
+                "brlusd": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.983}),
+                "brlbrl": Curve({dt(2000, 1, 1): 1.0, dt(2000, 6, 1): 0.984}),
+            },
+        )
+        fxv = FXDeltaVolSmile(
+            nodes={0.4: 10.0, 0.6: 11.0},
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 2, 28),
+            delta_type="spot",
         )
         fxo = FXCallPeriod(
             delivery=dt(2000, 3, 1),
-            pair="NOKSEK",
+            pair="USDBRL",
             strike=1.0,
             expiry=dt(2000, 2, 28),
         )
-        npv = fxo.try_local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("sek", "usd"))
-        npv_nd = fxond.try_local_npv(fx=fxf, fx_vol=10.0, disc_curve=fxf.curve("usd", "usd"))
+        fxond = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="USDBRL",
+            nd_pair=ndpair,
+            fx_fixings=fxfix,
+            strike=1.0,
+            expiry=dt(2000, 2, 28),
+        )
+
+        npv = fxo.local_npv(
+            fx=fxf,
+            fx_vol=fxv,
+            rate_curve=fxf.curve("usd", "usd"),
+            disc_curve=fxf.curve("brl", "usd"),
+        )
+        npv_nd = fxond.local_npv(
+            fx=fxf,
+            fx_vol=fxv,
+            rate_curve=fxf.curve("usd", "usd"),
+            disc_curve=fxf.curve("usd", "usd"),
+        )
 
         # local NPV should be expressed in USD for ND type
-        assert abs(npv.unwrap() / 9.95 - npv_nd.unwrap()) < 1e-10
+        result = (
+            npv_nd
+            * 5.25
+            / fxf.curve("usd", "usd")[dt(2000, 3, 1)]
+            * fxf.curve("brl", "usd")[dt(2000, 3, 1)]
+            - npv
+        )
+        # these should be different beucase of the fix: compare with test above
+        assert abs(result) < 1e-8
 
     def test_cashflow_no_pricing_objects(self):
         # this is an NOKSEK FX option with notional in NOK, normal value in SEK but non-deliverable

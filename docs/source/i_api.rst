@@ -118,6 +118,7 @@ Protocols
    :no-inheritance-diagram:
    :headings: "^-"
    :no-heading:
+   :skip: _BaseLeg
 
 Periods
 ========
