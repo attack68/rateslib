@@ -9,6 +9,7 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _get_fx_forwards_maybe_from_solver,
     _maybe_get_curve_maybe_from_solver,
     _maybe_get_curve_or_dict_maybe_from_solver,
     _Vol,
@@ -22,10 +23,10 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         DualTypes_,
-        FixingsRates_,
         FloatRateSeries,
         Frequency,
         FXForwards_,
+        LegFixings,
         RollDay,
         Solver_,
         VolT_,
@@ -51,6 +52,7 @@ class IRS(_BaseInstrument):
 
        from rateslib.instruments import IRS
        from datetime import datetime as dt
+       from rateslib import fixings
 
     .. ipython:: python
 
@@ -202,6 +204,22 @@ class IRS(_BaseInstrument):
 
         .. note::
 
+           The following define **non-deliverability** parameters. If the swap is
+           directly deliverable do not use these parameters. Review the **notes** section
+           non-deliverability.
+
+    pair: str, :green:`optional`
+        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
+        to non-deliverability.
+    leg2_fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* on *Leg2*
+        according to non-deliverability.
+
+        .. note::
+
            The following are **meta parameters**.
 
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
@@ -210,6 +228,49 @@ class IRS(_BaseInstrument):
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
+
+    Notes
+    -----
+
+    **Non-Deliverable IRS (NDIRS)**
+
+    An *NDIRS* can be constructed by using the ``pair`` argument. The ``currency`` defines the
+    *settlement currency*, whilst the *reference currency* is derived from ``pair`` and the
+    ``notional`` is expressed *reference currency* units.
+
+    The ``fx_fixings`` argument is typically used to provide an FX fixing series from which to
+    extract non-deliverable :class:`~rateslib.data.fixings.FXFixing` data. The ``leg2_fx_fixings``
+    inherits from the former and is likely to always be omitted, unless the fixings are provided
+    as a list (against best practice) and the schedules do not align.
+
+    For **pricing**, whilst a traditional *IRS* can be priced with just one *Curve*, e.g. "sofr"
+    for a conventional USD IRS, an ND-IRS will always require 2 different curves: a *leg2 rate
+    curve* for forecasting rates in the non-deliverable reference currency, and a *disc curve* for
+    discounting cashflows in the settlement currency.
+
+    The following is an example of a THB ND-IRS settled in USD with notional of 10mm THB.
+
+    .. ipython:: python
+
+       fixings.add("USDTHB", Series(index=[dt(2000, 7, 3), dt(2001, 1, 3)], data=[35.25, 37.0]))
+       irs = IRS(
+           effective=dt(2000, 1, 1),
+           termination="2y",
+           frequency="S",
+           currency="usd",    #  <- USD set as the settlement currency
+           pair="usdthb",     #  <- THB inferred as the reference currency
+           fx_fixings="USDTHB",
+           fixed_rate=2.0,
+           # all other arguments set as normal IRS
+       )
+       irs.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("USDTHB")
+
+    Further information is available in the documentation for a :class:`~rateslib.legs.FixedLeg`.
 
     """  # noqa: E501
 
@@ -290,11 +351,15 @@ class IRS(_BaseInstrument):
         amortization: float_ = NoInput(0),
         leg2_notional: float_ = NoInput(-1),
         leg2_amortization: float_ = NoInput(-1),
+        # non-deliverability
+        pair: str_ = NoInput(0),
+        fx_fixings: LegFixings = NoInput(0),
+        leg2_fx_fixings: LegFixings = NoInput(1),
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),
+        leg2_rate_fixings: LegFixings = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
@@ -339,6 +404,10 @@ class IRS(_BaseInstrument):
             leg2_notional=leg2_notional,
             amortization=amortization,
             leg2_amortization=leg2_amortization,
+            # non-deliverability
+            pair=pair,
+            fx_fixings=fx_fixings,
+            leg2_fx_fixings=leg2_fx_fixings,
             # rate
             fixed_rate=fixed_rate,
             leg2_float_spread=leg2_float_spread,
@@ -353,11 +422,14 @@ class IRS(_BaseInstrument):
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             leg2_currency=NoInput(1),
+            leg2_pair=NoInput(1),
             initial_exchange=False,
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
             vol=_Vol(),
+            mtm=not isinstance(pair, NoInput),
+            leg2_mtm=not isinstance(pair, NoInput),
         )
 
         default_args = dict(
@@ -389,6 +461,7 @@ class IRS(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
+        fx_ = _get_fx_forwards_maybe_from_solver(solver, fx)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
@@ -398,6 +471,7 @@ class IRS(_BaseInstrument):
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
             index_curve=NoInput(0),
+            fx=fx_,
             settlement=settlement,
             forward=forward,
         )
@@ -408,6 +482,7 @@ class IRS(_BaseInstrument):
                 disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
+                fx=fx_,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
@@ -427,6 +502,7 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         _curves = self._parse_curves(curves)
+        fx_ = _get_fx_forwards_maybe_from_solver(solver, fx)
         leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
             self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
         )
@@ -437,12 +513,14 @@ class IRS(_BaseInstrument):
             rate_curve=NoInput(0),
             disc_curve=disc_curve,
             index_curve=NoInput(0),
+            fx=fx_,
             settlement=settlement,
             forward=forward,
         )
         return self.leg2.spread(
             target_npv=-leg1_npv,
             rate_curve=leg2_rate_curve,
+            fx=fx_,
             disc_curve=disc_curve,
             index_curve=NoInput(0),
             settlement=settlement,
@@ -464,6 +542,7 @@ class IRS(_BaseInstrument):
         self._set_pricing_mid(
             curves=curves,
             solver=solver,
+            fx=fx,
             settlement=settlement,
             forward=forward,
         )
@@ -482,6 +561,7 @@ class IRS(_BaseInstrument):
         self,
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> None:
@@ -493,6 +573,7 @@ class IRS(_BaseInstrument):
                 solver=solver,
                 settlement=settlement,
                 forward=forward,
+                fx=fx,
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 

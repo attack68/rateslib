@@ -1038,7 +1038,7 @@ class FXPutPeriod(_BaseFXOptionPeriod):
         notional: DualTypes_ = NoInput(0),
         delta_type: FXDeltaMethod | str_ = NoInput(0),
         metric: FXOptionMetric | str_ = NoInput(0),
-        option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0), # type: ignore[type-var]
+        option_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         # currency args:
         ex_dividend: datetime_ = NoInput(0),
     ) -> None:
