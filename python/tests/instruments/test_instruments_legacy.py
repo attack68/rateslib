@@ -78,7 +78,7 @@ def curve2():
         dt(2022, 7, 1): 0.97,
         dt(2022, 10, 1): 0.95,
     }
-    return Curve(nodes=nodes, interpolation="log_linear")
+    return Curve(nodes=nodes, interpolation="log_linear", index_base=100.0)
 
 
 @pytest.fixture
@@ -4355,6 +4355,18 @@ class TestXCS:
                 leg2_fixed=True,
             ).rate(metric="bad")
 
+    def test_leg1_mtm(self):
+        # if notional given on leg1 this will error with nd `pair` not given.
+        XCS(
+            effective=dt(2000, 1, 1),
+            termination="6m",
+            frequency="Q",
+            currency="eur",
+            leg2_currency="usd",
+            mtm=True,
+            leg2_notional=10.0,
+        )
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:
@@ -8039,3 +8051,175 @@ class TestFXVolValue:
 def test_unpriced_cashflows_string_id(inst):
     result = inst.cashflows()
     assert isinstance(result, DataFrame)
+
+
+@pytest.mark.parametrize(
+    ("inst", "curves"),
+    [
+        (IRS(dt(2022, 2, 1), "1m", spec="usd_irs", fixed_rate=2.0), ["c"]),
+        (
+            SBS(dt(2022, 2, 1), "2m", frequency="2M", leg2_frequency="1M", float_spread=2.0),
+            ["c", "c", "c2", "c"],
+        ),
+        (STIRFuture(dt(2022, 2, 1), "1m", spec="usd_stir1", price=99.0), ["c"]),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                fixed=True,
+                leg2_fixed=True,
+                fixed_rate=2.0,
+                leg2_fixed_rate=2.5,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+            ),
+            ["c", "c", "c2", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                fixed=True,
+                fixed_rate=2.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+            ),
+            ["c", "c", "c2", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                leg2_fixed=True,
+                leg2_fixed_rate=2.0,
+                float_spread=0.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+            ),
+            ["c", "c", "c2", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                float_spread=0.0,
+                leg2_float_spread=0.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+            ),
+            ["c", "c", "c2", "c"],
+        ),
+        (CDS(dt(2022, 2, 1), "1m", frequency="1M", fixed_rate=1.0), ["c2", "c"]),
+        (ZCS(dt(2022, 1, 1), "2m", frequency="3M", fixed_rate=2.0), ["c"]),
+        (
+            ZCIS(
+                dt(2022, 1, 1),
+                "2M",
+                frequency="3M",
+                fixed_rate=2.0,
+                leg2_index_base=99.0,
+                leg2_index_lag=0,
+            ),
+            ["c2", "c"],
+        ),
+        (
+            IIRS(
+                dt(2022, 1, 1), "2M", spec="usd_irs", fixed_rate=2.0, index_base=99.0, index_lag=0
+            ),
+            ["c2", "c", "c", "c"],
+        ),
+        (FRA(dt(2022, 2, 1), "1m", fixed_rate=1.0, frequency="1M"), ["c"]),
+    ],
+)
+def test_forward_npv_argument(curve, curve2, inst, curves):
+    c_ = {"c": curve, "c2": curve2}
+    npv = inst.npv(curves=[c_[v] for v in curves])
+    forward_npv = inst.npv(curves=[c_[v] for v in curves], forward=dt(2022, 3, 15))
+    assert abs(forward_npv - npv / curve[dt(2022, 3, 15)]) < 1e-10
+
+
+@pytest.mark.parametrize(
+    ("inst", "curves"),
+    [
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                mtm=True,
+                fixed=True,
+                leg2_fixed=True,
+                fixed_rate=2.0,
+                leg2_fixed_rate=3.0,
+                frequency="1M",
+                fx_fixings=2.0,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_notional=10e6,
+            ),
+            ["c", "c", "c2", "c2"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                mtm=True,
+                fixed=True,
+                fixed_rate=2.0,
+                frequency="1M",
+                fx_fixings=2.0,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_notional=10e6,
+            ),
+            ["c", "c", "c2", "c2"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                mtm=True,
+                leg2_fixed=True,
+                leg2_fixed_rate=2.0,
+                float_spread=0.0,
+                frequency="1M",
+                fx_fixings=2.0,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_notional=10e6,
+            ),
+            ["c", "c", "c2", "c2"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                mtm=True,
+                float_spread=0.0,
+                leg2_float_spread=0.0,
+                frequency="1M",
+                fx_fixings=2.0,
+                currency="eur",
+                leg2_currency="usd",
+                leg2_notional=10e6,
+            ),
+            ["c", "c", "c2", "c2"],
+        ),
+        (NDF(dt(2022, 2, 15), pair="eurusd", fx_rate=1.15), ["c2"]),
+        (
+            FXSwap(dt(2022, 2, 15), "1m", pair="eurusd", leg2_fx_fixings=1.15, points=56.5),
+            ["c", "c2"],
+        ),
+        (FXForward(dt(2022, 2, 16), "eurusd", fx_rate=1.15), ["c", "c2"]),
+    ],
+)
+def test_forward_npv_argument_with_fx(curve, curve2, inst, curves):
+    fxr = FXRates({"eurusd": 1.12}, settlement=dt(2022, 1, 3))
+    fxf = FXForwards(fx_rates=fxr, fx_curves={"eureur": curve, "eurusd": curve, "usdusd": curve2})
+    c_ = {"c": curve, "c2": curve2}
+    npv = inst.npv(curves=[c_[v] for v in curves], fx=fxf, base="eur")
+    forward_npv = inst.npv(
+        curves=[c_[v] for v in curves], forward=dt(2022, 3, 15), fx=fxf, base="eur"
+    )
+
+    result = npv / curve[dt(2022, 3, 15)] - forward_npv
+    assert abs(result) < 1e-7
