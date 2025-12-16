@@ -428,8 +428,6 @@ class IRS(_BaseInstrument):
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
             vol=_Vol(),
-            mtm=not isinstance(pair, NoInput),
-            leg2_mtm=not isinstance(pair, NoInput),
         )
 
         default_args = dict(
@@ -443,6 +441,8 @@ class IRS(_BaseInstrument):
             default_args=default_args,
             meta_args=["curves", "vol"],
         )
+        self.kwargs.leg1["mtm"] = not isinstance(self.kwargs.leg1["pair"], NoInput)
+        self.kwargs.leg2["mtm"] = not isinstance(self.kwargs.leg1["pair"], NoInput)
 
         self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
         self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))

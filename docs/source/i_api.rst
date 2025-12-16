@@ -82,6 +82,15 @@ Objects
    :inherited-members:
    :no-heading:
 
+Protocols
+^^^^^^^^^
+
+.. automodapi:: rateslib.instruments.protocols
+   :no-inheritance-diagram:
+   :headings: "^-"
+   :no-heading:
+   :skip: _BaseInstrument
+
 FX
 ===
 

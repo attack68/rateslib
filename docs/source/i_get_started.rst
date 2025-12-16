@@ -91,7 +91,7 @@ For what purpose would I use *rateslib*?
 - If you are new to fixed income and currencies and interested to learn about basic and advanced concepts with
   tools to explore the nuances of these markets, as a companion to various authored books.
 
-Which ``fixed income`` and ``FX`` ``instruments`` does *rateslib* include?
+Which ``instruments`` does *rateslib* include?
 ===========================================================================
 
 .. list-table::
@@ -105,7 +105,7 @@ Which ``fixed income`` and ``FX`` ``instruments`` does *rateslib* include?
      - FX Volatility
      - Combinations
    * - :class:`~rateslib.instruments.IRS`
-     - :class:`~rateslib.instruments.FXExchange`
+     - :class:`~rateslib.instruments.FXForward`
      - :class:`~rateslib.instruments.FixedRateBond`
      - :class:`~rateslib.instruments.FXCall`
      - :class:`~rateslib.instruments.Spread`
@@ -125,7 +125,7 @@ Which ``fixed income`` and ``FX`` ``instruments`` does *rateslib* include?
      - :class:`~rateslib.instruments.FXStraddle`
      -
    * - :class:`~rateslib.instruments.ZCS`
-     -
+     - ND- :class:`~rateslib.instruments.IRS`
      - :class:`~rateslib.instruments.IndexFixedRateBond`
      - :class:`~rateslib.instruments.FXStrangle`
      -

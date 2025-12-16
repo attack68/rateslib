@@ -1852,6 +1852,12 @@ class TestNDIRS:
         r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
         assert r1 == r2
 
+    def test_spec_ndset(self):
+        irs = IRS(effective=dt(2022, 1, 1), termination="1y", spec="inr_ndirs")
+        assert irs.kwargs.leg1["pair"] == "usdinr"
+        assert irs.kwargs.leg1["mtm"]
+        assert irs.kwargs.leg2["mtm"]
+
 
 class TestIIRS:
     @pytest.mark.skip(reason="v2.5 new IndexFixing handles setting and updating")

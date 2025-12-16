@@ -59,7 +59,8 @@ positional arguments, only keyword arguments.
 With different *Instruments* often requiring different pricing objects, `rateslib` has moved away
 from requiring objects to fit into a generic pricing object structure. Now each *Instrument*
 possesses its own specific pricing objects structrue which is documented and exemplified on every
-*Instrument's* own class documentation page. For example FX instruments which require only
+*Instrument's* own class documentation page. This applies to the ``curves`` and ``vol``
+arguments. For example FX instruments which require only
 two discounting curves no longer require the 4-curve list general structure.
 
 .. code-block::
@@ -67,6 +68,19 @@ two discounting curves no longer require the 4-curve list general structure.
    fxswap.rate(curves=[None, "eurusd", None, "usdusd"])     #  <- previous version
    fxswap.rate(curves=["eurusd", "usdusd"])                 #  <- new keywords FX specific
 
+Also, the ``base`` argument for currency unit display is now **never inherited** from `FX` objects,
+and must be explicitly stated by the user. Certain complex instrument cases led to ambiguous or
+misleading patterns which required this change. Methods now have the concept of a
+*'local settlement currency'* which is a parameter of the object's construction and an
+explicitly stated ``base`` currency which
+requires an :class:`~rateslib.fx.FXForwards` object for value conversion. Explicitly:
+
+.. code-block::
+
+   irs = IRS(currency="gbp", ...)
+   fx = FXRates({"gbpusd": 1.0}, base="usd", ...)
+   irs.npv(fx=fx)                # <-  ``base`` is now local settlement currency: GBP (not USD)
+   irs.npv(fx=fx, base="usd")    # <-  ``base`` is explicitly set: USD
 
 **Performance**
 
@@ -126,6 +140,8 @@ without.
          argument structure after the positional
          arguments ``effective``, ``termination`` and ``frequency``.
          (`1022 <https://github.com/attack68/rateslib/pull/1022>`_)
+       - Add **non-deliverability** to :class:`~rateslib.instruments.IRS` to allow *NDIRS*.
+         (`1117 <https://github.com/attack68/rateslib/pull/1117>`_)
        - Custom amortization for certain *Instruments* (a good example being an
          :class:`~rateslib.instruments.IRS`) is now available via custom ``amortization``
          schedules to the *Instrument* configuration or by using the new

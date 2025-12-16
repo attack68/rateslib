@@ -209,9 +209,9 @@ be supplied manually if and when required.
          )
 
 We can combine the *Curves* and the *Instruments* to give pricing metrics such as
-:meth:`~rateslib.instruments.BaseDerivative.npv`,
-:meth:`~rateslib.instruments.BaseDerivative.cashflows`, and the mid-market
-:meth:`~rateslib.instruments.BaseDerivative.rate`, as well as others. Without further specification
+:meth:`~rateslib.instruments.protocols._WithNPV.npv`,
+:meth:`~rateslib.instruments.protocols._WithCashflows.cashflows`, and the mid-market
+:meth:`~rateslib.instruments.protocols._WithRate.rate`, as well as others. Without further specification
 these values are all expressed in the *Instrument's* local USD currency.
 
 .. tabs::
@@ -499,6 +499,25 @@ around target mid-market rates, and generate market risks.
          ndf.rate(fx=fxf)
          ndf.cashflows(curves=usd_curve, fx=fxf)
          ndf.cashflows_table(curves=usd_curve, fx=fxf)
+
+   .. tab:: NDIRS
+
+      A Non-deliverable IRS (:class:`~rateslib.instruments.IRS`) can be constructed.
+
+      .. ipython:: python
+
+         ndirs = IRS(
+             currency="usd",   #  <- local settlement currency
+             pair="eurusd",    #  <- EUR is the reference and notional currency
+             effective=dt(2022, 2, 1),
+             termination="2M",
+             frequency="M",
+             notional=10e6,    # 10mm EUR
+             calendar="tgt|fed",
+         )
+         ndirs.rate(curves=[eur_curve, usd_curve], fx=fxf)
+         ndirs.cashflows(curves=[eur_curve, usd_curve], fx=fxf)
+         ndirs.cashflows_table(curves=[eur_curve, usd_curve], fx=fxf)
 
 .. raw:: html
 
