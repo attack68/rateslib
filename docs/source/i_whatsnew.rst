@@ -92,14 +92,17 @@ of a *FloatLeg* in cases such as having an 'ISDACompounded' ``spread_compound_me
 Reports of such degragations
 are welcome on the issues board for consideration in upcoming releases.
 
+**Documentation**
+
+Much of the documentation has been re-written to accommodate new objects and structure.
+
+
 
 Must note: period.float_spread does not work anymore. Periods now have specific parameter objects,
 fixings exposure is completely re-engineered, approximations are not currently available.
 Signature of some functions for Periods is now uses a more explicit keyword argument structure
 only. This is due to certain objects being used primarily internally with a UI focused more on
 higher level instrumenst than their constructing objects.
-
-
 
 
 IndexFixedBond has new ``accrued`` and ``fwd_from_repo`` to handle indexation.
