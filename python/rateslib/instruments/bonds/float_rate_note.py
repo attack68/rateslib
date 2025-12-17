@@ -45,7 +45,158 @@ if TYPE_CHECKING:
 
 class FloatRateNote(_BaseBondInstrument):
     """
-    Create a floating rate note (FRN) security.
+    A *floating rate note (FRN)* composed of a :class:`~rateslib.legs.FloatLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import FloatRateNote
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       frn = FloatRateNote(
+           effective=dt(2000, 1, 1),
+           termination="2y",
+           frequency="A",
+           currency="usd",
+           fixing_method="rfr_observation_shift",
+           method_param=5,
+           convention="Act360",
+           calendar="nyc|fed",
+           float_spread=25.0,
+       )
+       frn.cashflows()
+
+    .. rubric:: Pricing
+
+    A *FloatRateNote* requires a *disc curve* and a *rate curve*. The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = [rate_curve, disc_curve]  #  a sequence of two curves
+       curves = {  # dict form is explicit
+           "disc_curve": disc_curve,
+           "rate_curve": rate_curve,
+       }
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+
+        .. note::
+
+           The following define generalised **scheduling** parameters.
+
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    payment_lag_exchange: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    ex_div: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+
+        .. note::
+
+           The following are **rate parameters**.
+
+    fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        of the floating rate for each period.
+    method_param: int, :green:`optional (set by 'defaults')`
+        A specific parameter that is used by the specific ``fixing_method``.
+    fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
+        The :class:`~rateslib.scheduling.Frequency` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
+        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
+    fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
+        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
+        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
+        such as the ``calendar``, ``convention``, ``method_param`` etc.
+    float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
+        The amount (in bps) added to the rate in each period rate determination.
+    spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
+        of the period rate when combining a ``float_spread``. Used **only** with RFR type
+        ``fixing_method``.
+    rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        See XXX (working with fixings).
+        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
+        to the central ``fixings`` object and data loader.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : XXX
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    calc_mode : str or BondCalcMode
+        A calculation mode for dealing with bonds under different conventions. See notes.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
 
     """
 
