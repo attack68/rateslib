@@ -42,8 +42,35 @@ if TYPE_CHECKING:
 
 class FixedRateBond(_BaseBondInstrument):
     """
-    A *interest rate swap (IRS)* composing a :class:`~rateslib.legs.FixedLeg`
-    and a :class:`~rateslib.legs.FloatLeg`.
+    A *fixed rate bond* composed of a :class:`~rateslib.legs.FixedLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import FixedRateBond
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       frb = FixedRateBond(
+           effective=dt(2000, 1, 1),
+           termination="2y",
+           spec="us_gb",
+           fixed_rate=2.0,
+       )
+       frb.cashflows()
+
+    .. rubric:: Pricing
+
+    A *FixedRateBond* requires one *disc curve*. The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = {"disc_curve": disc_curve}  # dict form is explicit
 
     .. role:: red
 
@@ -118,10 +145,6 @@ class FixedRateBond(_BaseBondInstrument):
         The local settlement currency of the *Instrument* (3-digit code).
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         The initial leg notional, defined in units of *reference currency*.
-    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
-        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
-        each successive period by that same value. Should have
-        sign equal to that of notional if the notional is to reduce towards zero.
 
         .. note::
 

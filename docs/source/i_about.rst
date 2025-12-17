@@ -20,7 +20,8 @@ Modern *rateslib* is historically derived from three parts:
   a sandbox code environment for the
   publication `Pricing and Trading Interest Rate Derivatives: A Practical Guide to Swaps <https://www.amazon.com/Pricing-Trading-Interest-Rate-Derivatives/dp/0995455538>`_.
   This code prioritised a pedagogical style with an API as simple and intuitive as possible.
-- Code and algorithms dating back to the author's time trading IRSs as a market-maker between 2006 and 2017.
+- Code and algorithms privately devised and developed during the author's time trading IRSs
+  as a market-maker and quantative developer for institutions such as Barclays and Nordea.
 - Collaborations with other quant groups and users to implement more complex and nuanced areas of
   fixed income and FX pricing into an accessible and scalable UI.
 

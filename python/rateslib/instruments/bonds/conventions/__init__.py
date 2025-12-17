@@ -84,7 +84,7 @@ class BondCalcMode:
          &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
          &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
-    Where in both these formula :math:`c_i` currently always uses the real ``cashflow`` method
+    Where in both these formulae :math:`c_i` currently always uses the real ``cashflow`` method
     (see below).
 
     These two methods are almost always the same, but for an example where they differ consider
@@ -162,7 +162,7 @@ class BondCalcMode:
     .. math::
 
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
-       P &= v_1 \\left ( c_1 + v3(c_n + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( c_1 + v_3 (c_n + 100) \\right ), \\quad n = 2 \\\\
        P &= v_1 \\left ( c_1 + \\sum_{i=2}^{n-1} c_i v_2^{i-2} v_{2,i} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 2  \\\\
        Q &= P - AI_y
 
