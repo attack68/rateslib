@@ -248,7 +248,7 @@ class Amortization:
              except Exception as e:
                  print(e)
 
-    """
+    """  # noqa: E501
 
     _type: _AmortizationType
 

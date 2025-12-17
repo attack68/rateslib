@@ -18,6 +18,7 @@ from rateslib.instruments import (
     IIRS,
     IRS,
     NDF,
+    NDXCS,
     SBS,
     XCS,
     ZCIS,
@@ -1857,6 +1858,35 @@ class TestNDIRS:
         assert irs.kwargs.leg1["pair"] == "usdinr"
         assert irs.kwargs.leg1["mtm"]
         assert irs.kwargs.leg2["mtm"]
+
+    def test_real_mkt_example(self):
+        # An INRUSD NDIRS with market pricing
+        fxr = FXRates({"usdinr": 90.38}, settlement=dt(2025, 12, 19))
+        usdusd = Curve({dt(2025, 12, 17): 1.0, dt(2030, 12, 20): 0.9})
+        inrinr = Curve({dt(2025, 12, 17): 1.0, dt(2030, 12, 20): 0.9}, convention="act365F")
+        inrusd = Curve({dt(2025, 12, 17): 1.0, dt(2030, 12, 20): 0.9}, convention="act365F")
+        fxf = FXForwards(
+            fx_rates=fxr, fx_curves={"usdusd": usdusd, "inrinr": inrinr, "inrusd": inrusd}
+        )
+
+        Solver(
+            curves=[usdusd, inrinr, inrusd],
+            instruments=[
+                IRS(dt(2025, 12, 19), "5y", spec="usd_irs", curves=[usdusd]),
+                FXSwap(dt(2025, 12, 19), "5y", "usdinr", curves=[usdusd, inrusd]),
+                IRS(dt(2025, 12, 18), "5Y", spec="inr_ndirs", curves=[inrinr, usdusd]),
+            ],
+            s=[3.447, 148300.0, 5.9075],
+            fx=fxf,
+        )
+
+        ndirs = IRS(dt(2025, 12, 18), "5y", spec="inr_ndirs", fixed_rate=5.8775, notional=250e6)
+        npv = ndirs.npv(fx=fxf, curves=[inrinr, usdusd])
+        assert abs(npv - 3489.2) < 1e-1
+        a_delta = ndirs.analytic_delta(fx=fxf, curves=[inrinr, usdusd])
+        assert abs(a_delta - 1163.1) < 1e-1
+        df = ndirs.cashflows(fx=fxf, curves=[inrinr, usdusd])
+        assert isinstance(df, DataFrame)
 
 
 class TestIIRS:
@@ -4366,6 +4396,78 @@ class TestXCS:
             mtm=True,
             leg2_notional=10.0,
         )
+
+
+class TestNDXCS:
+    @pytest.mark.parametrize(
+        ("leg1", "curves"),
+        [
+            (True, ["c2", "c", "c", "c"]),
+            (False, ["c", "c", "c2", "c"]),
+        ],
+    )
+    def test_2c_ndxcs_npv(self, curve, curve2, leg1, curves) -> None:
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
+            {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
+        )
+        ndxcs = NDXCS(
+            dt(2022, 2, 1),
+            "3M",
+            "M",
+            currency="usd",
+            pair="eurusd",
+            notional=1e6 if leg1 else NoInput(0),
+            leg2_notional=1e6 if not leg1 else NoInput(0),
+            curves=[curve if _ == "c" else curve2 for _ in curves],
+        )
+
+        assert ndxcs.kwargs.leg1["mtm"] is leg1
+        assert ndxcs.kwargs.leg2["mtm"] is not leg1
+
+        npv = ndxcs.npv(fx=fxf)
+        assert abs(npv) < 1e-9
+
+    def test_3c_ndxcs_npv(self, curve, curve2) -> None:
+        curve3 = Curve(
+            nodes={
+                dt(2022, 1, 1): 1.00,
+                dt(2022, 4, 1): 0.981,
+                dt(2022, 7, 1): 0.973,
+                dt(2022, 10, 1): 0.955,
+            },
+            interpolation="log_linear",
+            index_base=100.0,
+        )
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.1, "gbpusd": 1.25}, settlement=dt(2022, 1, 3)),
+            {
+                "usdusd": curve,
+                "eurusd": curve2,
+                "eureur": curve2,
+                "gbpgbp": curve3,
+                "gbpusd": curve3,
+            },
+        )
+        ndxcs = NDXCS(
+            dt(2022, 2, 1),
+            "3M",
+            "M",
+            currency="usd",
+            pair="eurusd",
+            notional=1e6,
+            leg2_notional=-1e6 * float(fxf.rate("eurgbp")),
+            leg2_pair="gbpusd",
+            curves=[curve2, curve, curve3, curve],
+        )
+
+        assert ndxcs.kwargs.leg1["mtm"]
+        assert ndxcs.kwargs.leg2["mtm"]
+
+        npv = ndxcs.npv(fx=fxf)
+        rate = ndxcs.rate(fx=fxf)
+        df = ndxcs.cashflows(fx=fxf)
+        assert abs(npv) < 1e-9
 
 
 class TestFixedFloatXCS:

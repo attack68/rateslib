@@ -80,6 +80,7 @@ class Defaults:
             "SBS": 2,
             "Swap": 2,
             "XCS": 2,
+            "NDXCS": 2,
             "FixedRateBond": 0,
             "IndexFixedRateBond": 0,
             "FloatRateNote": 0,

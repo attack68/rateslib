@@ -27,6 +27,7 @@ from rateslib.instruments.fx_vol_value import FXVolValue
 from rateslib.instruments.iirs import IIRS
 from rateslib.instruments.irs import IRS
 from rateslib.instruments.ndf import NDF
+from rateslib.instruments.ndxcs import NDXCS
 from rateslib.instruments.portfolio import Portfolio
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.sbs import SBS
@@ -46,6 +47,7 @@ __all__ = [
     "ZCS",
     # cross currency
     "XCS",
+    "NDXCS",
     "NDF",
     "FXSwap",
     "FXForward",
