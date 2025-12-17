@@ -130,7 +130,7 @@ Which ``instruments`` does *rateslib* include?
      - :class:`~rateslib.instruments.FXStrangle`
      -
    * - :class:`~rateslib.instruments.ZCIS`
-     -
+     - :class:`~rateslib.instruments.NDXCS`
      -
      - :class:`~rateslib.instruments.FXBrokerFly`
      -

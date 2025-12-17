@@ -289,6 +289,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/sbs.rst
     spec/fra.rst
     spec/fixedratebond.rst
+    spec/indexfixedratebond.rst
     spec/bondfuture.rst
     spec/bill.rst
     spec/stir.rst
