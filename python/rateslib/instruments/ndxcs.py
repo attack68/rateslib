@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import LegMtm
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
@@ -286,7 +287,7 @@ class NDXCS(_BaseInstrument):
 
     Notes
     -----
-    A non-deliverable *XCS* is a cross-currency swap **without** notional exchanges and one
+    A non-deliverable *XCS* replicates a non-mtm cross-currency swap
     whose cashflows are paid out only in one *settlement currency*. This type of swap
     allows two configurations;
 
@@ -515,8 +516,7 @@ class NDXCS(_BaseInstrument):
         fx_fixings: LegFixings = NoInput(0),
         leg2_fx_fixings: LegFixings = NoInput(0),
         # rate parameters
-        fixed: bool = False,
-        mtm: bool = False,
+        fixed: bool_ = NoInput(0),
         fixed_rate: DualTypes_ = NoInput(0),
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
@@ -525,8 +525,8 @@ class NDXCS(_BaseInstrument):
         method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        leg2_fixed: bool = False,
-        leg2_mtm: bool = False,
+        leg2_fixed: bool_ = NoInput(0),
+        leg2_mtm: bool_ = NoInput(0),
         leg2_fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
@@ -538,15 +538,8 @@ class NDXCS(_BaseInstrument):
         # meta parameters
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
-        metric: str = "leg1",
+        metric: str_ = NoInput(0),
     ) -> None:
-        currency_: str = _drb(defaults.base_currency, currency).lower()
-        if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
-            notional = defaults.notional
-        mtm, leg2_mtm, pair_, leg2_pair_ = self._init_args(
-            currency_, pair, leg2_pair, notional, leg2_notional
-        )
-
         user_args = dict(
             # scheduling
             effective=effective,
@@ -578,18 +571,16 @@ class NDXCS(_BaseInstrument):
             convention=convention,
             leg2_convention=leg2_convention,
             # settlement
-            currency=currency_,
+            currency=currency,
             notional=notional,
             leg2_notional=leg2_notional,
             amortization=amortization,
             leg2_amortization=leg2_amortization,
             # non-deliverability
-            pair=pair_,
-            leg2_pair=leg2_pair_,
+            pair=pair,
+            leg2_pair=leg2_pair,
             fx_fixings=fx_fixings,
             leg2_fx_fixings=leg2_fx_fixings,
-            mtm=mtm,
-            leg2_mtm=leg2_mtm,
             # rate
             fixed_rate=fixed_rate,
             float_spread=float_spread,
@@ -611,24 +602,47 @@ class NDXCS(_BaseInstrument):
             fixed=fixed,
             leg2_fixed=leg2_fixed,
             curves=self._parse_curves(curves),
-            metric=metric.lower(),
+            metric=metric,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
-            initial_exchange=False,
-            final_exchange=False,
-            leg2_initial_exchange=False,
-            leg2_final_exchange=False,
+            initial_exchange=True,
+            final_exchange=True,
+            leg2_initial_exchange=True,
+            leg2_final_exchange=True,
             vol=_Vol(),
         )
         default_args = dict(
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_exchange,
+            currency=defaults.base_currency,
+            fixed=False,
+            leg2_fixed=False,
+            metric="leg1",
         )
         self._kwargs = _KWArgs(
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
             meta_args=["curves", "metric", "fixed", "leg2_fixed", "vol"],
+        )
+
+        # validation of currencies and pairs
+        if isinstance(self.kwargs.leg1["notional"], NoInput) and isinstance(
+            self.kwargs.leg2["notional"], NoInput
+        ):
+            self.kwargs.leg1["notional"] = defaults.notional
+
+        (
+            self.kwargs.leg1["mtm"],
+            self.kwargs.leg2["mtm"],
+            self.kwargs.leg1["pair"],
+            self.kwargs.leg2["pair"],
+        ) = self._init_args(
+            currency=self.kwargs.leg1["currency"].lower(),
+            pair=self.kwargs.leg1["pair"],
+            leg2_pair=self.kwargs.leg2["pair"],
+            notional=self.kwargs.leg1["notional"],
+            leg2_notional=self.kwargs.leg2["notional"],
         )
 
         # narrowing of fixed or floating
@@ -641,12 +655,12 @@ class NDXCS(_BaseInstrument):
             "fixing_frequency",
             "fixing_series",
         ]
-        if fixed:
+        if self.kwargs.meta["fixed"]:
             for item in float_attrs:
                 self.kwargs.leg1.pop(item)
         else:
             self.kwargs.leg1.pop("fixed_rate")
-        if leg2_fixed:
+        if self.kwargs.meta["leg2_fixed"]:
             for item in float_attrs:
                 self.kwargs.leg2.pop(item)
         else:
@@ -668,13 +682,13 @@ class NDXCS(_BaseInstrument):
                 else -1.0 * self._kwargs.leg1["amortization"]
             )
 
-        if fixed:
+        if self.kwargs.meta["fixed"]:
             self._leg1: FixedLeg | FloatLeg = FixedLeg(
                 **_convert_to_schedule_kwargs(self.kwargs.leg1, 1)
             )
         else:
             self._leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        if leg2_fixed:
+        if self.kwargs.meta["leg2_fixed"]:
             self._leg2: FixedLeg | FloatLeg = FixedLeg(
                 **_convert_to_schedule_kwargs(self.kwargs.leg2, 1)
             )
@@ -690,7 +704,7 @@ class NDXCS(_BaseInstrument):
         leg2_pair: str_,
         notional: DualTypes_,
         leg2_notional: DualTypes_,
-    ) -> tuple[bool, bool, str, str]:
+    ) -> tuple[LegMtm, LegMtm, str, str]:
         if isinstance(pair, NoInput):
             raise ValueError("`pair` must be given when creating a NDXCS.")
         else:
@@ -711,10 +725,10 @@ class NDXCS(_BaseInstrument):
         pair: str,
         notional: DualTypes_,
         leg2_notional: DualTypes_,
-    ) -> tuple[bool, bool, str, str]:
+    ) -> tuple[LegMtm, LegMtm, str, str]:
         if isinstance(notional, NoInput):
             # then reference Leg is leg2
-            mtm, leg2_mtm = False, True
+            mtm, leg2_mtm = LegMtm.Initial, LegMtm.Payment
         else:
             if not isinstance(leg2_notional, NoInput):
                 raise ValueError(
@@ -724,7 +738,7 @@ class NDXCS(_BaseInstrument):
                     "reference currency leg.\n2) Set the ``fx_fixing`` or ``leg2_fx_fixing`` value "
                     "as this scalar for the leg that is solely based on the settlement currency."
                 )
-            mtm, leg2_mtm = True, False
+            mtm, leg2_mtm = LegMtm.Payment, LegMtm.Initial
         return mtm, leg2_mtm, pair, pair
 
     @staticmethod
@@ -733,14 +747,14 @@ class NDXCS(_BaseInstrument):
         leg2_pair: str,
         notional: DualTypes_,
         leg2_notional: DualTypes_,
-    ) -> tuple[bool, bool, str, str]:
+    ) -> tuple[LegMtm, LegMtm, str, str]:
         if isinstance(notional, NoInput) or isinstance(leg2_notional, NoInput):
             raise ValueError(
                 "A three-currency NDXCS requires both `notional` and `leg2_notional` to be given.\n"
                 "These should be given in their relevant reference currencies, according to the "
                 "initially agreed FX Rate between them."
             )
-        return True, True, pair, leg2_pair
+        return LegMtm.Payment, LegMtm.Payment, pair, leg2_pair
 
     def rate(
         self,
@@ -948,9 +962,9 @@ class NDXCS(_BaseInstrument):
         elif isinstance(curves, list | tuple):
             if len(curves) == 4:
                 return _Curves(
-                    rate_curve=curves[0],
+                    rate_curve=NoInput(0) if curves[0] is None else curves[0],
                     disc_curve=curves[1],
-                    leg2_rate_curve=curves[2],
+                    leg2_rate_curve=NoInput(0) if curves[2] is None else curves[2],
                     leg2_disc_curve=curves[3],
                 )
             else:

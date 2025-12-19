@@ -269,3 +269,16 @@ NFIX 3m
 
    defaults.spec["nzd_irs3"]
    IRS(dt(2000, 1, 1), "10y", spec="nzd_irs3").kwargs
+
+INR
+****
+
+.. _spec-inr-ndirs:
+
+Non-Deliverable OIS vs USD
+---------------------------
+
+.. ipython:: python
+
+   defaults.spec["inr_ndirs"]
+   IRS(dt(2000, 1, 1), "10y", spec="inr_ndirs").kwargs

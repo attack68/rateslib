@@ -21,6 +21,38 @@ class FXOptionMetric(Enum):
     Percent = 1
 
 
+class LegMtm(Enum):
+    """
+    Enumerable type to define :class:`~rateslib.data.fixings.FXFixing` dates for non-deliverable
+    *Legs*.
+
+    For further information see non-deliverability **Notes** of :class:`~rateslib.legs.FixedLeg`.
+    """
+
+    Initial = 0
+    XCS = 1
+    Payment = 2
+
+
+_LEG_MTM_MAP = {
+    "initial": LegMtm.Initial,
+    "xcs": LegMtm.XCS,
+    "payment": LegMtm.Payment,
+}
+
+
+def _get_let_mtm(leg_mtm: str | LegMtm) -> LegMtm:
+    if isinstance(leg_mtm, LegMtm):
+        return leg_mtm
+    else:
+        try:
+            return _LEG_MTM_MAP[leg_mtm.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`mtm` as string: '{leg_mtm}' is not a valid option. Please consult docs."
+            )
+
+
 class IndexMethod(Enum):
     """
     Enumerable type to define determining the index value on some reference value date.

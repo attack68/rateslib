@@ -951,3 +951,11 @@ def test_schedule_in_advance_payment():
     assert s.aschedule == [dt(2024, 3, 20), dt(2024, 6, 19), dt(2024, 9, 18), dt(2024, 12, 18)]
     assert s.pschedule == [dt(2024, 3, 21), dt(2024, 3, 21), dt(2024, 6, 20), dt(2024, 9, 19)]
     assert s.pschedule3 == s.pschedule
+
+
+@pytest.mark.parametrize("tenor", ["3b", "3d", "7d", "14d", "2w", "1m", "6m", "12m", "18m", "2y"])
+def test_single_period_from_str_matching_frequency(tenor):
+    # test was introduced for a Bill that derives a termination from a string tenor.
+    # When the frequency matches the tenor it should generate only a single period.
+    s = Schedule(effective=dt(2025, 1, 15), termination=tenor, frequency=tenor)
+    assert s.n_periods == 1

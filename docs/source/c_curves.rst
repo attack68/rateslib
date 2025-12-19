@@ -386,8 +386,7 @@ The different :ref:`Instruments<instruments-toc-doc>` in *rateslib* may require
 different interest rate index types, be it IBOR or RFR based. These are
 fundamentally different and require care dependent on
 which curve type: :class:`~rateslib.curves.Curve` or
-:class:`~rateslib.curves.LineCurve` is used. This is also similar to ``fixing`` input
-for :class:`~rateslib.periods.FloatPeriod` (see :ref:`here<float fixings>`).
+:class:`~rateslib.curves.LineCurve` is used.
 
 .. list-table::
    :widths: 10 45 45

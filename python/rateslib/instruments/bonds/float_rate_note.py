@@ -190,15 +190,20 @@ class FloatRateNote(_BaseBondInstrument):
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     calc_mode : str or BondCalcMode
         A calculation mode for dealing with bonds under different conventions. See notes.
+    settle: int
+        The number of days by which to lag 'today' to arrive at standard settlement.
+    metric : str, :green:`optional` (set as 'clean_price')
+        The pricing metric returned by :meth:`~rateslib.instruments.FixedRateBond.rate`.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
 
-    """
+    """  # noqa: E501
 
     _rate_scalar = 1.0
 

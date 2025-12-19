@@ -150,8 +150,7 @@ without.
          schedules to the *Instrument* configuration or by using the new
          :class:`~rateslib.legs.Amortization`
          class, which can also derive amortization schedules for common scenarios.
-         (`1019 <https://github.com/attack68/rateslib/pull/1019>`_). See
-         :ref:`Using Amortization <cook-amortisation-doc>` for examples.
+         (`1019 <https://github.com/attack68/rateslib/pull/1019>`_).
        - Add *'nz_gb'* ``spec`` for New Zealand government bonds, and the associated functions
          for YTM required by its convention.
          (`1021 <https://github.com/attack68/rateslib/pull/1021>`_)

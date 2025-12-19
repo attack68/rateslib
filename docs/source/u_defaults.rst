@@ -45,8 +45,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
 
    * - Currency
      - Calendar
-     - IRS
-     - XCS
+     - IRS / NDIRS
+     - XCS / NDXCS
      - FRA
      - SBS
      - STIRFuture
@@ -188,8 +188,8 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      -
    * - INR
      - :ref:`mum <spec-inr-mum>`
-     -
-     -
+     - :ref:`inr_ndirs <spec-inr-ndirs>`
+     - :ref:`inrusd_ndxcs <spec-inrusd-ndxcs>`
      -
      -
      -
@@ -285,6 +285,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
     spec/calendars.rst
     spec/irs.rst
     spec/xcs.rst
+    spec/ndxcs.rst
     spec/cds.rst
     spec/sbs.rst
     spec/fra.rst

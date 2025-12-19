@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import LegMtm
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
@@ -449,8 +450,8 @@ class XCS(_BaseInstrument):
         leg2_notional: float_ = NoInput(0),
         leg2_amortization: float_ = NoInput(0),
         # rate parameters
-        fixed: bool = False,
-        mtm: bool = False,
+        fixed: bool_ = NoInput(0),
+        mtm: bool_ = NoInput(0),
         fixed_rate: DualTypes_ = NoInput(0),
         float_spread: DualTypes_ = NoInput(0),
         spread_compound_method: str_ = NoInput(0),
@@ -460,8 +461,8 @@ class XCS(_BaseInstrument):
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
-        leg2_fixed: bool = False,
-        leg2_mtm: bool = False,
+        leg2_fixed: bool_ = NoInput(0),
+        leg2_mtm: bool_ = NoInput(0),
         leg2_fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
@@ -474,14 +475,24 @@ class XCS(_BaseInstrument):
         # meta parameters
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
-        metric: str = "leg1",
+        metric: str_ = NoInput(0),
     ) -> None:
         if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
             notional = defaults.notional
 
+        mtm_, leg2_mtm_ = _drb(False, mtm), _drb(False, leg2_mtm)
+        del mtm
+        del leg2_mtm
+
         # validation
-        if mtm and leg2_mtm:
+        if mtm_ and leg2_mtm_:
             raise ValueError("`mtm` and `leg2_mtm` must define at most one MTM leg.")
+        else:
+            mtm: LegMtm = LegMtm.XCS if mtm_ else LegMtm.Initial  # type: ignore[no-redef]
+            del mtm_
+            leg2_mtm: LegMtm = LegMtm.XCS if leg2_mtm_ else LegMtm.Initial  # type: ignore[no-redef]
+            del leg2_mtm_
+
         if not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
             raise ValueError(
                 "The `notional` can only be provided on one leg, expressed in its `currency`.\n"
@@ -562,7 +573,7 @@ class XCS(_BaseInstrument):
             fixed=fixed,
             leg2_fixed=leg2_fixed,
             curves=self._parse_curves(curves),
-            metric=metric.lower(),
+            metric=metric,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             initial_exchange=True,
@@ -576,6 +587,11 @@ class XCS(_BaseInstrument):
             currency=defaults.base_currency,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
             payment_lag_exchange=defaults.payment_lag_exchange,
+            mtm=False,
+            leg2_mtm=False,
+            fixed=False,
+            leg2_fixed=False,
+            metric="leg1",
         )
 
         self._kwargs = _KWArgs(
@@ -595,12 +611,12 @@ class XCS(_BaseInstrument):
             "fixing_frequency",
             "fixing_series",
         ]
-        if fixed:
+        if self.kwargs.meta["fixed"]:
             for item in float_attrs:
                 self.kwargs.leg1.pop(item)
         else:
             self.kwargs.leg1.pop("fixed_rate")
-        if leg2_fixed:
+        if self.kwargs.meta["leg2_fixed"]:
             for item in float_attrs:
                 self.kwargs.leg2.pop(item)
         else:
@@ -628,13 +644,13 @@ class XCS(_BaseInstrument):
                 f"{self._kwargs.leg1['currency']}{self._kwargs.leg2['currency']}"
             )
 
-        if fixed:
+        if self.kwargs.meta["fixed"]:
             self._leg1: FixedLeg | FloatLeg = FixedLeg(
                 **_convert_to_schedule_kwargs(self.kwargs.leg1, 1)
             )
         else:
             self._leg1 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        if leg2_fixed:
+        if self.kwargs.meta["leg2_fixed"]:
             self._leg2: FixedLeg | FloatLeg = FixedLeg(
                 **_convert_to_schedule_kwargs(self.kwargs.leg2, 1)
             )
@@ -866,9 +882,9 @@ class XCS(_BaseInstrument):
         elif isinstance(curves, list | tuple):
             if len(curves) == 4:
                 return _Curves(
-                    rate_curve=curves[0],
+                    rate_curve=NoInput(0) if curves[0] is None else curves[0],
                     disc_curve=curves[1],
-                    leg2_rate_curve=curves[2],
+                    leg2_rate_curve=NoInput(0) if curves[2] is None else curves[2],
                     leg2_disc_curve=curves[3],
                 )
             else:

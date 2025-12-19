@@ -133,6 +133,7 @@ ignore = [
     # "B006",  # mutable data structures for argument defaults, e.g. []
     "B904",  # raising within except clauses
     "B028",  # no explicit stack level
+    "E702",  # semi-colons for multiple line statements
 ]
 
 [tool.ruff.lint.per-file-ignores]
