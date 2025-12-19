@@ -10,6 +10,7 @@ from rateslib.curves._parsers import (
 )
 from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import LegMtm, _get_let_mtm
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.protocols import (
     _BaseLeg,
@@ -129,11 +130,15 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
-    mtm: bool, :green:`optional (set to False)`
-        Define whether the non-deliverability depends on a single
-        :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or
-        multiple throughout its settlement. Review the **notes** section non-deliverability.
+        to non-deliverability. Review the **notes** section non-deliverability. This should only
+        ever be entered as either:
+
+        - scalar value: 1.15,
+        - fixings series: "Reuters_ZBS",
+        - tuple of transaction rate and fixing series: (1.25, "Reuters_ZBC")
+    mtm: LegMtm or str, :green:`optional (set to 'initial')`
+        Define how the fixing dates are determined for each :class:`~rateslib.data.fixings.FXFixing`
+        See **Notes** regarding non-deliverability.
 
         .. note::
 
@@ -246,160 +251,203 @@ class FixedLeg(_BaseLeg, _WithExDiv):
 
     **Non-Deliverability**
 
-    There are three types of *non-deliverability* that can be applied to *Legs*:
+    The leg uses a ``mtm`` argument to define the types of non-deliverability that it can
+    construct. Currently there are three kinds which cater to the various type of requirements
+    for, *ND-IRS*, *MTM-XCS*, *non-MTM XCS*, *ND-XCS*
 
-    - **One initial** :class:`~rateslib.data.fixings.FXFixing`, which is the type used by
-      the foreign leg of a non-MTM :class:`~rateslib.instruments.XCS`. This effectively fixes the
-      foreign notional, relative to a reference notional and FX rate, for all *Periods* at the
-      start of the *Leg*.
+    .. tabs::
 
-      In this case, the ``fx_fixings`` input is usually a known, single scalar value agreed at
-      trade execution time. It can also be input as a string identifier from which the
-      :class:`~rateslib.data.fixings.FXFixing` can be lookup up.
-      The relevant delivery date for the fixing date is taken as the first payment exchange
-      date from the schedule, i.e. ``schedule.pschedule2[0]``.
+       .. tab:: Initial
 
-      In the example below the *Leg* is settled is USD but is expressed with a notional in EUR.
-      All *Periods* assume the USD notional is converted under the single 1.25 EURUSD FX rate.
+          This uses the *Initial* variant of a :class:`~rateslib.enums.LegMtm` and it
+          defines all :class:`~rateslib.data.fixings.FXFixing` on the *Leg* to be a single date
+          at the start of the *Leg* (derived from ``schedule.pschedule2[0]``). Usually this fixing is
+          directly specified being agreed at execution of the transaction and not dependent
+          upon a published financial fixing.
 
-      .. ipython:: python
+          This type of *non-deliverability* is suitable to define a *Leg* of one currency, but
+          expressed by a notional in another currency, and is used for a *non-MTM XCS*.
 
-         leg = FixedLeg(
-             schedule=Schedule(
-                 effective=dt(2000, 1, 1),
-                 termination=dt(2000, 10, 1),
-                 frequency="Q",
-                 payment_lag=1,
-                 payment_lag_exchange=0,
-             ),
-             fixed_rate=1.0,
-             currency="usd",
-             pair="eurusd",
-             initial_exchange=True,
-             notional=5e6,
-             fx_fixings=1.25,
-         )
-         print(leg.cashflows())
+          Since only one fixing is required, ``fx_fixings`` can be entered either as
+          a known scalar value or string series identifier.
 
-    - **Multiple** :class:`~rateslib.data.fixings.FXFixing`, at future deliveries,
-      without notional exchanges. This is the type used by ND-IRS. In this case each future
-      payment is converted to a deliverable currency at the time of payment. Therefore the fixing
-      delivery dates are the payment dates for accrual periods, i.e. ``schedule.pschedule[i+1]``.
+          .. ipython:: python
 
-      In the example below the *Leg* is settled is USD but is expressed with a notional in EUR.
-      Each *Period's* cashflow is determined in EUR and then converted to USD with an FX rate
-      that is determined specifically for that particular payment date, i.e. in the future.
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 mtm="initial",
+                 currency="usd",
+                 pair="eurusd",
+                 notional=10e6,      # <- Leg is a USD leg but expressed with a EUR notional
+                 fx_fixings=1.25,    # <- All periods are treated as 12.5mm USD
+             )
+             print(leg.cashflows())
 
-      .. ipython:: python
+       .. tab:: Payment
 
-         fixings.add("EURUSD_1600", Series(
-             index=[dt(2000, 4, 2), dt(2000, 7, 2), dt(2000, 10, 2)],
-             data=[1.27, 1.29, 1.32])
-         )
-         leg = FixedLeg(
-             schedule=Schedule(
-                 effective=dt(2000, 1, 1),
-                 termination=dt(2000, 10, 1),
-                 frequency="Q",
-                 payment_lag=1,
-                 payment_lag_exchange=0
-             ),
-             fixed_rate=1.0,
-             currency="usd",
-             pair="eurusd",
-             mtm=True,
-             notional=5e6,
-             fx_fixings="EURUSD_1600",
-         )
-         print(leg.cashflows())
+          Under the *Payment* variant of a :class:`~rateslib.enums.LegMtm`
+          all reference currency cashflows are converted to settlement
+          currency using an :class:`~rateslib.data.fixings.FXFixing` with a date of the payment.
+          This is probably the most traditional type of non-deliverability and is suitable
+          for *NDIRS* and *NDXCS* *Instruments*.
 
+          The best practice entry for ``fx_fixings`` depends if the *Leg* has
+          notional exchanges or not. If there is an initial notional exchange then
+          a 2-tuple, with the first element being the transacted exchange rate and
+          the second element referring to the fixing
+          series for future *FX Fixings*. If only future fixings are required then a string
+          series is used.
 
-    - **Multiple** :class:`~rateslib.data.fixings.FXFixing`, at future deliveries,
-      with notional exchanges. This is the type used by MTM :class:`~rateslib.instruments.XCS`.
-      In this case the foreign notional is determined at the start of each period by a known
-      fixing and there are additional MTM cashflow exchanges at the start of a period to adjust
-      for that fixing, i.e. ``schedule.pschedule2[i]``.
+          .. ipython:: python
 
-      .. ipython:: python
+             fixings.add("EURUSD_1700", Series(
+                 index=[dt(2000, 1, 1), dt(2000, 4, 2), dt(2000, 7, 1), dt(2000, 7, 2)],
+                 data=[1.26, 1.27, 1.29, 1.295])
+             )
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 mtm="payment",
+                 currency="usd",
+                 pair="eurusd",
+                 notional=10e6,                     # <- Leg settles in USD leg but reference cashflows in EUR
+                 fx_fixings=(1.25, "EURUSD_1700"),  # <- Initial exchange rate and future fixings
+             )
+             print(leg.cashflows())
 
-         leg = FixedLeg(
-             schedule=Schedule(
-                 effective=dt(2000, 1, 1),
-                 termination=dt(2000, 10, 1),
-                 frequency="Q",
-                 payment_lag=2,
-                 payment_lag_exchange=1
-             ),
-             fixed_rate=1.0,
-             currency="usd",
-             pair="eurusd",
-             mtm=True,
-             initial_exchange=True,
-             notional=5e6,
-             fx_fixings=(1.25, "EURUSD_1600"),
-         )
-         print(leg.cashflows())
+       .. tab:: XCS
 
-    These modes are controlled by the ``mtm`` parameter (*False* for single fixing and *True* for
-    multiple fixings), as well as being determined by whether ``final_exchange`` is *True* to
-    separate the cases with exchanges.
+          The *XCS* variant of a :class:`~rateslib.enums.LegMtm` is specially configured
+          for *MTM-XCS*. These *Legs* have their
+          cashflows determined with :class:`~rateslib.data.fixings.FXFixing` at the start of
+          each *Period*, in a manner slightly similar  to the *Initial* variant, and specifically
+          generated :class:`~rateslib.periods.MtmCashflow` *Periods* adjusting the value of the
+          notional by an *FXFixing* at the end of each *Period*.
 
-    When entering ``fx_fixings`` this should be appropriate as to the relevant mode of
-    non-deliverability. If the first case, then only 1 single scalar fixing should be provided.
-    A 2-tuple is also functional but only the first element will be used.
+          The best practice entry for ``fx_fixings`` is as a 2-tuple, with the first
+          element the transacted exchange rate and the second element referring to the fixing
+          series for future *FX Fixings*.
 
-    For the second case, the ND-IRS type, then a single string identifier is best practice. This
-    can also be entered as a list of FX fixing values for each regular period in the schedule.
+          .. ipython:: python
 
-    For the last case, a tuple represents best practice and allows an arbitrary first FX fixing
-    with a string identifier for the remaining future fixings. This reflects a typical
-    :class:`~rateslib.instruments.XCS` traded agreement.
+             fixings.add("EURUSD_1600", Series(
+                 index=[dt(2000, 4, 1), dt(2000, 4, 2), dt(2000, 7, 2)],
+                 data=[1.265, 1.27, 1.29])
+             )
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 currency="usd",
+                 pair="eurusd",
+                 mtm="xcs",
+                 notional=10e6,
+                 fx_fixings=(1.25, "EURUSD_1600"),
+             )
+             print(leg.cashflows())
 
     **Amortization and Non-Deliverability**
 
     When amortization is combined with non-deliverability, the interim notional exchange cashflows
     are adjusted appropriately in both the non-mtm and mtm cases.
 
-    .. ipython:: python
+    .. tabs::
 
-       leg = FixedLeg(
-           schedule=Schedule(
-               effective=dt(2000, 1, 1),
-               termination=dt(2000, 10, 1),
-               frequency="Q",
-               payment_lag=2,
-               payment_lag_exchange=1
-           ),
-           fixed_rate=1.0,
-           currency="usd",
-           pair="eurusd",
-           initial_exchange=True,
-           notional=5e6,
-           amortization=1000000,
-           fx_fixings=(1.25, "EURUSD_1600"),
-       )
-       print(leg.cashflows())
+       .. tab:: Initial
 
-    .. ipython:: python
+          Amortization under this method adopts the same singular fixing as all other *Periods*.
 
-       leg = FixedLeg(
-           schedule=Schedule(
-               effective=dt(2000, 1, 1),
-               termination=dt(2000, 10, 1),
-               frequency="Q",
-               payment_lag=2,
-               payment_lag_exchange=1
-           ),
-           fixed_rate=1.0,
-           currency="usd",
-           pair="eurusd",
-           initial_exchange=True,
-           notional=5e6,
-           amortization=1000000,
-           mtm=True,
-           fx_fixings=(1.25, "EURUSD_1600"),
-       )
-       print(leg.cashflows())
+          .. ipython:: python
+
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 mtm="initial",
+                 currency="usd",
+                 pair="eurusd",
+                 notional=10e6,      # <- Leg is a USD leg but expressed with a EUR notional
+                 amortization=4e6,
+                 fx_fixings=1.25,    # <- All periods are treated as 12.5mm USD
+             )
+             print(leg.cashflows())
+
+       .. tab:: Payment
+
+          Amortization under this method settles according to the payment date.
+
+          .. ipython:: python
+
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 mtm="payment",
+                 currency="usd",
+                 pair="eurusd",
+                 notional=10e6,                     # <- Leg settles in USD leg but reference cashflows in EUR
+                 amortization=4e6,
+                 fx_fixings=(1.25, "EURUSD_1700"),  # <- Initial exchange rate and future fixings
+             )
+             print(leg.cashflows())
+
+       .. tab:: XCS
+
+          Amortization for a *XCS* takes places after the :class:`~rateslib.periods.MtmCashflow`.
+
+          .. ipython:: python
+
+             leg = FixedLeg(
+                 schedule=Schedule(
+                     effective=dt(2000, 1, 1),
+                     termination=dt(2000, 7, 1),
+                     frequency="Q",
+                     payment_lag=1,
+                     payment_lag_exchange=0,
+                 ),
+                 fixed_rate=1.0,
+                 initial_exchange=True,
+                 currency="usd",
+                 pair="eurusd",
+                 mtm="xcs",
+                 notional=10e6,
+                 amortization=4e6,
+                 fx_fixings=(1.25, "EURUSD_1600"),
+             )
+             print(leg.cashflows())
 
     **Indexation, Non-Deliverability and Amortization**
 
@@ -423,7 +471,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
            initial_exchange=True,
            notional=5e6,
            amortization=1000000,
-           mtm=True,
+           mtm="xcs",
            fx_fixings=(1.25, "EURUSD_1600"),
            index_lag=0,
            index_fixings="MY_RPI",
@@ -435,9 +483,10 @@ class FixedLeg(_BaseLeg, _WithExDiv):
        :suppress:
 
        fixings.pop("EURUSD_1600")
+       fixings.pop("EURUSD_1700")
        fixings.pop("MY_RPI")
 
-    """
+    """ # noqa: E501
 
     @property
     def settlement_params(self) -> _SettlementParams:
@@ -504,7 +553,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         # non-deliverable
         pair: str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
-        mtm: bool = False,
+        mtm: LegMtm | str = LegMtm.Initial,
         # period
         convention: str_ = NoInput(0),
         initial_exchange: bool = False,
@@ -519,16 +568,30 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         index_only: bool = False,
     ) -> None:
         self._fixed_rate = fixed_rate
+        del fixed_rate
         self._schedule = schedule
+        del schedule
         self._notional: DualTypes = _drb(defaults.notional, notional)
+        del notional
         self._amortization: Amortization = _get_amortization(
             amortization, self._notional, self.schedule.n_periods
         )
+        del amortization
         self._currency: str = _drb(defaults.base_currency, currency).lower()
+        del currency
         self._convention: str = _drb(defaults.convention, convention)
+        del convention
+        self._mtm = _get_let_mtm(mtm)
+        del mtm
 
         index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
-        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods)
+        del index_fixings
+
+        # if initial and final exchange with MtM.Payment then there is an extra fixing date
+        _mtm_param = 1 if (self._mtm == LegMtm.Payment and initial_exchange) else 0
+        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods + _mtm_param)
+        del fx_fixings
+
         # Exchange periods
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
@@ -555,6 +618,11 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
+            delivery_ = {
+                LegMtm.Initial: self.schedule.pschedule2[0],
+                LegMtm.XCS: self.schedule.pschedule2[-2],
+                LegMtm.Payment: self.schedule.pschedule2[-1],
+            }
             _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
@@ -562,8 +630,8 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                 ex_dividend=self.schedule.pschedule3[-1],
                 # non-deliverable
                 pair=pair,
-                fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
-                delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[-2],
+                fx_fixings=fx_fixings_[0] if self._mtm == LegMtm.Initial else fx_fixings_[-1],
+                delivery=delivery_[self._mtm],
                 # index parameters
                 index_base=index_base,
                 index_lag=index_lag,
@@ -578,7 +646,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         self._regular_periods: tuple[FixedPeriod, ...] = tuple(
             [
                 FixedPeriod(
-                    fixed_rate=fixed_rate,
+                    fixed_rate=self.fixed_rate,
                     # currency args
                     payment=self.schedule.pschedule[i + 1],
                     currency=self._currency,
@@ -596,8 +664,10 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                     adjuster=self.schedule.accrual_adjuster,
                     # non-deliverable : Not allowed with notional exchange
                     pair=pair,
-                    fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i],
-                    delivery=_fx_delivery(i, mtm, final_exchange_, schedule, False),
+                    fx_fixings=fx_fixings_[0]
+                    if self._mtm == LegMtm.Initial
+                    else fx_fixings_[i + _mtm_param],
+                    delivery=_fx_delivery(i, self._mtm, self.schedule, False, False),
                     # index params
                     index_base=index_base,
                     index_lag=index_lag,
@@ -625,9 +695,11 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                         ex_dividend=self.schedule.pschedule3[i + 1],
                         # non-deliverable params
                         pair=pair,
-                        fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i + 1],
+                        fx_fixings=fx_fixings_[0]
+                        if self._mtm == LegMtm.Initial
+                        else fx_fixings_[i + 1],
                         delivery=_fx_delivery(
-                            i, mtm, True, schedule, True
+                            i, self._mtm, self.schedule, True, True
                         ),  # schedule for exchanges
                         # index params
                         index_base=index_base,
@@ -643,7 +715,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
             )
 
         # mtm exchanges
-        if mtm and final_exchange_:
+        if self._mtm == LegMtm.XCS and final_exchange_:
             if isinstance(pair, NoInput):
                 raise ValueError(err.VE_PAIR_AND_LEG_MTM)
             self._mtm_exchange_periods: tuple[_BasePeriod, ...] | None = tuple(
@@ -1254,26 +1326,26 @@ class ZeroIndexLeg(_BaseLeg):
 
 def _fx_delivery(
     i: int,
-    mtm: bool,
-    final_exchange: bool,
+    mtm: LegMtm,
     schedule: Schedule,
-    amortisation: bool,
+    is_exchange: bool,
+    is_amortisation: bool,
 ) -> datetime:
-    """Based on the `mtm` parameter determine the FX fixing dates for period 'i'."""
-    if not mtm:
+    """Based on the `mtm` parameter determine the FX fixing dates for regular period 'i'."""
+    if mtm == LegMtm.Initial:
         # then ND type is a one-fixing only, so is determined by only a single rate of exchange
         # this date is set to the initial payment exchange date of the schedule
         return schedule.pschedule2[0]
-    else:
-        if final_exchange and not amortisation:
-            # then ND type is a XCS with notional exchanges, and the FX fixing is set in advance
-            # with a MTM cashflow handling FX fixing changes over the period.
-            return schedule.pschedule2[i]
-        elif final_exchange and amortisation:
-            # then this is an amortisation amount of whose fixing is measured at the end of the
-            # period
+    elif mtm == LegMtm.Payment:
+        # then the ND type is a NDXCS or a NDIRS which determines FX at payment
+        if is_exchange:
             return schedule.pschedule2[i + 1]
         else:
-            # then ND type is IRS without notional exchanges, and the FX Fixing is set
-            # as the payment date of the cashflow
             return schedule.pschedule[i + 1]
+    else:  # LegMtm.XCS
+        # then the ND type is a MTM-XCS which has special MTMCashflow periods
+        # the relevant FX fixing is set in advance of the period using notional exchange dates
+        if is_amortisation:
+            return schedule.pschedule2[i + 1]
+        else:
+            return schedule.pschedule2[i]

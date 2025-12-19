@@ -21,7 +21,7 @@ class _AmortizationType(Enum):
 
 class Amortization:
     """
-    An amortization schedule for any :class:`~rateslib.legs.base.BaseLeg`.
+    An amortization schedule for any :class:`~rateslib.legs._BaseLeg`.
 
     .. rubric:: Examples
 

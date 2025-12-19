@@ -10,9 +10,10 @@ from rateslib import defaults
 from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import FloatFixingMethod, SpreadCompoundMethod
+from rateslib.enums.parameters import FloatFixingMethod, LegMtm, SpreadCompoundMethod, _get_let_mtm
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.custom import CustomLeg
+from rateslib.legs.fixed import _fx_delivery
 from rateslib.legs.protocols import _BaseLeg, _WithExDiv
 from rateslib.periods import Cashflow, FloatPeriod, MtmCashflow, ZeroFloatPeriod
 from rateslib.periods.parameters import _FloatRateParams, _SettlementParams
@@ -32,7 +33,6 @@ if TYPE_CHECKING:
         _BaseCurve_,
         _BasePeriod,
         _FXVolOption_,
-        datetime,
         datetime_,
         int_,
         str_,
@@ -107,11 +107,15 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
-    mtm: bool, :green:`optional (set to False)`
-        Define whether the non-deliverability depends on a single
-        :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or
-        multiple throughout its settlement. Review the **notes** section non-deliverability.
+        to non-deliverability. Review the **notes** section non-deliverability. This should only
+        ever be entered as either:
+
+        - scalar value: 1.15,
+        - fixings series: "Reuters_ZBS",
+        - tuple of transaction rate and fixing series: (1.25, "Reuters_ZBC")
+    mtm: LegMtm or str, :green:`optional (set to 'initial')`
+        Define how the fixing dates are determined for each :class:`~rateslib.data.fixings.FXFixing`
+        See **Notes** regarding non-deliverability.
 
         .. note::
 
@@ -251,7 +255,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         # non-deliverable
         pair: str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
-        mtm: bool = False,
+        mtm: LegMtm | str = LegMtm.Initial,
         # period
         convention: str_ = NoInput(0),
         initial_exchange: bool = False,
@@ -271,15 +275,28 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         index_fixings: LegFixings = NoInput(0),
     ) -> None:
         self._schedule = schedule
+        del schedule
         self._notional: DualTypes = _drb(defaults.notional, notional)
+        del notional
         self._amortization: Amortization = _get_amortization(
             amortization, self._notional, self._schedule.n_periods
         )
+        del amortization
         self._currency: str = _drb(defaults.base_currency, currency).lower()
+        del currency
         self._convention: str = _drb(defaults.convention, convention)
+        del convention
+        self._mtm = _get_let_mtm(mtm)
+        del mtm
 
         index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
-        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods)
+        del index_fixings
+
+        # if initial and final exchange with MtM.Payment then there is an extra fixing date
+        _mtm_param = 1 if (self._mtm == LegMtm.Payment and initial_exchange) else 0
+        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods + _mtm_param)
+        del fx_fixings
+
         # Exchange periods
         if not initial_exchange:
             _ini_cf: Cashflow | None = None
@@ -305,6 +322,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         if not final_exchange_:
             _final_cf: Cashflow | None = None
         else:
+            delivery_ = {
+                LegMtm.Initial: self.schedule.pschedule2[0],
+                LegMtm.XCS: self.schedule.pschedule2[-2],
+                LegMtm.Payment: self.schedule.pschedule2[-1],
+            }
             _final_cf = Cashflow(
                 payment=self.schedule.pschedule2[-1],
                 notional=self._amortization.outstanding[-1],
@@ -312,8 +334,8 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 ex_dividend=self.schedule.pschedule3[-1],
                 # non-deliverable
                 pair=pair,
-                fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
-                delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[-2],
+                fx_fixings=fx_fixings_[0] if self._mtm == LegMtm.Initial else fx_fixings_[-1],
+                delivery=delivery_[self._mtm],
                 # index parameters
                 index_base=index_base,
                 index_lag=index_lag,
@@ -323,18 +345,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 index_reference_date=self.schedule.aschedule[-1],
             )
         self._exchange_periods = (_ini_cf, _final_cf)
-
-        def fx_delivery(i: int) -> datetime:
-            if not mtm:
-                # then ND type is a one-fixing only
-                return self.schedule.pschedule2[0]
-            else:
-                if final_exchange_:
-                    # then ND type is a XCS
-                    return self.schedule.pschedule2[i]
-                else:
-                    # then ND type is IRS
-                    return self.schedule.pschedule[i + 1]
 
         rate_fixings_list = _leg_fixings_to_list(rate_fixings, self._schedule.n_periods)
         self._regular_periods = tuple(
@@ -364,8 +374,10 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                     adjuster=self.schedule.accrual_adjuster,
                     # non-deliverable : Not allowed with notional exchange
                     pair=pair,
-                    fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i],
-                    delivery=fx_delivery(i),
+                    fx_fixings=fx_fixings_[0]
+                    if self._mtm == LegMtm.Initial
+                    else fx_fixings_[i + _mtm_param],
+                    delivery=_fx_delivery(i, self._mtm, self.schedule, False, False),
                     # index params
                     index_base=index_base,
                     index_lag=index_lag,
@@ -391,10 +403,12 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         ex_dividend=self.schedule.pschedule3[i + 1],
                         # non-deliverable params
                         pair=pair,
-                        fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[i + 1],
-                        delivery=self.schedule.pschedule2[0]
-                        if not mtm
-                        else self.schedule.pschedule2[i + 1],  # schedule for exchanges
+                        fx_fixings=fx_fixings_[0]
+                        if self._mtm == LegMtm.Initial
+                        else fx_fixings_[i + 1],
+                        delivery=_fx_delivery(
+                            i, self._mtm, self.schedule, True, True
+                        ),  # schedule for exchanges
                         # index params
                         index_base=index_base,
                         index_lag=index_lag,
@@ -408,7 +422,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
             )
 
         # mtm exchanges
-        if mtm and final_exchange_:
+        if self._mtm == LegMtm.XCS and final_exchange_:
             if isinstance(pair, NoInput):
                 raise ValueError(err.VE_PAIR_AND_LEG_MTM)
             self._mtm_exchange_periods: tuple[MtmCashflow, ...] | None = tuple(
