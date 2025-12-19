@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import LegMtm
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
@@ -427,6 +428,8 @@ class IRS(_BaseInstrument):
             final_exchange=False,
             leg2_initial_exchange=False,
             leg2_final_exchange=False,
+            mtm=LegMtm.Payment,
+            leg2_mtm=LegMtm.Payment,
             vol=_Vol(),
         )
 
@@ -441,8 +444,6 @@ class IRS(_BaseInstrument):
             default_args=default_args,
             meta_args=["curves", "vol"],
         )
-        self.kwargs.leg1["mtm"] = not isinstance(self.kwargs.leg1["pair"], NoInput)
-        self.kwargs.leg2["mtm"] = not isinstance(self.kwargs.leg1["pair"], NoInput)
 
         self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
         self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))

@@ -2736,6 +2736,27 @@ class TestBill:
         )
         assert bill_act360.leg1._regular_periods[0].period_params.dcf == 0.25
 
+    def test_ex_div(self):
+        b1 = Bill(dt(2000, 1, 3), "3m", spec="us_gbb")
+        assert b1.ex_div(dt(200, 4, 3)) is False
+
+        b2 = Bill(dt(2000, 1, 3), "3m", ex_div=2, spec="us_gbb")
+        assert b2.ex_div(dt(2000, 4, 3)) is True
+        assert b2.ex_div(dt(2000, 3, 31)) is True
+        assert b2.ex_div(dt(2000, 3, 30)) is False
+
+    def test_bill_roll(self):
+        b1 = Bill(dt(2026, 1, 30), "6m", spec="us_gbb", roll=30)
+        b2 = Bill(dt(2026, 1, 30), "6m", spec="us_gbb", roll=31)
+        assert b1.leg1.schedule.termination == dt(2026, 7, 30)
+        assert b2.leg1.schedule.termination == dt(2026, 7, 31)
+
+    def test_bill_eom(self):
+        b1 = Bill(dt(2026, 1, 30), "6m", spec="us_gbb", eom=False)
+        b2 = Bill(dt(2026, 1, 30), "6m", spec="us_gbb", eom=True)
+        assert b1.leg1.schedule.termination == dt(2026, 7, 30)
+        assert b2.leg1.schedule.termination == dt(2026, 7, 31)
+
 
 class TestFloatRateNote:
     @pytest.mark.parametrize(

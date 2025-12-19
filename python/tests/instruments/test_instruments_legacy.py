@@ -10,6 +10,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
+from rateslib.enums.parameters import LegMtm
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -4407,6 +4408,12 @@ class TestNDXCS:
         ],
     )
     def test_2c_ndxcs_npv(self, curve, curve2, leg1, curves) -> None:
+        # the EUR reference leg is leg1 if leg1 is True
+        map_ = {
+            True: LegMtm.Payment,
+            False: LegMtm.Initial,
+        }
+
         fxf = FXForwards(
             FXRates({"eurusd": 1.1}, settlement=dt(2022, 1, 3)),
             {"usdusd": curve, "eurusd": curve2, "eureur": curve2},
@@ -4422,8 +4429,8 @@ class TestNDXCS:
             curves=[curve if _ == "c" else curve2 for _ in curves],
         )
 
-        assert ndxcs.kwargs.leg1["mtm"] is leg1
-        assert ndxcs.kwargs.leg2["mtm"] is not leg1
+        assert ndxcs.kwargs.leg1["mtm"] is map_[leg1]
+        assert ndxcs.kwargs.leg2["mtm"] is map_[not leg1]
 
         npv = ndxcs.npv(fx=fxf)
         assert abs(npv) < 1e-9
@@ -4461,8 +4468,8 @@ class TestNDXCS:
             curves=[curve2, curve, curve3, curve],
         )
 
-        assert ndxcs.kwargs.leg1["mtm"]
-        assert ndxcs.kwargs.leg2["mtm"]
+        assert ndxcs.kwargs.leg1["mtm"] == LegMtm.Payment
+        assert ndxcs.kwargs.leg2["mtm"] == LegMtm.Payment
 
         npv = ndxcs.npv(fx=fxf)
         rate = ndxcs.rate(fx=fxf)
@@ -5528,8 +5535,8 @@ class TestSpec:
             leg2_pair=NoInput(1),
             fx_fixings=NoInput(0),
             leg2_fx_fixings=NoInput(1),
-            mtm=False,
-            leg2_mtm=False,
+            mtm=LegMtm.Payment,
+            leg2_mtm=LegMtm.Payment,
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
                 termination=dt(2024, 2, 26),

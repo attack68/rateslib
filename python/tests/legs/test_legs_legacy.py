@@ -12,6 +12,7 @@ from rateslib.data.fixings import FloatRateSeries
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.enums.generics import _drb
+from rateslib.enums.parameters import LegMtm
 from rateslib.fx import FXForwards, FXRates
 from rateslib.legs import (
     Amortization,
@@ -79,7 +80,7 @@ def test_repr_mtm(Leg):
         schedule=Schedule(dt(2022, 1, 1), "1y", "Q"),
         currency="usd",
         pair="eurusd",
-        mtm=True,
+        mtm="xcs",
         initial_exchange=True,
     )
     result = leg.__repr__()
@@ -160,7 +161,7 @@ class TestFloatLeg:
             currency="nok",
             pair="usdnok",
             notional=1e8,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0})
@@ -652,6 +653,227 @@ class TestFloatLeg:
         assert not leg.ex_div(dt(2000, 3, 29))
         assert leg.ex_div(dt(2000, 3, 30))
         assert leg.ex_div(dt(2000, 4, 1))
+
+    def test_mtm_xcs_type_type_sets_fx_fixing_start_initially(self):
+        fixings.add(
+            "EURUSD_1600",
+            Series(
+                index=[dt(2000, 4, 1), dt(2000, 4, 2), dt(2000, 7, 2)], data=[1.268, 1.27, 1.29]
+            ),
+        )
+        leg = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 7, 1),
+                frequency="Q",
+                payment_lag=1,
+                payment_lag_exchange=0,
+            ),
+            currency="usd",
+            pair="eurusd",
+            initial_exchange=True,
+            mtm="xcs",
+            notional=5e6,
+            fx_fixings=(1.25, "EURUSD_1600"),
+        )
+        assert leg.periods[2].mtm_params.fx_fixing_start.value == 1.25
+        fixings.pop("EURUSD_1600")
+
+    ## 4 types of non-deliverability
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ABCD", 1.10),
+            (1.5, 1.5),
+            ((1.2, "ABCD"), 1.2),
+        ],
+    )
+    def test_non_mtm_xcs_type(self, fx_fixings, expected):
+        fixings.add("ABCD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="initial",
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 4 periods with only one initial fixing date
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected
+        fixings.pop("ABCD")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ABCDE", [1.21, 1.31]),
+            (1.5, [1.5, NoInput(0)]),  # this is bad practice: should just supply str ID
+            ((1.5, "ABCDE"), [1.5, 1.31]),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_irs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "ABCDE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="payment",
+            initial_exchange=False,
+            final_exchange=False,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 2 periods and only 2 relevant fixings dates
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        fixings.pop("ABCDE")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ADE", [1.10, 1.10, 1.20, 1.20, 1.20]),
+            (
+                1.5,
+                [1.5, 1.5, NoInput(0), NoInput(0), NoInput(0)],
+            ),  # this is bad practice: should just supply str ID
+            (
+                (1.5, "ADE"),
+                [1.5, 1.5, 1.20, 1.20, 1.20],
+            ),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_mtm_xcs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "ADE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm=LegMtm.XCS,
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 5 periods with only two relevant fixing dates
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 2, 2)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
+        assert fl.periods[4].non_deliverable_params.fx_fixing.value == expected[4]
+        fixings.pop("ADE")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("AXDE", [1.10, 1.21, 1.31, 1.30]),
+            (
+                1.5,
+                [1.5, NoInput(0), NoInput(0), NoInput(0)],
+            ),  # this is bad practice: should just supply str ID
+            (
+                (1.5, "AXDE"),
+                [1.5, 1.21, 1.31, 1.30],
+            ),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_non_mtm_xcs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "AXDE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="payment",
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 4 periods with 3 or 4 (if lag exchange is different) relevant fixing dates.
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 3, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
+        fixings.pop("AXDE")
 
 
 class TestZeroFloatLeg:
@@ -1846,7 +2068,7 @@ class TestFixedLeg:
     @pytest.mark.parametrize("amortization", [True, False])
     def test_construction_of_relevant_periods_non_deliverable_mtm(self, amortization):
         # when the leg is ND and MTM the FXFixings should be determined by their appropriate
-        # payment dates. This test excludes notional exchanges, designed for NDIRS
+        # payment dates. This test excludes notional exchanges, designed for ND-IRS
         name = str(hash(os.urandom(8)))
         fixings.add(
             name,
@@ -1874,9 +2096,9 @@ class TestFixedLeg:
             fixed_rate=10.0,
             currency="usd",
             pair="eurusd",  # the notional of this leg is expressed in BRL but payments made in USD
-            mtm=True,
-            # initial_exchange=initial,
-            # final_exchange=final,
+            mtm="payment",
+            initial_exchange=False,
+            final_exchange=False,
             amortization=250000.0 if amortization else NoInput(0),
             fx_fixings=name,  # this should not impact the reference currency notional and amortiz
         )
@@ -1916,7 +2138,7 @@ class TestFixedLeg:
             fixed_rate=10.0,
             currency="usd",
             pair="eurusd",  # the notional of this leg is expressed in BRL but payments made in USD
-            mtm=True,
+            mtm=LegMtm.XCS,
             initial_exchange=True,
             final_exchange=True,
             amortization=NoInput(0),
@@ -1955,7 +2177,7 @@ class TestFixedLeg:
             currency="usd",
             pair="eurusd",
             initial_exchange=True,
-            mtm=True,
+            mtm=LegMtm.XCS,
             notional=-1e6,
             amortization=-2e5,
             fx_fixings=Series(
@@ -1998,6 +2220,228 @@ class TestFixedLeg:
         assert not leg.ex_div(dt(2000, 3, 29))
         assert leg.ex_div(dt(2000, 3, 30))
         assert leg.ex_div(dt(2000, 4, 1))
+
+    def test_mtm_xcs_type_type_sets_fx_fixing_start_initially(self):
+        fixings.add(
+            "EURUSD_1600",
+            Series(
+                index=[dt(2000, 4, 1), dt(2000, 4, 2), dt(2000, 7, 2)], data=[1.268, 1.27, 1.29]
+            ),
+        )
+        leg = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 7, 1),
+                frequency="Q",
+                payment_lag=1,
+                payment_lag_exchange=0,
+            ),
+            fixed_rate=1.0,
+            currency="usd",
+            pair="eurusd",
+            initial_exchange=True,
+            mtm="xcs",
+            notional=5e6,
+            fx_fixings=(1.25, "EURUSD_1600"),
+        )
+        assert leg.periods[2].mtm_params.fx_fixing_start.value == 1.25
+        fixings.pop("EURUSD_1600")
+
+    ## 4 types of non-deliverability
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ABCD", 1.10),
+            (1.5, 1.5),
+            ((1.2, "ABCD"), 1.2),
+        ],
+    )
+    def test_non_mtm_xcs_type(self, fx_fixings, expected):
+        fixings.add("ABCD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="initial",
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 4 periods with only one initial fixing date
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected
+        fixings.pop("ABCD")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ABCDE", [1.21, 1.31]),
+            (1.5, [1.5, NoInput(0)]),  # this is bad practice: should just supply str ID
+            ((1.5, "ABCDE"), [1.5, 1.31]),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_irs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "ABCDE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="payment",
+            initial_exchange=False,
+            final_exchange=False,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 2 periods and only 2 relevant fixings dates
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        fixings.pop("ABCDE")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("ADE", [1.10, 1.10, 1.20, 1.20, 1.20]),
+            (
+                1.5,
+                [1.5, 1.5, NoInput(0), NoInput(0), NoInput(0)],
+            ),  # this is bad practice: should just supply str ID
+            (
+                (1.5, "ADE"),
+                [1.5, 1.5, 1.20, 1.20, 1.20],
+            ),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_mtm_xcs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "ADE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm=LegMtm.XCS,
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 5 periods with only two relevant fixing dates
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 2, 2)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
+        assert fl.periods[4].non_deliverable_params.fx_fixing.value == expected[4]
+        fixings.pop("ADE")
+
+    @pytest.mark.parametrize(
+        ("fx_fixings", "expected"),
+        [
+            ("AXDE", [1.10, 1.21, 1.31, 1.30]),
+            (
+                1.5,
+                [1.5, NoInput(0), NoInput(0), NoInput(0)],
+            ),  # this is bad practice: should just supply str ID
+            (
+                (1.5, "AXDE"),
+                [1.5, 1.21, 1.31, 1.30],
+            ),  # this is bad practice: should just supply str ID
+        ],
+    )
+    def test_non_mtm_xcs_nd_type(self, fx_fixings, expected):
+        fixings.add(
+            "AXDE",
+            Series(
+                index=[
+                    dt(2000, 1, 2),
+                    dt(2000, 2, 2),
+                    dt(2000, 2, 3),
+                    dt(2000, 3, 2),
+                    dt(2000, 3, 3),
+                ],
+                data=[1.10, 1.20, 1.21, 1.30, 1.31],
+            ),
+        )
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 1),
+                termination=dt(2000, 3, 1),
+                frequency="M",
+                payment_lag=2,
+                payment_lag_exchange=1,
+                calendar="all",
+            ),
+            currency="usd",
+            pair="eurusd",
+            mtm="payment",
+            initial_exchange=True,
+            final_exchange=True,
+            fx_fixings=fx_fixings,
+        )
+        # this leg has 4 periods with 3 or 4 (if lag exchange is different) relevant fixing dates.
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 3, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
+        assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
+        assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
+        assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
+        fixings.pop("AXDE")
 
 
 class TestCreditPremiumLeg:
@@ -2696,7 +3140,7 @@ class TestFloatLegExchangeMtm:
             pair="eurusd",
             notional=10e6,
             fx_fixings=fx_fixings,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2764,7 +3208,7 @@ class TestFloatLegExchangeMtm:
             notional=10e6,
             fixing_method="ibor",
             method_param=0,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2797,7 +3241,7 @@ class TestFloatLegExchangeMtm:
             currency="usd",
             pair="eurusd",
             notional=10e6,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2832,7 +3276,7 @@ class TestFloatLegExchangeMtm:
             fixing_method="rfr_payment_delay",
             spread_compound_method="isda_compounding",
             float_spread=0.0,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -2882,7 +3326,7 @@ class TestFloatLegExchangeMtm:
             pair="eurusd",
             notional=10e6,
             fx_fixings=fx_fixings,
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         with pytest.raises(ValueError, match="Must provide `fx` argument to forecast FXFixing."):
@@ -2901,7 +3345,7 @@ class TestFloatLegExchangeMtm:
             pair="eurusd",
             notional=10e6,
             fx_fixings=Series([1.25], index=[dt(2022, 2, 6)]),
-            mtm=True,
+            mtm="xcs",
             initial_exchange=True,
         )
         with pytest.raises(ValueError, match="Must provide `fx` argument to forecast FXFixing."):
@@ -3069,7 +3513,7 @@ class TestNonDeliverableFixedLeg:
             currency="usd",
             pair="brlusd",
             notional=1e6,  # 1mm BRL
-            mtm=True,
+            mtm="payment",
         )
         result = leg.npv(disc_curve=fxf.curve("usd", "brl"), fx=fxf)
         expected = -344.326093  #  2.0% * 1mm * (2 / 12) / 9.5
@@ -3088,7 +3532,7 @@ class TestNonDeliverableFixedLeg:
             pair="brlusd",
             notional=1e6,  # 1mm BRL
             fx_fixings=fixings,
-            mtm=True,
+            mtm="payment",
         )
         assert leg.periods[0].non_deliverable_params.fx_fixing.value == 1.66
         assert leg.periods[1].non_deliverable_params.fx_fixing.value == NoInput(0)
@@ -3210,7 +3654,7 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
         pair="eurusd",
         notional=10e6,
         fx_fixings=fx_fixings,
-        mtm=True,
+        mtm="xcs",
         initial_exchange=True,
     )
     fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))
@@ -3279,7 +3723,7 @@ def test_mtm_leg_exchange_metrics(type_, expected, kw) -> None:
         pair="eurusd",
         notional=10e6,
         initial_exchange=True,
-        mtm=True,
+        mtm="xcs",
         **kw,
     )
     fxr = FXRates({"eurusd": 1.05}, settlement=dt(2022, 1, 3))

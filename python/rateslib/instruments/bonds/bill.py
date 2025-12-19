@@ -20,6 +20,7 @@ from rateslib.instruments.protocols.pricing import (
     _Vol,
 )
 from rateslib.legs import FixedLeg
+from rateslib.scheduling import Schedule
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
@@ -30,10 +31,12 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards_,
         Number,
+        RollDay,
         Sequence,
         Solver_,
         VolT_,
         _BaseLeg,
+        bool_,
         datetime,
         datetime_,
         int_,
@@ -43,153 +46,110 @@ if TYPE_CHECKING:
 
 class Bill(_BaseBondInstrument):
     """
-    Create a discount security.
+    A *bill*, or discount security, composed of a :class:`~rateslib.legs.FixedLeg`.
 
-    Parameters
-    ----------
-    effective : datetime
-        The adjusted or unadjusted effective date.
-    termination : datetime or str
-        The adjusted or unadjusted termination date. If a string, then a tenor must be
-        given expressed in days (`"D"`), months (`"M"`) or years (`"Y"`), e.g. `"7M"`.
-    frequency : str in {"M", "B", "Q", "T", "S", "A"}, optional
-        The frequency used only by the :meth:`~rateslib.instruments.Bill.ytm` method.
-        All *Bills* have an implicit frequency of "Z" for schedule construction.
-    modifier : str, optional
-        The modification rule, in {"F", "MF", "P", "MP"}
-    calendar : calendar or str, optional
-        The holiday calendar object to use. If str, looks up named calendar from
-        static data.
-    payment_lag : int, optional
-        The number of business days to lag payments by.
-    notional : float, optional
-        The leg notional, which is applied to each period.
-    currency : str, optional
-        The currency of the leg (3-digit code).
-    convention: str, optional
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
-    settle : int
-        The number of business days for regular settlement time, i.e, 1 is T+1.
-    calc_mode : str, optional (defaults.calc_mode["Bill"])
-        A calculation mode for dealing with bonds that are in short stub or accrual
-        periods. All modes give the same value for YTM at issue date for regular
-        bonds but differ slightly for bonds with stubs or with accrued.
-    curves : CurveType, str or list of such, optional
-        A single *Curve* or string id or a list of such.
-
-        A list defines the following curves in the order:
-
-        - Forecasting *Curve* for ``leg1``.
-        - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-    spec : str, optional
-        An identifier to pre-populate many field with conventional values. See
-        :ref:`here<defaults-doc>` for more info and available values.
-    metric: str, optional
-        The pricing metric returned by the ``rate`` method of the *Instrument*.
-
-    Examples
-    --------
-    This example is taken from the US Treasury Federal website. A copy of
-    which is available :download:`here<_static/ofcalc6decTbill.pdf>`.
-
-    We demonstrate the use of **analogue methods** which do not need *Curves* or
-    *Solvers*,
-    :meth:`~rateslib.instruments.Bill.price`,
-    :meth:`~rateslib.instruments.Bill.simple_rate`,
-    :meth:`~rateslib.instruments.Bill.discount_rate`,
-    :meth:`~rateslib.instruments.FixedRateBond.ytm`,
-    :meth:`~rateslib.instruments.FixedRateBond.ex_div`,
-    :meth:`~rateslib.instruments.FixedRateBond.accrued`,
-    :meth:`~rateslib.instruments.FixedRateBond.repo_from_fwd`
-    :meth:`~rateslib.instruments.FixedRateBond.fwd_from_repo`
-    :meth:`~rateslib.instruments.FixedRateBond.duration`,
-    :meth:`~rateslib.instruments.FixedRateBond.convexity`.
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import Bill, Solver
+       from rateslib.instruments import Bill
+       from datetime import datetime as dt
 
     .. ipython:: python
 
        bill = Bill(
-           effective=dt(2004, 1, 22),
-           termination=dt(2004, 2, 19),
-           calendar="nyc",
-           modifier="NONE",
-           currency="usd",
-           convention="Act360",
-           settle=1,
-           notional=-1e6,  # negative notional receives fixed, i.e. buys a bill
-           curves="bill_curve",
-           calc_mode="us_gbb",
+           effective=dt(2000, 1, 1),
+           termination="3y",
+           spec="us_gbb",
        )
-       bill.ex_div(dt(2004, 1, 22))
-       bill.price(rate=0.80, settlement=dt(2004, 1, 22))
-       bill.simple_rate(price=99.937778, settlement=dt(2004, 1, 22))
-       bill.discount_rate(price=99.937778, settlement=dt(2004, 1, 22))
-       bill.ytm(price=99.937778, settlement=dt(2004, 1, 22))
-       bill.accrued(dt(2004, 1, 22))
-       bill.fwd_from_repo(
-           price=99.937778,
-           settlement=dt(2004, 1, 22),
-           forward_settlement=dt(2004, 2, 19),
-           repo_rate=0.8005,
-           convention="Act360",
-       )
-       bill.repo_from_fwd(
-           price=99.937778,
-           settlement=dt(2004, 1, 22),
-           forward_settlement=dt(2004, 2, 19),
-           forward_price=100.00,
-           convention="Act360",
-       )
-       bill.duration(settlement=dt(2004, 1, 22), ytm=0.8005, metric="risk")
-       bill.duration(settlement=dt(2004, 1, 22), ytm=0.8005, metric="modified")
-       bill.convexity(settlement=dt(2004, 1, 22), ytm=0.8005)
+       bill.cashflows()
 
+    .. rubric:: Pricing
 
-    The following **digital methods** consistent with the library's ecosystem are
-    also available,
-    :meth:`~rateslib.instruments.Bill.rate`,
-    :meth:`~rateslib.instruments.FixedRateBond.npv`,
-    :meth:`~rateslib.instruments.FixedRateBond.analytic_delta`,
-    :meth:`~rateslib.instruments.FixedRateBond.cashflows`,
-    :meth:`~rateslib.instruments.FixedRateBond.delta`,
-    :meth:`~rateslib.instruments.FixedRateBond.gamma`,
+    A *Bill* requires one *disc curve*. The following input formats are
+    allowed:
 
-    .. ipython:: python
+    .. code-block:: python
 
-       bill_curve = Curve({dt(2004, 1, 21): 1.0, dt(2004, 3, 21): 1.0}, id="bill_curve")
-       instruments = [
-           (bill, {"metric": "ytm"}),
-       ]
-       solver = Solver(
-           curves=[bill_curve],
-           instruments=instruments,
-           s=[0.8005],
-           instrument_labels=["Feb04 Tbill"],
-           id="bill_solver",
-       )
-       bill.npv(solver=solver)
-       bill.analytic_delta(curves=bill_curve)
-       bill.rate(solver=solver, metric="price")
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = {"disc_curve": disc_curve}  # dict form is explicit
 
-    The sensitivities are also available. In this case the *Solver* is calibrated
-    with *instruments* priced in yield terms so sensitivities are measured in basis
-    points (bps).
+    .. role:: red
 
-    .. ipython:: python
+    .. role:: green
 
-       bill.delta(solver=solver)
-       bill.gamma(solver=solver)
+    Parameters
+    ----------
+    .
 
-    The DataFrame of cashflows.
+        .. note::
 
-    .. ipython:: python
+           The following define generalised **scheduling** parameters.
 
-       bill.cashflows(solver=solver)
+    effective : datetime, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    ex_div: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the *Instrument* (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+
+        .. note::
+
+           The following are **meta parameters**.
+
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
+    calc_mode : str or BillCalcMode
+        A calculation mode for dealing with bonds under different conventions. See notes.
+    settle: int
+        The number of days by which to lag 'today' to arrive at standard settlement.
+    metric : str, :green:`optional` (set as 'price')
+        The pricing metric returned by :meth:`~rateslib.instruments.FixedRateBond.rate`.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
 
     """
 
@@ -210,12 +170,15 @@ class Bill(_BaseBondInstrument):
         effective: datetime_ = NoInput(0),
         termination: datetime | str_ = NoInput(0),
         frequency: str_ = NoInput(0),
+        roll: int | RollDay | str_ = NoInput(0),
+        eom: bool_ = NoInput(0),
         modifier: str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: int_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         convention: str_ = NoInput(0),
+        ex_div: int_ = NoInput(0),
         settle: int_ = NoInput(0),
         calc_mode: BillCalcMode | str_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
@@ -229,6 +192,9 @@ class Bill(_BaseBondInstrument):
             modifier=modifier,
             calendar=calendar,
             payment_lag=payment_lag,
+            ex_div=ex_div,
+            roll=roll,
+            eom=eom,
             notional=notional,
             currency=currency,
             convention=convention,
@@ -260,6 +226,17 @@ class Bill(_BaseBondInstrument):
             meta_args=["curves", "calc_mode", "settle", "metric", "frequency", "vol"],
         )
         self.kwargs.meta["calc_mode"] = _get_bill_calc_mode(self.kwargs.meta["calc_mode"])
+        if isinstance(self.kwargs.leg1["termination"], str):
+            s_ = Schedule(
+                effective=self.kwargs.leg1["effective"],
+                termination=self.kwargs.leg1["termination"],
+                frequency=self.kwargs.leg1["termination"],
+                modifier=self.kwargs.leg1["modifier"],
+                calendar=self.kwargs.leg1["calendar"],
+                roll=self.kwargs.leg1["roll"],
+                eom=self.kwargs.leg1["eom"],
+            )
+            self._kwargs.leg1["termination"] = s_.termination
         self._kwargs.leg1["frequency"] = "Z"
         self._kwargs.meta["frequency"] = _drb(
             self.kwargs.meta["calc_mode"]._ytm_clone_kwargs["frequency"],
