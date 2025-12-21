@@ -308,7 +308,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
 
           .. ipython:: python
 
-             fixings.add("EURUSD_1700", Series(
+             fixings.add("WMR_10AM_TY0_T+2_EURUSD", Series(
                  index=[dt(2000, 1, 1), dt(2000, 4, 2), dt(2000, 7, 1), dt(2000, 7, 2)],
                  data=[1.26, 1.27, 1.29, 1.295])
              )
@@ -325,8 +325,8 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                  mtm="payment",
                  currency="usd",
                  pair="eurusd",
-                 notional=10e6,                     # <- Leg settles in USD leg but reference cashflows in EUR
-                 fx_fixings=(1.25, "EURUSD_1700"),  # <- Initial exchange rate and future fixings
+                 notional=10e6,                          # <- Leg settles in USD leg but reference cashflows in EUR
+                 fx_fixings=(1.25, "WMR_10AM_TY0_T+2"),  # <- Initial exchange rate and future fixings
              )
              print(leg.cashflows())
 
@@ -345,7 +345,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
 
           .. ipython:: python
 
-             fixings.add("EURUSD_1600", Series(
+             fixings.add("WMR_4PM_GMT_T+2_EURUSD", Series(
                  index=[dt(2000, 4, 1), dt(2000, 4, 2), dt(2000, 7, 2)],
                  data=[1.265, 1.27, 1.29])
              )
@@ -363,7 +363,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                  pair="eurusd",
                  mtm="xcs",
                  notional=10e6,
-                 fx_fixings=(1.25, "EURUSD_1600"),
+                 fx_fixings=(1.25, "WMR_4PM_GMT_T+2"),
              )
              print(leg.cashflows())
 
@@ -420,7 +420,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                  pair="eurusd",
                  notional=10e6,                     # <- Leg settles in USD leg but reference cashflows in EUR
                  amortization=4e6,
-                 fx_fixings=(1.25, "EURUSD_1700"),  # <- Initial exchange rate and future fixings
+                 fx_fixings=(1.25, "WMR_10AM_TY0_T+2"),  # <- Initial exchange rate and future fixings
              )
              print(leg.cashflows())
 
@@ -445,7 +445,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                  mtm="xcs",
                  notional=10e6,
                  amortization=4e6,
-                 fx_fixings=(1.25, "EURUSD_1600"),
+                 fx_fixings=(1.25, "WMR_4PM_GMT_T+2"),
              )
              print(leg.cashflows())
 
@@ -472,7 +472,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
            notional=5e6,
            amortization=1000000,
            mtm="xcs",
-           fx_fixings=(1.25, "EURUSD_1600"),
+           fx_fixings=(1.25, "WMR_10AM_TY0_T+2"),
            index_lag=0,
            index_fixings="MY_RPI",
            index_method="monthly",
@@ -482,11 +482,11 @@ class FixedLeg(_BaseLeg, _WithExDiv):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("EURUSD_1600")
-       fixings.pop("EURUSD_1700")
+       fixings.pop("WMR_10AM_TY0_T+2_EURUSD")
+       fixings.pop("WMR_4PM_GMT_T+2_EURUSD")
        fixings.pop("MY_RPI")
 
-    """ # noqa: E501
+    """  # noqa: E501
 
     @property
     def settlement_params(self) -> _SettlementParams:

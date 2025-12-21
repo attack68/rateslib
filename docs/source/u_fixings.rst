@@ -26,13 +26,13 @@ own implementation to interact with their own data sources.
 DefaultFixingsLoader
 ----------------------
 
-The :class:`~rateslib.data.loader.DefaultFixingsLoader` can be populated with fixings data in
-**two** ways. Either,
+The :class:`~rateslib.data.loader.DefaultFixingsLoader` provides a way for a user to load
+fixings directly into *rateslib*. Data can be populated in one of **two** ways. Either,
 
-1) From a datafile stored as a CSV. This must have a particular template format.
+1) Manually, with Python objects, using the :meth:`~rateslib.data.loader._BaseFixingsLoader.add`
+   method. This is often used for simple examples.
 
-2) Manually, with Python objects, using the :meth:`~rateslib.data.loader._BaseFixingsLoader.add`
-   method.
+2) From a datafile stored as a CSV. This must have a particular template format.
 
 Let's demonstrate the CSV method. Create a CSV in the required date-string format in the
 current working directory.
@@ -47,7 +47,7 @@ current working directory.
    print(df)
    df.to_csv("SEK_IBOR_3M.csv")  #  <--- Save a CSV file to disk
 
-Now we set the ``directory`` of the ``loader`` to point to this folder
+Now we set the ``directory`` of the default ``loader`` to point to this folder
 and load the fixings directly.
 
 .. ipython:: python
@@ -61,8 +61,8 @@ and load the fixings directly.
    import os
    os.remove("SEK_IBOR_3M.csv")
 
-Notice this get item mechanism loads a state id, the timeseries itself and the range of the index.
-When an attempt is made for an unavailable dataset a *ValueError* is raised.
+Note this *__getitem__* mechanism loads a state id, the timeseries itself and the range of the
+index. When an attempt is made for an unavailable dataset a *ValueError* is raised.
 
 .. ipython:: python
 
@@ -129,7 +129,9 @@ To date, *rateslib* makes use of 3 classifications of fixing; **index**, **fx** 
          fixings.add("UK_RPI", uk_rpi)
 
       This data is then sufficient to populate some :class:`~rateslib.data.fixings.IndexFixing`
-      values.
+      values. The below fixing has a *reference value date* of 12-Sep, with a 3-month lag and
+      therefore is linearly interpolated between the Jun and July values and should be
+      approximately 405.
 
       .. ipython:: python
 
@@ -145,14 +147,17 @@ To date, *rateslib* makes use of 3 classifications of fixing; **index**, **fx** 
 
       The use case for an :class:`~rateslib.data.fixings.FXFixing` is multi-currency *Instruments*.
 
-      The relevant date for an :class:`~rateslib.data.fixings.FXFixing` is its *delivery date*.
+      The relevant date for an *FX Fixing* is its *delivery date*.
 
-      .. tip::
+      .. important::
 
-         Different *'cuts'* can be populated simply by creating separate timeseries and
-         identifying them by a separate name, e.g. 'GBPUSD_1600hrs' and 'GBPUSD_1000hrs'
+         *FX Fixings* depend upon a named *series*, which defines the time the fixings are
+         calculated, the calculation agent, and the methodology. The **required** fixings are
+         the USD majors. Crosses are derived from those USD majors in order to avoid
+         triangulation arbitrage.
 
-      As an example, suppose the following 4PM GMT GBPUSD Spot FX rates were recorded in 2025.
+      As an example, suppose the following values are published by Reuters at 4PM GMT
+      for the spot (T+2) GBPUSD major in 2025.
 
       ===========  ==========  =======
       Publication  Spot        Value
@@ -162,15 +167,16 @@ To date, *rateslib* makes use of 3 classifications of fixing; **index**, **fx** 
       15th Sep     17th Sep    1.3599
       ===========  ==========  =======
 
-      This data is entered into *rateslib* as the following dates:
+      This data must be keyed by the format: *"{series_name}_{pair}"*  and is thus
+      entered into *rateslib* as the following dates:
 
       .. ipython:: python
 
-         gbpusd_1600_gmt = Series(
+         values = Series(
              index=[dt(2025, 9, 15), dt(2025, 9, 16), dt(2025, 9, 17)],
              data=[1.3574, 1.3556, 1.3599]
          )
-         fixings.add("GBPUSD_1600_GMT", gbpusd_1600_gmt)
+         fixings.add("REUTERS/4PMGMT/T+2_GBPUSD", values)
 
       This data is sufficient to populate some :class:`~rateslib.data.fixings.FXFixing`
       values.
@@ -179,10 +185,62 @@ To date, *rateslib* makes use of 3 classifications of fixing; **index**, **fx** 
 
          fx_fixing = FXFixing(
              date=dt(2025, 9, 16),
-             identifier="GBPUSD_1600_GMT",
+             identifier="REUTERS/4PMGMT/T+2",
              pair="gbpusd",
          )
          fx_fixing.value
+
+      **Crosses**
+
+      FX crosses require two USD majors to be populated to **the same series**. For example
+      to determine a *GBPEUR* fixing we require the *EURUSD* rates.
+
+      .. ipython:: python
+
+         values = Series(
+             index=[dt(2025, 9, 15), dt(2025, 9, 16), dt(2025, 9, 17)],
+             data=[1.1112, 1.1234, 1.1199]
+         )
+         fixings.add("REUTERS/4PMGMT/T+2_EURUSD", values)
+
+      .. ipython:: python
+
+         fx_fixing = FXFixing(
+             date=dt(2025, 9, 16),
+             identifier="REUTERS/4PMGMT/T+2",
+             pair="gbpeur",
+         )
+         fx_fixing.value  # <- cross of 1.3556 / 1.1234.
+
+      The series *"REUTERS/4PMGMT/T+2_GBPEUR"*, if loaded to the fixings object, would **not**
+      be used.
+
+      **Misaligned dates**
+
+      When majors are quoted with misaligned delivery dates, e.g. USDCAD is typically quoted T+1
+      and GBPUSD is quoted T+2, the data must be entered according to the calculation agents
+      adjustment criteria, e.g. adjusting by the FX Swap market. This highlights the importance of
+      labeling series names with their settlement so that appropriate derivations can be made.
+
+      .. ipython:: python
+
+         fixings.add("REUTERS/4PMGMT/T+1_USDCAD", Series(index=[dt(2025, 9, 16)], data=[1.0450]))
+         fixings.add("REUTERS/4PMGMT/T+2_USDCAD", Series(index=[dt(2025, 9, 16)], data=[1.0455]))
+         fx_fixing = FXFixing(
+             date=dt(2025, 9, 16),
+             identifier="REUTERS/4PMGMT/T+2",
+             pair="gbpcad",
+         )
+         fx_fixing.value  # <- cross of 1.3556 * 1.0455
+
+      .. ipython:: python
+         :suppress:
+
+         fixings.pop("REUTERS/4PMGMT/T+2_EURUSD")
+         fixings.pop("REUTERS/4PMGMT/T+1_USDCAD")
+         fixings.pop("REUTERS/4PMGMT/T+2_USDCAD")
+         fixings.pop("REUTERS/4PMGMT/T+2_GBPUSD")
+
 
    .. tab:: Rates
 

@@ -253,14 +253,14 @@ class IRS(_BaseInstrument):
 
     .. ipython:: python
 
-       fixings.add("USDTHB", Series(index=[dt(2000, 7, 3), dt(2001, 1, 3)], data=[35.25, 37.0]))
+       fixings.add("WMR_10AM_TYO_T+2_USDTHB", Series(index=[dt(2000, 7, 3), dt(2001, 1, 3)], data=[35.25, 37.0]))
        irs = IRS(
            effective=dt(2000, 1, 1),
            termination="2y",
            frequency="S",
            currency="usd",    #  <- USD set as the settlement currency
            pair="usdthb",     #  <- THB inferred as the reference currency
-           fx_fixings="USDTHB",
+           fx_fixings="WMR_10AM_TYO_T+2",
            fixed_rate=2.0,
            # all other arguments set as normal IRS
        )
@@ -269,7 +269,7 @@ class IRS(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("USDTHB")
+       fixings.pop("WMR_10AM_TYO_T+2_USDTHB")
 
     Further information is available in the documentation for a :class:`~rateslib.legs.FixedLeg`.
 
