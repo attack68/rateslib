@@ -690,7 +690,7 @@ class TestFloatLeg:
         ],
     )
     def test_non_mtm_xcs_type(self, fx_fixings, expected):
-        fixings.add("ABCD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fixings.add("ABCD_EURUSD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
         fl = FloatLeg(
             schedule=Schedule(
                 effective=dt(2000, 1, 1),
@@ -716,7 +716,7 @@ class TestFloatLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected
-        fixings.pop("ABCD")
+        fixings.pop("ABCD_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -728,7 +728,7 @@ class TestFloatLeg:
     )
     def test_irs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "ABCDE",
+            "ABCDE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -761,7 +761,7 @@ class TestFloatLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
-        fixings.pop("ABCDE")
+        fixings.pop("ABCDE_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -779,7 +779,7 @@ class TestFloatLeg:
     )
     def test_mtm_xcs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "ADE",
+            "ADE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -818,7 +818,7 @@ class TestFloatLeg:
         assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         assert fl.periods[4].non_deliverable_params.fx_fixing.value == expected[4]
-        fixings.pop("ADE")
+        fixings.pop("ADE_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -836,7 +836,7 @@ class TestFloatLeg:
     )
     def test_non_mtm_xcs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "AXDE",
+            "AXDE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -873,7 +873,7 @@ class TestFloatLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
-        fixings.pop("AXDE")
+        fixings.pop("AXDE_EURUSD")
 
 
 class TestZeroFloatLeg:
@@ -1661,7 +1661,9 @@ class TestZeroIndexLeg:
     def test_attributes(self, ini, final, mtm, lenn, nd_dt, cf) -> None:
         name = str(hash(os.urandom(8)))
         fixings.add(name, Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[10.0, 15.0]))
-        fixings.add(name + "fx", Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[2.0, 3.0]))
+        fixings.add(
+            name + "fx_EURUSD", Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[2.0, 3.0])
+        )
         leg = ZeroIndexLeg(
             schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2001, 1, 1), frequency="Z"),
             currency="usd",
@@ -1678,7 +1680,7 @@ class TestZeroIndexLeg:
         assert leg.periods[-1].non_deliverable_params.delivery == nd_dt
         assert leg.periods[-1].cashflow() == cf
         fixings.pop(name)
-        fixings.pop(name + "fx")
+        fixings.pop(name + "fx_EURUSD")
 
 
 class TestFloatLegExchange:
@@ -2071,7 +2073,7 @@ class TestFixedLeg:
         # payment dates. This test excludes notional exchanges, designed for ND-IRS
         name = str(hash(os.urandom(8)))
         fixings.add(
-            name,
+            name + "_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 1),
@@ -2108,12 +2110,14 @@ class TestFixedLeg:
             assert rp.non_deliverable_params.fx_fixing.date == fl.schedule.pschedule[i + 1]
             assert rp.non_deliverable_params.fx_fixing.value == expected[i]
 
+        fixings.pop(name + "_EURUSD")
+
     def test_construction_of_relevant_periods_non_deliverable_mtm_exchange(self):
         # when the leg is ND and MTM the FXFixings should be determined at the start of a period.
         # MTM cashflows are generated with notional exchanges between FX fixings at start and end.
         name = str(hash(os.urandom(8)))
         fixings.add(
-            name,
+            name + "_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 1),
@@ -2153,6 +2157,8 @@ class TestFixedLeg:
         assert len(fl._mtm_exchange_periods) == 1
         assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_start.date == dt(2000, 1, 2)
         assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_end.date == dt(2000, 4, 2)
+
+        fixings.pop(name + "_EURUSD")
 
     def test_construction_of_relevant_periods_non_deliverable_mtm_exchange_amortization(self):
         # when the leg is ND and MTM the FXFixings should be determined at the start of a period.
@@ -2258,7 +2264,7 @@ class TestFixedLeg:
         ],
     )
     def test_non_mtm_xcs_type(self, fx_fixings, expected):
-        fixings.add("ABCD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fixings.add("ABCD_EURUSD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
         fl = FixedLeg(
             schedule=Schedule(
                 effective=dt(2000, 1, 1),
@@ -2284,7 +2290,7 @@ class TestFixedLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected
-        fixings.pop("ABCD")
+        fixings.pop("ABCD_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -2296,7 +2302,7 @@ class TestFixedLeg:
     )
     def test_irs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "ABCDE",
+            "ABCDE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -2329,7 +2335,7 @@ class TestFixedLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
-        fixings.pop("ABCDE")
+        fixings.pop("ABCDE_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -2347,7 +2353,7 @@ class TestFixedLeg:
     )
     def test_mtm_xcs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "ADE",
+            "ADE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -2386,7 +2392,7 @@ class TestFixedLeg:
         assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         assert fl.periods[4].non_deliverable_params.fx_fixing.value == expected[4]
-        fixings.pop("ADE")
+        fixings.pop("ADE_EURUSD")
 
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
@@ -2404,7 +2410,7 @@ class TestFixedLeg:
     )
     def test_non_mtm_xcs_nd_type(self, fx_fixings, expected):
         fixings.add(
-            "AXDE",
+            "AXDE_EURUSD",
             Series(
                 index=[
                     dt(2000, 1, 2),
@@ -2441,7 +2447,7 @@ class TestFixedLeg:
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
-        fixings.pop("AXDE")
+        fixings.pop("AXDE_EURUSD")
 
 
 class TestCreditPremiumLeg:

@@ -61,13 +61,13 @@ class XCS(_BaseInstrument):
 
     .. ipython:: python
 
-       fixings.add("EURUSD_1600_GMT", Series(index=[dt(2025, 4, 8)], data=[1.175]))
+       fixings.add("WMR_10AM_TY0_T+2_EURUSD", Series(index=[dt(2025, 4, 8)], data=[1.175]))
        xcs = XCS(
            effective=dt(2025, 1, 8),
            termination="6m",
            spec="eurusd_xcs",
            notional=5e6,
-           leg2_fx_fixings=(1.15, "EURUSD_1600_GMT"),
+           leg2_fx_fixings=(1.15, "WMR_10AM_TY0_T+2"),
            leg2_mtm=True,
        )
        xcs.cashflows()
@@ -75,7 +75,7 @@ class XCS(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("EURUSD_1600_GMT")
+       fixings.pop("WMR_10AM_TY0_T+2_EURUSD")
 
     .. rubric:: Pricing
 
