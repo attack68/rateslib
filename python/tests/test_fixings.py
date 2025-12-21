@@ -4,7 +4,7 @@ import pytest
 from pandas import Series
 from rateslib import dt, fixings
 from rateslib.curves import Curve
-from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, RFRFixing
+from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, FXFixing, RFRFixing
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
 
@@ -162,3 +162,59 @@ class TestRFRFixing:
         result = rfr_fixing.value
         assert abs(result - 2.9202637862854033) < 1e-10
         assert len(rfr_fixing.populated) == 5
+
+
+class TestFXFixing:
+    def test_direct(self) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+
+        fx_fixing = FXFixing(
+            dt(2000, 1, 1),
+            pair="usdrub",
+            identifier=name,
+        )
+        assert fx_fixing.value == 2.0
+        fixings.pop(name + "_USDRUB")
+
+    def test_inverted(self) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+
+        fx_fixing = FXFixing(
+            dt(2000, 1, 1),
+            pair="rubusd",
+            identifier=name,
+        )
+        assert fx_fixing.value == 0.5
+        fixings.pop(name + "_USDRUB")
+
+    def test_cross1(self) -> None:
+        name = str(hash(os.urandom(8)))
+
+        fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+        fixings.add(name + "_USDINR", Series(index=[dt(2000, 1, 1)], data=[4.0]))
+
+        fx_fixing = FXFixing(
+            dt(2000, 1, 1),
+            pair="rubinr",
+            identifier=name,
+        )
+        assert fx_fixing.value == 1 / 2.0 * 4.0
+        fixings.pop(name + "_USDRUB")
+        fixings.pop(name + "_USDINR")
+
+    def test_cross2(self) -> None:
+        name = str(hash(os.urandom(8)))
+
+        fixings.add(name + "_RUBUSD", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+        fixings.add(name + "_INRUSD", Series(index=[dt(2000, 1, 1)], data=[4.0]))
+
+        fx_fixing = FXFixing(
+            dt(2000, 1, 1),
+            pair="rubinr",
+            identifier=name,
+        )
+        assert fx_fixing.value == 2.0 * 1 / 4.0
+        fixings.pop(name + "_RUBUSD")
+        fixings.pop(name + "_INRUSD")

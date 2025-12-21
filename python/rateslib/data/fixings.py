@@ -267,7 +267,8 @@ class FXFixing(_BaseFixing):
         The initial value for the fixing to adopt. Most commonly this is not given and it is
         determined from a timeseries of published FX rates.
     identifier: str, optional
-        The string name of the timeseries to be loaded by the *Fixings* object.
+        The string name of the series to be loaded by the *Fixings* object. Will be
+        appended with "_{pair}" to derive the full timeseries key
 
     Examples
     --------
@@ -281,14 +282,16 @@ class FXFixing(_BaseFixing):
 
     .. ipython:: python
 
-       fixings.add("EURGBP-x89", Series(index=[dt(2000, 1, 1)], data=[0.905]))
-       fxfix = FXFixing(date=dt(2000, 1, 1), pair="eurusd", identifier="EURGBP-x89")
-       fxfix.value
+       fixings.add("WMR_10AM_TYO_T+2_USDJPY", Series(index=[dt(2000, 1, 1)], data=[155.00]))
+       fixings.add("WMR_10AM_TYO_T+2_AUDUSD", Series(index=[dt(2000, 1, 1)], data=[1.260]))
+       fxfix = FXFixing(date=dt(2000, 1, 1), pair="audjpy", identifier="WMR_10AM_TYO_T+2")
+       fxfix.value  #  <--  should be 1.26 * 155 = 202.5
 
     .. ipython:: python
        :suppress:
 
-       fixings.pop("EURGBP-x89")
+       fixings.pop("WMR_10AM_TYO_T+2_USDJPY")
+       fixings.pop("WMR_10AM_TYO_T+2_AUDUSD")
 
     """
 
@@ -301,6 +304,87 @@ class FXFixing(_BaseFixing):
     ) -> None:
         super().__init__(date=date, value=value, identifier=identifier)
         self._pair = pair.lower()
+        self._is_cross = "usd" not in self._pair
+
+    @property
+    def is_cross(self) -> bool:
+        """Whether the fixing is a cross rate derived from other USD dominated fixings."""
+        return self._is_cross
+
+    def _value_from_possible_inversion(self) -> DualTypes_:
+        direct, inverted = self.pair, f"{self.pair[3:6]}{self.pair[0:3]}"
+        try:
+            state, timeseries, bounds = fixings.__getitem__(self._identifier + "_" + direct)
+            exponent = 1.0
+        except ValueError as e:
+            try:
+                state, timeseries, bounds = fixings.__getitem__(self._identifier + "_" + inverted)
+                exponent = -1.0
+            except ValueError:
+                raise e
+
+        if state == self._state:
+            return NoInput(0)
+        else:
+            self._state = state
+            v = self._lookup_and_calculate(timeseries, bounds)
+            if isinstance(v, NoInput):
+                return NoInput(0)
+            self._value = v**exponent
+            return self._value
+
+    def _value_from_cross(self) -> DualTypes_:
+        lhs1, lhs2 = "usd" + self.pair[:3], self.pair[:3] + "usd"
+        try:
+            state_l, timeseries_l, bounds_l = fixings.__getitem__(self._identifier + "_" + lhs1)
+            exponent_l = -1.0
+        except ValueError:
+            try:
+                state_l, timeseries_l, bounds_l = fixings.__getitem__(self._identifier + "_" + lhs2)
+                exponent_l = 1.0
+            except ValueError:
+                raise ValueError(
+                    "The LHS cross currency has no available fixing series, either "
+                    f"{self._identifier + +'_' + lhs1} or {self._identifier + '_' + lhs2}"
+                )
+
+        rhs1, rhs2 = "usd" + self.pair[3:], self.pair[3:] + "usd"
+        try:
+            state_r, timeseries_r, bounds_r = fixings.__getitem__(self._identifier + "_" + rhs1)
+            exponent_r = 1.0
+        except ValueError:
+            try:
+                state_r, timeseries_r, bounds_r = fixings.__getitem__(self._identifier + "_" + rhs2)
+                exponent_r = -1.0
+            except ValueError:
+                raise ValueError(
+                    "The RHS cross currency has no available fixing series, either "
+                    f"{self._identifier + '_' + lhs1} or {self._identifier + '_' + lhs2}"
+                )
+
+        if hash(state_l + state_r) == self._state:
+            return NoInput(0)
+        else:
+            self._state = hash(state_l + state_r)
+            v_l = self._lookup_and_calculate(timeseries_l, bounds_l)
+            v_r = self._lookup_and_calculate(timeseries_r, bounds_r)
+            if isinstance(v_l, NoInput) or isinstance(v_r, NoInput):
+                return NoInput(0)
+            self._value = v_l**exponent_l * v_r**exponent_r
+            return self._value
+
+    @property
+    def value(self) -> DualTypes_:
+        if not isinstance(self._value, NoInput):
+            return self._value
+        else:
+            if isinstance(self._identifier, NoInput):
+                return NoInput(0)
+            else:
+                if self.is_cross:
+                    return self._value_from_cross()
+                else:
+                    return self._value_from_possible_inversion()
 
     def _lookup_and_calculate(
         self, timeseries: Series, bounds: tuple[datetime, datetime] | None
