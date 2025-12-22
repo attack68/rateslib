@@ -44,7 +44,7 @@ class _WithCashflows(Protocol):
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
-        Return aggregated cashflow data for the *Period*.
+        Return aggregated cashflow data for the *Leg*.
 
         .. warning::
 
@@ -55,11 +55,30 @@ class _WithCashflows(Protocol):
 
         Parameters
         ----------
-        XXX
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+            Used to forecast floating period rates, if necessary.
+        index_curve: _BaseCurve, optional
+            Used to forecast index values for indexation, if necessary.
+        disc_curve: _BaseCurve, optional
+            Used to discount cashflows.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
+            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        base: str, optional
+            The currency to convert relevant values into.
+        settlement: datetime, optional
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, optional
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
-        dict of values
+        DataFrame
         """
         seq = [
             period.cashflows(

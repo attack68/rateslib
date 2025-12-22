@@ -451,4 +451,4 @@ def _find_neighbouring_tenors(
     return ret
 
 
-__all__ = ["_BaseFixingsLoader", "DefaultFixingsLoader", "Fixings"]
+__all__ = ["Fixings", "DefaultFixingsLoader", "_BaseFixingsLoader"]

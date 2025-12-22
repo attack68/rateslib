@@ -53,6 +53,7 @@ class IIRS(_BaseInstrument):
        from rateslib.instruments import IIRS
        from rateslib import fixings
        from datetime import datetime as dt
+       from pandas import Series
 
     .. ipython:: python
 

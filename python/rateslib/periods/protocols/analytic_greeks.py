@@ -29,6 +29,10 @@ if TYPE_CHECKING:
 
 
 class _WithAnalyticFXOptionGreeks(Protocol):
+    """
+    Protocol to derive analytic *FXOption* greeks.
+    """
+
     @property
     def fx_option_params(self) -> _FXOptionParams: ...
 
@@ -67,15 +71,16 @@ class _WithAnalyticFXOptionGreeks(Protocol):
 
         Parameters
         ----------
-        disc_curve: Curve
-            The discount *Curve* for the LHS currency.
-        disc_curve_ccy2: Curve
-            The discount *Curve* for the RHS currency.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates. The *'spot'* date is
-            assumed to be that applied to the `FXRates` objects for relevant currencies.
-        vol: float, Dual, Dual2, FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile
-            The volatility used in calculation.
+        rate_curve: _BaseCurve
+            The discount *Curve* for the LHS currency of ``pair``.
+        disc_curve: _BaseCurve
+            The discount *Curve* for the RHS currency of ``pair``.
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForward` object used for forecasting the
+            ``fx_fixing`` for deliverable cashflows, if necessary.
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+            The FX volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
         premium: float, Dual, Dual2, optional
             The premium value of the option paid at the appropriate payment date.
             Premium should be expressed in domestic currency.

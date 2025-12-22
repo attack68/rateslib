@@ -311,14 +311,14 @@ class FXFixing(_BaseFixing):
         """Whether the fixing is a cross rate derived from other USD dominated fixings."""
         return self._is_cross
 
-    def _value_from_possible_inversion(self) -> DualTypes_:
+    def _value_from_possible_inversion(self, identifier: str) -> DualTypes_:
         direct, inverted = self.pair, f"{self.pair[3:6]}{self.pair[0:3]}"
         try:
-            state, timeseries, bounds = fixings.__getitem__(self._identifier + "_" + direct)
+            state, timeseries, bounds = fixings.__getitem__(identifier + "_" + direct)
             exponent = 1.0
         except ValueError as e:
             try:
-                state, timeseries, bounds = fixings.__getitem__(self._identifier + "_" + inverted)
+                state, timeseries, bounds = fixings.__getitem__(identifier + "_" + inverted)
                 exponent = -1.0
             except ValueError:
                 raise e
@@ -333,33 +333,33 @@ class FXFixing(_BaseFixing):
             self._value = v**exponent
             return self._value
 
-    def _value_from_cross(self) -> DualTypes_:
+    def _value_from_cross(self, identifier: str) -> DualTypes_:
         lhs1, lhs2 = "usd" + self.pair[:3], self.pair[:3] + "usd"
         try:
-            state_l, timeseries_l, bounds_l = fixings.__getitem__(self._identifier + "_" + lhs1)
+            state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs1)
             exponent_l = -1.0
         except ValueError:
             try:
-                state_l, timeseries_l, bounds_l = fixings.__getitem__(self._identifier + "_" + lhs2)
+                state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs2)
                 exponent_l = 1.0
             except ValueError:
                 raise ValueError(
                     "The LHS cross currency has no available fixing series, either "
-                    f"{self._identifier + +'_' + lhs1} or {self._identifier + '_' + lhs2}"
+                    f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
                 )
 
         rhs1, rhs2 = "usd" + self.pair[3:], self.pair[3:] + "usd"
         try:
-            state_r, timeseries_r, bounds_r = fixings.__getitem__(self._identifier + "_" + rhs1)
+            state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs1)
             exponent_r = 1.0
         except ValueError:
             try:
-                state_r, timeseries_r, bounds_r = fixings.__getitem__(self._identifier + "_" + rhs2)
+                state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs2)
                 exponent_r = -1.0
             except ValueError:
                 raise ValueError(
                     "The RHS cross currency has no available fixing series, either "
-                    f"{self._identifier + '_' + lhs1} or {self._identifier + '_' + lhs2}"
+                    f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
                 )
 
         if hash(state_l + state_r) == self._state:
@@ -382,9 +382,9 @@ class FXFixing(_BaseFixing):
                 return NoInput(0)
             else:
                 if self.is_cross:
-                    return self._value_from_cross()
+                    return self._value_from_cross(identifier=self._identifier)
                 else:
-                    return self._value_from_possible_inversion()
+                    return self._value_from_possible_inversion(identifier=self._identifier)
 
     def _lookup_and_calculate(
         self, timeseries: Series, bounds: tuple[datetime, datetime] | None
@@ -2537,12 +2537,12 @@ def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[Perio
 
 
 __all__ = [
-    "_BaseFixing",
-    "IndexFixing",
+    "FloatRateSeries",
+    "FloatRateIndex",
     "RFRFixing",
     "IBORFixing",
     "IBORStubFixing",
+    "IndexFixing",
     "FXFixing",
-    "FloatRateSeries",
-    "FloatRateIndex",
+    "_BaseFixing",
 ]
