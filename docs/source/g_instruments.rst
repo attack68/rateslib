@@ -39,15 +39,21 @@ to construct custom objects.
     :hidden:
     :maxdepth: 2
 
-    d_periods.rst
-    d_legs.rst
     e_securities.rst
     e_singlecurrency.rst
     e_multicurrency.rst
     e_fx_volatility.rst
     e_combinations.rst
+    d_legs.rst
+    d_periods.rst
+
 
 The below example demonstrates this composition when creating an :class:`~rateslib.instruments.IRS`.
+
+.. ipython:: python
+   :suppress:
+
+   from rateslib import IRS, dt
 
 .. ipython:: python
 

@@ -11,15 +11,14 @@ Multi-Currency Derivatives
 ****************************
 
 Multi-currency derivatives are generally more complicated two-leg
-structures.
-
-
-.. inheritance-diagram:: rateslib.instruments.XCS rateslib.instruments.FXSwap rateslib.instruments.FXExchange rateslib.instruments.NDF
-   :private-bases:
-   :parts: 1
+structures. Note the *IRS* listed here allows *ND-IRS* directly.
 
 .. autosummary::
    rateslib.instruments.XCS
    rateslib.instruments.FXSwap
-   rateslib.instruments.FXExchange
+   rateslib.instruments.FXForward
    rateslib.instruments.NDF
+   rateslib.instruments.NDXCS
+   rateslib.instruments.IRS
+   rateslib.instruments._BaseInstrument
+

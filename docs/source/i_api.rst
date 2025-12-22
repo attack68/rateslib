@@ -18,7 +18,8 @@ Indices and tables
 Defaults
 =========
 
-These objects are used to set values for missing parameters globally.
+These objects are used to set values for missing parameters globally: for a list see
+:ref:`Defaults <defaults-doc>`.
 
 .. automodapi:: rateslib.default
    :no-heading:
@@ -32,6 +33,23 @@ Objects to define parameter settings across different objects throughout the lib
 .. automodapi:: rateslib.enums
    :no-heading:
    :no-inheritance-diagram:
+
+
+Fixings
+========
+
+For interaction with financial fiixngs and data loading, see :ref:`Fixings <fixings-doc>`.
+
+.. automodapi:: rateslib.data.loader
+   :no-heading:
+   :inherited-members:
+   :no-inheritance-diagram:
+
+.. automodapi:: rateslib.data.fixings
+   :no-heading:
+   :inherited-members:
+   :no-inheritance-diagram:
+
 
 Scheduling
 ===========
@@ -56,19 +74,6 @@ Class Inheritance Diagram
    :private-bases:
    :parts: 1
 
-
-Fixings
-========
-
-.. automodapi:: rateslib.data.loader
-   :no-heading:
-   :inherited-members:
-   :no-inheritance-diagram:
-
-.. automodapi:: rateslib.data.fixings
-   :no-heading:
-   :inherited-members:
-   :no-inheritance-diagram:
 
 Instruments
 ============
@@ -171,14 +176,6 @@ Parameters
    :skip: _init_SettlementParams_with_fx_pair
    :skip: _init_FloatRateParams
    :skip: _init_MtmParams
-
-
-Class Inheritance Diagram
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. inheritance-diagram:: rateslib.periods.protocols._BasePeriod rateslib.periods.protocols._BasePeriodStatic rateslib.periods.protocols._BasePeriod rateslib.periods.FloatPeriod rateslib.periods.Cashflow rateslib.periods.FixedPeriod
-   :private-bases:
-   :parts: 1
 
 
 Solver

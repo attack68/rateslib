@@ -92,7 +92,7 @@ class BondFuture(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       from rateslib import BondFuture, Solver
+       from rateslib import BondFuture, Solver, FixedRateBond, dt
 
     .. ipython:: python
 

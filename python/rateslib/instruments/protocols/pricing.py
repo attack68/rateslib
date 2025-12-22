@@ -33,8 +33,12 @@ if TYPE_CHECKING:
 
 class _WithPricingObjs(Protocol):
     """
-    Protocol to determine individual *curves* and *vol* inputs for each *Instrument*,
-    possibly deriving those from a :class:`~rateslib.solver.Solver` mapping.
+    Protocol to determine individual *curves* and *vol* inputs for each *Instrument*.
+
+    This protocol contains two internal methods for parsing ``curves`` and ``vol`` inputs
+    according to individual *Instruments* for pricing methods, such as
+    :meth:`~rateslib.instruments.protocols._WithNpv.npv` and
+    :meth:`~rateslib.instruments.protocols._WithRate.rate`.
     """
 
     def _parse_curves(self, curves: CurvesT_) -> _Curves:

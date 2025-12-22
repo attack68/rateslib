@@ -262,6 +262,8 @@ It is also possible to import the library as object and call objects from that,
    import rateslib as rl
    curve = rl.Curve(...)
 
+**Two** objects that are used **globally** are ``defaults`` and ``fixings``.
+
 The ``defaults`` object from *rateslib* sets
 parameters and settings that are used when otherwise not set by the user.
 This object can only be imported, and changed, from the top level.
@@ -275,6 +277,14 @@ This object can only be imported, and changed, from the top level.
 
    import rateslib as rl
    rl.defaults.base_currency = "eur"
+
+The ``fixings`` object allows a user to populate and load published fixing data from any
+backend data source.
+
+.. code-block::
+
+   from rateslib import fixings
+   fixings.add("SOME_FIXING_DATA", index=[dt(2000, 1, 1)], data=[99.66])
 
 How to Use Rateslib
 -------------------

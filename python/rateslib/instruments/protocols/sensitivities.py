@@ -43,34 +43,62 @@ class _WithSensitivities(_WithNPV, Protocol):
     ) -> DataFrame:
         """
         Calculate delta risk of an *Instrument* against the calibrating instruments in a
-        :class:`~rateslib.curves.Solver`.
+        :class:`~rateslib.solver.Solver`.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import IRS, Curve, Solver, dt
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.85, dt(2010, 1, 1): 0.75})
+           solver = Solver(
+               curves=[curve],
+               instruments=[
+                   IRS(dt(2000, 1, 1), "2Y", spec="usd_irs", curves=[curve]),
+                   IRS(dt(2000, 1, 1), "5Y", spec="usd_irs", curves=[curve]),
+               ],
+               s=[2.0, 2.25],
+               instrument_labels=["2Y", "5Y"],
+               id="US_RATES"
+           )
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", curves=[curve])
+           irs.delta(solver=solver)
 
         Parameters
         ----------
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :red:`required`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
         DataFrame
+
+        Notes
+        -----
+        **Delta** measures the sensitivity of the *PV* to a change in any of the calibrating
+        instruments of the given :class:`~rateslib.solver.Solver`. Values are returned
+        according to the ``rate_scalar`` quantity at an *Instrument* level and according to the
+        ``metric`` used to derive the :meth:`~rateslib.instruments.protocols._WithRate.rate`
+        method of each *Instrument*.
+
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
@@ -103,48 +131,71 @@ class _WithSensitivities(_WithNPV, Protocol):
         vars_labels: list[str] | NoInput = NoInput(0),
     ) -> DataFrame:
         """
-        Calculate delta risk of an *Instrument* against some exogenous user created *Variables*.
+        Calculate delta risk of an *Instrument* against some exogenous user created *Variables*,
+        via a :class:`~rateslib.solver.Solver`.
 
         See :ref:`What are exogenous variables? <cook-exogenous-doc>` in the cookbook.
 
+        .. rubric:: Examples
+
+        This example calculates the risk of the fixed rate increasing by 1bp and the notional
+        increasing by 1mm. Mathematically this should be equivalent to the `npv` and the
+        `analytic delta` (although the calculation is based on AD and is completely independent
+        of the solver).
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import IRS, Curve, Solver, dt, Variable
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.85, dt(2010, 1, 1): 0.75})
+           solver = Solver(
+               curves=[curve],
+               instruments=[
+                   IRS(dt(2000, 1, 1), "2Y", spec="usd_irs", curves=[curve]),
+                   IRS(dt(2000, 1, 1), "5Y", spec="usd_irs", curves=[curve]),
+               ],
+               s=[2.0, 2.25],
+               instrument_labels=["2Y", "5Y"],
+               id="US_RATES"
+           )
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", fixed_rate=Variable(3.0, ["R"]), notional=Variable(1e6, ["N"]), curves=[curve])
+           irs.exo_delta(solver=solver, vars=["R", "N"], vars_scalar=[1e-2, 1e6])
+           irs.analytic_delta()
+           irs.npv()
+
         Parameters
         ----------
-        vars : list[str]
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :red:`required`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
+        vars : list[str], :red:`required`
             The variable tags which to determine sensitivities for.
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
-        local : bool, optional
-            If `True` will ignore ``base`` - this is equivalent to setting ``base`` to *None*.
-            Included only for argument signature consistent with *npv*.
-        vars_scalar : list[float], optional
+        vars_scalar : list[float], :green:`optional`
             Scaling factors for each variable, for example converting rates to basis point etc.
             Defaults to ones.
-        vars_labels : list[str], optional
+        vars_labels : list[str], :green:`optional`
             Alternative names to relabel variables in DataFrames.
 
         Returns
         -------
         DataFrame
-        """
+        """  # noqa: E501
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")
         npv: dict[str, Dual | Dual2] = self.npv(  # type: ignore[assignment]
@@ -179,34 +230,61 @@ class _WithSensitivities(_WithNPV, Protocol):
     ) -> DataFrame:
         """
         Calculate cross-gamma risk of an *Instrument* against the calibrating instruments of a
-        :class:`~rateslib.curves.Solver`.
+        :class:`~rateslib.solver.Solver`.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import IRS, Curve, Solver, dt
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2002, 1, 1): 0.85, dt(2010, 1, 1): 0.75})
+           solver = Solver(
+               curves=[curve],
+               instruments=[
+                   IRS(dt(2000, 1, 1), "2Y", spec="usd_irs", curves=[curve]),
+                   IRS(dt(2000, 1, 1), "5Y", spec="usd_irs", curves=[curve]),
+               ],
+               s=[2.0, 2.25],
+               instrument_labels=["2Y", "5Y"],
+               id="US_RATES"
+           )
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", curves=[curve])
+           irs.gamma(solver=solver)
 
         Parameters
         ----------
-        curves : Curve, str or list of such, optional
-            A single :class:`~rateslib.curves.Curve` or id or a list of such.
-            A list defines the following curves in the order:
-
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg1``.
-            - Forecasting :class:`~rateslib.curves.Curve` for ``leg2``.
-            - Discounting :class:`~rateslib.curves.Curve` for ``leg2``.
-        solver : Solver, optional
-            The :class:`~rateslib.solver.Solver` that calibrates
-            *Curves* from given *Instruments*.
-        fx : float, FXRates, FXForwards, optional
-            The immediate settlement FX rate that will be used to convert values
-            into another currency. A given `float` is used directly. If giving a
-            :class:`~rateslib.fx.FXRates` or :class:`~rateslib.fx.FXForwards` object,
-            converts from local currency into ``base``.
-        base : str, optional
-            The base currency to convert cashflows into (3-digit code), set by default.
-            Only used if ``fx_rate`` is an :class:`~rateslib.fx.FXRates` or
-            :class:`~rateslib.fx.FXForwards` object.
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :red:`required`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
         DataFrame
+
+        Notes
+        -----
+        **Gamma** measures the second order cross-sensitivity of the *PV* to a change in any
+        of the calibrating instruments of the given :class:`~rateslib.solver.Solver`. Values are
+        returned according to the ``rate_scalar`` quantity at an *Instrument* level and according
+        to the ``metric`` used to derive the :meth:`~rateslib.instruments.protocols._WithRate.rate`
+        method of each *Instrument*.
         """
         if isinstance(solver, NoInput):
             raise ValueError("`solver` is required for delta/gamma methods.")

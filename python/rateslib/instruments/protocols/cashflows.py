@@ -31,6 +31,10 @@ if TYPE_CHECKING:
 
 
 class _WithCashflows(_WithPricingObjs, Protocol):
+    """
+    Protocol to determine cashflows for any *Instrument* type.
+    """
+
     _kwargs: _KWArgs
 
     @property
@@ -49,22 +53,56 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
-        Return aggregated cashflow data for the *Period*.
+        Return aggregated cashflow data for the *Instrument*.
 
         .. warning::
 
            This method is a convenience method to provide a visual representation of all
-           associated calculation data. Calling this method to extracting certain values
-           should be avoided. It is more efficent to source relevant parameters or calculations
+           associated calculation data. Calling this method to extract certain values
+           should be avoided. It is more efficient to source relevant parameters or calculations
            from object attributes or other methods directly.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, Curve, IRS
+
+        .. ipython:: python
+
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", fixed_rate=1.0)
+           irs.cashflows()
+
+        Providing relevant pricing objects will ensure all data that can be calculated is returned.
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75})
+           irs.cashflows(curves=[curve])
 
         Parameters
         ----------
-        XXX
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
-        dict of values
+        DataFrame
         """
         raise NotImplementedError(f"{type(self).__name__} must implement `cashflows`.")
 
@@ -185,12 +223,42 @@ class _WithCashflows(_WithPricingObjs, Protocol):
     ) -> DataFrame:
         """
         Aggregate the values derived from a
-        :meth:`~rateslib.instruments._BaseInstrument.cashflows`
-        method on a :class:`~rateslib.instruments._BaseInstrument`.
+        :meth:`~rateslib.instruments.protocols._WithCashflows.cashflows`, grouped by date,
+        settlement currency and collateral.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, Curve, IRS
+
+        .. ipython:: python
+
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", fixed_rate=1.0)
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75})
+           irs.cashflows_table(curves=[curve])
 
         Parameters
         ----------
-        XXX
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        local: bool, :green:`optional (set as False)`
+            An override flag to return a dict of NPV values indexed by string currency.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------

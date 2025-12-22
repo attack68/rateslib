@@ -17,10 +17,6 @@ Combinations allow common interbank traded structures to be
 created inside containers. These can then also be used as an input
 to a :class:`~rateslib.solver.Solver` for *Curve*/*Surface* calibration.
 
-.. inheritance-diagram:: rateslib.instruments.Fly rateslib.instruments.Spread rateslib.instruments.Portfolio
-   :private-bases:
-   :parts: 1
-
 .. autosummary::
    rateslib.instruments.Spread
    rateslib.instruments.Fly
@@ -29,18 +25,14 @@ to a :class:`~rateslib.solver.Solver` for *Curve*/*Surface* calibration.
 Utilities
 *********
 
-The :class:`~rateslib.instruments.Value` and :class:`~rateslib.instruments.VolValue` class
+The :class:`~rateslib.instruments.Value` and :class:`~rateslib.instruments.FXVolValue` class
 serve as null *Instruments*, whose purpose is to directly parametrize a :ref:`Curve<curves-doc>`,
-:ref:`FXDeltaVolSmile<c-fx-smile-doc>` or :class:`~rateslib.fx_volatility.FXDeltaVolSurface` via a
-:class:`~rateslib.solver.Solver`, without complicated *Instrument* construction.
-
-.. inheritance-diagram:: rateslib.instruments.Value rateslib.instruments.VolValue
-   :private-bases:
-   :parts: 1
+*FXVolSmile* or *FXVolSurface* via a
+:class:`~rateslib.solver.Solver`, without *Instrument* construction.
 
 .. autosummary::
    rateslib.instruments.Value
-   rateslib.instruments.VolValue
+   rateslib.instruments.FXVolValue
 
 As an example the cookbook article :ref:`'Constructing Curves from (CC) Zero Rates'<cookbook-doc>`
 shows how to use a *Value* (defined as a
