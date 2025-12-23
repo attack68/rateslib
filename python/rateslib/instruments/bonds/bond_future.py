@@ -11,6 +11,7 @@ from rateslib.curves import Curve
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
+from rateslib.instruments.protocols.pricing import _Curves, _maybe_get_curve_maybe_from_solver, _Vol
 from rateslib.periods.utils import (
     _maybe_local,
 )
@@ -42,7 +43,42 @@ class ConversionFactorFunction(Protocol):
 
 class BondFuture(_BaseInstrument):
     """
-    A bond future derivative.
+    A *bond future* derivative containing a basket of :class:`~rateslib.instruments.FixedRateBond`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import BondFuture, dt, FixedRateBond
+
+    .. ipython:: python
+
+       bf = BondFuture(
+            delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+            coupon=7.0,
+            basket=[
+                FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+            ],
+            nominal=100000,
+            currency="gbp",
+            calc_mode="ytm"
+       )
+       bf.cfs
+
+    .. rubric:: Pricing
+
+    The ``curves`` on individual bonds can be set directly on those *Instruments*, or the
+    ``curves`` for the *BondFuture* will act, if given, as an override.
+
+    Any *FixedRateBond* requires one *disc curve*. The following input formats are
+    allowed:
+
+    .. code-block:: python
+
+       curves = curve | [curve]           #  a single curve is repeated for all required curves
+       curves = {"disc_curve": disc_curve}  # dict form is explicit
 
     Parameters
     ----------
@@ -60,11 +96,16 @@ class BondFuture(_BaseInstrument):
         The calendar to define delivery days within the delivery window.
     currency: str, optional
         The currency (3-digit code) of the settlement contract.
-    calc_mode: str, optional
-        The method to calculate conversion factors. See notes.
-    spec: str, optional
-        An identifier to pre-populate many fields with conventional values. See
-        :ref:`here<defaults-doc>` for more info and available values.
+    calc_mode : str or BondCalcMode
+        A calculation mode for determining conversion factors. See notes.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* digital methods' ``curves`` argument.
+        See **Pricing**.
+    metric : str, :green:`optional` (set as 'clean_price')
+        The pricing metric returned by :meth:`~rateslib.instruments.FixedRateBond.rate`.
+    spec: str, :green:`optional`
+        A collective group of parameters. See
+        :ref:`default argument specifications <defaults-arg-input>`.
 
     Notes
     -----
@@ -78,141 +119,9 @@ class BondFuture(_BaseInstrument):
     - *"eurex_eur"* which applies to EUREX EUR denominated government bond futures, except
       Italian BTPs which require a different CF formula.
     - *"eurex_chf"* which applies to EUREX CHF denominated government bond futures.
+    - *"ice_gbp"* which applies to ICE Gilt futures.
 
-    Examples
-    --------
-    The :meth:`~rateslib.instruments.BondFuture.dlv` method is a summary method which
-    displays many attributes simultaneously in a DataFrame.
-    This example replicates the screen print in the publication
-    *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
-    that publication exactly no calendar has been provided. Using the London business day
-    calendar and would affect the metrics of the third bond to a small degree (i.e.
-    set `calendar="ldn"`)
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib import BondFuture, Solver, FixedRateBond, dt
-
-    .. ipython:: python
-
-       kws = dict(
-           frequency="S",
-           ex_div=7,
-           convention="ActActICMA",
-           currency="gbp",
-           settle=1,
-           curves="gilt_curve"
-       )
-       bonds = [
-           FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
-           FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
-           FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
-           FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
-       ]
-       prices=[102.732, 131.461, 107.877, 134.455]
-       ytms=[bond.ytm(price, dt(2000, 3, 16)) for bond, price in zip(bonds, prices)]
-       future = BondFuture(
-           delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
-           coupon=7.0,
-           basket=bonds,
-           nominal=100000,
-           contracts=10,
-           currency="gbp",
-       )
-       future.dlv(
-           future_price=112.98,
-           prices=[102.732, 131.461, 107.877, 134.455],
-           repo_rate=6.24,
-           settlement=dt(2000, 3, 16),
-           convention="Act365f",
-       )
-
-    Various other metrics can be extracted in isolation including,
-    ``notional``, and conversion factors (``cfs``),
-    :meth:`~rateslib.instruments.BondFuture.gross_basis`,
-    :meth:`~rateslib.instruments.BondFuture.net_basis`,
-    :meth:`~rateslib.instruments.BondFuture.implied_repo`,
-    :meth:`~rateslib.instruments.BondFuture.ytm`,
-    :meth:`~rateslib.instruments.BondFuture.duration`,
-    :meth:`~rateslib.instruments.BondFuture.convexity`,
-    :meth:`~rateslib.instruments.BondFuture.ctd_index`,
-
-    .. ipython:: python
-
-        future.cfs
-        future.notional
-        future.gross_basis(
-            future_price=112.98,
-            prices=prices,
-        )
-        future.net_basis(
-            future_price=112.98,
-            prices=prices,
-            repo_rate=6.24,
-            settlement=dt(2000, 3, 16),
-            delivery=dt(2000, 6, 30),
-            convention="Act365f"
-        )
-        future.implied_repo(
-            future_price=112.98,
-            prices=prices,
-            settlement=dt(2000, 3, 16)
-        )
-        future.ytm(future_price=112.98)
-        future.duration(future_price=112.98)
-        future.convexity(future_price=112.98)
-        future.ctd_index(
-            future_price=112.98,
-            prices=prices,
-            settlement=dt(2000, 3, 16)
-        )
-
-    As opposed to the **analogue methods** above, we can also use
-    the **digital methods**,
-    :meth:`~rateslib.instruments.BondFuture.npv`,
-    :meth:`~rateslib.instruments.BondFuture.rate`,
-    but we need to create *Curves* and a *Solver* in the usual way.
-
-    .. ipython:: python
-
-       gilt_curve = Curve(
-           nodes={
-               dt(2000, 3, 15): 1.0,
-               dt(2009, 12, 7): 1.0,
-               dt(2010, 11, 25): 1.0,
-               dt(2011, 7, 12): 1.0,
-               dt(2012, 8, 6): 1.0,
-           },
-           id="gilt_curve",
-       )
-       solver = Solver(
-           curves=[gilt_curve],
-           instruments=[(b, {"metric": "ytm"}) for b in bonds],
-           s=ytms,
-           id="gilt_solver",
-           instrument_labels=["5.75% '09", "9% '11", "6.25% '10", "9% '12"],
-       )
-
-    Sensitivities are also available;
-    :meth:`~rateslib.instruments.BondFuture.delta`
-    :meth:`~rateslib.instruments.BondFuture.gamma`.
-
-    .. ipython:: python
-
-       future.delta(solver=solver)
-
-    The delta of a *BondFuture* is individually assigned to the CTD. If the CTD changes
-    the delta is reassigned.
-
-    .. ipython:: python
-
-       solver.s = [5.3842, 5.2732, 5.2755, 5.52]
-       solver.iterate()
-       future.delta(solver=solver)
-       future.gamma(solver=solver)
-
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
@@ -224,6 +133,8 @@ class BondFuture(_BaseInstrument):
         calendar: str_ = NoInput(0),
         currency: str_ = NoInput(0),
         calc_mode: str_ = NoInput(0),
+        # meta
+        curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
         metric: str_ = NoInput(0),
     ):
@@ -237,8 +148,11 @@ class BondFuture(_BaseInstrument):
             currency=currency,
             calc_mode=calc_mode,
             metric=metric,
+            curves=self._parse_curves(curves),
         )
-        instrument_args: dict[str, Any] = dict()
+        instrument_args: dict[str, Any] = dict(
+            vol=_Vol(),
+        )
         # set defaults for missing values
         default_args = dict(
             calc_mode=defaults.calc_mode_futures,
@@ -262,6 +176,8 @@ class BondFuture(_BaseInstrument):
                 "currency",
                 "calc_mode",
                 "metric",
+                "curves",
+                "vol",
             ],
         )
 
@@ -281,14 +197,48 @@ class BondFuture(_BaseInstrument):
     def __repr__(self) -> str:
         return f"<rl.BondFuture at {hex(id(self))}>"
 
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
+        """
+        An FRB has one curve requirements: a disc_curve.
+
+        When given as only 1 element this curve is applied to all of the those components
+
+        When given as 2 elements the first is treated as the rate curve and the 2nd as disc curve.
+        """
+        if isinstance(curves, NoInput):
+            return _Curves()
+        if isinstance(curves, dict):
+            return _Curves(
+                disc_curve=curves.get("disc_curve", NoInput(0)),
+            )
+        elif isinstance(curves, list | tuple):
+            if len(curves) == 1:
+                return _Curves(
+                    disc_curve=curves[0],
+                )
+            elif len(curves) == 2:
+                return _Curves(
+                    disc_curve=curves[1],
+                )
+            else:
+                raise ValueError(
+                    f"{type(self).__name__} requires only 1 curve types. Got {len(curves)}."
+                )
+        elif isinstance(curves, _Curves):
+            return curves
+        else:  # `curves` is just a single input which is copied across all curves
+            return _Curves(
+                disc_curve=curves,  # type: ignore[arg-type]
+            )
+
     @property
     def notional(self) -> DualTypes:
         """
-        Return the notional as number of contracts multiplied by contract nominal.
+        The effective notional: the number of contracts multiplied by contract nominal.
 
         Returns
         -------
-        float
+        float, Dual, Dual2, Variable
         """
         nominal: DualTypes = self.kwargs.meta["nominal"]
         contracts: DualTypes = self.kwargs.meta["contracts"]
@@ -300,57 +250,39 @@ class BondFuture(_BaseInstrument):
         """
         Return the conversion factors for each bond in the ordered ``basket``.
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, BondFuture, FixedRateBond
+
+        .. ipython:: python
+
+           bf = BondFuture(
+               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+               coupon=7.0,
+               basket=[
+                   FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, spec="uk_gb"),
+               ]
+           )
+           bf.cfs
+
         Returns
         -------
         tuple
 
         Notes
         -----
-        This method uses the traditional calculation of obtaining a clean price
-        for each bond on the **first delivery date** assuming the **yield-to-maturity**
-        is set as the nominal coupon of the bond future, and scaled to 100.
-
-        .. warning::
-
-           Some exchanges, such as EUREX, specify their own conversion factors' formula
-           which differs slightly in the definition of yield-to-maturity than the
-           implementation offered by *rateslib*. This results in small differences and
-           is *potentially* explained in the way dates, holidays and DCFs are handled
-           by each calculator.
-
-        For ICE-LIFFE and gilt futures the methods between the exchange and *rateslib*
-        align which results in accurate values. Official values can be validated
-        against the document
-        :download:`ICE-LIFFE Jun23 Long Gilt<_static/long_gilt_initial_jun23.pdf>`.
-
-        For an equivalent comparison with values which do not exactly align see
+        The determination of conversion factors depend upon the ``calc_mode`` given
+        at initialization. These values, under the appropriate method, can be compared with
+        officially published exchange data such as that for UK gilts under the "ytm" method:
+        :download:`ICE-LIFFE Jun23 Long Gilt<_static/long_gilt_initial_jun23.pdf>`, and values
+        under the 'eurex_eur' see
         :download:`EUREX Jun23 Bond Futures<_static/eurex_bond_conversion_factors.csv>`.
-
-        Examples
-        --------
-
-        .. ipython:: python
-
-           kws = dict(
-               stub="ShortFront",
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               settle=1,
-           )
-           bonds = [
-               FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, **kws),
-               FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, **kws),
-           ]
-           future = BondFuture(
-               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)), coupon=7.0, basket=bonds
-           )
-           future.cfs
-
         """
         if isinstance(self._cfs, NoInput):
             self._cfs = self._conversion_factors()
@@ -364,6 +296,7 @@ class BondFuture(_BaseInstrument):
             "ust_long": self._cfs_ust_long,
             "eurex_eur": self._cfs_eurex_eur,
             "eurex_chf": self._cfs_eurex_chf,
+            "ice_gbp": self._cfs_ice_gbp,
         }
 
     def _conversion_factors(self) -> tuple[DualTypes, ...]:
@@ -505,6 +438,13 @@ class BondFuture(_BaseInstrument):
         cf = v**f * (c / not_ * (1.0 + not_ / 100.0 - v**n) + v**n) - c * (1 - f) / 100.0
         return round(_dual_float(cf), 6)
 
+    def _cfs_ice_gbp(self, bond: FixedRateBond) -> float:
+        # TODO: This method is not AD safe: it uses "round" function which destroys derivatives
+        # See ICE specs: uses a YTM method for the first delivery date as settlement, rounded
+        d: datetime = self.kwargs.meta["delivery"][0]
+        price = bond.price(ytm=self.kwargs.meta["coupon"], settlement=datetime(d.year, d.month, 1))
+        return round(_dual_float(price / 100.0), 7)
+
     def dlv(
         self,
         future_price: DualTypes,
@@ -516,7 +456,43 @@ class BondFuture(_BaseInstrument):
         dirty: bool = False,
     ) -> DataFrame:
         """
-        Return an aggregated DataFrame of DeLiVerable metrics.
+        Return an aggregated DataFrame of deliverable (dlv) metrics.
+
+        .. rubric:: Examples
+
+        This example replicates the screen print in the publication
+        *The Futures Bond Basis: Second Edition (p77)* by Moorad Choudhry. To replicate
+        that publication exactly no calendar has been provided. Using the London business day
+        calendar and would affect the metrics of the third bond to a small degree (i.e.
+        set `calendar="ldn"`)
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           future = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00, calendar="bus"),
+                ],
+                nominal=100000,
+                contracts=10,
+                currency="gbp",
+           )
+           future.dlv(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               repo_rate=6.24,
+               settlement=dt(2000, 3, 16),
+               convention="Act365f",
+           )
 
         Parameters
         ----------
@@ -539,7 +515,7 @@ class BondFuture(_BaseInstrument):
         Returns
         -------
         DataFrame
-        """
+        """  # noqa: E501
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         if not isinstance(repo_rate, tuple | list):
             r_ = (repo_rate,) * len(basket)
@@ -687,6 +663,34 @@ class BondFuture(_BaseInstrument):
         """
         Calculate the gross basis of each bond in the basket.
 
+        .. rubric:: Exmaples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           bf = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25, calendar="bus"),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00, calendar="bus"),
+                ],
+                nominal=100000,
+                contracts=10,
+                currency="gbp",
+           )
+           bf.gross_basis(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               settlement=dt(2000, 3, 16),
+           )
+
         Parameters
         ----------
         future_price: float, Dual, Dual2
@@ -701,7 +705,7 @@ class BondFuture(_BaseInstrument):
         Returns
         -------
         tuple
-        """
+        """  # noqa: E501
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         if dirty:
             if isinstance(settlement, NoInput):
@@ -727,6 +731,33 @@ class BondFuture(_BaseInstrument):
         Calculate the net basis of each bond in the basket via the proceeds
         method of repo.
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, BondFuture, FixedRateBond
+
+        .. ipython:: python
+
+           bf = BondFuture(
+               delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+               coupon=7.0,
+               basket=[
+                   FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), fixed_rate=5.75, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), fixed_rate=9.00, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), fixed_rate=6.25, spec="uk_gb"),
+                   FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), fixed_rate=9.00, spec="uk_gb"),
+               ]
+           )
+           bf.net_basis(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               settlement=dt(2000, 3, 16),
+               repo_rate=6.24,
+               convention="Act365F",
+           )
+
         Parameters
         ----------
         future_price: float, Dual, Dual2
@@ -748,7 +779,7 @@ class BondFuture(_BaseInstrument):
         Returns
         -------
         tuple
-        """
+        """  # noqa: E501
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
@@ -799,6 +830,32 @@ class BondFuture(_BaseInstrument):
         Calculate the implied repo of each bond in the basket using the proceeds
         method.
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           bf = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00),
+                ],
+           )
+           future.implied_repo(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               settlement=dt(2000, 3, 16),
+               convention="Act365F",
+           )
+
         Parameters
         ----------
         future_price: float, Dual, Dual2
@@ -818,7 +875,7 @@ class BondFuture(_BaseInstrument):
         Returns
         -------
         tuple
-        """
+        """  # noqa: E501
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         f_settlement: datetime = _drb(self.kwargs.meta["delivery"][1], delivery)
 
@@ -844,6 +901,29 @@ class BondFuture(_BaseInstrument):
     ) -> tuple[DualTypes, ...]:
         """
         Calculate the yield-to-maturity of the bond future.
+
+        The relevant ytm should be selected according to the CTD index.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           bf = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00),
+                ],
+           )
+           bf.ytm(future_price=112.98)
 
         Parameters
         ----------
@@ -871,6 +951,27 @@ class BondFuture(_BaseInstrument):
     ) -> tuple[float, ...]:
         """
         Return the (negated) derivative of ``price`` w.r.t. ``ytm`` .
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           bf = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00),
+                ],
+           )
+           bf.duration(future_price=112.98)
 
         Parameters
         ----------
@@ -926,6 +1027,27 @@ class BondFuture(_BaseInstrument):
         """
         Return the second derivative of ``price`` w.r.t. ``ytm`` .
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           bf = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00),
+                ],
+           )
+           bf.convexity(future_price=112.98)
+
         Parameters
         ----------
         future_price : float
@@ -942,20 +1064,6 @@ class BondFuture(_BaseInstrument):
         --------
         FixedRateBond.convexity: Calculate the convexity of a FixedRateBond.
 
-        Example
-        -------
-        .. ipython:: python
-
-           risk = future.duration(112.98)
-           convx = future.convexity(112.98)
-           convx
-
-        Observe the change in risk duration when the prices is increased by 1bp.
-
-        .. ipython:: python
-
-           future.duration(112.98)
-           future.duration(112.98 + risk[0] / 100)
         """
         # TODO: Not AD safe becuase dependent convexity method is not AD safe. Returns float.
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
@@ -978,7 +1086,36 @@ class BondFuture(_BaseInstrument):
         ordered: bool = False,
     ) -> int | list[int]:
         """
-        Determine the index of the CTD in the basket from implied repo rate.
+        Determine the index (base 0) of the CTD in the basket from implied repo rate.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import BondFuture, Solver, FixedRateBond, dt
+
+        .. ipython:: python
+
+           future = BondFuture(
+                delivery=(dt(2000, 6, 1), dt(2000, 6, 30)),
+                coupon=7.0,
+                basket=[
+                    FixedRateBond(dt(1999, 1, 1), dt(2009, 12, 7), spec="uk_gb", fixed_rate=5.75),
+                    FixedRateBond(dt(1999, 1, 1), dt(2011, 7, 12), spec="uk_gb", fixed_rate=9.00),
+                    FixedRateBond(dt(1999, 1, 1), dt(2010, 11, 25), spec="uk_gb", fixed_rate=6.25),
+                    FixedRateBond(dt(1999, 1, 1), dt(2012, 8, 6), spec="uk_gb", fixed_rate=9.00),
+                ],
+                nominal=100000,
+                contracts=10,
+                currency="gbp",
+           )
+           future.ctd_index(
+               future_price=112.98,
+               prices=[102.732, 131.461, 107.877, 134.455],
+               settlement=dt(2000, 3, 16),
+               ordered=True,
+           )
 
         Parameters
         ----------
@@ -999,14 +1136,14 @@ class BondFuture(_BaseInstrument):
 
         Returns
         -------
-        int
+        int or list[int]
         """
         implied_repo = self.implied_repo(
             future_price,
             prices,
             settlement,
             delivery,
-            "Act365F",
+            "Act365F",  # to determine CTD only require a consistent comparison
             dirty,
         )
         if not ordered:
@@ -1077,7 +1214,14 @@ class BondFuture(_BaseInstrument):
         f_settlement = _drb(self.kwargs.meta["delivery"][1], settlement)
         prices_: list[DualTypes] = [
             bond.rate(
-                curves=curves,
+                curves={  # type: ignore[arg-type]
+                    "disc_curve": _maybe_get_curve_maybe_from_solver(
+                        curves_meta=self.kwargs.meta["curves"],
+                        curves=self._parse_curves(curves),
+                        name="disc_curve",
+                        solver=solver,
+                    )
+                },
                 solver=solver,
                 fx=fx,
                 base=base,

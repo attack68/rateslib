@@ -46,8 +46,46 @@ if TYPE_CHECKING:
 
 class IndexFixedRateBond(_BaseBondInstrument):
     """
-    A *interest rate swap (IRS)* composing a :class:`~rateslib.legs.FixedLeg`
-    and a :class:`~rateslib.legs.FloatLeg`.
+    An *index-linked fixed rate bond* composed of a :class:`~rateslib.legs.FixedLeg`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.instruments import IndexFixedRateBond
+       from datetime import datetime as dt
+       from rateslib import fixings
+
+    .. ipython:: python
+
+       fixings.add("RPI_series", Series(index=[dt(2024, 4, 1), dt(2024, 5, 1)], data=[385.0, 386.4]))
+       ifrb = IndexFixedRateBond(
+           effective=dt(2024, 7, 12),
+           termination="2y",
+           fixed_rate=2.25,
+           spec="us_gbi",
+           index_fixings="RPI_series",
+       )
+       ifrb.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("RPI_series")
+
+    .. rubric:: Pricing
+
+    An *IndexFixedRateBond* requires an *index curve* and a *disc curve*. The following input
+    formats are allowed:
+
+    .. code-block:: python
+
+       curves = [index_curve, disc_curve]   # two curves as a list
+       curves = {"index_curve": index_curve, "disc_curve": disc_curve}  # dict form is explicit
+
+    The available ``metric`` are in {'clean_price', 'dirty_price', 'ytm', 'index_clean_price',
+    'index_dirty_price'}
 
     .. role:: red
 
@@ -122,10 +160,6 @@ class IndexFixedRateBond(_BaseBondInstrument):
         The local settlement currency of the *Instrument* (3-digit code).
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         The initial leg notional, defined in units of *reference currency*.
-    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
-        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
-        each successive period by that same value. Should have
-        sign equal to that of notional if the notional is to reduce towards zero.
 
         .. note::
 
@@ -137,12 +171,34 @@ class IndexFixedRateBond(_BaseBondInstrument):
 
         .. note::
 
+           The following parameters define **indexation**.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value applied as the base index value for all *Periods*.
+        If not given and ``index_fixings`` is a string fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The index value for the reference date.
+        Best practice is to supply this value as string identifier relating to the global
+        ``fixings`` object.
+
+        .. note::
+
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     calc_mode : str or BondCalcMode
         A calculation mode for dealing with bonds under different conventions. See notes.
+    settle: int
+        The number of days by which to lag 'today' to arrive at standard settlement.
+    metric : str, :green:`optional` (set as 'clean_price')
+        The pricing metric returned by :meth:`~rateslib.instruments.IndexFixedRateBond.rate`.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.

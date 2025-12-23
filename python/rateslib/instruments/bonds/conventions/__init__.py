@@ -490,8 +490,8 @@ class BillCalcMode:
 
 UK_GB = BondCalcMode(
     # UK government bond conventions
-    settle_accrual="linear_days",
-    ytm_accrual="linear_days",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
     v1="compounding",
     v2="regular",
     v3="compounding",
