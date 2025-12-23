@@ -4475,6 +4475,13 @@ class TestNDXCS:
         rate = ndxcs.rate(fx=fxf)
         df = ndxcs.cashflows(fx=fxf)
         assert abs(npv) < 1e-9
+        ndxcs.float_spread = float(rate) + 0.1
+        assert abs(ndxcs.npv(fx=fxf) + ndxcs.analytic_delta(fx=fxf, leg=1) * 0.1) < 1e-8
+        for a, b in zip(
+            df["FX Fix Date"],
+            [dt(2022, 2, 1), dt(2022, 3, 3), dt(2022, 4, 3), dt(2022, 5, 3), dt(2022, 5, 1)] * 2,
+        ):
+            assert a == b
 
 
 class TestFixedFloatXCS:
