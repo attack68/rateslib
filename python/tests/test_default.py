@@ -3,7 +3,7 @@ from rateslib import __version__, default_context, defaults
 
 
 def test_version() -> None:
-    assert __version__ == "2.1.0"
+    assert __version__ == "2.5.dev0"
 
 
 def test_context_raises() -> None:
