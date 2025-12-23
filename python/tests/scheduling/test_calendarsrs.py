@@ -2,7 +2,7 @@ from datetime import datetime as dt
 
 import pytest
 from pandas import Index
-from rateslib import defaults
+from rateslib import fixings
 from rateslib.rs import Adjuster, Cal, Modifier, NamedCal, RollDay, UnionCal
 from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
@@ -286,10 +286,10 @@ class TestNamedCal:
     ],
 )
 def test_calendar_against_historical_fixings(datafile, calendar, known_exceptions):
-    fixings = defaults.fixings[datafile]
+    fixings_ = fixings[datafile][1]
     calendar_ = get_calendar(calendar)
-    bus_days = Index(calendar_.bus_date_range(fixings.index[0], fixings.index[-1]))
-    diff = fixings.index.symmetric_difference(bus_days)
+    bus_days = Index(calendar_.bus_date_range(fixings_.index[0], fixings_.index[-1]))
+    diff = fixings_.index.symmetric_difference(bus_days)
 
     errors = 0
     if len(diff) != 0:
@@ -297,7 +297,7 @@ def test_calendar_against_historical_fixings(datafile, calendar, known_exception
         for i, date in enumerate(diff):
             if date in known_exceptions:
                 continue
-            elif date in fixings.index:
+            elif date in fixings_.index:
                 print(f"{date} exists in fixings: does calendar wrongly classify as a holiday?")
             else:
                 # print(f'Holiday("adhoc{i}", year={date.year}, month={date.month}, day={date.day}),')  # noqa: E501

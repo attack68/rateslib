@@ -6,7 +6,10 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, BondMixin, Security
+    from rateslib.typing import (  # pragma: no cover
+        Any,
+        _SupportsFixedFloatLeg1,
+    )
 
 """
 All functions in this module are designed to take a Bond object and return the **fraction**
@@ -19,12 +22,12 @@ This fraction is used to assess the total accrued calculation at a subsequent st
 class AccrualFunction(Protocol):
     # Callable type for Accrual Functions
     def __call__(
-        self, obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+        self, obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
     ) -> float: ...
 
 
 def _acc_linear_proportion_by_days(
-    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Return the fraction of an accrual period between start and settlement.
@@ -41,7 +44,7 @@ def _acc_linear_proportion_by_days(
 
 
 def _acc_linear_proportion_by_days_long_stub_split(
-    obj: Security | BondMixin,
+    obj: _SupportsFixedFloatLeg1,
     settlement: datetime,
     acc_idx: int,
     *args: Any,
@@ -53,13 +56,13 @@ def _acc_linear_proportion_by_days_long_stub_split(
     """
     # TODO: handle this union attribute by segregating Securities periods into different
     # categories, perhaps when also integrating deterministic amortised bonds.
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         f = obj.leg1.schedule.periods_per_annum
         freq = obj.leg1.schedule.frequency_obj
         adjuster = obj.leg1.schedule.accrual_adjuster
         calendar = obj.leg1.schedule.calendar
 
-        if obj.leg1.periods[acc_idx].dcf * f > 1:  # type: ignore[union-attr]
+        if obj.leg1._regular_periods[acc_idx].period_params.dcf * f > 1:
             # long stub
 
             if acc_idx > 0:
@@ -122,13 +125,15 @@ def _acc_linear_proportion_by_days_long_stub_split(
                     s_u = (aend - quasi_acoupon).days
                     r_bar_u = (quasi_acoupon - obj.leg1.schedule.aschedule[acc_idx]).days
 
-            return (r_bar_u / s_bar_u + r_u / s_u) / (obj.leg1.periods[acc_idx].dcf * f)  # type: ignore[union-attr]
+            return (r_bar_u / s_bar_u + r_u / s_u) / (
+                obj.leg1._regular_periods[acc_idx].period_params.dcf * f
+            )
 
     return _acc_linear_proportion_by_days(obj, settlement, acc_idx, *args)
 
 
 def _acc_30e360_backward(
-    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Ignoring the convention on the leg uses "30E360" to determine the accrual fraction.
@@ -137,16 +142,24 @@ def _acc_30e360_backward(
 
     If stub revert to linear proportioning.
     """
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = obj.leg1.schedule.periods_per_annum
-    _: float = dcf(settlement, obj.leg1.schedule.aschedule[acc_idx + 1], "30e360") * f
+    _: float = (
+        dcf(
+            start=settlement,
+            end=obj.leg1.schedule.aschedule[acc_idx + 1],
+            convention="30e360",
+            frequency=obj.leg1.schedule.frequency_obj,
+        )
+        * f
+    )
     _ = 1 - _
     return _
 
 
 def _acc_30u360_forward(
-    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Ignoring the convention on the leg uses "30U360" to determine the accrual fraction.
@@ -154,13 +167,23 @@ def _acc_30u360_forward(
     [Designed primarily for US Corporate/Muni Bonds]
     """
     sch = obj.leg1.schedule
-    accrued = dcf(sch.aschedule[acc_idx], settlement, "30u360")
-    period = dcf(sch.aschedule[acc_idx], sch.aschedule[acc_idx + 1], "30u360")
+    accrued = dcf(
+        start=sch.aschedule[acc_idx],
+        end=settlement,
+        convention="30u360",
+        frequency=sch.frequency_obj,
+    )
+    period = dcf(
+        start=sch.aschedule[acc_idx],
+        end=sch.aschedule[acc_idx + 1],
+        convention="30u360",
+        frequency=sch.frequency_obj,
+    )
     return accrued / period
 
 
 def _acc_act365_with_1y_and_stub_adjustment(
-    obj: Security | BondMixin, settlement: datetime, acc_idx: int, *args: Any
+    obj: _SupportsFixedFloatLeg1, settlement: datetime, acc_idx: int, *args: Any
 ) -> float:
     """
     Ignoring the convention on the leg uses "Act365f" to determine the accrual fraction.
@@ -169,7 +192,7 @@ def _acc_act365_with_1y_and_stub_adjustment(
     If the period is a stub reverts to a straight line interpolation
     [this is primarily designed for Canadian Government Bonds]
     """
-    if obj.leg1.periods[acc_idx].stub:  # type: ignore[union-attr]
+    if obj.leg1._regular_periods[acc_idx].period_params.stub:
         return _acc_linear_proportion_by_days(obj, settlement, acc_idx)
     f = obj.leg1.schedule.periods_per_annum
     r = (settlement - obj.leg1.schedule.aschedule[acc_idx]).days

@@ -1,18 +1,15 @@
 from __future__ import annotations
 
-import os
 from datetime import datetime
-from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas
-from packaging import version
-from pandas import Series, read_csv
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
+from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.rs import Cal, NamedCal, UnionCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
@@ -20,74 +17,8 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-
-
-class NoInput(Enum):
-    """
-    Enumerable type to handle setting default values.
-
-    See :ref:`default values <defaults-doc>`.
-    """
-
-    blank = 0
-    inherit = 1
-    negate = -1
-
-
-class Fixings:
-    """
-    Class to lazy load fixing data from CSV files.
-
-    .. warning::
-
-       *Rateslib* does not come pre-packaged with accurate, nor upto date fixing data.
-       This is for a number of reasons; one being a lack of data licensing to distribute such
-       data, and the second being a statically uploaded package relative to daily, dynamic fixing
-       information is not practical.
-
-    To use this class effectively the CSV files must be populated by the user, ideally scheduled
-    regularly to continuously update these files with incoming fixing data.
-    See :ref:`working with fixings <cook-fixings-doc>`.
-
-    """
-
-    @staticmethod
-    def _load_csv(directory: str, path: str) -> Series[float]:
-        target = os.path.join(directory, path)
-        if version.parse(pandas.__version__) < version.parse("2.0"):  # pragma: no cover
-            # this is tested by the minimum version gitflow actions.
-            # TODO (low:dependencies) remove when pandas min version is bumped to 2.0
-            df = read_csv(target)
-            df["reference_date"] = df["reference_date"].map(
-                lambda x: datetime.strptime(x, "%d-%m-%Y"),
-            )
-            df = df.set_index("reference_date")
-        else:
-            df = read_csv(target, index_col=0, parse_dates=[0], date_format="%d-%m-%Y")
-        return df["rate"].sort_index(ascending=True)
-
-    def __getitem__(self, item: str) -> Series[float]:
-        if item in self.loaded:
-            return self.loaded[item]
-
-        try:
-            s = self._load_csv(self.directory, f"{item}.csv")
-        except FileNotFoundError:
-            raise ValueError(
-                f"Fixing data for the index '{item}' has been attempted, but there is no file:\n"
-                f"'{item}.csv' located in the search directory: '{self.directory}'\n"
-                "Create a CSV file in the directory with the above name and the exact "
-                "template structure:\n###################\n"
-                "reference_date,rate\n26-08-2023,5.6152\n27-08-2023,5.6335\n##################\n"
-                "For further info see 'Working with Fixings' in the documentation cookbook.",
-            )
-
-        self.loaded[item] = s
-        return s
-
-    def __init__(self) -> None:
-        self.directory = os.path.dirname(os.path.abspath(__file__)) + "/data"
-        self.loaded: dict[str, Series[float]] = {}
+if TYPE_CHECKING:
+    from rateslib.typing import Any
 
 
 class Defaults:
@@ -120,6 +51,7 @@ class Defaults:
             "tro": NamedCal("tro"),
             "tyo": NamedCal("tyo"),
             "syd": NamedCal("syd"),
+            "nsw": NamedCal("nsw"),
             "wlg": NamedCal("wlg"),
             "mum": NamedCal("mum"),
         }
@@ -128,6 +60,9 @@ class Defaults:
 
         # Instrument parameterisation
 
+        self.metric = {
+            "SBS": "leg1",
+        }
         self.convention = "ACT360"
         self.notional = 1.0e6
         self.index_lag = 3
@@ -145,6 +80,7 @@ class Defaults:
             "SBS": 2,
             "Swap": 2,
             "XCS": 2,
+            "NDXCS": 2,
             "FixedRateBond": 0,
             "IndexFixedRateBond": 0,
             "FloatRateNote": 0,
@@ -164,6 +100,15 @@ class Defaults:
             "rfr_lockout_avg": 2,
             "rfr_lookback_avg": 2,
             "ibor": 2,
+            FloatFixingMethod.RFRPaymentDelayAverage: 0,
+            FloatFixingMethod.RFRPaymentDelay: 0,
+            FloatFixingMethod.IBOR: 2,
+            FloatFixingMethod.RFRLockout: 2,
+            FloatFixingMethod.RFRLockoutAverage: 2,
+            FloatFixingMethod.RFRObservationShiftAverage: 2,
+            FloatFixingMethod.RFRObservationShift: 2,
+            FloatFixingMethod.RFRLookback: 2,
+            FloatFixingMethod.RFRLookbackAverage: 2,
         }
         self.spread_compound_method = "none_simple"
         self.base_currency = "usd"
@@ -229,14 +174,19 @@ class Defaults:
             "dcf": "DCF",
             "df": "DF",
             "notional": "Notional",
+            "reference_currency": "Reference Ccy",
             "currency": "Ccy",
+            "fx_fixing": "FX Fixing",
+            "fx_fixing_date": "FX Fix Date",
             "rate": "Rate",
             "spread": "Spread",
             "npv": "NPV",
             "cashflow": "Cashflow",
             "fx": "FX Rate",
             "npv_fx": "NPV Ccy",
-            "real_cashflow": "Real Cashflow",
+            "base": "Base Ccy",
+            "unindexed_cashflow": "Unindexed Cashflow",
+            "index_fix_date": "Index Fix Date",
             "index_value": "Index Val",
             "index_ratio": "Index Ratio",
             "index_base": "Index Base",
@@ -261,9 +211,6 @@ class Defaults:
         # Commercial use of this code, and/or copying and redistribution is prohibited.
         # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
-        # fixings data
-        self.fixings = Fixings()
-
         self.spec = INSTRUMENT_SPECS
 
     def reset_defaults(self) -> None:
@@ -278,7 +225,8 @@ class Defaults:
            defaults.reset_defaults()
         """
         base = Defaults()
-        for attr in [_ for _ in dir(self) if _[:2] != "__"]:
+        # do not re-load or reset fixings
+        for attr in [_ for _ in dir(self) if _[:2] != "__" and _ != "fixings"]:
             setattr(self, attr, getattr(base, attr))
 
     def print(self) -> str:
@@ -416,11 +364,9 @@ def plot3d(
     return fig, ax, None
 
 
-def _drb(default: Any, possible_ni: Any | NoInput) -> Any:
-    """(D)efault (r)eplaces (b)lank"""
-    return default if isinstance(possible_ni, NoInput) else possible_ni
-
-
 def _make_py_json(json: str, class_name: str) -> str:
     """Modifies the output JSON output for Rust structs wrapped by Python classes."""
     return '{"PyWrapped":' + json + "}"
+
+
+__all__ = ["Defaults"]

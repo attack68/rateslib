@@ -5,7 +5,6 @@ from dateutil.relativedelta import MO, TH
 from pandas.tseries.holiday import (
     AbstractHolidayCalendar,
     Holiday,
-    nearest_workday,
     sunday_to_monday,
 )
 from pandas.tseries.offsets import CustomBusinessDay, DateOffset
@@ -29,12 +28,12 @@ RULES = [
         day=19,
         observance=sunday_to_monday,
     ),
-    Holiday("US Independence Day", month=7, day=4, observance=nearest_workday),
+    Holiday("US Independence Day", month=7, day=4, observance=sunday_to_monday),
     Holiday("US Labour Day", month=9, day=1, offset=DateOffset(weekday=MO(1))),
     Holiday("US Columbus Day", month=10, day=1, offset=DateOffset(weekday=MO(2))),
     Holiday("Veterans Day", month=11, day=11, observance=sunday_to_monday),
     Holiday("US Thanksgiving", month=11, day=1, offset=DateOffset(weekday=TH(4))),
-    Holiday("Christmas Day Sunday Holiday", month=12, day=25, observance=nearest_workday),
+    Holiday("Christmas Day Sunday Holiday", month=12, day=25, observance=sunday_to_monday),
     Holiday("GHW Bush Funeral", year=2018, month=12, day=5),
 ]
 

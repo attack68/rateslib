@@ -3,14 +3,99 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from rateslib.default import NoInput
+import rateslib.errors as err
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.rollday import _get_rollday
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_
+    from rateslib.typing import CalInput, datetime_, int_, str_
+
+
+def _get_frequency(
+    frequency: str_ | Frequency, roll: str | RollDay | int_, calendar: CalInput
+) -> Frequency:
+    """
+    Get a :class:`~rateslib.scheduling.Frequency` object from legacy UI inputs.
+
+    Parameters
+    ----------
+    frequency: str or Frequency
+        If string, is combined with the ``roll`` and ``calendar`` parameters to derive the
+        output.
+    roll: str, int or RollDay, optional
+        The roll-day to be associated with a *Frequency.Months* variant, if given.
+    calendar: calendar, str, optional
+        The calendar to be associated with a *Frequency.BusDay* variant, if given.
+
+    Returns
+    -------
+    Frequency
+    """
+    if isinstance(frequency, Frequency):
+        if getattr(frequency, "roll", "no default") is None:
+            return Frequency.Months(frequency.number, _get_rollday(roll))  # type: ignore[attr-defined]
+        return frequency
+
+    if isinstance(frequency, NoInput):
+        raise ValueError(err.VE_NEEDS_FREQUENCY)
+
+    frequency_: str = frequency.upper()[-1]
+    if frequency_ == "D":
+        n_: int = int(frequency[:-1])
+        return Frequency.CalDays(n_)
+    elif frequency_ == "B":
+        n_ = int(frequency[:-1])
+        return Frequency.BusDays(n_, get_calendar(calendar))
+    elif frequency_ == "W":
+        n_ = int(frequency[:-1])
+        return Frequency.CalDays(n_ * 7)
+    elif frequency_ == "M":
+        # handles the dual case of 'xM' for x-months or 'M' or monthly, i.e. 1-month
+        if len(frequency) == 1:
+            return Frequency.Months(1, _get_rollday(roll))
+        else:
+            n_ = int(frequency[:-1])
+            return Frequency.Months(n_, _get_rollday(roll))
+    elif frequency_ == "Q":
+        return Frequency.Months(3, _get_rollday(roll))
+    elif frequency_ == "S":
+        return Frequency.Months(6, _get_rollday(roll))
+    elif frequency_ == "A":
+        return Frequency.Months(12, _get_rollday(roll))
+    elif frequency_ == "Y":
+        n_ = int(frequency[:-1])
+        return Frequency.Months(12 * n_, _get_rollday(roll))
+    elif frequency_ == "Z":
+        return Frequency.Zero()
+    else:
+        raise ValueError(f"Frequency can not be determined from `frequency` input: '{frequency}'.")
+
+
+def _get_frequency_none(
+    frequency: str | Frequency | NoInput, roll: str | RollDay | int_, calendar: CalInput
+) -> Frequency | None:
+    if isinstance(frequency, NoInput):
+        return None
+    else:
+        return _get_frequency(frequency, roll, calendar)
+
+
+def _get_tenor_from_frequency(frequency: Frequency) -> str:
+    if isinstance(frequency, Frequency.Months):
+        return f"{frequency.number}M"
+    elif isinstance(frequency, Frequency.CalDays):
+        if frequency.number % 7 == 0:
+            return f"{frequency.number / 7}W"
+        else:
+            return f"{frequency.number}D"
+    elif isinstance(frequency, Frequency.BusDays):
+        return f"{frequency.number}B"
+    elif isinstance(frequency, Frequency.Zero):
+        raise ValueError("Cannot determine regular tenor from Frequency.Zero")
+    raise ValueError("Cannot determine regular tenor from Frequency")
 
 
 def add_tenor(
@@ -157,14 +242,15 @@ def add_tenor(
     return adjuster.adjust(next_date, cal_)
 
 
-def _get_fx_expiry_and_delivery(
+def _get_fx_expiry_and_delivery_and_payment(
     eval_date: datetime_,
     expiry: str | datetime,
     delivery_lag: int | datetime,
     calendar: CalInput,
     modifier: str,
     eom: bool,
-) -> tuple[datetime, datetime]:
+    payment_lag: int | datetime,
+) -> tuple[datetime, datetime, datetime]:
     """
     Determines the expiry and delivery date of an FX option using the following rules:
 
@@ -185,11 +271,14 @@ def _get_fx_expiry_and_delivery(
         Date rule, expected to be "MF" for most FX rate tenors.
     eom: bool
         Whether end-of-month is preserved in tenor date determination.
+    payment_lag: int, datetime
+        Number of business days to lag payment by after expiry.
 
     Returns
     -------
     tuple of datetime
     """
+    calendar_ = get_calendar(calendar)
     if isinstance(expiry, str):
         if isinstance(eval_date, NoInput):
             raise ValueError("`expiry` as string tenor requires `eval_date`.")
@@ -204,19 +293,23 @@ def _get_fx_expiry_and_delivery(
                     "using a string tenor `expiry`.",
                 )
             else:
-                spot = get_calendar(calendar).lag_bus_days(eval_date, delivery_lag, True)
+                spot = calendar_.lag_bus_days(eval_date, delivery_lag, True)
                 roll = "eom" if (eom and Imm.Eom.validate(spot)) else spot.day
                 delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
-                expiry_ = get_calendar(calendar).add_bus_days(delivery_, -delivery_lag, False)
-                return expiry_, delivery_
+                expiry_ = calendar_.add_bus_days(delivery_, -delivery_lag, False)
         else:
-            expiry_ = add_tenor(eval_date, expiry, "F", calendar, NoInput(0), False)
+            expiry_ = add_tenor(eval_date, expiry, "F", calendar_, NoInput(0), False)
     else:
         expiry_ = expiry
 
     if isinstance(delivery_lag, datetime):
         delivery_ = delivery_lag
     else:
-        delivery_ = get_calendar(calendar).lag_bus_days(expiry_, delivery_lag, True)
+        delivery_ = calendar_.lag_bus_days(expiry_, delivery_lag, True)
 
-    return expiry_, delivery_
+    if isinstance(payment_lag, datetime):
+        payment_ = payment_lag
+    else:
+        payment_ = calendar_.lag_bus_days(expiry_, payment_lag, True)
+
+    return expiry_, delivery_, payment_

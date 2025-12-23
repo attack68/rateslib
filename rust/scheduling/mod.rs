@@ -9,9 +9,6 @@
 //! - Inference for stub dates and monthly [`RollDay`] when utilising a UI which extends to users
 //!   being allowed to supply unknown or ambiguous parameters.
 //!
-//! The [supplementary material](https://www.amazon.com/dp/0995455562) discusses the algorithms,
-//! architecture and implementation of these objects.
-//!
 //! # Calendars and Date Adjustment
 //!
 //! ## Calendars
@@ -60,8 +57,7 @@
 //!
 //! # Schedules
 //!
-//! A [`Schedule`] is an ordered and patterned array of periods and dates. Again, more details can
-//! be found in the [supplementary material](https://www.amazon.com/dp/0995455562).
+//! A [`Schedule`] is an ordered and patterned array of periods and dates.
 //!
 //! All [`Schedule`] objects in *rateslib* are centered about the definition of their [`Frequency`],
 //! which is an enum describing a regular period of time. Certain [`Frequency`] variants have
@@ -89,6 +85,8 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
+//!    Adjuster::Actual{},                      // payment_adjuster2
+//!    None,                                    // payment_adjuster3
 //!    false,                                   // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
@@ -112,6 +110,8 @@
 //!    Calendar::Cal(cal),                      // calendar
 //!    Adjuster::ModifiedFollowing{},           // accrual_adjuster
 //!    Adjuster::BusDaysLagSettle(2),           // payment_adjuster
+//!    Adjuster::Actual{},                      // payment_adjuster2
+//!    None,                                    // payment_adjuster3
 //!    true,                                    // eom
 //!    Some(StubInference::ShortFront),         // stub_inference
 //! );
@@ -122,7 +122,7 @@
 //! ```
 
 mod calendars;
-mod dcfs;
+mod convention;
 mod frequency;
 mod schedule;
 
@@ -134,10 +134,8 @@ pub use crate::scheduling::{
     calendars::{
         ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, UnionCal,
     },
-    dcfs::Convention,
+    convention::Convention,
     frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
-pub(crate) use crate::scheduling::{
-    dcfs::_get_convention_str, frequency::get_unadjusteds, py::PyAdjuster,
-};
+pub(crate) use crate::scheduling::{frequency::get_unadjusteds, py::PyAdjuster};

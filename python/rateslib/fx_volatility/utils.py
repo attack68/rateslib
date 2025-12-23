@@ -9,9 +9,6 @@ from typing import TYPE_CHECKING, TypeAlias
 from pandas import Series
 from pytz import UTC
 
-from rateslib.default import (
-    NoInput,
-)
 from rateslib.dual import (
     Dual,
     Dual2,
@@ -23,6 +20,10 @@ from rateslib.dual import (
     set_order_convert,
 )
 from rateslib.dual.utils import _dual_float, _to_number
+from rateslib.enums.generics import (
+    NoInput,
+)
+from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.rs import _sabr_x0 as _rs_sabr_x0
 from rateslib.rs import _sabr_x1 as _rs_sabr_x1
 from rateslib.rs import _sabr_x2 as _rs_sabr_x2
@@ -43,7 +44,7 @@ class _FXSmileMeta:
     _eval_date: datetime
     _expiry: datetime
     _plot_x_axis: str
-    _delta_type: str
+    _delta_type: FXDeltaMethod
     _pair: str | None
     _calendar: CalTypes
     _delivery: datetime
@@ -66,7 +67,7 @@ class _FXSmileMeta:
         return self._plot_x_axis
 
     @property
-    def delta_type(self) -> str:
+    def delta_type(self) -> FXDeltaMethod:
         """The delta type of the delta indexes associated with the ``nodes`` of the *Smile*."""
         return self._delta_type
 
@@ -116,7 +117,10 @@ class _FXDeltaVolSmileNodes:
         self._nodes = nodes
         self._meta = meta
 
-        if "_pa" in self.meta.delta_type:
+        if self.meta.delta_type in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             vol: DualTypes = self.values[-1] / 100.0
             upper_bound: float = _dual_float(
                 dual_exp(
@@ -140,7 +144,10 @@ class _FXDeltaVolSmileNodes:
     @property
     def plot_upper_bound(self) -> float:
         """The right side delta index bound used in a *'delta' x-axis* plot."""
-        if "_pa" in self.meta.delta_type:
+        if self.meta.delta_type in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             # upper_bound      = exp(vol * t_expiry_sqrt * (3.75 - 0.5 * vol * t_expiry_sqrt)
             # plot_upper_bound = exp(vol * t_expiry_sqrt * (3.25 - 0.5 * vol * t_expiry_sqrt)
             return (
@@ -225,7 +232,10 @@ class _FXDeltaVolSpline:
         # right side constraint
         tau.append(self.t[-1])
         y.append(set_order_convert(0.0, ad, None))
-        if "_pa" in nodes.meta.delta_type:
+        if nodes.meta.delta_type in [
+            FXDeltaMethod.SpotPremiumAdjusted,
+            FXDeltaMethod.ForwardPremiumAdjusted,
+        ]:
             right_n = 1  # 1st derivative at zero
         else:
             right_n = 2  # natural spline
@@ -305,7 +315,7 @@ class _FXDeltaVolSurfaceMeta:
     """
 
     _eval_date: datetime
-    _delta_type: str
+    _delta_type: FXDeltaMethod
     _plot_x_axis: str
     _weights: Series[float] | None
     _delta_indexes: list[float]
@@ -358,7 +368,7 @@ class _FXDeltaVolSurfaceMeta:
         return self.eval_date.replace(tzinfo=UTC).timestamp()
 
     @property
-    def delta_type(self) -> str:
+    def delta_type(self) -> FXDeltaMethod:
         """The delta type of the delta indexes associated with the ``nodes`` of each
         cross-sectional *Smile*."""
         return self._delta_type
@@ -477,12 +487,6 @@ class _FXSabrSurfaceMeta:
         return self._calendar
 
 
-def _validate_delta_type(delta_type: str) -> str:
-    if delta_type.lower() not in ["spot", "spot_pa", "forward", "forward_pa"]:
-        raise ValueError("`delta_type` must be in {'spot', 'spot_pa', 'forward', 'forward_pa'}.")
-    return delta_type.lower()
-
-
 def _validate_weights(
     weights: Series[float] | NoInput,
     eval_date: datetime,
@@ -506,7 +510,7 @@ def _validate_weights(
         w[s:e] = (  # type: ignore[misc]
             w[s:e] * days / w[s:e].sum()  # type: ignore[misc]
         )  # scale the weights to allocate the correct time between nodes.
-    w[eval_date] = 0.0
+    w[eval_date] = 0.0  # type: ignore[call-overload]
     return w
 
 
@@ -704,7 +708,7 @@ def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
 
 
 def _delta_type_constants(
-    delta_type: str, w: DualTypes | NoInput, u: DualTypes | NoInput
+    delta_type: FXDeltaMethod, w: DualTypes | NoInput, u: DualTypes | NoInput
 ) -> tuple[float, DualTypes, DualTypes]:
     """
     Get the values: (eta, z_w, z_u) for the type of expressed delta
@@ -712,11 +716,11 @@ def _delta_type_constants(
     w: should be input as w_deli / w_spot
     u: should be input as K / f_d
     """
-    if delta_type == "forward":
+    if delta_type == FXDeltaMethod.Forward:
         return 0.5, 1.0, 1.0
-    elif delta_type == "spot":
+    elif delta_type == FXDeltaMethod.Spot:
         return 0.5, w, 1.0  # type: ignore[return-value]
-    elif delta_type == "forward_pa":
+    elif delta_type == FXDeltaMethod.ForwardPremiumAdjusted:
         return -0.5, 1.0, u  # type: ignore[return-value]
     else:  # "spot_pa"
         return -0.5, w, u  # type: ignore[return-value]

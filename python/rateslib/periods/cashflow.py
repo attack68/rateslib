@@ -2,428 +2,457 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pandas import DataFrame
+
 from rateslib import defaults
-from rateslib.curves._parsers import _disc_maybe_from_curve, _disc_required_maybe_from_curve
-from rateslib.default import NoInput, _drb
-from rateslib.dual.utils import _dual_float
-from rateslib.fx import FXForwards
-from rateslib.periods.utils import (
-    _float_or_none,
-    _get_fx_and_base,
-    _maybe_local,
-    _validate_fx_as_forwards,
+from rateslib.enums.generics import NoInput, Ok, _drb
+from rateslib.enums.parameters import IndexMethod
+from rateslib.periods.parameters import (
+    _init_MtmParams,
+    _init_or_none_IndexParams,
+    _init_or_none_NonDeliverableParams,
+    _init_SettlementParams_with_fx_pair,
+)
+from rateslib.periods.parameters.mtm import _MtmParams
+from rateslib.periods.protocols import (
+    _BasePeriodStatic,
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
-        FX_,
-        NPV,
+    from rateslib.typing import (  # pragma: no cover
         Any,
         CurveOption_,
         DualTypes,
         DualTypes_,
-        _BaseCurve,
+        FXForwards_,
+        Result,
+        Series,
         _BaseCurve_,
+        _FXVolOption_,
+        bool_,
         datetime,
+        datetime_,
+        int_,
         str_,
     )
 
 
-class Cashflow:
-    """
-    Create a single cashflow amount on a payment date (effectively a CustomPeriod).
+class Cashflow(_BasePeriodStatic):
+    r"""
+    A *Period* defined by a specific amount.
 
-    Parameters
-    ----------
-    notional : float
-        The notional amount of the period (positive assumes paying a cashflow).
-    payment : Datetime
-        The adjusted payment date of the period.
-    currency : str
-        The currency of the cashflow (3-digit code).
-    stub_type : str
-        Record of the type of cashflow.
-    rate : float
-        An associated rate to relate to the cashflow, e.g. an FX fixing.
-
-    Attributes
-    ----------
-    notional : float
-    payment : Datetime
-    stub_type : str
-
-    Notes
-    -----
-    Other common :class:`BasePeriod` parameters not required for single cashflows are
-    set to *None*.
-
-    The ``cashflow`` is defined as follows;
+    The expected unindexed reference cashflow under the risk neutral distribution is defined as,
 
     .. math::
 
-       C = -N
+       \mathbb{E^Q} [\bar{C}_t] = -N
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+    There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
 
-    .. math::
+    Examples
+    --------
 
-       P = Cv(m) = -Nv(m)
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = 0
-
-    Example
-    -------
     .. ipython:: python
        :suppress:
 
-       from rateslib import Cashflow
+       from rateslib.periods import Cashflow
+       from datetime import datetime as dt
 
     .. ipython:: python
 
-       cf = Cashflow(
-           notional=1e6,
-           payment=dt(2022, 8, 3),
-           currency="usd",
-           stub_type="Loan Payment",
+       period = Cashflow(
+           payment=dt(2025, 10, 22),
+           ex_dividend=dt(2025, 10, 21),
+           currency="eur",
+           notional=125000,
        )
-       cf.cashflows(curve=Curve({dt(2022, 1, 1): 1.0, dt(2022, 12, 31): 0.98}))
+       period.cashflows()
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
+
+        .. note::
+
+           The following parameters define **non-deliverability**. If the *Period* is directly
+           deliverable do not supply these parameters.
+
+    pair: str, :green:`optional`
+        The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
+        If a string identifier will link to the central ``fixings`` object and data loader.
+    delivery: datetime, :green:`optional (set as 'payment')`
+        The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
+
+        .. note::
+
+           The following parameters define **indexation**. The *Period* will be considered
+           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+           are given.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value set of the base index value.
+        If not given and ``index_fixings`` is a str fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The index value for the reference date.
+        If a scalar value this is used directly. If a string identifier will link to the
+        central ``fixings`` object and data loader.
+    index_base_date: datetime, :green:`optional`
+        The reference date for determining the base index value. Not required if ``_index_base``
+        value is given directly.
+    index_reference_date: datetime, :green:`optional (set as 'end')`
+        The reference date for determining the index value. Not required if ``_index_fixings``
+        is given as a scalar value.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which determines non-payment of notional on supported *Periods*.
+
     """
 
     def __init__(
         self,
-        notional: DualTypes,
+        *,
+        # currency args:
         payment: datetime,
+        notional: DualTypes,
         currency: str_ = NoInput(0),
-        stub_type: str_ = NoInput(0),
-        rate: DualTypes_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        # non-deliverable args:
+        pair: str_ = NoInput(0),
+        fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        delivery: datetime_ = NoInput(0),
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+        index_base_date: datetime_ = NoInput(0),
+        index_reference_date: datetime_ = NoInput(0),
     ):
-        self.notional = notional
-        self.payment = payment
-        self.currency = _drb(defaults.base_currency, currency).lower()
-        self.stub_type = stub_type
-        self._rate: DualTypes | NoInput = rate if isinstance(rate, NoInput) else _dual_float(rate)
+        self._settlement_params = _init_SettlementParams_with_fx_pair(
+            _notional=notional,
+            _payment=payment,
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _fx_pair=pair,
+        )
+        self._non_deliverable_params = _init_or_none_NonDeliverableParams(
+            _currency=self.settlement_params.currency,
+            _pair=pair,
+            _fx_fixings=fx_fixings,
+            _delivery=_drb(self.settlement_params.payment, delivery),
+        )
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_base_date=index_base_date,
+            _index_reference_date=_drb(self.settlement_params.payment, index_reference_date),
+            _index_only=index_only,
+        )
 
-    def __repr__(self) -> str:
-        return f"<rl.{type(self).__name__} at {hex(id(self))}>"
-
-    def rate(self) -> DualTypes | None:
-        """
-        Return the associated rate initialised with the *Cashflow*. Not used for calculations.
-        """
-        return None if isinstance(self._rate, NoInput) else self._rate
-
-    def npv(
+    def unindexed_reference_cashflow(
         self,
-        curve: CurveOption_ = NoInput(0),
-        disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
-    ) -> NPV:
-        """
-        Return the NPV of the *Cashflow*.
-        See
-        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
-        """
-        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
-        value: DualTypes = self.cashflow * disc_curve_[self.payment]
-        return _maybe_local(value, local, self.currency, fx, base)
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        **kwargs: Any,
+    ) -> DualTypes:
+        return -self.settlement_params.notional
 
-    def cashflows(
+    def try_unindexed_reference_cashflow_analytic_delta(
         self,
-        curve: CurveOption_ = NoInput(0),
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *Cashflow*.
-        See
-        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
-        """
-        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
-        fx_, _ = _get_fx_and_base(self.currency, fx, base)
+    ) -> Result[DualTypes]:
+        return Ok(0.0)
 
-        if isinstance(disc_curve_, NoInput):
-            npv, npv_fx, df, collateral = None, None, None, None
-        else:
-            npv_: DualTypes = self.npv(curve, disc_curve_)  # type: ignore[assignment]
-            npv = _dual_float(npv_)
-            npv_fx = npv * _dual_float(fx_)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())
 
-        try:
-            cashflow_ = _dual_float(self.cashflow)
-        except TypeError:  # cashflow in superclass not a property
-            cashflow_ = None
 
-        rate = None if isinstance(self.rate(), NoInput) else self.rate()
-        stub_type = None if isinstance(self.stub_type, NoInput) else self.stub_type
-        return {
-            defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: stub_type,
-            defaults.headers["currency"]: self.currency.upper(),
-            # defaults.headers["a_acc_start"]: None,
-            # defaults.headers["a_acc_end"]: None,
-            defaults.headers["payment"]: self.payment,
-            # defaults.headers["convention"]: None,
-            # defaults.headers["dcf"]: None,
-            defaults.headers["notional"]: _dual_float(self.notional),
-            defaults.headers["df"]: df,
-            defaults.headers["rate"]: rate,
-            # defaults.headers["spread"]: None,
-            defaults.headers["cashflow"]: cashflow_,
-            defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: _dual_float(fx_),
-            defaults.headers["npv_fx"]: npv_fx,
-            defaults.headers["collateral"]: collateral,
-        }
+# class NonDeliverableCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#         if self.is_indexed:
+#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
+#
+#
+# class IndexCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if self.is_non_deliverable:
+#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+#
+#
+# class NonDeliverableIndexCashflow(Cashflow):
+#     """
+#     Deprecated
+#
+#     .. warning::
+#
+#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
+#
+#     """
+#
+#     def __init__(self, **kwargs: Any) -> None:
+#         super().__init__(**kwargs)
+#         if not self.is_indexed:
+#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
+#         if not self.is_non_deliverable:
+#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
+
+
+class MtmCashflow(_BasePeriodStatic):
+    r"""
+    A *Period* defined by a specific amount calculated from the difference between two
+    :class:`~rateslib.data.fixings.FXFixing`.
+
+    This type does not permit non-deliverability, although its notional is expressed in a
+    notional currency which is different to the settlement currency.
+
+    The expected unindexed reference cashflow under the risk neutral distribution is defined as,
+
+    .. math::
+
+       \mathbb{E^Q} [\bar{C}_t] = -N ( f_{ref:loc}(m_{a.e}) - f_{ref:loc}(m_{a.s}) )
+
+    There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
+
+    Examples
+    --------
+
+    This *MTMCashflow* is the movement of the EURUSD FX rate from 1.1 to 1.2 on a notional of
+    125,000 EUR resulting in a cashflow of -12,500 USD.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import MtmCashflow
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       period = MtmCashflow(
+           payment=dt(2025, 10, 22),
+           start=dt(2025, 7, 22),
+           currency="usd",
+           pair="eurusd",
+           notional=125000,
+           fx_fixings_start=1.10,
+           fx_fixings_end=1.20,
+       )
+       period.cashflows()
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    .
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
+
+        .. note::
+
+           The following parameters define the specific **mtm** aspects of the *cashflow*.
+
+    pair: str, :red:`required`
+        The currency pair of the two :class:`~rateslib.data.fixings.FXFixing` that determines
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    start: datetime, :red:`required`
+        The delivery date of the first :class:`~rateslib.data.fixings.FXFixing` at the start of
+        the *Period*.
+    end: datetime, :green:`optional (set as 'payment')`
+        The delivery date of the second :class:`~rateslib.data.fixings.FXFixing` at the end of
+        the *Period*.
+    fx_fixings_start: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the first :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier will link to the central ``fixings`` object and
+        data loader.
+    fx_fixings_end: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The value of the second :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
+        directly. If a string identifier will link to the central ``fixings`` object and
+        data loader.
+
+        .. note::
+
+           The following parameters define **indexation**. The *Period* will be considered
+           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
+           are given.
+
+    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+        The interpolation method, or otherwise, to determine index values from reference dates.
+    index_lag: int, :green:`optional (set by 'defaults')`
+        The indexation lag, in months, applied to the determination of index values.
+    index_base: float, Dual, Dual2, Variable, :green:`optional`
+        The specific value set of the base index value.
+        If not given and ``index_fixings`` is a str fixings identifier that will be
+        used to determine the base index value.
+    index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
+        The index value for the reference date.
+        If a scalar value this is used directly. If a string identifier will link to the
+        central ``fixings`` object and data loader.
+    index_base_date: datetime, :green:`optional`
+        The reference date for determining the base index value. Not required if ``_index_base``
+        value is given directly.
+    index_reference_date: datetime, :green:`optional (set as 'end')`
+        The reference date for determining the index value. Not required if ``_index_fixings``
+        is given as a scalar value.
+    index_only: bool, :green:`optional (set as False)`
+        A flag which determines non-payment of notional on supported *Periods*.
+
+    """
 
     @property
-    def cashflow(self) -> DualTypes:
-        return -self.notional
-
-    # @property
-    # def dcf(self) -> float:
-    #     return 0.0
-
-    def analytic_delta(
-        self,
-        curve: _BaseCurve_ = NoInput(0),
-        disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> DualTypes:
-        """
-        Return the analytic delta of the *Cashflow*.
-        See
-        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
-        """
-        return 0.0
-
-
-class NonDeliverableCashflow:
-    """
-    Create a cashflow amount associated with a non-deliverable FX forward.
-
-    Parameters
-    ----------
-    notional : float, Dual, Dual2
-        The notional amount of the cashflow expressed in units of the ``currency``,
-    currency : str
-        The non-deliverable reference currency (3-digit code), e.g. "brl".
-    payment : datetime
-        The settlement date of the exchange.
-    settlement_currency : str
-        The currency of the deliverable currency (3-digit code), e.g. "usd" or "eur".
-    fixing_date: datetime
-        The date on which the FX fixings will be recorded.
-    fx_fixing: float, Dual, Dual2, optional
-        The FX fixing to determine the settlement amount. The reference ``currency`` should be
-        the left hand side, e.g. BRLUSD, unless ``reversed``
-        in which case should be right hand side, e.g. USDBRL.
-    reversed: bool, optional
-        If *True* reverses the FX rate, as shown above.
-
-    Notes
-    -----
-    The ``cashflow`` is defined as follows;
-
-    .. math::
-
-       C = - N f
-
-    where :math:`f` is the ``fx_fixing`` (or derivable FX fixing if ``reversed``) or market forecast
-    rate at settlement. This amount is expressed in units of ``settlement_currency``.
-
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined in ``settlement_currency`` terms as;
-
-    .. math::
-
-       P = Cv(m) = - N f v(m)
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = 0
-
-    Example
-    -------
-    .. ipython:: python
-       :suppress:
-
-       from rateslib import NonDeliverableCashflow
-
-    .. ipython:: python
-
-       ndc = NonDeliverableCashflow(
-           notional=10e6,  # <- this is BRL amount
-           currency="brl",
-           payment=dt(2025, 6, 1),
-           settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),  # <- for the BRLUSD FX rate
-       )
-       ndc.cashflows()
-
-       ndc = NonDeliverableCashflow(
-           notional=2e6,  # <- this is USD amount
-           currency="brl",
-           payment=dt(2025, 6, 1),
-           settlement_currency="usd",
-           fixing_date=dt(2025, 5, 29),  # <- this is USDBRL FX rate
-           reversed=True,
-       )
-       ndc.cashflows()
-    """
+    def mtm_params(self) -> _MtmParams:
+        """The :class:`~rateslib.periods.parameters._MtmParams` of the
+        *Period*."""
+        return self._mtm_params
 
     def __init__(
         self,
-        notional: DualTypes,
-        currency: str,
+        *,
         payment: datetime,
-        settlement_currency: str,
-        fixing_date: datetime,
-        fx_fixing: DualTypes_ = NoInput(0),
-        reversed: bool = False,  # noqa: A002
+        notional: DualTypes,
+        pair: str,
+        start: datetime,
+        end: datetime_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        fx_fixings_start: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        fx_fixings_end: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        # index-args:
+        index_base: DualTypes_ = NoInput(0),
+        index_lag: int_ = NoInput(0),
+        index_method: IndexMethod | str_ = NoInput(0),
+        index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_only: bool_ = NoInput(0),
+        index_base_date: datetime_ = NoInput(0),
+        index_reference_date: datetime_ = NoInput(0),
     ):
-        self.notional = notional
-        self.payment = payment
-        self.settlement_currency = settlement_currency.lower()
-        self.currency = currency.lower()
-        self.reversed = reversed
-        if reversed:
-            self.pair = f"{self.settlement_currency}{self.currency}"
-        else:
-            self.pair = f"{self.currency}{self.settlement_currency}"
-        self.fixing_date = fixing_date
-        self.fx_fixing = fx_fixing
+        self._settlement_params = _init_SettlementParams_with_fx_pair(
+            _notional=notional,
+            _payment=payment,
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _ex_dividend=_drb(payment, ex_dividend),
+            _fx_pair=pair,
+        )
+        self._mtm_params = _init_MtmParams(
+            _pair=pair,
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _start=start,
+            _end=_drb(payment, end),
+            _fx_fixings_start=fx_fixings_start,
+            _fx_fixings_end=fx_fixings_end,
+        )
+        self._non_deliverable_params = None
+        self._index_params = _init_or_none_IndexParams(
+            _index_base=index_base,
+            _index_lag=index_lag,
+            _index_method=index_method,
+            _index_fixings=index_fixings,
+            _index_base_date=index_base_date,
+            _index_reference_date=_drb(self.settlement_params.payment, index_reference_date),
+            _index_only=index_only,
+        )
 
-    def analytic_delta(
+    def unindexed_reference_cashflow(  # type: ignore[override]
         self,
-        curve: _BaseCurve_ = NoInput(0),
-        disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
+        *,
+        fx: FXForwards_ = NoInput(0),
+        **kwargs: Any,
     ) -> DualTypes:
-        """
-        Return the analytic delta of the *NonDeliverableCashflow*.
-        See
-        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
-        """
-        return 0.0
+        fx0 = self.mtm_params.fx_fixing_start.try_value_or_forecast(fx).unwrap()
+        fx1 = self.mtm_params.fx_fixing_end.try_value_or_forecast(fx).unwrap()
+        if self.mtm_params.fx_reversed:
+            diff = 1.0 / fx1 - 1.0 / fx0
+        else:
+            diff = fx1 - fx0
+        return -self.settlement_params.notional * diff
 
-    def npv(
+    def try_unindexed_reference_cashflow_analytic_delta(
         self,
-        curve: CurveOption_ = NoInput(0),
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
-    ) -> NPV:
-        """
-        Return the NPV of the *NonDeliverableCashflow*.
-        See
-        :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
-        """
-        disc_curve_: _BaseCurve = _disc_required_maybe_from_curve(curve, disc_curve)
-        disc_cashflow = self.cashflow(fx) * disc_curve_[self.payment]
-        return _maybe_local(disc_cashflow, local, self.settlement_currency, fx, base)
+    ) -> Result[DualTypes]:
+        return Ok(0.0)
 
-    def cashflow(self, fx: FX_) -> DualTypes:
-        """
-        Determine the cashflow amount, expressed in the ``settlement_currency``.
-
-        Parameters
-        ----------
-        fx: FXForwards, optional
-            Required to forecast the FX rate at settlement, if an ``fx_fixing`` is not known.
-
-        Returns
-        -------
-        float, Dual, Dual2
-        """
-
-        if isinstance(self.fx_fixing, NoInput):
-            fx_ = _validate_fx_as_forwards(fx)
-            fx_fixing: DualTypes = fx_.rate(self.pair, self.payment)
-        else:
-            fx_fixing = self.fx_fixing
-
-        if self.reversed:
-            d_value: DualTypes = -self.notional / fx_fixing
-        else:
-            d_value = -self.notional * fx_fixing
-
-        return d_value
-
-    def cashflows(
+    def try_unindexed_reference_cashflow_analytic_rate_fixings(
         self,
-        curve: CurveOption_ = NoInput(0),
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *NonDeliverableCashflow*.
-        See
-        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
-        """
-        disc_curve_: _BaseCurve_ = _disc_maybe_from_curve(curve, disc_curve)
-        imm_fx_to_base, _ = _get_fx_and_base(self.settlement_currency, fx, base)
-
-        if isinstance(disc_curve_, NoInput) or not isinstance(fx, FXForwards):
-            npv = None
-            npv_fx = None
-            df = None
-            collateral = None
-            cashflow = None
-            rate = None
-        else:
-            npv_: DualTypes = self.npv(curve, disc_curve_, fx)  # type: ignore[assignment]
-            npv = _dual_float(npv_)
-
-            npv_fx = npv * _dual_float(imm_fx_to_base)
-            df, collateral = _dual_float(disc_curve_[self.payment]), disc_curve_.meta.collateral
-            cashflow = _dual_float(self.cashflow(fx))
-            if isinstance(self.fx_fixing, NoInput):
-                fx_ = _validate_fx_as_forwards(fx)
-                rate = fx_.rate(self.pair, self.payment)
-            else:
-                rate = self.fx_fixing
-
-        return {
-            defaults.headers["type"]: type(self).__name__,
-            defaults.headers["stub_type"]: f"{self.pair.upper()}",
-            defaults.headers["currency"]: self.settlement_currency.upper(),
-            # defaults.headers["a_acc_start"]: None,
-            # defaults.headers["a_acc_end"]: None,
-            defaults.headers["payment"]: self.payment,
-            # defaults.headers["convention"]: None,
-            # defaults.headers["dcf"]: None,
-            defaults.headers["notional"]: _dual_float(self.notional),
-            defaults.headers["df"]: df,
-            defaults.headers["rate"]: _float_or_none(rate),
-            # defaults.headers["spread"]: None,
-            defaults.headers["cashflow"]: cashflow,
-            defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: _dual_float(imm_fx_to_base),
-            defaults.headers["npv_fx"]: npv_fx,
-            defaults.headers["collateral"]: collateral,
-        }
-
-    def rate(self, fx: FX_) -> DualTypes:
-        if isinstance(self.fx_fixing, NoInput):
-            fx_ = _validate_fx_as_forwards(fx)
-            return fx_.rate(self.pair, self.payment)
-        else:
-            return self.fx_fixing
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DataFrame]:
+        return Ok(DataFrame())

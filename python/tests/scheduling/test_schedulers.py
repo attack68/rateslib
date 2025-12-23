@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 
 import pytest
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference
 
 
@@ -42,6 +43,7 @@ def test_schedule(ueff, uterm, si, exp):
         calendar=Cal([], [5, 6]),
         accrual_adjuster=Adjuster.ModifiedFollowing(),
         payment_adjuster=Adjuster.BusDaysLagSettle(2),
+        payment_adjuster2=Adjuster.Actual(),
         eom=True,
         front_stub=None,
         back_stub=None,
@@ -59,6 +61,7 @@ def test_imm_schedule():
         calendar=Cal([], [5, 6]),
         accrual_adjuster=Adjuster.ModifiedFollowing(),
         payment_adjuster=Adjuster.BusDaysLagSettle(2),
+        payment_adjuster2=Adjuster.Actual(),
         eom=True,
         front_stub=None,
         back_stub=None,
@@ -75,6 +78,7 @@ def test_single_period_schedule():
         calendar=Cal([], [5, 6]),
         accrual_adjuster=Adjuster.ModifiedFollowing(),
         payment_adjuster=Adjuster.BusDaysLagSettle(2),
+        payment_adjuster2=Adjuster.Actual(),
         eom=True,
         front_stub=None,
         back_stub=None,
@@ -87,3 +91,18 @@ def test_single_period_schedule2():
     from rateslib import IRS
 
     IRS(dt(2022, 7, 1), "3M", "A", curves="eureur", notional=1e6)
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        (Adjuster.ModifiedFollowing(), Adjuster.ModifiedFollowing(), True),
+        (Adjuster.Following(), Adjuster.ModifiedFollowing(), False),
+        (Adjuster.BusDaysLagSettleInAdvance(3), Adjuster.BusDaysLagSettleInAdvance(3), True),
+        (Adjuster.BusDaysLagSettleInAdvance(3), Adjuster.Following(), False),
+        (Adjuster.BusDaysLagSettle(2), Adjuster.BusDaysLagSettle(1), False),
+    ],
+)
+def test_adjuster_equality(a, b, expected):
+    result = a == b
+    assert result is expected

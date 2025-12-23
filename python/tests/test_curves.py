@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 from pandas import Series
-from rateslib import default_context
+from rateslib import default_context, defaults, fixings
 from rateslib.curves import (
     CompositeCurve,
     Curve,
@@ -15,11 +15,12 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve
+from rateslib.curves.curves import CreditImpliedCurve, _BaseCurve, _CurveMeta, _try_index_value
 from rateslib.curves.utils import _CurveNodes, _CurveSpline
-from rateslib.default import NoInput
+from rateslib.data.loader import FixingMissingDataError
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.dual.utils import _get_order_of
+from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
 from rateslib.scheduling import Cal, dcf, get_calendar
@@ -65,6 +66,11 @@ def index_curve():
         ad=1,
         index_base=110.0,
     )
+
+
+def test_meta_attribute(curve, line_curve):
+    assert isinstance(curve._meta, _CurveMeta)
+    assert isinstance(line_curve._meta, _CurveMeta)
 
 
 @pytest.mark.parametrize("method", ["flat_forward", "flat_backward"])
@@ -528,6 +534,9 @@ def test_curve_shift_ad_order(ad_order) -> None:
     )
     assert np.all(np.abs(diff) < 1e-7)
 
+    result_curve._set_ad_order((ad_order + 1) % 3)
+    assert result_curve.ad == (ad_order + 1) % 3
+
 
 @pytest.mark.skip(reason="composite argument removed from shift method in v2.1")
 def test_curve_shift_association() -> None:
@@ -913,6 +922,10 @@ def test_curve_translate(crv, tol) -> None:
         projected_base = crv.index_value(dt(2023, 1, 1), crv.meta.index_lag)
         assert abs(result_curve.meta.index_base - projected_base) < 1e-14
 
+    # test date between original initial and translated initial is zero
+    assert result_curve[dt(1900, 1, 1)] == 0.0
+    assert result_curve[dt(2022, 12, 31)] == 0.0
+
 
 @pytest.mark.parametrize(
     "crv",
@@ -963,9 +976,17 @@ def test_curve_translate(crv, tol) -> None:
         ),
     ],
 )
-def test_curve_roll(crv) -> None:
-    rolled_curve = crv.roll("10d")
-    rolled_curve2 = crv.roll("-10d")
+@pytest.mark.parametrize(
+    "dates",
+    [
+        ("10d", "-10d"),
+        (dt(2022, 1, 11), dt(2021, 12, 22)),
+        (10, -10),
+    ],
+)
+def test_curve_roll(crv, dates) -> None:
+    rolled_curve = crv.roll(dates[0])
+    rolled_curve2 = crv.roll(dates[1])
 
     expected = np.array(
         [
@@ -987,6 +1008,9 @@ def test_curve_roll(crv) -> None:
     )
     assert np.all(np.abs(result - expected) < 1e-7)
     assert np.all(np.abs(result2 - expected) < 1e-7)
+
+    # value prior to initial node
+    assert rolled_curve[dt(1900, 1, 1)] == 0.0
 
 
 @pytest.mark.skip(reason="v2.1 uses a RolledCurve and does not return a compatible object for eq")
@@ -1251,7 +1275,7 @@ class TestCurve:
         curve = Curve(
             nodes={dt(2000, 1, 3): 1.0, dt(2000, 1, 17): 0.9},
             calendar="bus",
-            convention="act365",
+            convention="act365f",
             interpolation=interpolation,
         )
         curve2 = Curve(
@@ -1278,7 +1302,11 @@ class TestCurve:
 
     def test_index_value_lag_mismatch(self, index_curve):
         with pytest.raises(ValueError, match="'curve' interpolation can only be used"):
-            index_curve.index_value(dt(2022, 3, 4), index_lag=22, interpolation="curve")
+            index_curve.index_value(
+                index_date=dt(2022, 3, 4),
+                index_lag=22,
+                index_method="curve",
+            )
 
     def test_update_node_raises(self, curve):
         with pytest.raises(KeyError, match="`key` is not in"):
@@ -1339,8 +1367,8 @@ class TestIndexCurve:
 
     def test_index_value_raises(self) -> None:
         curve = Curve({dt(2022, 1, 1): 1.0}, index_base=100.0)
-        with pytest.raises(ValueError, match="`interpolation` for `index_value`"):
-            curve.index_value(dt(2022, 1, 1), 3, interpolation="BAD")
+        with pytest.raises(ValueError, match="`index_method` as string: 'BAD' is not a v"):
+            curve.index_value(dt(2022, 1, 1), 3, index_method="BAD")
 
     @pytest.mark.parametrize("ad", [0, 1, 2])
     def test_roll_preserves_ad(self, ad) -> None:
@@ -1627,7 +1655,7 @@ class TestCompositeCurve:
         assert cc.meta.index_lag == 3
         assert cc.meta.index_base == 101.1
 
-        result = cc.index_value(dt(2022, 1, 31), 3, interpolation="monthly")
+        result = cc.index_value(dt(2022, 1, 31), 3, index_method="monthly")
         expected = 101.1
         assert abs(result - expected) < 1e-5
 
@@ -1639,8 +1667,8 @@ class TestCompositeCurve:
         ic1 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         ic2 = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, index_lag=3, index_base=101.1)
         cc = CompositeCurve([ic1, ic2])
-        with pytest.raises(ValueError, match="`interpolation` for `index_value` must"):
-            cc.index_value(dt(2022, 1, 31), 3, interpolation="bad interp")
+        with pytest.raises(ValueError, match="`index_method` as string: 'bad interp'"):
+            cc.index_value(index_date=dt(2022, 1, 31), index_lag=3, index_method="bad interp")
 
     def test_composite_curve_proxies(self) -> None:
         uu = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.99}, id="uu")
@@ -2491,11 +2519,13 @@ class TestIndexValue:
         with pytest.raises(
             NotImplementedError, match="`index_curve` cannot currently be supplied as dict"
         ):
-            index_value(0, "-", NoInput(0), 0, {"a": 0, "b": 0})
+            index_value(0, "curve", NoInput(0), 0, {"a": 0, "b": 0})
 
     def test_return_index_fixings_directly(self):
-        assert index_value(0, "-", 2.5, NoInput(0), NoInput(0)) == 2.5
-        assert index_value(0, "-", Dual(2, ["a"], []), NoInput(0), NoInput(0)) == Dual(2, ["a"], [])
+        assert index_value(0, "curve", 2.5, NoInput(0), NoInput(0)) == 2.5
+        assert index_value(0, "curve", Dual(2, ["a"], []), NoInput(0), NoInput(0)) == Dual(
+            2, ["a"], []
+        )
 
     @pytest.mark.parametrize("method", ["curve", "daily"])
     def test_forecast_from_curve_no_fixings(self, method):
@@ -2536,12 +2566,12 @@ class TestIndexValue:
         assert abs(result - expected) < 1e-9
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
-    def test_no_input_return(self, method):
-        assert isinstance(index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)), NoInput)
+    def test_no_input_return_result_err(self, method):
+        assert _try_index_value(0, method, NoInput(0), dt(2000, 1, 1), NoInput(0)).is_err
 
     @pytest.mark.parametrize("method", ["curve", "daily", "monthly"])
     def test_fixings_type_raises(self, method):
-        with pytest.raises(TypeError, match="`index_fixings` must be of type: Serie"):
+        with pytest.raises(TypeError, match="`index_fixings` must be of type: Str, Series, DualTy"):
             index_value(0, method, [1, 2], dt(2000, 1, 1), NoInput(0))
 
     def test_no_index_date_raises(self):
@@ -2550,8 +2580,16 @@ class TestIndexValue:
 
     def test_non_zero_index_lag_with_curve_method_raises(self):
         ser = Series([1.0], index=[dt(2000, 1, 1)])
-        with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'curve' `inde"):
-            index_value(4, "curve", ser, dt(2000, 1, 1), NoInput(0))
+        fixings.add("1234FGFS6", ser)
+        with pytest.raises(ValueError, match="`index_lag` must be zero when using a 'Curve' `inde"):
+            index_value(
+                index_lag=4,
+                index_method="curve",
+                index_fixings="1234FGFS6",
+                index_date=dt(2000, 1, 1),
+                index_curve=NoInput(0),
+            )
+        fixings.pop("1234FGFS6")
 
     def test_documentation_uk_dmo_replication(self):
         # this is an example in the index value documentation
@@ -2566,10 +2604,13 @@ class TestIndexValue:
         assert abs(result - expected) < 5e-6
 
     def test_no_input_return_if_future_based(self):
-        # the requested date is beyond the ability of the fixings curve
+        # the requested date is beyond the ability of the fixings series and no curve is provided
         rpi_series = Series([172.2, 173.1], index=[dt(2001, 3, 1), dt(2001, 4, 1)])
-        assert isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 2)), NoInput)
-        assert not isinstance(index_value(0, "curve", rpi_series, dt(2001, 4, 1)), NoInput)
+
+        res1 = _try_index_value(0, "curve", rpi_series, dt(2001, 4, 2))
+        assert res1.is_err
+        res2 = _try_index_value(0, "curve", rpi_series, dt(2001, 4, 1))
+        assert res2.is_ok
 
     def test_mixed_forecast_value_fixings_with_curve(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
@@ -2594,16 +2635,17 @@ class TestIndexValue:
 
     def test_keyerror_for_series_using_curve_method(self):
         rpi = Series([9.0, 8.0], index=[dt(1999, 1, 1), dt(2000, 1, 1)])
-        with pytest.raises(ValueError, match="The Series given for `index_fixings` requires, but "):
+        with pytest.raises(FixingMissingDataError, match="Fixing lookup for date "):
             index_value(0, "curve", rpi, dt(1999, 12, 31), NoInput(0))
 
     def test_daily_method_returns_directly_if_date_som(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
         assert index_value(0, "daily", rpi, dt(2000, 1, 1), NoInput(0)) == 100.0
 
-    def test_daily_method_returns_noinput_if_data_unavailable(self):
+    def test_daily_method_returns_err_if_data_unavailable(self):
         rpi = Series([100.0], index=[dt(2000, 1, 1)])
-        assert isinstance(index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0)), NoInput)
+        res = _try_index_value(0, "daily", rpi, dt(2000, 1, 2), NoInput(0))
+        assert res.is_err
 
     def test_curve_method_from_curve_with_non_zero_index_lag(self):
         curve = Curve(
@@ -2618,17 +2660,17 @@ class TestIndexValue:
     @pytest.mark.parametrize(
         ("curve", "exp"),
         [
-            (NoInput(0), NoInput(0)),
+            (NoInput(0), Err),
             (
                 Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.99}, index_base=100.0, index_lag=0),
-                100.0,
+                Ok,
             ),
         ],
     )
     def test_series_len_zero(self, curve, exp):
         s = Series(data=[], index=[])
-        result = index_value(0, "curve", s, dt(2000, 1, 1), curve)
-        assert result == exp
+        result = _try_index_value(0, "curve", s, dt(2000, 1, 1), curve)
+        assert isinstance(result, exp)
 
     def test_series_and_curve_aligns_with_som_date(self):
         # the relevant value can be directly matched on the Series

@@ -7,16 +7,18 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.default import _make_py_json
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
 from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster
 from rateslib.scheduling.calendars import _is_day_type_tenor, get_calendar
-from rateslib.scheduling.frequency import add_tenor
-from rateslib.scheduling.rollday import _get_rollday, _is_eom_cal
+from rateslib.scheduling.frequency import _get_frequency, add_tenor
+from rateslib.scheduling.rollday import _is_eom_cal
 
 if TYPE_CHECKING:
     from rateslib.typing import (
+        Adjuster_,
         Any,
         CalInput,
         CalTypes,
@@ -25,46 +27,6 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
-
-
-def _get_frequency(
-    frequency: str | Frequency, roll: str | RollDay | int_, calendar: CalInput
-) -> Frequency:
-    if isinstance(frequency, Frequency):
-        if getattr(frequency, "roll", "no default") is None:
-            return Frequency.Months(frequency.number, _get_rollday(roll))  # type: ignore[attr-defined]
-        return frequency
-
-    frequency_: str = frequency.upper()[-1]
-    if frequency_ == "D":
-        n_: int = int(frequency[:-1])
-        return Frequency.CalDays(n_)
-    elif frequency_ == "B":
-        n_ = int(frequency[:-1])
-        return Frequency.BusDays(n_, get_calendar(calendar))
-    elif frequency_ == "W":
-        n_ = int(frequency[:-1])
-        return Frequency.CalDays(n_ * 7)
-    elif frequency_ == "M":
-        # handles the dual case of 'xM' for x-months or 'M' or monthly, i.e. 1-month
-        if len(frequency) == 1:
-            return Frequency.Months(1, _get_rollday(roll))
-        else:
-            n_ = int(frequency[:-1])
-            return Frequency.Months(n_, _get_rollday(roll))
-    elif frequency_ == "Q":
-        return Frequency.Months(3, _get_rollday(roll))
-    elif frequency_ == "S":
-        return Frequency.Months(6, _get_rollday(roll))
-    elif frequency_ == "A":
-        return Frequency.Months(12, _get_rollday(roll))
-    elif frequency_ == "Y":
-        n_ = int(frequency[:-1])
-        return Frequency.Months(12 * n_, _get_rollday(roll))
-    elif frequency_ == "Z":
-        return Frequency.Zero()
-    else:
-        raise ValueError(f"Frequency can not be determined from `frequency` input: '{frequency}'.")
 
 
 def _get_stub_inference(
@@ -133,11 +95,19 @@ def _should_mod_days(tenor: datetime | str) -> bool:
         return True
 
 
-def _get_adjuster_from_lag(lag: Adjuster | int_) -> Adjuster:
+def _get_adjuster_from_lag_drb(lag: Adjuster | int_, default: str) -> Adjuster:
     if isinstance(lag, Adjuster):
         return lag
-    lag_: int = _drb(defaults.payment_lag, lag)
-    return _get_adjuster(f"{lag_}B")
+    else:
+        lag_: int = _drb(getattr(defaults, default), lag)
+        return _get_adjuster(f"{lag_}B")
+
+
+def _get_adjuster_or_none(lag: Adjuster | None | int_, default: str) -> Adjuster | None:
+    if lag is None:
+        return None
+    else:
+        return _get_adjuster_from_lag_drb(lag, default)
 
 
 class Schedule:
@@ -187,6 +157,14 @@ class Schedule:
         The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
         a payment date. If given as integer will define the number of business days to
         lag payments by.
+    payment_lag_exchange: Adjuster, int, optional
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    extra_lag: Adjuster, int, optional
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
     eval_date: datetime, optional
         Only required if ``effective`` is given as a string tenor, to provide a point of reference.
     eval_mode: str in {"swaps_align", "swaptions_align"}
@@ -337,6 +315,8 @@ class Schedule:
         modifier: Adjuster | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
         payment_lag: Adjuster | int_ = NoInput(0),
+        payment_lag_exchange: Adjuster | int_ = NoInput(0),
+        extra_lag: Adjuster | int_ = NoInput(0),
         eval_date: datetime_ = NoInput(0),
         eval_mode: str_ = NoInput(0),
     ) -> None:
@@ -346,7 +326,9 @@ class Schedule:
         calendar_: CalTypes = get_calendar(calendar)
         frequency_: Frequency = _get_frequency(frequency, roll, calendar_)
         accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
-        payment_adjuster = _get_adjuster_from_lag(payment_lag)
+        payment_adjuster = _get_adjuster_from_lag_drb(payment_lag, "payment_lag")
+        payment_adjuster2 = _get_adjuster_from_lag_drb(payment_lag_exchange, "payment_lag_exchange")
+        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag), "payment_lag")
 
         effective_: datetime = _validate_effective(
             effective,
@@ -372,6 +354,8 @@ class Schedule:
             calendar=calendar_,
             accrual_adjuster=accrual_adjuster,
             payment_adjuster=payment_adjuster,
+            payment_adjuster2=payment_adjuster2,
+            payment_adjuster3=payment_adjuster3,
             front_stub=_drb(None, front_stub),
             back_stub=_drb(None, back_stub),
             eom=eom_,
@@ -400,6 +384,8 @@ class Schedule:
         Adjuster,
         CalInput,
         Adjuster,
+        Adjuster_,
+        Adjuster_,
         NoInput,
         NoInput,
     ]:
@@ -415,6 +401,8 @@ class Schedule:
             self.accrual_adjuster,
             self.calendar,
             self.payment_adjuster,
+            NoInput(0) if self.payment_adjuster2 is None else self.payment_adjuster2,
+            NoInput(0) if self.payment_adjuster3 is None else self.payment_adjuster3,
             NoInput(0),
             NoInput(0),
         )
@@ -447,6 +435,24 @@ class Schedule:
         These are determined by applying the ``payment_adjuster`` to ``aschedule``.
         """
         return self.obj.pschedule
+
+    @cached_property
+    def pschedule2(self) -> list[datetime]:
+        """
+        A list of accrual adjusted dates.
+
+        These are determined by applying the ``payment_adjuster2`` to ``aschedule``.
+        """
+        return self.obj.pschedule2
+
+    @cached_property
+    def pschedule3(self) -> list[datetime]:
+        """
+        A list of accrual adjusted dates.
+
+        These are determined by applying the ``payment_adjuster3`` to ``aschedule``.
+        """
+        return self.obj.pschedule3
 
     @cached_property
     def frequency(self) -> str:
@@ -488,6 +494,16 @@ class Schedule:
     def payment_adjuster(self) -> Adjuster:
         """The :class:`~rateslib.scheduling.Adjuster` object used for payment date adjustment."""
         return self.obj.payment_adjuster
+
+    @cached_property
+    def payment_adjuster2(self) -> Adjuster:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for additional date adjustment."""
+        return self.obj.payment_adjuster2
+
+    @cached_property
+    def payment_adjuster3(self) -> Adjuster | None:
+        """The :class:`~rateslib.scheduling.Adjuster` object used for additional date adjustment."""
+        return self.obj.payment_adjuster3
 
     @cached_property
     def termination(self) -> datetime:

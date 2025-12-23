@@ -7,7 +7,7 @@ from pandas.testing import assert_index_equal
 from pandas.tseries.holiday import Holiday
 from rateslib import defaults
 from rateslib.default import NoInput
-from rateslib.rs import Frequency, RollDay
+from rateslib.rs import Adjuster, Frequency, RollDay
 from rateslib.scheduling import Cal
 from rateslib.scheduling.schedule import Schedule
 
@@ -843,3 +843,119 @@ def test_all_frequency_as_str(frequency):
         calendar="bus",
     )
     s.__str__()
+
+
+def test_inference_busdays():
+    # the effective is given adjusted whilst termination is unadjusted
+    s = Schedule(
+        effective=dt(2000, 1, 6),
+        termination=dt(2000, 3, 1),
+        frequency=Frequency.Months(1, None),
+        modifier=Adjuster.BusDaysLagSettle(5),
+    )
+    assert s.uschedule == [dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)]
+    assert s.aschedule == [dt(2000, 1, 6), dt(2000, 2, 6), dt(2000, 3, 6)]
+
+
+def test_payment_adjuster_2_and_3():
+    s = Schedule(
+        dt(2000, 1, 1),
+        dt(2000, 3, 1),
+        "M",
+        calendar="all",
+        modifier="none",
+        payment_lag=1,
+        payment_lag_exchange=2,
+        extra_lag=-2,
+    )
+    assert s.pschedule == [dt(2000, 1, 2), dt(2000, 2, 2), dt(2000, 3, 2)]
+    assert s.pschedule2 == [dt(2000, 1, 3), dt(2000, 2, 3), dt(2000, 3, 3)]
+    assert s.pschedule3 == [dt(1999, 12, 30), dt(2000, 1, 30), dt(2000, 2, 28)]
+
+
+@pytest.mark.parametrize(
+    ("eff", "front", "back", "term"),
+    [
+        # All unadjusted
+        (dt(2025, 1, 15), NoInput(0), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 15), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), NoInput(0), dt(2025, 3, 15), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 15), dt(2025, 3, 15), dt(2025, 4, 15)),
+        # Stub given as adjusted
+        (dt(2025, 1, 15), dt(2025, 2, 17), NoInput(0), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), NoInput(0), dt(2025, 3, 17), dt(2025, 4, 15)),
+        (dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 17), dt(2025, 4, 15)),
+        # Stub given as mixed
+        (dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 15), dt(2025, 4, 15)),
+    ],
+)
+def test_schedule_when_stub_input_is_regular(eff, front, back, term):
+    # GH-dev 142
+    s_base = Schedule(
+        effective=dt(2025, 1, 15),
+        termination=dt(2025, 3, 17),
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s_base.uschedule == [dt(2025, 1, 15), dt(2025, 2, 15), dt(2025, 3, 15)]
+    assert s_base.aschedule == [dt(2025, 1, 15), dt(2025, 2, 17), dt(2025, 3, 17)]
+
+    s = Schedule(
+        effective=eff,
+        termination=term,
+        front_stub=front,
+        back_stub=back,
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s._stubs == [False, False, False]
+
+
+@pytest.mark.skip(reason="multiple stubs, where one may be a genuine stub is not implemented.")
+@pytest.mark.parametrize("fs", [dt(2025, 2, 15), dt(2025, 2, 17)])
+def test_schedule_when_one_front_stub_of_two_is_regular(fs):
+    # GH-dev 142
+    # this tests that one stub might be genuine whilst the other is a regular period and
+    # the schedule still generates correctly.
+
+    # this requires additional branching in the Rust scheduling code in the pre-check which has
+    # not been developed. The most common use case for this pre-check is when only a front stub,
+    # i.e. the first coupon date of a bond is provided.
+
+    s = Schedule(
+        effective=dt(2025, 1, 15),
+        termination=dt(2025, 4, 25),
+        front_stub=fs,
+        back_stub=dt(2025, 4, 15),
+        calendar="bus",
+        frequency="M",
+        modifier="mf",
+    )
+    assert s._stubs == [False, False, False, True]
+
+
+def test_schedule_in_advance_payment():
+    # used by FRA constructor
+    from rateslib.scheduling import Adjuster
+
+    s = Schedule(
+        effective=dt(2024, 3, 20),
+        termination=dt(2024, 12, 18),
+        calendar="bus",
+        frequency="Q",
+        modifier="mf",
+        payment_lag=Adjuster.BusDaysLagSettleInAdvance(1),
+    )
+    assert s.aschedule == [dt(2024, 3, 20), dt(2024, 6, 19), dt(2024, 9, 18), dt(2024, 12, 18)]
+    assert s.pschedule == [dt(2024, 3, 21), dt(2024, 3, 21), dt(2024, 6, 20), dt(2024, 9, 19)]
+    assert s.pschedule3 == s.pschedule
+
+
+@pytest.mark.parametrize("tenor", ["3b", "3d", "7d", "14d", "2w", "1m", "6m", "12m", "18m", "2y"])
+def test_single_period_from_str_matching_frequency(tenor):
+    # test was introduced for a Bill that derives a termination from a string tenor.
+    # When the frequency matches the tenor it should generate only a single period.
+    s = Schedule(effective=dt(2025, 1, 15), termination=tenor, frequency=tenor)
+    assert s.n_periods == 1

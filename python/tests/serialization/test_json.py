@@ -1,7 +1,16 @@
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
 from rateslib.rs import Schedule as ScheduleRs
-from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
+from rateslib.scheduling import (
+    Adjuster,
+    Convention,
+    Frequency,
+    Imm,
+    NamedCal,
+    RollDay,
+    Schedule,
+    StubInference,
+)
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
@@ -22,6 +31,8 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         Frequency.Months(3, RollDay.IMM()),
         Adjuster.ModifiedFollowing(),
         Adjuster.BusDaysLagSettle(2),
+        Convention.ActActICMA,
+        Convention.ActActISDA,
         ScheduleRs(
             effective=dt(2000, 1, 1),
             termination=dt(2001, 1, 1),
@@ -29,6 +40,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             calendar=NamedCal("tgt"),
             accrual_adjuster=Adjuster.Actual(),
             payment_adjuster=Adjuster.BusDaysLagSettle(2),
+            payment_adjuster2=Adjuster.Actual(),
             front_stub=None,
             back_stub=None,
             eom=False,

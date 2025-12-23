@@ -4,16 +4,21 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.instruments.bonds.conventions.accrued import ACC_FRAC_FUNCS
-from rateslib.instruments.bonds.conventions.discounting import C_FUNCS, V1_FUNCS, V2_FUNCS, V3_FUNCS
+from rateslib.instruments.bonds.conventions.discounting import (
+    C_FUNCS,
+    V1_FUNCS,
+    V2_FUNCS,
+    V3_FUNCS,
+)
 
 if TYPE_CHECKING:
-    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.instruments.bonds.conventions.discounting import (
+    from rateslib.instruments.bonds.conventions.accrued import AccrualFunction  # pragma: no cover
+    from rateslib.instruments.bonds.conventions.discounting import (  # pragma: no cover
         CashflowFunction,
         YtmDiscountFunction,
         YtmStubDiscountFunction,
     )
-    from rateslib.typing import Security
+    from rateslib.typing import Any  # pragma: no cover
 
 
 class BondCalcMode:
@@ -79,7 +84,7 @@ class BondCalcMode:
          &AI_y = \\xi_y c_i \\qquad \\text{if not ex-dividend} \\\\
          &AI_y = (\\xi_y - 1) c_i \\qquad \\text{if ex-dividend} \\\\
 
-    Where in both these formula :math:`c_i` currently always uses the real ``cashflow`` method
+    Where in both these formulae :math:`c_i` currently always uses the real ``cashflow`` method
     (see below).
 
     These two methods are almost always the same, but for an example where they differ consider
@@ -108,7 +113,7 @@ class BondCalcMode:
       
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
-    - ``30u360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
+    - ``30e360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
       determines the DCF, under the required convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
@@ -157,7 +162,7 @@ class BondCalcMode:
     .. math::
 
        P &= v_1 \\left ( c_1 + 100 \\right ), \\quad n = 1 \\\\
-       P &= v_1 \\left ( c_1 + v3(c_n + 100) \\right ), \\quad n = 2 \\\\
+       P &= v_1 \\left ( c_1 + v_3 (c_n + 100) \\right ), \\quad n = 2 \\\\
        P &= v_1 \\left ( c_1 + \\sum_{i=2}^{n-1} c_i v_2^{i-2} v_{2,i} + c_nv_2^{n-2}v_3 + 100 v_2^{n-2}v_3 \\right ), \\quad n > 2  \\\\
        Q &= P - AI_y
 
@@ -226,12 +231,22 @@ class BondCalcMode:
       .. math::
       
          v_1 = \\frac{1}{1 + g(\\xi_y) y / f}  \\quad \\text{where, } g(\\xi_y) \\text{ defined as above}
-
+      
     Combinations, or extensions, of the two above functions are also required for some
     bond conventions:
 
+    - ``simple_act365f``: uses simple interest with a DCF calculated under Act365F convention,
+      irrespective of the bond’s underlying convention.
+      
+      .. math::
+      
+         v_1 = \\frac{1}{1 +  \\bar{d_u} y}
+         
     - ``compounding_final_simple``: uses ``compounding``, unless settlement occurs in the final
       period of the bond (and in which case n=1) and then the ``simple`` method is applied.
+    - ``compounding_final_simple_act365f``: uses ``compounding``, unless settlement occurs in the
+      final period of the bond (and in which case n=1) and then the ``simple_act365f`` method is
+      applied.
     - ``compounding_stub_act365f``: uses ``compounding``, unless settlement occurs in a stub
       period in which case Act365F convention derives the exponent.
       
@@ -475,9 +490,21 @@ class BillCalcMode:
 
 UK_GB = BondCalcMode(
     # UK government bond conventions
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
+)
+
+NZ_GB = BondCalcMode(
+    # New Zealand government bond conventions
     settle_accrual="linear_days",
     ytm_accrual="linear_days",
-    v1="compounding",
+    v1="compounding_final_simple_act365f",
     v2="regular",
     v3="compounding",
     c1="cashflow",
@@ -652,6 +679,7 @@ SE_GBB = BillCalcMode(
 
 BOND_MODE_MAP = {
     "uk_gb": UK_GB,
+    "nz_gb": NZ_GB,
     "us_gb": US_GB,
     "de_gb": DE_GB,
     "fr_gb": FR_GB,
@@ -689,8 +717,14 @@ def _get_bond_calc_mode(calc_mode: str | BondCalcMode) -> BondCalcMode:
     return calc_mode
 
 
+def _get_bill_calc_mode(calc_mode: str | BillCalcMode) -> BillCalcMode:
+    if isinstance(calc_mode, str):
+        return BILL_MODE_MAP[calc_mode.lower()]
+    return calc_mode
+
+
 def _get_calc_mode_for_class(
-    obj: Security, calc_mode: str | BondCalcMode | BillCalcMode
+    obj: Any, calc_mode: str | BondCalcMode | BillCalcMode
 ) -> BondCalcMode | BillCalcMode:
     if isinstance(calc_mode, str):
         map_: dict[str, dict[str, BondCalcMode] | dict[str, BillCalcMode]] = {

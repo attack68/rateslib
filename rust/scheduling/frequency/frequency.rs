@@ -5,7 +5,7 @@ use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-/// A frequency for generating unadjusted scheduling periods.
+/// Specifier for generating unadjusted scheduling periods.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frequency {
@@ -291,32 +291,7 @@ pub trait Scheduling {
     ///
     /// This will average the number coupons paid in 50 year period.
     fn periods_per_annum(&self) -> f64 {
-        let mut date = self.next(&ndt(1999, 12, 31));
-        if date > ndt(2049, 12, 31) {
-            // then the next method has generated an unusually long period. return nominal value
-            return 0.01_f64;
-        }
-        let estimated_end = date + Months::new(600);
-        let mut counter = 0_f64;
-        let count: f64;
-        loop {
-            counter += 1.0;
-            let prev = date;
-            date = self.next(&prev);
-            if date < prev {
-                // Scheduling object is reversed so make a correction.
-                date = self.previous(&prev)
-            }
-            if date >= estimated_end {
-                if (estimated_end - prev) < (date - estimated_end) {
-                    count = f64::max(1.0, counter - 1.0);
-                } else {
-                    count = counter;
-                }
-                break;
-            }
-        }
-        count / 50.0
+        periods_per_annum(self)
     }
 }
 
@@ -472,6 +447,51 @@ impl Scheduling for Frequency {
             _ => self.try_uregular_from_unext(ueffective, utermination),
         }
     }
+
+    fn periods_per_annum(&self) -> f64 {
+        match self {
+            Frequency::Zero {} => 0.01_f64,
+            Frequency::Months { number: 1, roll: _ } => 12.0_f64,
+            Frequency::Months { number: 2, roll: _ } => 6.0_f64,
+            Frequency::Months { number: 3, roll: _ } => 4.0_f64,
+            Frequency::Months { number: 4, roll: _ } => 3.0_f64,
+            Frequency::Months { number: 6, roll: _ } => 2.0_f64,
+            Frequency::Months {
+                number: 12,
+                roll: _,
+            } => 1.0_f64,
+            _ => periods_per_annum(self),
+        }
+    }
+}
+
+fn periods_per_annum<T: Scheduling + ?Sized>(obj: &T) -> f64 {
+    let mut date = obj.next(&ndt(1999, 12, 31));
+    if date > ndt(2049, 12, 31) {
+        // then the next method has generated an unusually long period. return nominal value
+        return 0.01_f64;
+    }
+    let estimated_end = date + Months::new(600);
+    let mut counter = 0_f64;
+    let count: f64;
+    loop {
+        counter += 1.0;
+        let prev = date;
+        date = obj.next(&prev);
+        if date < prev {
+            // Scheduling object is reversed so make a correction.
+            date = obj.previous(&prev)
+        }
+        if date >= estimated_end {
+            if (estimated_end - prev) < (date - estimated_end) {
+                count = f64::max(1.0, counter - 1.0);
+            } else {
+                count = counter;
+            }
+            break;
+        }
+    }
+    count / 50.0
 }
 
 // UNIT TESTS

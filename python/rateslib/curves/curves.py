@@ -15,7 +15,8 @@ import numpy as np
 from pandas import Series
 from pytz import UTC
 
-from rateslib import defaults
+import rateslib.errors as err
+from rateslib import defaults, fixings
 from rateslib.curves.interpolation import InterpolationFunction
 from rateslib.curves.utils import (
     _CreditImpliedType,
@@ -26,9 +27,12 @@ from rateslib.curves.utils import (
     _ProxyCurveInterpolator,
     average_rate,
 )
-from rateslib.default import NoInput, PlotOutput, _drb, plot
+from rateslib.data.loader import FixingMissingDataError, FixingRangeError
+from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
 from rateslib.dual.utils import _dual_float, _get_order_of
+from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.parameters import IndexMethod, _get_index_method
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -37,7 +41,8 @@ from rateslib.mutability import (
     _WithCache,
     _WithState,
 )
-from rateslib.scheduling import Adjuster, add_tenor, dcf, get_calendar
+from rateslib.scheduling import Adjuster, Convention, add_tenor, dcf, get_calendar
+from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -46,6 +51,7 @@ if TYPE_CHECKING:
         CurveOption_,
         FXForwards,
         Number,
+        Result,
         datetime_,
         float_,
         int_,
@@ -112,7 +118,7 @@ class _WithOperations:
         return TranslatedCurve(curve=_, start=start, id=id)
 
     @_validate_states
-    def roll(self, tenor: datetime | str, id: str_ = NoInput(0)) -> RolledCurve:  # noqa: A002
+    def roll(self, tenor: datetime | str | int, id: str_ = NoInput(0)) -> RolledCurve:  # noqa: A002
         """
         Create a :class:`~rateslib.curves.RolledCurve`: translating the rate space of *Self* in
         time.
@@ -133,7 +139,7 @@ class _WithOperations:
         """  # noqa: E501
         _: _BaseCurve = self  # type: ignore[assignment]
         if isinstance(tenor, str):
-            tenor_ = add_tenor(_._nodes.initial, tenor, "NONE", NoInput(0))
+            tenor_: datetime | int = add_tenor(_._nodes.initial, tenor, "NONE", NoInput(0))
         else:
             tenor_ = tenor
 
@@ -149,16 +155,42 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
     """
     An ABC defining the base methods of a *Curve*.
 
-    Provided the `__getitem__` method is defined for a discount factor (DF) based,
-    or values based curve, all methods of this class are provided directly. To automatically
-    provide some of the necessary abstract operations the class
-    :class:`~rateslib.curves._WithOperations` can, and is likely to always be, inherited.
+    Provided that the abstract base properties and methods of this class are implemented any
+    custom curve can be used within *rateslib*. Often the default implementations for some of
+    these, via ``super()`` are sufficient. The required base methods are:
 
-    In certain cases the `_base_type` will prevent some methods from calculating and
-    will raise `TypeError`.
+    - ``_meta``: returns a :class:`~rateslib.curves._CurveMeta` class.
+    - ``_interpolator``: returns a :class:`~rateslib.curves._CurveInterpolator` class.
+    - ``_nodes``: returns a :class:`~rateslib.curves._CurveNodes` class.
+    - ``_id``: returns a str representing the *Curve* id.
+    - ``_ad``: returns an integer in {0, 1, 2} indicating the automatic differentiation state.
+    - ``_base_type``: returns a :class:`~rateslib.curves._CurveType`.
+    - ``__getitem__(date)``: returns a float, :class:`~rateslib.dual.Dual`,
+      :class:`~rateslib.dual.Dual2`, or :class:`~rateslib.dual.Variable` given an input date.
+    - ``_set_ad_order(ad)``: mutates the node values of the *Curve* to adopt new automatic
+      differentiation states for facilitating other features, such as
+      :class:`~rateslib.solver.Solver` calibration and risk sensitivity calculation.
 
-    To use this class to build custom user type classes see
-    `Cookbook: Building Custom Curves (Nelson-Siegel) <../z_basecurve.html>`_
+    To automatically provide some of the operations the class
+    :class:`~rateslib.curves._WithOperations` can, and is likely to always be, inherited, without
+    the need for any additional implementation. In certain cases the `_base_type` will prevent
+    some methods from calculating and will raise `TypeError`.
+
+    To allow custom user curves to be calibrated by the :class:`~rateslib.solver.Solver` framework
+    the :class:`~rateslib.curves._WithMutability` class can be inherited. This requires two
+    additional implementation to allow a :class:`~rateslib.solver.Solver` to interact directly with
+    it:
+
+    - ``_get_node_vector()``: returns a NumPy array of the ordered node values consumed.
+    - ``_get_node_vars()``: returns a tuple of ordered string variable names associated with
+      each node of the *Curve*.
+    - ``_set_node_vector(array)``: accepts a NumPy array of the ordered node values and sets
+      these directly for the *Curve*.
+
+    .. rubric:: Examples
+
+    A demonstration of using this class to build a user custom *Curve* is presented at
+    `Cookbook: Building Custom Curves with _BaseCurve (e.g. Nelson-Siegel) <../z_basecurve.html>`_
     """
 
     # Required properties
@@ -169,7 +201,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         return _CurveMeta(
             _calendar=get_calendar(NoInput(0)),
             _collateral=None,
-            _convention=defaults.convention.lower(),
+            _convention=_get_convention(defaults.convention),
             _credit_discretization=defaults.cds_protection_discretization,
             _credit_recovery_rate=defaults.cds_recovery_rate,
             _index_base=NoInput(0),
@@ -480,8 +512,79 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
 
     # Index Calculations
 
+    def _try_index_value(
+        self, index_date: datetime, index_lag: int, index_method: IndexMethod = IndexMethod.Curve
+    ) -> Result[DualTypes]:
+        if self._base_type == _CurveType.values:
+            return Err(TypeError("A 'values' type Curve cannot be used to forecast index values."))
+
+        if isinstance(self.meta.index_base, NoInput):
+            return Err(
+                ValueError(
+                    "Curve must be initialised with an `index_base` value to derive `index_value`."
+                )
+            )
+
+        lag_months = index_lag - self.meta.index_lag
+        if index_method == IndexMethod.Curve:
+            if lag_months != 0:
+                return Err(
+                    ValueError(
+                        "'curve' interpolation can only be used with `index_value` when the Curve "
+                        "`index_lag` matches the input `index_lag`."
+                    )
+                )
+            # use traditional discount factor from Index base to determine index value.
+            if index_date < self.nodes.initial:
+                warnings.warn(
+                    "The date queried on the Curve for an `index_value` is prior to the "
+                    "initial node on the Curve.\nThis is returned as zero and likely "
+                    f"causes downstream calculation error.\ndate queried: {index_date}"
+                    "Either providing `index_fixings` to the object or extend the Curve backwards.",
+                    UserWarning,
+                )
+                return Ok(0.0)
+                # return zero for index dates in the past
+                # the proper way for instruments to deal with this is to supply i_fixings
+            elif index_date == self.nodes.initial:
+                return Ok(self.meta.index_base)
+            else:
+                return Ok(self.meta.index_base * 1.0 / self.__getitem__(index_date))
+        elif index_method == IndexMethod.Monthly:
+            index_date_ = add_tenor(index_date, f"{lag_months * -1}M", "none", NoInput(0), 1)
+            return self._try_index_value(
+                index_date=index_date_,
+                index_lag=self.meta.index_lag,
+                index_method=IndexMethod.Curve,
+            )
+        elif index_method == IndexMethod.Daily:
+            n = monthrange(index_date.year, index_date.month)[1]
+            date_som = datetime(index_date.year, index_date.month, 1)
+            date_sonm = add_tenor(index_date, "1M", "none", NoInput(0), 1)
+            m1 = self._try_index_value(
+                index_date=date_som, index_lag=index_lag, index_method=IndexMethod.Monthly
+            )
+            m2 = self._try_index_value(
+                index_date=date_sonm, index_lag=index_lag, index_method=IndexMethod.Monthly
+            )
+            if m1.is_err:
+                return m1
+            if m2.is_err:
+                return m2
+            m1_, m2_ = m1.unwrap(), m2.unwrap()
+            return Ok(m1_ + (index_date.day - 1) / n * (m2_ - m1_))
+        else:
+            return Err(  # pragma: no cover
+                ValueError(
+                    "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
+                )
+            )
+
     def index_value(
-        self, date: datetime, index_lag: int, interpolation: str = "curve"
+        self,
+        index_date: datetime,
+        index_lag: int,
+        index_method: IndexMethod | str = IndexMethod.Curve,
     ) -> DualTypes:
         """
         Calculate the accrued value of the index from the ``index_base``.
@@ -490,12 +593,12 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
 
         Parameters
         ----------
-        date : datetime
-            The date for which the index value will be returned.
+        index_date : datetime
+            The reference date for which the index value will be returned.
         index_lag : int
             The number of months by which to lag the index when determining the value.
-        interpolation : str in {"curve", "monthly", "daily"}
-            The method for returning the index value. Monthly returns the index value
+        index_method : IndexMethod or str in {"curve", "monthly", "daily"}
+            The interpolation method for returning the index value. Monthly returns the index value
             for the start of the month and daily returns a value based on the
             interpolation between nodes (which is recommended *"linear_index*) for
             :class:`InflationCurve`.
@@ -557,51 +660,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
            index_curve.rate(dt(2021, 9, 6), "1d")
            index_curve.index_value(dt(2021, 9, 7), 0)
         """  # noqa: E501
-        if self._base_type == _CurveType.values:
-            raise TypeError("A 'values' type Curve cannot be used to forecast index values.")
-
-        if isinstance(self.meta.index_base, NoInput):
-            raise ValueError(
-                "Curve must be initialised with an `index_base` value to derive `index_value`."
-            )
-
-        lag_months = index_lag - self.meta.index_lag
-        if interpolation.lower() == "curve":
-            if lag_months != 0:
-                raise ValueError(
-                    "'curve' interpolation can only be used with `index_value` when the Curve "
-                    "`index_lag` matches the input `index_lag`."
-                )
-            # use traditional discount factor from Index base to determine index value.
-            if date < self.nodes.initial:
-                warnings.warn(
-                    "The date queried on the Curve for an `ìndex_value` is prior to the "
-                    "initial node on the Curve.\nThis is returned as zero and likely "
-                    f"causes downstream calculation error.\ndate queried: {date}"
-                    "Either providing `index_fixings` to the object or extend the Curve backwards.",
-                    UserWarning,
-                )
-                return 0.0
-                # return zero for index dates in the past
-                # the proper way for instruments to deal with this is to supply i_fixings
-            elif date == self.nodes.initial:
-                return self.meta.index_base
-            else:
-                return self.meta.index_base * 1.0 / self.__getitem__(date)
-        elif interpolation.lower() == "monthly":
-            date_ = add_tenor(date, f"-{lag_months}M", "none", NoInput(0), 1)
-            return self.index_value(date_, self.meta.index_lag, "curve")
-        elif interpolation.lower() == "daily":
-            n = monthrange(date.year, date.month)[1]
-            date_som = datetime(date.year, date.month, 1)
-            date_sonm = add_tenor(date, "1M", "none", NoInput(0), 1)
-            m1 = self.index_value(date_som, index_lag, "monthly")
-            m2 = self.index_value(date_sonm, index_lag, "monthly")
-            return m1 + (date.day - 1) / n * (m2 - m1)
-        else:
-            raise ValueError(
-                "`interpolation` for `index_value` must be in {'curve', 'daily', 'monthly'}."
-            )
+        return self._try_index_value(
+            index_date=index_date,
+            index_lag=index_lag,
+            index_method=_get_index_method(index_method),
+        ).unwrap()
 
     # Rate Plotting
 
@@ -1358,7 +1421,7 @@ class _WithMutability:
         t: list[datetime] | NoInput = NoInput(0),
         endpoints: str | tuple[str, str] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
-        convention: str | NoInput = NoInput(0),
+        convention: Convention | str | NoInput = NoInput(0),
         modifier: str | NoInput = NoInput(0),
         calendar: CalInput = NoInput(0),
         ad: int = 0,
@@ -1374,7 +1437,7 @@ class _WithMutability:
         # Parameters for the rate/values derivation
         self._meta = _CurveMeta(
             _calendar=get_calendar(calendar),
-            _convention=_drb(defaults.convention, convention).lower(),
+            _convention=_get_convention(_drb(defaults.convention, convention)),
             _modifier=_drb(defaults.modifier, modifier).upper(),
             _index_base=index_base,
             _index_lag=_drb(defaults.index_lag_curve, index_lag),
@@ -2783,11 +2846,11 @@ class CreditImpliedCurve(_BaseCurve):
 
 def index_value(
     index_lag: int,
-    index_method: str,
-    index_fixings: Series[DualTypes] | DualTypes | NoInput = NoInput(0),  # type: ignore[type-var]
+    index_method: str | IndexMethod,
+    index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
     index_date: datetime_ = NoInput(0),
     index_curve: CurveOption_ = NoInput(0),
-) -> DualTypes | NoInput:
+) -> DualTypes:
     """
     Determine an index value from a reference date using combinations of known fixings and
     forecast from a *Curve*.
@@ -2799,7 +2862,7 @@ def index_value(
         value.
     index_method: str in {"curve", "daily", "monthly"}
         The method used to derive and interpolate index values.
-    index_fixings: float, Dual, Dual2, Variable, Series[DualTypes], optional
+    index_fixings: float, Dual, Dual2, Variable, Series[DualTypes], str, optional
         A specific index value which is returned directly, or if given as a Series applies the
         appropriate ``index_method`` to determine a value. May also forecast from *Curve* if
         necessary. See notes.
@@ -2812,7 +2875,7 @@ def index_value(
 
     Returns
     -------
-    DualTypes or NoInput
+    DualTypes
 
     Notes
     -----
@@ -2849,166 +2912,280 @@ def index_value(
            index_fixings=rpi_series,
            index_date=dt(2001, 7, 20)
        )
-
     """
+    index_method_ = _get_index_method(index_method)
+    iv_result = _try_index_value(
+        index_lag=index_lag,
+        index_method=index_method_,
+        index_fixings=index_fixings,
+        index_date=index_date,
+        index_curve=index_curve,
+    )
+    return iv_result.unwrap()
+
+
+def _try_index_value(
+    index_lag: int,
+    index_method: IndexMethod,
+    index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+    index_date: datetime_ = NoInput(0),
+    index_curve: CurveOption_ = NoInput(0),
+) -> Result[DualTypes]:
     if isinstance(index_fixings, int | float | Dual | Dual2 | Variable):
         # i_fixings is a given value, probably aligned with an ``index_base``: return directly
-        return index_fixings
+        return Ok(index_fixings)
 
     if isinstance(index_curve, dict):
-        raise NotImplementedError(
-            "`index_curve` cannot currently be supplied as dict. Use a Curve type or NoInput(0)."
+        return Err(
+            NotImplementedError(
+                "`index_curve` cannot currently be supplied as dict. Use a Curve type or "
+                "NoInput(0)."
+            )
         )
 
     if isinstance(index_date, NoInput):
-        raise ValueError(
-            "Must supply an `index_date` from which to forecast if `index_fixings` is not a value."
+        return Err(
+            ValueError(
+                "Must supply an `index_date` from which to forecast if `index_fixings` is "
+                "not a value."
+            )
         )
 
-    if isinstance(index_fixings, NoInput):
+    if isinstance(index_fixings, NoInput | None):
         # forecast from curve if available
         if isinstance(index_curve, NoInput):
-            return NoInput(0)
-        return index_curve.index_value(index_date, index_lag, index_method)
-    elif isinstance(index_fixings, Series):
+            return Err(
+                ValueError(
+                    "`index_value` must be forecast from a `index_curve` but no such argument "
+                    "was provided."
+                )
+            )
+        return index_curve._try_index_value(
+            index_date=index_date,
+            index_lag=index_lag,
+            index_method=index_method,
+        )
+    elif isinstance(index_fixings, str):
+        try:
+            fixings_series = fixings.__getitem__(index_fixings)
+        except Exception as e:
+            return Err(e)
         if isinstance(index_curve, NoInput):
             return _index_value_from_series_no_curve(
-                index_lag,
-                index_method,
-                index_fixings,
-                index_date,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=fixings_series[1],
+                index_date=index_date,
+                index_fixings_boundary=fixings_series[2],
             )
         else:
             return _index_value_from_mixed_series_and_curve(
-                index_lag,
-                index_method,
-                index_fixings,
-                index_date,
-                index_curve,
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=fixings_series[1],
+                index_date=index_date,
+                index_curve=index_curve,
+            )
+    elif isinstance(index_fixings, Series):
+        if isinstance(index_curve, NoInput):
+            return _index_value_from_series_no_curve(
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings,
+                index_date=index_date,
+            )
+        else:
+            return _index_value_from_mixed_series_and_curve(
+                index_lag=index_lag,
+                index_method=index_method,
+                index_fixings=index_fixings,
+                index_date=index_date,
+                index_curve=index_curve,
             )
     else:
-        raise TypeError(
-            "`index_fixings` must be of type: Series, DualTypes or NoInput.\n"
-            f"{type(index_fixings)} was given."
+        return Err(
+            TypeError(
+                "`index_fixings` must be of type: Str, Series, DualTypes or NoInput.\n"
+                f"{type(index_fixings)} was given."
+            )
         )
 
 
 def _index_value_from_mixed_series_and_curve(
     index_lag: int,
-    index_method: str,
+    index_method: IndexMethod,
     index_fixings: Series[DualTypes],  # type: ignore[type-var]
     index_date: datetime,
     index_curve: _BaseCurve,
-) -> DualTypes | NoInput:
+) -> Result[DualTypes]:
     """
     Iterate through possibilities assuming a Curve and fixings as series exists.
 
     For returning a value from the Series the ``index_lag`` must be zero.
     If the lag is not zero then a Curve method will be used instead which will omit the Series.
     """
-    if index_method == "curve":
+    if index_method == IndexMethod.Curve:
         if index_date in index_fixings.index:
             # simplest case returns Series value if all checks pass.
             if index_lag == 0:
-                return index_fixings.loc[index_date]
+                return Ok(index_fixings.loc[index_date])
             else:
-                raise ValueError(
-                    "`index_lag` must be zero when using a 'curve' `index_method`.\n"
-                    f"`index_date`: {index_date}, is in Series but got `index_lag`: {index_lag}."
+                return Err(
+                    ValueError(
+                        "`index_lag` must be zero when using a 'curve' `index_method`.\n"
+                        f"`index_date`: {index_date}, is in Series but got "
+                        f"`index_lag`: {index_lag}."
+                    )
                 )
         elif len(index_fixings.index) == 0:
             # recall with the curve
-            return index_curve.index_value(index_date, index_lag, index_method)
+            return index_curve._try_index_value(
+                index_date=index_date, index_lag=index_lag, index_method=index_method
+            )
         elif index_lag == 0 and (index_fixings.index[0] < index_date < index_fixings.index[-1]):
             # index date is within the Series index range but not found and the index lag is
             # zero so this should be available
-            raise ValueError(
-                f"The Series given for `index_fixings` requires, but does not contain, "
-                f"the value for date: {index_date}.\n"
-                "For inflation indexes using 'monthly' or 'daily' `index_method` the "
-                "values associated for a month should be assigned "
-                "to the first day of that month."
+            return Err(
+                ValueError(
+                    f"The Series given for `index_fixings` requires, but does not contain, "
+                    f"the value for date: {index_date}.\n"
+                    "For inflation indexes using 'monthly' or 'daily' `index_method` the "
+                    "values associated for a month should be assigned "
+                    "to the first day of that month."
+                )
             )
         else:
-            return index_curve.index_value(index_date, index_lag, index_method)
-    elif index_method == "monthly":
+            return index_curve._try_index_value(
+                index_date=index_date, index_lag=index_lag, index_method=index_method
+            )
+    elif index_method == IndexMethod.Monthly:
         date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
         # a monthly value can only be derived from one source.
         # make separate determinations to avoid the issue of mis-matching index lags
-        value_from_fixings = index_value(0, "curve", index_fixings, date_, NoInput(0))
-        if not isinstance(value_from_fixings, NoInput):
+        value_from_fixings = _try_index_value(
+            index_lag=0,
+            index_method=IndexMethod.Curve,
+            index_fixings=index_fixings,
+            index_date=date_,
+            index_curve=NoInput(0),
+        )
+        if value_from_fixings.is_ok:
             return value_from_fixings
         else:
-            value_from_curve = index_value(
-                index_lag, "monthly", NoInput(0), index_date, index_curve
+            value_from_curve = _try_index_value(
+                index_lag=index_lag,
+                index_method=IndexMethod.Monthly,
+                index_fixings=NoInput(0),
+                index_date=index_date,
+                index_curve=index_curve,
             )
             return value_from_curve
-    else:  # i_method == "daily":
+    else:  # i_method == IndexMethod.Daily:
         n = monthrange(index_date.year, index_date.month)[1]
         date_som = datetime(index_date.year, index_date.month, 1)
         date_sonm = add_tenor(index_date, "1M", "none", NoInput(0), 1)
-        m1 = index_value(index_lag, "monthly", index_fixings, date_som, index_curve)
+        m1 = _try_index_value(
+            index_lag=index_lag,
+            index_method=IndexMethod.Monthly,
+            index_fixings=index_fixings,
+            index_date=date_som,
+            index_curve=index_curve,
+        )
         if index_date == date_som:
             return m1
-        m2 = index_value(index_lag, "monthly", index_fixings, date_sonm, index_curve)
-        if isinstance(m2, NoInput) or isinstance(m1, NoInput):
-            # then the period is 'future' based, and the fixing is not yet available, or a
-            # curve has not been provided to forecast it
+        m2 = _try_index_value(
+            index_lag=index_lag,
+            index_method=IndexMethod.Monthly,
+            index_fixings=index_fixings,
+            index_date=date_sonm,
+            index_curve=index_curve,
+        )
+        if m2.is_err or m1.is_err:
+            return Err(
+                ValueError(
+                    "The `index_value` could not be determined.\nThe period may be 'future' based "
+                    "and there is no `index_fixing` available, or an `index_curve` has not be "
+                    "able to forecast it."
+                )
+            )
             # this line cannot be hit when a curve returns DualTypes and not a NoInput
             # will raise a warning when the curve returns 0.0
-            return NoInput(0)
-        return m1 + (index_date.day - 1) / n * (m2 - m1)
+        m1_, m2_ = m1.unwrap(), m2.unwrap()
+        return Ok(m1_ + (index_date.day - 1) / n * (m2_ - m1_))
 
 
 def _index_value_from_series_no_curve(
     index_lag: int,
-    index_method: str,
+    index_method: IndexMethod,
     index_fixings: Series[DualTypes],  # type: ignore[type-var]
     index_date: datetime,
-) -> DualTypes | NoInput:
+    index_fixings_boundary: tuple[datetime, datetime] | None = None,
+) -> Result[DualTypes]:
     """
     Derive a value from a Series only, detecting cases where the errors might be raised.
     """
-    if index_method == "curve":
+    fixings_series = index_fixings
+
+    if index_method == IndexMethod.Curve:
         if index_lag != 0:
-            raise ValueError(
-                "`index_lag` must be zero when using a 'curve' `index_method`.\n"
-                f"`index_date`: {index_date}, is in Series but got `index_lag`: {index_lag}."
-            )
-        if len(index_fixings.index) == 0:
-            return NoInput(0)
-        if index_date in index_fixings.index:
-            # simplest case returns Series value if all checks pass.
-            return index_fixings.loc[index_date]
-        if index_date < index_fixings.index[0] or index_date > index_fixings.index[-1]:
-            # if requested index date is outside of the scope of the Series return NoInput
-            # this handles historic and future cases
-            return NoInput(0)
+            return Err(ValueError(err.VE_INDEX_LAG_MUST_BE_ZERO.format(index_date, index_lag)))
+
+        if len(fixings_series.index) == 0:
+            return Err(ValueError(err.VE_EMPTY_SERIES))
+
+        if index_fixings_boundary is not None:
+            left, right = index_fixings_boundary
+            if index_date < left or index_date > right:
+                return Err(FixingRangeError(index_date, index_fixings_boundary))
         else:
-            # date falls inside the dates of the Series but does not exist.
-            raise ValueError(
-                f"The Series given for `index_fixings` requires, but does not contain, "
-                f"the value for date: {index_date}.\n"
-                "For inflation indexes using 'monthly' or 'daily' `index_method` the "
-                "values associated for a month should be assigned "
-                "to the first day of that month."
-            )
-    elif index_method == "monthly":
+            right = fixings_series.index[-1]
+            if index_date > right:
+                return Err(FixingRangeError(index_date, (datetime(1, 1, 1), right)))
+            left = fixings_series.index[0]
+            if index_date < left:
+                return Err(FixingRangeError(index_date, (left, right)))
+
+        if index_date in fixings_series.index:
+            # simplest case returns Series value if all checks pass.
+            return Ok(fixings_series.loc[index_date])
+
+        # date falls inside the dates of the Series but does not exist.
+        return Err(FixingMissingDataError(index_date, (left, right)))
+    elif index_method == IndexMethod.Monthly:
         date_ = add_tenor(index_date, f"-{index_lag}M", "none", NoInput(0), 1)
-        return index_value(0, "curve", index_fixings, date_, NoInput(0))
-    else:  # i_method == "daily":
+        return _index_value_from_series_no_curve(
+            index_lag=0,
+            index_method=IndexMethod.Curve,
+            index_fixings=index_fixings,
+            index_date=date_,
+            index_fixings_boundary=index_fixings_boundary,
+        )
+    else:  # i_method == IndexMethod.Daily:
         n = monthrange(index_date.year, index_date.month)[1]
         date_som = datetime(index_date.year, index_date.month, 1)
         date_sonm = add_tenor(index_date, "1M", "none", NoInput(0), 1)
-        m1 = index_value(index_lag, "monthly", index_fixings, date_som, NoInput(0))
+        m1 = _index_value_from_series_no_curve(
+            index_lag=index_lag,
+            index_method=IndexMethod.Monthly,
+            index_fixings=index_fixings,
+            index_date=date_som,
+            index_fixings_boundary=index_fixings_boundary,
+        )
         if index_date == date_som:
             return m1
-        m2 = index_value(index_lag, "monthly", index_fixings, date_sonm, NoInput(0))
-        if isinstance(m2, NoInput) or isinstance(m1, NoInput):
-            # then the period is 'future' based, and the fixing is not yet available, or a
-            # curve has not been provided to forecast it
-            return NoInput(0)
-        return m1 + (index_date.day - 1) / n * (m2 - m1)
+        m2 = _index_value_from_series_no_curve(
+            index_lag=index_lag,
+            index_method=IndexMethod.Monthly,
+            index_fixings=index_fixings,
+            index_date=date_sonm,
+            index_fixings_boundary=index_fixings_boundary,
+        )
+        if m1.is_err:
+            return m1
+        if m2.is_err:
+            return m2
+        m1_, m2_ = m1.unwrap(), m2.unwrap()
+        return Ok(m1_ + (index_date.day - 1) / n * (m2_ - m1_))
 
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International

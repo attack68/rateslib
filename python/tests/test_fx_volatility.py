@@ -10,6 +10,7 @@ from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.enums.parameters import _get_fx_delta_type
 from rateslib.fx import (
     FXForwards,
     FXRates,
@@ -24,9 +25,8 @@ from rateslib.fx_volatility import (
 from rateslib.fx_volatility.utils import (
     _d_sabr_d_k_or_f,
     _FXSabrSmileNodes,
-    _validate_delta_type,
 )
-from rateslib.periods.fx_volatility import FXCallPeriod
+from rateslib.periods import FXCallPeriod
 from rateslib.scheduling import get_calendar
 
 
@@ -66,14 +66,14 @@ class TestFXDeltaVolSmile:
         put_vol = fxvs.get_from_strike(
             k=k,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            z_w=fxfo.curve("eur", "usd")[dt(2023, 6, 20)]
+            / fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         call_vol = fxvs.get_from_strike(
             k=k,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            z_w=fxfo.curve("eur", "usd")[dt(2023, 6, 20)]
+            / fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         assert abs(put_vol[1] - call_vol[1]) < 1e-9
 
@@ -98,8 +98,8 @@ class TestFXDeltaVolSmile:
         kwargs = dict(
             k=k,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            z_w=fxfo.curve("eur", "usd")[dt(2023, 6, 20)]
+            / fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         put_vol = fxvs.get_from_strike(**kwargs)
 
@@ -137,8 +137,8 @@ class TestFXDeltaVolSmile:
         kwargs = dict(
             k=k,
             f=fxfo.rate("eurusd", dt(2023, 6, 20)),
-            w_deli=fxfo.curve("eur", "usd")[dt(2023, 6, 20)],
-            w_spot=fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
+            z_w=fxfo.curve("eur", "usd")[dt(2023, 6, 20)]
+            / fxfo.curve("eur", "usd")[dt(2023, 3, 20)],
         )
         pv00 = fxvs.get_from_strike(**kwargs)
 
@@ -427,9 +427,7 @@ class TestFXDeltaVolSurface:
             eval_date=dt(2023, 1, 1),
             delta_type="forward",
         )
-        result = fxvs.get_from_strike(
-            k=1.05, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2024, 7, 1)
-        )[1]
+        result = fxvs.get_from_strike(k=1.05, f=1.03, z_w=0.99 / 0.999, expiry=dt(2024, 7, 1))[1]
         # expected close to delta index of 0.5 i.e around 17.87% vol
         expected = 17.882603173
         assert abs(result - expected) < 1e-8
@@ -444,7 +442,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
         )
         with pytest.raises(ValueError, match="`expiry` required to get cross-section"):
-            fxvs.get_from_strike(k=1.05, f=1.03, w_deli=0.99, w_spot=0.999)
+            fxvs.get_from_strike(k=1.05, f=1.03, z_w=0.99 / 0.999)
 
     def test_set_node_vector(self) -> None:
         fxvs = FXDeltaVolSurface(
@@ -515,7 +513,7 @@ class TestFXDeltaVolSurface:
             delta_type="forward",
             weights=Series(scalar, index=[dt(2023, 2, 2), dt(2023, 2, 3)]),
         )
-        kwargs = dict(k=1.03, f=1.03, w_deli=0.99, w_spot=0.999, expiry=dt(2023, 2, 3))
+        kwargs = dict(k=1.03, f=1.03, z_w=0.99 / 0.999, expiry=dt(2023, 2, 3))
         result = fxvs.get_from_strike(**kwargs)
         result2 = fxvs_weights.get_from_strike(**kwargs)
         w = fxvs_weights.meta.weights
@@ -939,7 +937,7 @@ class TestFXSabrSmile:
             ad=2,
         )
         with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
-            fxss.get_from_strike(1.0, 1.0, 1.0, 1.0, dt(1999, 1, 1))
+            fxss.get_from_strike(k=1.0, f=1.0, z_w=1.0, expiry=(1999, 1, 1))
 
     @pytest.mark.parametrize("k", [1.2034, 1.2050, 1.3620, 1.5410, 1.5449])
     def test_get_from_strike_ad_2(self, fxfo, k) -> None:
@@ -1389,7 +1387,7 @@ class TestFXSabrSmile:
             expiry=dt(2024, 5, 28),
             calendar="tgt|fed",
             delta_type="spot",
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
         )
 
@@ -1413,7 +1411,7 @@ class TestFXSabrSmile:
             pair="eurusd",
             strike=1.07,
             notional=100e6,
-            curves=[None, "eurusd", None, "usdusd"],
+            curves=["eurusd", "usdusd"],
             vol="eurusd_3w_smile",
             premium=98.216647 * 1e8 / 1e4,
             premium_ccy="usd",
@@ -1658,7 +1656,7 @@ class TestFXSabrSurface:
             id="usd",
         )
         fxswaps = [
-            FXSwap(dt(2024, 5, 30), _, pair="eurusd", curves=[None, "eurusd", None, "sofr"])
+            FXSwap(dt(2024, 5, 30), _, pair="eurusd", curves=["eurusd", "sofr"])
             for _ in mkt_data["tenor"][0:14]
         ]
         fxswap_rates = mkt_data["fx_swap"][0:14].tolist()
@@ -1716,7 +1714,7 @@ class TestFXSabrSurface:
         )
         fx_args = dict(
             pair="eurusd",
-            curves=[None, "eurusd", None, "sofr"],
+            curves=["eurusd", "sofr"],
             calendar="tgt",
             delivery_lag=2,
             payment_lag=2,
@@ -1963,7 +1961,6 @@ class TestFXSabrSurface:
             pair="eurusd",
             expiry=option_expiry,
             delivery=option_expiry,
-            payment=option_expiry,
             strike=NoInput(0),
             delta_type="forward",
         )
@@ -2092,7 +2089,7 @@ class TestStateAndCache:
     @pytest.mark.parametrize(
         ("method", "args"),
         [
-            ("get_from_strike", (1.0, 1.0, dt(2000, 5, 3), NoInput(0), NoInput(0))),
+            ("get_from_strike", (1.0, 1.0, dt(2000, 5, 3), NoInput(0))),
             ("_get_index", (0.9, dt(2000, 5, 3))),
             ("get_smile", (dt(2000, 5, 3),)),
         ],
@@ -2218,5 +2215,5 @@ class TestStateAndCache:
 
 
 def test_validate_delta_type() -> None:
-    with pytest.raises(ValueError, match="`delta_type` must be in"):
-        _validate_delta_type("BAD_TYPE")
+    with pytest.raises(ValueError, match="`delta_type` as string: 'BAD_TYPE' i"):
+        _get_fx_delta_type("BAD_TYPE")

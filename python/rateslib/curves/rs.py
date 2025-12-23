@@ -6,8 +6,9 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from rateslib import defaults
-from rateslib.default import NoInput, _drb, _make_py_json
+from rateslib.default import _make_py_json
 from rateslib.dual.utils import _get_adorder
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.rs import (
     ADOrder,
     FlatBackwardInterpolator,
@@ -17,15 +18,19 @@ from rateslib.rs import (
     LogLinearInterpolator,
     Modifier,
     NullInterpolator,
-    _get_convention_str,
     _get_modifier_str,
 )
 from rateslib.rs import Curve as CurveObj  # noqa: F401
 from rateslib.scheduling import get_calendar
-from rateslib.scheduling.dcfs import _get_convention
+from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CurveInterpolator, DualTypes, Number
+    from rateslib.typing import (  # pragma: no cover
+        CalInput,
+        CurveInterpolator,
+        DualTypes,
+        Number,
+    )
 
 
 class CurveRs:
@@ -64,7 +69,7 @@ class CurveRs:
 
     @property
     def convention(self) -> str:
-        return _get_convention_str(self.obj.convention)
+        return str(self.obj.convention)
 
     @property
     def modifier(self) -> str:

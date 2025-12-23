@@ -4,111 +4,346 @@ from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import rateslib.errors as err
 from rateslib import defaults
-from rateslib.default import NoInput, _drb
-from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
-from rateslib.periods.base import BasePeriod
-from rateslib.periods.utils import (
-    _get_fx_and_base,
-    _maybe_fx_converted,
-    _maybe_local,
-    _validate_credit_curves,
+from rateslib.enums.generics import Err, NoInput, Ok, Result, _drb
+from rateslib.periods.parameters import (
+    _CreditParams,
+    _FixedRateParams,
+    _PeriodParams,
+    _SettlementParams,
 )
+from rateslib.periods.protocols import _BasePeriod
+from rateslib.periods.utils import _try_validate_base_curve, _validate_credit_curves
+from rateslib.scheduling import Frequency, get_calendar
+from rateslib.scheduling.adjuster import _get_adjuster
+from rateslib.scheduling.convention import _get_convention
+from rateslib.scheduling.frequency import _get_frequency
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from rateslib.typing import (
         FX_,
-        Any,
+        Adjuster,
+        CalInput,
         CurveOption_,
         DualTypes,
         DualTypes_,
+        FXForwards_,
+        FXRevised_,
+        RollDay,
         _BaseCurve,
         _BaseCurve_,
+        _FXVolOption_,
+        bool_,
         datetime,
+        datetime_,
         str_,
     )
 
 
-class CreditPremiumPeriod(BasePeriod):
-    """
-    Create a credit premium period defined by a credit spread.
+class CreditPremiumPeriod(_BasePeriod):
+    r"""
+    A *Period* defined by a fixed interest rate and contingent credit event.
+
+    The immediate expected valuation of the *Period* cashflow is defined as;
+
+    .. math::
+
+       \mathbb{E^Q} [V(m_T)C_T] = -N S d (Q(m_{a.s}) v(m_t) + V_{I_{pa}} )
+
+    where,
+
+    .. math::
+
+       V_{I_{pa}} = C_t I_{pa} v(m_{a.e}) \times \left \{ \begin{matrix}  \frac{1}{2} \left ( Q(m_{a.s}) - Q(m_{a.e}) \right ) & m_{a.s} >= m_{today} \\ \frac{\tilde{n}+r}{2\tilde{n}} \left ( 1 - Q(m_{a.e}) \right ) & m_{a.s} < m_{today} \\ \end{matrix} \right .
+
+    For *analytic delta* purposes the :math:`\xi=-S`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import CreditPremiumPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       cp = CreditPremiumPeriod(
+           start=dt(2000, 3, 20),
+           end=dt(2000, 6, 20),
+           payment=dt(2000, 6, 20),
+           frequency="Q",
+           fixed_rate=1.00,
+       )
+       cp.cashflows()
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    args : dict
-        Required positional args to :class:`BasePeriod`.
-    fixed_rate : float or None, optional
-        The rate applied to determine the cashflow. If `None`, can be set later,
-        typically after a mid-market rate for all periods has been calculated.
-        Entered in percentage points, e.g 50bps is 0.50.
-    premium_accrued : bool, optional
-        Whether the premium is accrued within the period to default.
-    kwargs : dict
-        Required keyword arguments to :class:`BasePeriod`.
+    .
+        .. note::
 
-    Notes
-    -----
-    The ``cashflow`` is defined as follows;
+           The following define generalised **settlement** parameters.
 
-    .. math::
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
 
-       C = -NdS
+        .. note::
 
-    The NPV of the full cashflow is defined as;
+           The following parameters are scheduling **period** parameters
 
-    .. math::
+    start: datetime, :red:`required`
+        The identified start date of the *Period*.
+    end: datetime, :red:`required`
+        The identified end date of the *Period*.
+    frequency: Frequency, str, :red:`required`
+        The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
+    convention: Convention, str, :green:`optional` (set by 'defaults')
+        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+    termination: datetime, :green:`optional`
+        The termination date of an external :class:`~rateslib.scheduling.Schedule`.
+    calendar: Calendar, :green:`optional`
+         The calendar associated with the *Period*.
+    stub: bool, str, :green:`optional (set as False)`
+        Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`.
+    adjuster: Adjuster, :green:`optional`
+        The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
 
-       P_c = Cv(m_{payment})Q(m_{end})
+        .. note::
 
-    If ``premium_accrued`` is permitted then an additional component equivalent to the following
-    is calculated using an approximation of the inter-period default rate,
+           The following define **fixed rate** parameters.
 
-    .. math::
+    fixed_rate: float, Dual, Dual2, Variable, :green:`optional`
+        The fixed rate to determine the *Period* cashflow.
 
-       P_a = Cv(m_{payment}) \\left ( Q(m_{start}) - Q(m_{end}) \\right ) \\frac{(n+r)}{2n}
+        .. note::
 
-    where *r* is the number of days after the *start* that *today* is for an on-going period, zero otherwise, and
-    :math:`Q(m_{start})` is equal to one for an on-going period.
+           The following parameters define **credit specific** elements.
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as;
+    premium_accrued: bool, :green:`optional (set by 'defaults')`
+        Whether an accrued premium is paid on the event of mid-period credit default.
 
-    .. math::
-
-       P = P_c + I_{pa} P_a
-
-    where :math:`I_{pa}` is an indicator function if the *Period* allows ``premium_accrued`` or not.
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = - \\frac{\\partial P}{\\partial S} = Ndv(m) \\left ( Q(m_{end}) + I_{pa} (Q(m_{start}) - Q(m_{end}) \\frac{(n+r)}{2n}  \\right )
     """  # noqa: E501
+
+    @property
+    def credit_params(self) -> _CreditParams:
+        """The :class:`~rateslib.periods.parameters._CreditParams` of the *Period*."""
+        return self._credit_params
+
+    @property
+    def rate_params(self) -> _FixedRateParams:
+        """The :class:`~rateslib.periods.parameters._FixedRateParams` of the *Period*."""
+        return self._rate_params
+
+    @property
+    def period_params(self) -> _PeriodParams:
+        """The :class:`~rateslib.periods.parameters._PeriodParams` of the *Period*."""
+        return self._period_params
 
     def __init__(
         self,
-        *args: Any,
+        *,
+        # currency args:
+        payment: datetime,
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        # period params
+        start: datetime,
+        end: datetime,
+        frequency: Frequency | str,
+        convention: str_ = NoInput(0),
+        termination: datetime_ = NoInput(0),
+        stub: bool = False,
+        roll: RollDay | int | str_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        adjuster: Adjuster | str_ = NoInput(0),
+        # specific params
         fixed_rate: DualTypes_ = NoInput(0),
-        premium_accrued: bool | NoInput = NoInput(0),
-        **kwargs: Any,
+        premium_accrued: bool_ = NoInput(0),
     ) -> None:
-        self.premium_accrued: bool = _drb(defaults.cds_premium_accrued, premium_accrued)
-        self.fixed_rate: DualTypes_ = fixed_rate
-        super().__init__(*args, **kwargs)
+        self._settlement_params = _SettlementParams(
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _notional_currency=_drb(defaults.base_currency, currency).lower(),
+            _payment=payment,
+            _notional=_drb(defaults.notional, notional),
+            _ex_dividend=_drb(payment, ex_dividend),
+        )
+        self._rate_params = _FixedRateParams(
+            _fixed_rate=fixed_rate,
+        )
+        self._credit_params = _CreditParams(
+            _premium_accrued=_drb(defaults.cds_premium_accrued, premium_accrued),
+        )
+        self._period_params = _PeriodParams(
+            _start=start,
+            _end=end,
+            _frequency=_get_frequency(frequency, roll, calendar),
+            _calendar=get_calendar(calendar),
+            _adjuster=NoInput(0) if isinstance(adjuster, NoInput) else _get_adjuster(adjuster),
+            _stub=stub,
+            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _termination=termination,
+        )
 
-    @property
-    def cashflow(self) -> DualTypes | None:
-        """
-        float, Dual or Dual2 : The calculated value from rate, dcf and notional.
-        """
-        if isinstance(self.fixed_rate, NoInput):
-            return None
+    def immediate_local_npv(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
+
+        cf = self.cashflow()
+        return cf * self._probability_adjusted_df(rate_curve_, disc_curve_)
+
+    def try_immediate_local_analytic_delta(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXRevised_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        c = 0.0001 * self.period_params.dcf * self.settlement_params.notional
+
+        c_res = _validate_credit_curves(rate_curve, disc_curve)
+        if isinstance(c_res, Err):
+            return c_res
         else:
-            _: DualTypes = -self.notional * self.dcf * self.fixed_rate * 0.01
-            return _
+            rate_curve_, disc_curve_ = c_res.unwrap()
 
-    def accrued(self, settlement: datetime) -> DualTypes | None:
+        return Ok(c * self._probability_adjusted_df(rate_curve_, disc_curve_))
+
+    def cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        if isinstance(self.rate_params.fixed_rate, NoInput):
+            raise ValueError(err.VE_NEEDS_FIXEDRATE)
+        return (
+            -self.rate_params.fixed_rate
+            * 0.01
+            * self.period_params.dcf
+            * self.settlement_params.notional
+        )
+
+    def try_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
+        else:
+            return Ok(v)
+
+    def _probability_adjusted_df(self, rate_curve: _BaseCurve, disc_curve: _BaseCurve) -> DualTypes:
+        v_payment = disc_curve[self.settlement_params.payment]
+        q_end = rate_curve[self.period_params.end]
+        if self.credit_params.premium_accrued:
+            v_end = disc_curve[self.period_params.end]
+            n = _dual_float((self.period_params.end - self.period_params.start).days)
+
+            if self.period_params.start < disc_curve.nodes.initial:
+                # then mid-period valuation
+                r: float = _dual_float((disc_curve.nodes.initial - self.period_params.start).days)
+                q_start: DualTypes = 1.0
+                _v_start: DualTypes = 1.0
+            else:
+                r = 0.0
+                q_start = rate_curve[self.period_params.start]
+                _v_start = disc_curve[self.period_params.start]
+
+            # method 1:
+            accrued_: DualTypes = 0.5 * (1 + r / n)
+            accrued_ *= q_start - q_end
+            accrued_ *= v_end
+
+            # # method 4 EXACT
+            # _ = 0.0
+            # for i in range(1, int(s)):
+            #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
+            #     _ += (
+            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
+            #     )
+        else:
+            accrued_ = 0.0
+        return q_end * v_payment + accrued_
+
+    def try_accrued(self, settlement: datetime) -> Result[DualTypes]:
+        """
+        Calculate the amount of premium accrued until a specific date within the *Period*, with
+        lazy error raising.
+
+        Parameters
+        ----------
+        settlement: datetime
+            The date against which accrued is measured.
+
+        Returns
+        -------
+        Result[float]
+        """
+        if isinstance(self.rate_params.fixed_rate, NoInput):
+            return Err(ValueError(err.VE_NEEDS_FIXEDRATE))
+
+        c = (
+            -self.rate_params.fixed_rate
+            * 0.01
+            * self.period_params.dcf
+            * self.settlement_params.notional
+        )
+        start, end = self.period_params.start, self.period_params.end
+        if settlement <= start or settlement >= end:
+            return Ok(0.0)
+        return Ok(c * (settlement - start).days / (end - start).days)
+
+    def accrued(self, settlement: datetime) -> DualTypes:
         """
         Calculate the amount of premium accrued until a specific date within the *Period*.
 
@@ -121,280 +356,227 @@ class CreditPremiumPeriod(BasePeriod):
         -------
         float
         """
-        if self.cashflow is None:  # self.fixed_rate is NoInput
-            return None
-        else:
-            if settlement <= self.start or settlement >= self.end:
-                return 0.0
-            return self.cashflow * (settlement - self.start).days / (self.end - self.start).days
-
-    def npv(
-        self,
-        curve: CurveOption_ = NoInput(0),
-        disc_curve: CurveOption_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-    ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditPremiumPeriod*.
-        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
-        """
-        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
-
-        if isinstance(self.fixed_rate, NoInput):
-            raise ValueError("`fixed_rate` must be set as a value to return a valid NPV.")
-        v_payment = disc_curve_[self.payment]
-        q_end = curve_[self.end]
-        _ = 0.0
-        if self.premium_accrued:
-            v_end = disc_curve_[self.end]
-            n = _dual_float((self.end - self.start).days)
-
-            if self.start < curve_.nodes.initial:
-                # then mid-period valuation
-                r: float = _dual_float((curve_.nodes.initial - self.start).days)
-                q_start: DualTypes = 1.0
-                _v_start: DualTypes = 1.0
-            else:
-                r, q_start, _v_start = 0.0, curve_[self.start], disc_curve_[self.start]
-
-            # method 1:
-            _ = 0.5 * (1 + r / n)
-            _ *= q_start - q_end
-            _ *= v_end
-
-            # # method 4 EXACT
-            # _ = 0.0
-            # for i in range(1, int(s)):
-            #     m_i, m_i2 = m_today + timedelta(days=i-1), m_today + timedelta(days=i)
-            #     _ += (
-            #     (i + r) / n * disc_curve[m_today + timedelta(days=i)] * (curve[m_i] - curve[m_i2])
-            #     )
-
-        return _maybe_local(self.cashflow * (q_end * v_payment + _), local, self.currency, fx, base)
-
-    def analytic_delta(
-        self,
-        curve: CurveOption_ = NoInput(0),
-        disc_curve: CurveOption_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditPremiumPeriod*.
-        See
-        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
-        """
-        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
-
-        v_payment = disc_curve_[self.payment]
-        q_end = curve_[self.end]
-        _ = 0.0
-        if self.premium_accrued:
-            v_end = disc_curve_[self.end]
-            n = _dual_float((self.end - self.start).days)
-
-            if self.start < curve_.nodes.initial:
-                # then mid-period valuation
-                r: float = _dual_float((curve_.nodes.initial - self.start).days)
-                q_start: DualTypes = 1.0
-                _v_start: DualTypes = 1.0
-            else:
-                r = 0.0
-                q_start = curve_[self.start]
-                _v_start = disc_curve_[self.start]
-
-            # method 1:
-            _ = 0.5 * (1 + r / n)
-            _ *= q_start - q_end
-            _ *= v_end
-
-        return _maybe_fx_converted(
-            0.0001 * self.notional * self.dcf * (q_end * v_payment + _),
-            self.currency,
-            fx,
-            base,
-        )
-
-    def cashflows(
-        self,
-        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
-        disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *CreditPremiumPeriod*.
-        See
-        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
-        """
-        fx, base = _get_fx_and_base(self.currency, fx, base)
-
-        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
-            npv_: DualTypes = self.npv(curve, disc_curve)  # type: ignore[assignment]
-            npv = _dual_float(npv_)
-            npv_fx = npv * _dual_float(fx)
-            survival = _dual_float(curve[self.end])
-        else:
-            npv, npv_fx, survival = None, None, None
-
-        return {
-            **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["rate"]: None
-            if isinstance(self.fixed_rate, NoInput)
-            else _dual_float(self.fixed_rate),
-            defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: None
-            if self.cashflow is None
-            else _dual_float(self.cashflow),
-            defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: _dual_float(fx),
-            defaults.headers["npv_fx"]: npv_fx,
-        }
+        return self.try_accrued(settlement).unwrap()
 
 
-class CreditProtectionPeriod(BasePeriod):
-    """
-    Create a credit protection period defined by a recovery rate.
+class CreditProtectionPeriod(_BasePeriod):
+    r"""
+    A *Period* defined by a credit event and contingent notional payment.
+
+    The immediate expected valuation of the *Period* cashflow is defined as;
+
+    .. math::
+
+       \mathbb{E^Q}[V(m_T)C_T] = -N(1-RR) \int_{max(m_{a.s}, m_{today})}^{m_{a.e}} w_{loc:col}(m_s) Q(m_s) \lambda(s) ds
+
+    where the integral is numerically determined.
+
+    There is no *analytical delta* for this *Period* type and hence :math:`\xi` is not defined.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.periods import CreditProtectionPeriod
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       cp = CreditProtectionPeriod(
+           start=dt(2000, 3, 20),
+           end=dt(2000, 6, 20),
+           payment=dt(2000, 6, 20),
+           frequency="Q",
+       )
+       cp.cashflows()
+
+    .. role:: red
+
+    .. role:: green
 
     Parameters
     ----------
-    args : dict
-        Required positional args to :class:`BasePeriod`.
-    recovery_rate : float, Dual, Dual2, optional
-        The assumed recovery rate that defines payment on credit default. Set by ``defaults``.
-    kwargs : dict
-        Required keyword arguments to :class:`BasePeriod`.
+    .
+        .. note::
 
-    Notes
-    -----
-    The ``cashflow``, paid on a credit event, is defined as follows;
+           The following define generalised **settlement** parameters.
 
-    .. math::
+    currency: str, :green:`optional (set by 'defaults')`
+        The physical *settlement currency* of the *Period*.
+    notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The notional amount of the *Period* expressed in ``notional currency``.
+    payment: datetime, :red:`required`
+        The payment date of the *Period* cashflow.
+    ex_dividend: datetime, :green:`optional (set as 'payment')`
+        The ex-dividend date of the *Period*. Settlements occurring **after** this date
+        are assumed to be non-receivable.
 
-       C = -N(1-R)
+        .. note::
 
-    where *R* is the recovery rate.
+           The following parameters are scheduling **period** parameters
 
-    The :meth:`~rateslib.periods.BasePeriod.npv` is defined as a discretized sum of inter-period blocks whose
-    probability of default and protection payment sum to give an expected payment;
+    start: datetime, :red:`required`
+        The identified start date of the *Period*.
+    end: datetime, :red:`required`
+        The identified end date of the *Period*.
+    frequency: Frequency, str, :red:`required`
+        The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
+    convention: Convention, str, :green:`optional` (set by 'defaults')
+        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+    termination: datetime, :green:`optional`
+        The termination date of an external :class:`~rateslib.scheduling.Schedule`.
+    calendar: Calendar, :green:`optional`
+         The calendar associated with the *Period*.
+    stub: bool, str, :green:`optional (set as False)`
+        Whether the *Period* is defined as a stub according to some external
+        :class:`~rateslib.scheduling.Schedule`.
+    adjuster: Adjuster, :green:`optional`
+        The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
+        external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
 
-    .. math::
-
-       j &= [n/discretization] \\\\
-       P &= C \\sum_{i=1}^{j} \\frac{1}{2} \\left ( v(m_{i-1}) + v_(m_{i}) \\right ) \\left ( Q(m_{i-1}) - Q(m_{i}) \\right ) \\\\
-
-    The *start* and *end* of the period are restricted by the *Curve* if the *Period* is current (i.e. *today* is
-    later than *start*)
-
-    The :meth:`~rateslib.periods.BasePeriod.analytic_delta` is defined as;
-
-    .. math::
-
-       A = 0
     """  # noqa: E501
+
+    @property
+    def credit_params(self) -> _CreditParams:
+        """The :class:`~rateslib.periods.parameters._CreditParams` of the *Period*."""
+        return self._credit_params
+
+    @property
+    def period_params(self) -> _PeriodParams:
+        """The :class:`~rateslib.periods.parameters._PeriodParams` of the *Period*."""
+        return self._period_params
 
     def __init__(
         self,
-        *args: Any,
-        **kwargs: Any,
+        *,
+        # currency args:
+        payment: datetime,
+        notional: DualTypes_ = NoInput(0),
+        currency: str_ = NoInput(0),
+        ex_dividend: datetime_ = NoInput(0),
+        # period params
+        start: datetime,
+        end: datetime,
+        frequency: Frequency | str,
+        convention: str_ = NoInput(0),
+        termination: datetime_ = NoInput(0),
+        stub: bool = False,
+        roll: RollDay | int | str_ = NoInput(0),
+        calendar: CalInput = NoInput(0),
+        adjuster: Adjuster | str_ = NoInput(0),
     ) -> None:
-        super().__init__(*args, **kwargs)
+        self._settlement_params = _SettlementParams(
+            _currency=_drb(defaults.base_currency, currency).lower(),
+            _notional_currency=_drb(defaults.base_currency, currency).lower(),
+            _payment=payment,
+            _notional=_drb(defaults.notional, notional),
+            _ex_dividend=_drb(payment, ex_dividend),
+        )
+        self._credit_params = _CreditParams(
+            _premium_accrued=True
+        )  # arg irrelevant for Period type.
+        self._period_params = _PeriodParams(
+            _start=start,
+            _end=end,
+            _frequency=_get_frequency(frequency, roll, calendar),
+            _calendar=get_calendar(calendar),
+            _adjuster=NoInput(0) if isinstance(adjuster, NoInput) else _get_adjuster(adjuster),
+            _stub=stub,
+            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _termination=termination,
+        )
 
-    def cashflow(self, curve: _BaseCurve) -> DualTypes:
-        """
-        float, Dual or Dual2 : The calculated protection amount determined from notional
-        and recovery rate.
-        """
-        return -self.notional * (1 - curve.meta.credit_recovery_rate)
-
-    def npv(
+    def cashflow(
         self,
-        curve: CurveOption_ = NoInput(0),
-        disc_curve: CurveOption_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str | NoInput = NoInput(0),
-        local: bool = False,
-    ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *CreditProtectionPeriod*.
-        See :meth:`BasePeriod.npv()<rateslib.periods.BasePeriod.npv>`
-        """
-        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
-        discretization = curve_.meta.credit_discretization
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        rate_curve_ = _try_validate_base_curve(rate_curve).unwrap()
+        return -self.settlement_params.notional * (1 - rate_curve_.meta.credit_recovery_rate)
 
-        if self.start < curve_.nodes.initial:
-            s2 = curve_.nodes.initial
+    def try_cashflow(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        r"""
+        Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.cashflow`
+        with lazy exception handling.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        try:
+            v = self.cashflow(
+                rate_curve=rate_curve,
+                index_curve=index_curve,
+                disc_curve=disc_curve,
+                fx_vol=fx_vol,
+                fx=fx,
+            )
+        except Exception as e:
+            return Err(e)
         else:
-            s2 = self.start
+            return Ok(v)
+
+    def immediate_local_npv(
+        self,
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
+        disc_curve: _BaseCurve_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> DualTypes:
+        rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
+
+        discretization = rate_curve_.meta.credit_discretization
+
+        if self.period_params.start < rate_curve_.nodes.initial:
+            s2 = rate_curve_.nodes.initial
+        else:
+            s2 = self.period_params.start
 
         value: DualTypes = 0.0
-        q2: DualTypes = curve_[s2]
+        q2: DualTypes = rate_curve_[s2]
         v2: DualTypes = disc_curve_[s2]
-        while s2 < self.end:
+        while s2 < self.period_params.end:
             q1, v1 = q2, v2
             s2 = s2 + timedelta(days=discretization)
-            if s2 > self.end:
-                s2 = self.end
-            q2, v2 = curve_[s2], disc_curve_[s2]
+            if s2 > self.period_params.end:
+                s2 = self.period_params.end
+            q2, v2 = rate_curve_[s2], disc_curve_[s2]
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        value *= self.cashflow(curve_)
-        return _maybe_local(value, local, self.currency, fx, base)
+        # curves are pre-validated so will not error
+        cf = self.cashflow(rate_curve=rate_curve)
+        return value * cf
 
-    def analytic_delta(
+    def try_immediate_local_analytic_delta(
         self,
-        curve: CurveOption_ = NoInput(0),
-        disc_curve: CurveOption_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> DualTypes:
-        """
-        Return the analytic delta of the *CreditProtectionPeriod*.
-        See
-        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
-        """
-        return 0.0
-
-    def cashflows(
-        self,
-        curve: _BaseCurve_ = NoInput(0),  # type: ignore[override]
+        *,
+        rate_curve: CurveOption_ = NoInput(0),
+        index_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
-        base: str_ = NoInput(0),
-    ) -> dict[str, Any]:
-        """
-        Return the cashflows of the *CreditProtectionPeriod*.
-        See
-        :meth:`BasePeriod.cashflows()<rateslib.periods.BasePeriod.cashflows>`
-        """
-        fx, base = _get_fx_and_base(self.currency, fx, base)
-
-        if not isinstance(curve, NoInput) and not isinstance(disc_curve, NoInput):
-            npv_: DualTypes = self.npv(curve, disc_curve)  # type: ignore[assignment]
-            npv = _dual_float(npv_)
-            npv_fx = npv * _dual_float(fx)
-            survival = _dual_float(curve[self.end])
-            rec = _dual_float(curve.meta.credit_recovery_rate)
-            cashf = _dual_float(self.cashflow(curve))
-        else:
-            rec, npv, npv_fx, survival, cashf = None, None, None, None, None
-
-        return {
-            **super().cashflows(curve, disc_curve, fx, base),
-            defaults.headers["recovery"]: rec,
-            defaults.headers["survival"]: survival,
-            defaults.headers["cashflow"]: cashf,
-            defaults.headers["npv"]: npv,
-            defaults.headers["fx"]: _dual_float(fx),
-            defaults.headers["npv_fx"]: npv_fx,
-        }
+        fx: FXRevised_ = NoInput(0),
+        fx_vol: _FXVolOption_ = NoInput(0),
+    ) -> Result[DualTypes]:
+        return Ok(0.0)
 
     def analytic_rec_risk(
         self,
-        curve: _BaseCurve_ = NoInput(0),
+        rate_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         base: str_ = NoInput(0),
@@ -409,14 +591,25 @@ class CreditProtectionPeriod(BasePeriod):
         -------
         float
         """
-        curve_, disc_curve_ = _validate_credit_curves(curve, disc_curve)
-        haz_curve = curve_.copy()
+        c_res = _validate_credit_curves(rate_curve, disc_curve)
+        if isinstance(c_res, Err):
+            c_res.unwrap()
+        else:
+            rate_curve_, disc_curve_ = c_res.unwrap()
+
+        haz_curve = rate_curve_.copy()
         haz_curve._meta = replace(  # type: ignore[misc]
-            curve_.meta,
+            rate_curve_.meta,
             _credit_recovery_rate=Variable(
-                _dual_float(curve_.meta.credit_recovery_rate), ["__rec_rate__"], []
+                _dual_float(rate_curve_.meta.credit_recovery_rate), ["__rec_rate__"], []
             ),
         )
-        pv: Dual | Dual2 | Variable = self.npv(haz_curve, disc_curve_, fx, base, False)  # type: ignore[assignment]
+        pv: DualTypes = self.npv(  # type: ignore[assignment]
+            rate_curve=haz_curve,
+            disc_curve=disc_curve_,
+            fx=fx,  # type: ignore[arg-type]
+            base=base,
+            local=False,
+        )
         _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
         return _ * 0.01

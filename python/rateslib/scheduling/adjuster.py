@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster
 
 if TYPE_CHECKING:
-    pass
+    from rateslib.typing import str_
 
 _A = {  # Provides the map of all available string to Adjuster conversions.
     "NONESETTLE": Adjuster.Actual(),
@@ -23,6 +24,13 @@ _A = {  # Provides the map of all available string to Adjuster conversions.
 }
 
 
+def _get_adjuster_none(adjuster: Adjuster | str_) -> Adjuster | None:
+    if isinstance(adjuster, NoInput):
+        return None
+    else:
+        return _get_adjuster(adjuster)
+
+
 def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
     """Convert a str such as 'F', 'MF' or '2B' or '5D' to an Adjuster."""
     if isinstance(adjuster, Adjuster):
@@ -38,7 +46,9 @@ def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
 
 
 def _convert_to_adjuster(modifier: str | Adjuster, settlement: bool, mod_days: bool) -> Adjuster:
-    """Convert a legacy `modifier` to an Adjuster with additional options."""
+    """Convert a legacy `modifier` to an Adjuster with additional options.
+    If `modify days` is disallowed then MF -> F
+    """
     if isinstance(modifier, Adjuster):
         return modifier
     modifier = modifier.upper()

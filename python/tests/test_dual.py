@@ -176,6 +176,14 @@ def test_gradient_method(vars_, expected, x_1, y_2) -> None:
     assert np.all(result == expected)
 
 
+def test_gradient_on_float():
+    result = gradient(1.0, ["v0", "s"])
+    assert np.all(result == np.array([0.0, 0.0]))
+
+    result = gradient(1.0, ["s"], order=2)
+    assert np.all(result == np.array([[0.0, 0.0], [0.0, 0.0]]))
+
+
 @pytest.mark.parametrize(
     ("vars_", "expected"),
     [
@@ -1172,8 +1180,8 @@ class TestVariable:
         result = irs.exo_delta(vars=["N", "R", "z"], vars_scalar=[1.0, 0.01, 1.0], solver=solver)
 
         exp0 = irs.npv(solver=solver) / 5e6
-        exp1 = irs.analytic_delta(curve)
-        exp2 = irs.analytic_delta(curve, leg=2)
+        exp1 = irs.analytic_delta(curves=curve)
+        exp2 = irs.analytic_delta(curves=curve, leg=2)
 
         assert abs(exp0 - result.iloc[0, 0]) < 1e-8
         assert abs(exp1 + result.iloc[1, 0]) < 1e-8

@@ -13,8 +13,9 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
 from rateslib.curves.utils import _CurveType
-from rateslib.default import NoInput, PlotOutput, _drb, plot
+from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx.fx_rates import FXRates
 from rateslib.mutability import (
     _clear_cache_post,

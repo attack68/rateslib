@@ -21,7 +21,16 @@ from rateslib.curves import (
     ProxyCurve,
 )
 from rateslib.rs import Schedule as ScheduleRs
-from rateslib.scheduling import Adjuster, Cal, Frequency, RollDay, Schedule, StubInference, UnionCal
+from rateslib.scheduling import (
+    Adjuster,
+    Cal,
+    Convention,
+    Frequency,
+    RollDay,
+    Schedule,
+    StubInference,
+    UnionCal,
+)
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
@@ -85,6 +94,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             calendar=NamedCal("tgt"),
             accrual_adjuster=Adjuster.ModifiedFollowing(),
             payment_adjuster=Adjuster.BusDaysLagSettle(2),
+            payment_adjuster2=Adjuster.Actual(),
             front_stub=None,
             back_stub=None,
             eom=False,
@@ -135,6 +145,7 @@ def test_pickle_round_trip_obj_via_equality(obj):
             Frequency.Months(4, RollDay.Day(2)),
             Frequency.Months(4, None),
         ),
+        (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
     ],
 )
 def test_enum_equality(a1, a2, b1):
@@ -144,7 +155,12 @@ def test_enum_equality(a1, a2, b1):
 
 @pytest.mark.parametrize(
     ("enum", "method_filter"),
-    [(Imm, ["next", "get", "validate", "to_json"]), (StubInference, ["to_json"]), (ADOrder, [])],
+    [
+        (Imm, ["next", "get", "validate", "to_json"]),
+        (StubInference, ["to_json"]),
+        (ADOrder, []),
+        (Convention, ["dcf", "to_json"]),
+    ],
 )
 def test_simple_enum_pickle(enum, method_filter):
     variants = [v for v in enum.__dict__ if "__" not in v and v not in method_filter]
@@ -173,6 +189,7 @@ def test_simple_enum_pickle(enum, method_filter):
         Adjuster.CalDaysLagSettle(2),
         Adjuster.FollowingExLast(),
         Adjuster.FollowingExLastSettle(),
+        Adjuster.BusDaysLagSettleInAdvance(2),
         Frequency.Months(4, RollDay.Day(2)),
         Frequency.Months(4, None),
         Frequency.BusDays(2, NamedCal("tgt")),

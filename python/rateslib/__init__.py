@@ -12,9 +12,11 @@ for _dependency in _hard_dependencies:
 
 from datetime import datetime as dt
 
-from rateslib.default import Defaults, NoInput
+from rateslib.data.loader import Fixings
+from rateslib.default import Defaults
 
 defaults = Defaults()
+fixings = Fixings()
 
 from contextlib import ContextDecorator
 
@@ -59,6 +61,7 @@ from rateslib.curves import (
     index_value,
 )
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
+from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -67,6 +70,7 @@ from rateslib.instruments import (
     IIRS,
     IRS,
     NDF,
+    NDXCS,
     SBS,
     XCS,
     ZCIS,
@@ -80,28 +84,26 @@ from rateslib.instruments import (
     Fly,
     FXBrokerFly,
     FXCall,
-    FXExchange,
+    FXForward,
     FXPut,
     FXRiskReversal,
     FXStraddle,
     FXStrangle,
     FXSwap,
+    FXVolValue,
     IndexFixedRateBond,
     Portfolio,
     Spread,
     STIRFuture,
     Value,
-    VolValue,
 )
 from rateslib.legs import (
+    Amortization,
     CreditPremiumLeg,
     CreditProtectionLeg,
     CustomLeg,
     FixedLeg,
-    FixedLegMtm,
     FloatLeg,
-    FloatLegMtm,
-    IndexFixedLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
     ZeroIndexLeg,
@@ -114,14 +116,11 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
-    IndexCashflow,
-    IndexFixedPeriod,
-    NonDeliverableCashflow,
-    NonDeliverableFixedPeriod,
 )
 from rateslib.scheduling import (
     Adjuster,
     Cal,
+    Convention,
     Frequency,
     Imm,
     NamedCal,
@@ -160,6 +159,7 @@ in Python.
 __all__ = [
     "dt",
     "defaults",
+    "fixings",
     "NoInput",
     "from_json",
     # dual.py
@@ -191,6 +191,7 @@ __all__ = [
     "RollDay",
     "Adjuster",
     "StubInference",
+    "Convention",
     "Imm",
     # curves.py
     "Curve",
@@ -200,6 +201,12 @@ __all__ = [
     "ProxyCurve",
     "index_left",
     "index_value",
+    # # analytic_fixings.py  cannot load due to circular import
+    # "FXFixing",
+    # "IBORFixing",
+    # "IBORStubFixing",
+    # "IndexFixing",
+    # "RFRFixing",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
@@ -214,22 +221,16 @@ __all__ = [
     "FixedPeriod",
     "FloatPeriod",
     "Cashflow",
-    "IndexCashflow",
-    "IndexFixedPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
-    "NonDeliverableCashflow",
-    "NonDeliverableFixedPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py
+    "Amortization",
     "FixedLeg",
     "FloatLeg",
     "ZeroFloatLeg",
     "ZeroFixedLeg",
-    "FixedLegMtm",
-    "FloatLegMtm",
-    "IndexFixedLeg",
     "ZeroIndexLeg",
     "CustomLeg",
     "CreditPremiumLeg",
@@ -243,7 +244,7 @@ __all__ = [
     "CDS",
     "FRA",
     "Value",
-    "VolValue",
+    "FXVolValue",
     "Bill",
     "BillCalcMode",
     "IRS",
@@ -254,8 +255,9 @@ __all__ = [
     "ZCIS",
     "SBS",
     "FXSwap",
-    "FXExchange",
+    "FXForward",
     "XCS",
+    "NDXCS",
     "Spread",
     "Fly",
     "Portfolio",
@@ -267,4 +269,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "2.1.1"
+__version__ = "2.5.dev0"

@@ -11,7 +11,6 @@ from rateslib.curves.rs import (
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
     _get_convention,
-    _get_convention_str,
     _get_interpolator,
 )
 from rateslib.dual import Dual2
@@ -19,28 +18,6 @@ from rateslib.dual.utils import ADOrder, _get_adorder
 from rateslib.rs import Convention, Modifier
 from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
-
-
-@pytest.mark.parametrize(
-    "convention",
-    [
-        Convention.One,
-        Convention.OnePlus,
-        Convention.Act365F,
-        Convention.Act365FPlus,
-        Convention.Act360,
-        Convention.ThirtyE360,
-        Convention.Thirty360,
-        Convention.Thirty360ISDA,
-        Convention.ActActISDA,
-        Convention.ActActICMA,
-        Convention.Bus252,
-    ],
-)
-def test_pickle_convention(convention) -> None:
-    import pickle
-
-    assert convention == pickle.loads(pickle.dumps(convention))
 
 
 @pytest.fixture

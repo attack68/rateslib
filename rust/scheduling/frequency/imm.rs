@@ -9,7 +9,7 @@ use std::cmp::{Eq, PartialEq};
 
 use crate::scheduling::ndt;
 
-/// An IMM date definition.
+/// Specifier for IMM date definitions.
 #[pyclass(module = "rateslib.rs", eq)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Imm {

@@ -9,6 +9,7 @@ import numpy as np
 
 from rateslib import defaults
 from rateslib.dual.variable import FLOATS, INTS, Variable
+from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ if TYPE_CHECKING:
         Arr2dObj,
         DualTypes,
         Number,
+        Result,
         Sequence,
     )
 
@@ -42,6 +44,15 @@ def _dual_float(val: DualTypes) -> float:
             #  and https://github.com/PyO3/pyo3/discussions/3911
             return val.real
         raise e
+
+
+def _float_or_none(val: DualTypes | None | NoInput | Result[DualTypes]) -> float | None:
+    if val is None or isinstance(val, NoInput | Err):
+        return None
+    elif isinstance(val, Ok):
+        return _float_or_none(val.unwrap())
+    else:
+        return _dual_float(val)
 
 
 def _abs_float(val: DualTypes) -> float:
@@ -169,7 +180,7 @@ def set_order_convert(
 
 
 def gradient(
-    dual: Dual | Dual2 | Variable,
+    dual: DualTypes,
     vars: Sequence[str] | None = None,  # noqa: A002
     order: int = 1,
     keep_manifold: bool = False,
@@ -179,7 +190,7 @@ def gradient(
 
     Parameters
     ----------
-    dual : Dual, Dual2, Variable
+    dual : Dual, Dual2, Variable, float
         The dual variable from which to derive derivatives.
     vars : str, tuple, list optional
         Name of the variables which to return gradients for. If not given
@@ -197,21 +208,30 @@ def gradient(
     -------
     float, ndarray, Dual2
     """
-    if not isinstance(dual, Dual | Dual2 | Variable):
-        raise TypeError("Can call `gradient` only on dual-type variables.")
+    _validate_keep_manifold(keep_manifold, order, dual)
+
     if order == 1:
+        if not isinstance(dual, Dual | Dual2 | Variable):
+            if isinstance(dual, float | int):
+                return np.zeros(shape=(len(vars) if vars is not None else 0,))
+            else:
+                raise TypeError("Can call `gradient` only on dual-type variables.")
         if isinstance(dual, Variable):
             dual = Dual(dual.real, vars=dual.vars, dual=dual.dual)
         if vars is None and not keep_manifold:
             return dual.dual
         elif vars is not None and not keep_manifold:
             return dual.grad1(vars)
-        elif isinstance(dual, Dual):  # and keep_manifold:
-            raise TypeError("Dual type cannot perform `keep_manifold`.")
-        _ = dual.grad1_manifold(dual.vars if vars is None else vars)
+        _ = dual.grad1_manifold(dual.vars if vars is None else vars)  # type: ignore[union-attr]
         return np.asarray(_)
 
     elif order == 2:
+        if not isinstance(dual, Dual | Dual2 | Variable):
+            if isinstance(dual, float | int):
+                n = len(vars) if vars is not None else 0
+                return np.zeros(shape=(n, n))
+            else:
+                raise TypeError("Can call `gradient` only on dual-type variables.")
         if isinstance(dual, Variable):
             dual = Dual2(dual.real, vars=dual.vars, dual=dual.dual, dual2=[])
         elif isinstance(dual, Dual):
@@ -223,6 +243,17 @@ def gradient(
             return dual.grad2(vars)
     else:
         raise ValueError("`order` must be in {1, 2} for gradient calculation.")
+
+
+def _validate_keep_manifold(keep_manifold: bool, order: int, dual: DualTypes) -> None:
+    """Validate the keep_manifold argument for gradient."""
+    if keep_manifold and not isinstance(dual, Dual2):
+        if isinstance(dual, Dual):
+            raise TypeError("Dual type cannot perform `keep_manifold`.")
+        elif isinstance(dual, Variable):
+            raise TypeError("Variable type cannot perform `keep_manifold`.")
+        else:
+            raise TypeError("Float type cannot perform `keep_manifold`.")
 
 
 def dual_exp(x: DualTypes) -> Number:

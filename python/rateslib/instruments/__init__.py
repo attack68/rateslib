@@ -1,82 +1,84 @@
-from __future__ import annotations
-
-from rateslib.instruments.base import BaseDerivative, Metrics
 from rateslib.instruments.bonds import (
     Bill,
     BillCalcMode,
     BondCalcMode,
     BondFuture,
-    BondMixin,
     FixedRateBond,
     FloatRateNote,
     IndexFixedRateBond,
+    _BaseBondInstrument,
 )
-from rateslib.instruments.credit import CDS
-from rateslib.instruments.fx_volatility import (
+from rateslib.instruments.cds import CDS
+from rateslib.instruments.fly import Fly
+from rateslib.instruments.fra import FRA
+from rateslib.instruments.fx_forward import FXForward
+from rateslib.instruments.fx_options import (
     FXBrokerFly,
     FXCall,
-    FXOption,
-    FXOptionStrat,
     FXPut,
     FXRiskReversal,
     FXStraddle,
     FXStrangle,
+    _BaseFXOption,
+    _BaseFXOptionStrat,
 )
-from rateslib.instruments.generics import Fly, Portfolio, Spread, Value, VolValue
-from rateslib.instruments.rates import (
-    FRA,
-    IIRS,
-    IRS,
-    NDF,
-    SBS,
-    XCS,
-    ZCIS,
-    ZCS,
-    FXExchange,
-    FXSwap,
-    STIRFuture,
-)
-from rateslib.instruments.sensitivities import Sensitivities
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+from rateslib.instruments.fx_swap import FXSwap
+from rateslib.instruments.fx_vol_value import FXVolValue
+from rateslib.instruments.iirs import IIRS
+from rateslib.instruments.irs import IRS
+from rateslib.instruments.ndf import NDF
+from rateslib.instruments.ndxcs import NDXCS
+from rateslib.instruments.portfolio import Portfolio
+from rateslib.instruments.protocols import _BaseInstrument
+from rateslib.instruments.sbs import SBS
+from rateslib.instruments.spread import Spread
+from rateslib.instruments.stir_future import STIRFuture
+from rateslib.instruments.value import Value
+from rateslib.instruments.xcs import XCS
+from rateslib.instruments.zcis import ZCIS
+from rateslib.instruments.zcs import ZCS
 
 __all__ = [
-    "BaseDerivative",
-    "Metrics",
-    "Bill",
-    "BondMixin",
-    "BondCalcMode",
-    "BillCalcMode",
-    "BondFuture",
-    "CDS",
+    # derivatives
+    "IRS",
     "FRA",
-    "FXBrokerFly",
-    "FXCall",
-    "FXExchange",
-    "FXOption",
-    "FXOptionStrat",
+    "SBS",
+    "STIRFuture",
+    "ZCS",
+    # cross currency
+    "XCS",
+    "NDXCS",
+    "NDF",
+    "FXSwap",
+    "FXForward",
+    # inflation
+    "ZCIS",
+    "IIRS",
+    # credit
+    "CDS",
+    # securities
+    "FixedRateBond",
+    "FloatRateNote",
+    "IndexFixedRateBond",
+    "BondFuture",
+    "Bill",
+    # fx options
     "FXPut",
+    "FXCall",
     "FXRiskReversal",
     "FXStraddle",
     "FXStrangle",
-    "FXSwap",
-    "FixedRateBond",
-    "FloatRateNote",
-    "Fly",
-    "IIRS",
-    "IRS",
-    "IndexFixedRateBond",
-    "NDF",
+    "FXBrokerFly",
+    # generics
     "Portfolio",
-    "SBS",
-    "STIRFuture",
-    "Sensitivities",
+    "Fly",
     "Spread",
     "Value",
-    "VolValue",
-    "XCS",
-    "ZCIS",
-    "ZCS",
+    "FXVolValue",
+    "BondCalcMode",
+    "BillCalcMode",
+    "_BaseInstrument",
+    "_BaseBondInstrument",
+    "_BaseFXOption",
+    "_BaseFXOptionStrat",
 ]

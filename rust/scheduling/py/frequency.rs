@@ -29,19 +29,21 @@ impl<'py> IntoPyObject<'py> for FrequencyNewArgs {
     }
 }
 
-impl<'py> FromPyObject<'py> for FrequencyNewArgs {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let ext: PyResult<(i32,)> = ob.extract();
+impl<'py> FromPyObject<'py, 'py> for FrequencyNewArgs {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'_, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let ext: PyResult<(i32,)> = obj.extract();
         if ext.is_ok() {
             let (x,) = ext.unwrap();
             return Ok(Self::CalDays(x));
         }
-        let ext: PyResult<(i32, Calendar)> = ob.extract();
+        let ext: PyResult<(i32, Calendar)> = obj.extract();
         if ext.is_ok() {
             let (x, y) = ext.unwrap();
             return Ok(Self::BusDays(x, y));
         }
-        let ext: PyResult<(i32, Option<RollDay>)> = ob.extract();
+        let ext: PyResult<(i32, Option<RollDay>)> = obj.extract();
         if ext.is_ok() {
             let (x, y) = ext.unwrap();
             Ok(Self::Months(x, y))

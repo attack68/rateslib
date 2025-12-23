@@ -1,22 +1,19 @@
-from rateslib.legs.base import BaseLeg, CustomLeg
+from rateslib.legs.amortization import Amortization
 from rateslib.legs.credit import CreditPremiumLeg, CreditProtectionLeg
-from rateslib.legs.index import IndexFixedLeg, ZeroIndexLeg
-from rateslib.legs.mtm import BaseLegMtm, FixedLegMtm, FloatLegMtm
-from rateslib.legs.rates import FixedLeg, FloatLeg
-from rateslib.legs.zeros import ZeroFixedLeg, ZeroFloatLeg
+from rateslib.legs.custom import CustomLeg
+from rateslib.legs.fixed import FixedLeg, ZeroFixedLeg, ZeroIndexLeg
+from rateslib.legs.float import FloatLeg, ZeroFloatLeg
+from rateslib.legs.protocols import _BaseLeg
 
 __all__ = [
-    "CustomLeg",
-    "BaseLeg",
-    "BaseLegMtm",
     "FixedLeg",
-    "IndexFixedLeg",
     "FloatLeg",
-    "FixedLegMtm",
-    "FloatLegMtm",
     "ZeroFixedLeg",
     "ZeroFloatLeg",
     "ZeroIndexLeg",
     "CreditPremiumLeg",
     "CreditProtectionLeg",
+    "CustomLeg",
+    "Amortization",
+    "_BaseLeg",
 ]

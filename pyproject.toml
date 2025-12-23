@@ -15,7 +15,7 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "2.1.1"
+version = "2.5.dev0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
@@ -36,11 +36,11 @@ classifiers = [
 [project.optional-dependencies]
 dev = [
     # testing
-    "pytest>=8.3.2,<9.0",
+    "pytest>=8.3.2,<10.0",
     "coverage>=7.6.1,<8.0",
     # style/linting
     "ruff>=0.6.3,<1.0",
-    "mypy>=1.13,<2.0",
+    "mypy>=1.13,<1.20",
     "pandas-stubs>2.0,<3.0",
     # doc building
     "sphinx>=8.0,<8.2",
@@ -133,11 +133,12 @@ ignore = [
     # "B006",  # mutable data structures for argument defaults, e.g. []
     "B904",  # raising within except clauses
     "B028",  # no explicit stack level
+    "E702",  # semi-colons for multiple line statements
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "N801"]
-"typing.py" = ["E501"]
+"typing.py" = ["E501", "E402"]
 "python/tests/*" = ["F401", "B", "N", "S", "ANN", "D"]
 "rust/*" = ["D"]
 
@@ -149,11 +150,7 @@ max-complexity = 14
 files = ["python/"]
 exclude = [
     "python/tests",
-    # "/scheduling/wrappers.py"
-    # "/instruments/fx_volatility/strategies.py",
-    # "/instruments/generics.py",
-    # "/instruments/rates/inflation.py",
-    # "solver.py",
+    # "/instruments/bonds/bond_future.py",
 ]
 strict = true
 #packages = [
@@ -165,12 +162,3 @@ omit = [
     "/typing.py",
     # "python/tests/*"
 ]
-
-[tool.isort]
-profile = "black"
-line_length = 100
-src_paths = ["python"]
-
-[tool.black]
-line-length = 100
-target-version = ['py310']

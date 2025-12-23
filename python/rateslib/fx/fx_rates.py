@@ -10,12 +10,11 @@ from pandas import DataFrame, Series
 
 from rateslib import defaults
 from rateslib.default import (
-    NoInput,
-    _drb,
     _make_py_json,
 )
 from rateslib.dual import Dual, gradient
 from rateslib.dual.utils import _get_adorder
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
