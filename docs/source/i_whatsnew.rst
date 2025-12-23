@@ -159,6 +159,10 @@ without.
        - :class:`~rateslib.instruments.XCS` now allows more flexible parameterization including
          mark-to-market elements either on leg1 or leg2, and amortization is now available for
          this *Instruments*.
+       - Add the default specs: :ref:`uk_gb_2y <spec-uk-gb-2y>`, :ref:`uk_gb_5y <spec-uk-gb-5y>`,
+         :ref:`uk_gb_10y <spec-uk-gb-10y>`, :ref:`uk_gb_30y <spec-uk-gb-30y>`, and include a new
+         ``calc_mode`` for :class:`~rateslib.instruments.BondFuture` that handles ICE Gilt futures:
+         *'ice_gbp'*.
    * - **Legs**
      - - **Add** an :class:`~rateslib.legs.Amortization` class to create custom amortization
          schedules on *Legs*.
@@ -302,6 +306,11 @@ without.
        - The :class:`~rateslib.instruments.FXVolValue` now has parameters which allow it to
          be used to calibrate :class:`~rateslib.fx_volatility.FXSabrSmile` and
          :class:`~rateslib.fx_volatility.FXSabrSurface`.
+       - The accrual function for a UK treasury bond is changed from *'linear_days'* to
+         *'linear_days_long_front_split'* with an example bond demonstrating this calculation
+         method being GB00BTXS1K06.
+       - The ``spec`` *'uk_gb'* now uses a 'LongFront' ``stub`` instead of 'ShortFront' to
+         better reproduce most newly issued bonds from the UK DMO.
    * - **Developers**
      - - The PyO3 version is upgraded to 0.27. (`1110 <https://github.com/attack68/rateslib/pull/1110>`_)
        - Supporting versions of Python 3.14, pandas 2.3.3 and numpy 2.3.5 are now integrated

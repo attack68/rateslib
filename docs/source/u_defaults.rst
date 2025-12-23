@@ -232,7 +232,7 @@ a host of arguments will be pre-populated. The table below outlines all of the e
      - :ref:`uk_gbb <spec-uk-gbb>`
      - :ref:`uk_gbi <spec-uk-gbi>`
      -
-     -
+     - :ref:`uk_gb_2y <spec-uk-gb-2y>`, :ref:`uk_gb_5y <spec-uk-gb-5y>`, :ref:`uk_gb_10y <spec-uk-gb-10y>`, :ref:`uk_gb_30y <spec-uk-gb-30y>`
    * - CHF
      - :ref:`ch_gb <spec-ch-gb>`
      -

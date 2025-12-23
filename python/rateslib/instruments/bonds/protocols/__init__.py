@@ -38,6 +38,8 @@ class _BaseBondInstrument(
     _WithYTM,
     _WithOASpread,
 ):
+    """Abstract base class used in the construction of bond type *Instruments*"""
+
     def npv(
         self,
         *,

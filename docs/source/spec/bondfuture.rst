@@ -135,3 +135,43 @@ CHF
 
    defaults.spec["ch_gb_10y"]
    BondFuture(spec="ch_gb_10y", delivery=dt(2000, 3, 10)).kwargs
+
+
+GBP
+******
+
+.. _spec-uk-gb-2y:
+
+**ICE/LIFFE Gilt Futures 2y**
+
+.. ipython:: python
+
+   defaults.spec["uk_gb_2y"]
+   BondFuture(spec="uk_gb_2y", delivery=dt(2000, 3, 10)).kwargs
+
+.. _spec-uk-gb-5y:
+
+**ICE/LIFFE Gilt Futures 5y**
+
+.. ipython:: python
+
+   defaults.spec["uk_gb_5y"]
+   BondFuture(spec="uk_gb_5y", delivery=dt(2000, 3, 10)).kwargs
+
+.. _spec-uk-gb-10y:
+
+**ICE/LIFFE Gilt Futures 10y**
+
+.. ipython:: python
+
+   defaults.spec["uk_gb_10y"]
+   BondFuture(spec="uk_gb_10y", delivery=dt(2000, 3, 10)).kwargs
+
+.. _spec-uk-gb-30y:
+
+**ICE/LIFFE Gilt Futures 30y**
+
+.. ipython:: python
+
+   defaults.spec["uk_gb_30y"]
+   BondFuture(spec="uk_gb_30y", delivery=dt(2000, 3, 10)).kwargs

@@ -22,8 +22,8 @@ Modern *rateslib* is historically derived from three parts:
   This code prioritised a pedagogical style with an API as simple and intuitive as possible.
 - Code and algorithms privately devised and developed during the author's time trading IRSs
   as a market-maker and quantative developer for institutions such as Barclays and Nordea.
-- Collaborations with other quant groups and users to implement more complex and nuanced areas of
-  fixed income and FX pricing into an accessible and scalable UI.
+- Collaborations with other quant groups, and commerical licence holders to implement more
+  complex and nuanced areas of fixed income and FX pricing into an accessible and scalable UI.
 
 The algorithms and mathematical code developments of *rateslib* are all characterised and
 explained in `Coding Interest Rates: FX, Swaps and Bonds <https://www.amazon.com/dp/0995455562>`_.
