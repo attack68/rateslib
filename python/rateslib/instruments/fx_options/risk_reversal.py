@@ -319,7 +319,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         if local:
             df = DataFrame(results).fillna(0.0)
             df_sum = df.sum()
-            _: DualTypes | dict[str, DualTypes] = df_sum.to_dict()
+            _: DualTypes | dict[str, DualTypes] = df_sum.to_dict()  # type: ignore[assignment]
         else:
             _ = sum(results)  # type: ignore[arg-type]
         return _
