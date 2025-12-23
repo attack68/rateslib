@@ -1740,7 +1740,7 @@ class Solver(Gradients, _WithState):
             names=["type", "solver", "label"],
         )
         indexes = {"instruments": inst_idx, "fx": fx_idx}
-        r_idx = inst_idx.append(fx_idx)  # type: ignore[no-untyped-call]
+        r_idx = inst_idx.append(fx_idx)
         c_idx = MultiIndex.from_tuples([], names=["local_ccy", "display_ccy"])
         df = DataFrame(None, index=r_idx, columns=c_idx)
         for key, array in container.items():
@@ -1999,7 +1999,7 @@ class Solver(Gradients, _WithState):
             names=["local_ccy", "display_ccy", "type", "solver", "label"],
         )
         if base is not NoInput.blank:
-            ridx = ridx.append(  # type: ignore[no-untyped-call]
+            ridx = ridx.append(
                 MultiIndex.from_tuples(
                     [("all", base) + _ for _ in inst_keys + fx_keys],
                     names=["local_ccy", "display_ccy", "type", "solver", "label"],
