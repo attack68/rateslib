@@ -118,14 +118,17 @@ class _KWArgs:
 
     @property
     def leg1(self) -> dict[str, Any]:
+        """Keyword arguments pass to construction of *Leg1*."""
         return self._leg1_args
 
     @property
     def leg2(self) -> dict[str, Any]:
+        """Keyword arguments pass to construction of *Leg2*."""
         return self._leg2_args
 
     @property
     def meta(self) -> dict[str, Any]:
+        """Meta keyword arguments associated with the *Instrument*."""
         return self._meta_args
 
     def __init__(

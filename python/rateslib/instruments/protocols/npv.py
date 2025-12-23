@@ -55,31 +55,45 @@ class _WithNPV(_WithPricingObjs, Protocol):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         """
-        Calculate the NPV of the *Period* converted to any other *base* accounting currency.
+        Calculate the NPV of the *Instrument* converted to any other *base* accounting currency.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, Curve, IRS
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75})
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", fixed_rate=1.0, curves=[curve])
+           irs.npv()
+           irs.npv(local=True)
+
+        .. role:: red
+
+        .. role:: green
 
         Parameters
         ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
-            Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
-            Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
-            Used to discount cashflows.
-        fx: FXForwards, optional
-            The :class:`~rateslib.fx.FXForwards` object used for forecasting the
-            ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
-            :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
-            The FX volatility *Smile* or *Surface* object used for determining Black calendar
-            day implied volatility values.
-        base: str, optional
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
             The currency to convert the *local settlement* NPV to.
-        local: bool, optional
+        local: bool, :green:`optional (set as False)`
             An override flag to return a dict of NPV values indexed by string currency.
-        settlement: datetime, optional
+        settlement: datetime, :green:`optional`
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
-        forward: datetime, optional
+        forward: datetime, :green:`optional`
             The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
@@ -88,8 +102,8 @@ class _WithNPV(_WithPricingObjs, Protocol):
 
         Notes
         -----
-        If ``base`` is not provided then this function will return the value obtained from
-        :meth:`~rateslib.periods._WithNPV.try_local_npv`.
+        If ``base`` is not given then this function will return the value obtained from
+        determining the PV in local *settlement currency*.
 
         If ``base`` is provided this then an :class:`~rateslib.fx.FXForwards` object may be
         required to perform conversions. An :class:`~rateslib.fx.FXRates` object is also allowed

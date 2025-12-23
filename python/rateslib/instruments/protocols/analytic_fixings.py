@@ -64,6 +64,10 @@ def _composit_fixings_table(df_result: DataFrame, df: DataFrame) -> DataFrame:
 
 
 class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
+    """
+    Protocol to determine the *analytic rate fixings' sensitivity* of a particular *Instrument*.
+    """
+
     @property
     def kwargs(self) -> _KWArgs: ...
 
@@ -78,12 +82,53 @@ class _WithAnalyticRateFixings(_WithPricingObjs, Protocol):
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         """
-        TBD
+        Calculate the sensitivity to rate fixings of the *Instrument*, expressed in local
+        settlement currency per basis point.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, Curve, IRS
+
+        .. ipython:: python
+
+           curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75}, id="Eur1mCurve")
+           curve3 = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.70}, id="Eur3mCurve")
+           irs = IRS(dt(2000, 1, 1), "20m", spec="eur_irs3", curves=[{"1m": curve1, "3m": curve3}, curve1])
+           irs.local_analytic_rate_fixings()
+
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
         DataFrame
-        """
+
+        Notes
+        -----
+        This analytic method will index the sensitivities with series identifier according to the
+        *Curve* id which has forecast the fixing.
+        """  # noqa: E501
         raise NotImplementedError(
             f"{type(self).__name__} must implement `local_analytic_rate_fixings`"
         )

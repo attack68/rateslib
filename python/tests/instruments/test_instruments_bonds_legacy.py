@@ -1646,6 +1646,7 @@ class TestFixedRateBond:
             effective=dt(2000, 1, 15),
             termination=dt(2030, 9, 25),
             spec="uk_gb",
+            stub="shortfront",
             fixed_rate=0.57744089871129,
         )
         result = frb.ytm(price=173.80904334438674, settlement=dt(2000, 1, 20))
@@ -3550,6 +3551,54 @@ class TestBondFuture:
         result = fut.cfs
         assert abs(result[0] - exp) < 1e-6
 
+    def test_conversion_factors_ice_gilt_default_spec(self) -> None:
+        # this uses the v2.5 implementation that rounds exactly to the exchange quantity
+        # this tests data directly from ice rounded to 7 dp.
+        # note this requires 'linear_days_long_front_split' on GB00BTXS1K06 which is the last bond.
+        bf = BondFuture(
+            basket=[
+                FixedRateBond(dt(1999, 1, 1), dt(2035, 7, 31), fixed_rate=0.625, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2038, 1, 29), fixed_rate=3.75, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2034, 9, 7), fixed_rate=4.5, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2035, 3, 7), fixed_rate=4.5, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2036, 3, 7), fixed_rate=4.25, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2037, 9, 7), fixed_rate=1.75, spec="uk_gb"),
+                FixedRateBond(dt(2025, 9, 3), dt(2035, 10, 22), fixed_rate=4.75, spec="uk_gb"),
+            ],
+            delivery=(dt(2025, 12, 1), dt(2025, 12, 31)),
+            spec="uk_gb_10y",
+        )
+        expected = (
+            0.7316293,
+            0.9760712,
+            1.0366069,
+            1.0383390,
+            1.0208264,
+            0.7904642,
+            1.0606298,
+        )
+        assert bf.cfs == expected
+
+    def test_conversion_factors_ice_gilt_default_spec2(self) -> None:
+        # this test has the first calendar day of the month as a holiday
+        # this uses the v2.5 implementation that rounds exactly to the exchange quantity
+        # this tests data directly from ice rounded to 7 dp.
+        bf = BondFuture(
+            basket=[
+                FixedRateBond(dt(1999, 1, 1), dt(2034, 9, 7), fixed_rate=4.5, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2038, 1, 29), fixed_rate=3.75, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2034, 7, 31), fixed_rate=4.25, spec="uk_gb"),
+                FixedRateBond(dt(2025, 2, 12), dt(2035, 3, 7), fixed_rate=4.5, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2037, 9, 7), fixed_rate=1.75, spec="uk_gb"),
+                FixedRateBond(dt(1999, 1, 1), dt(2036, 3, 7), fixed_rate=4.25, spec="uk_gb"),
+                FixedRateBond(dt(2020, 9, 11), dt(2035, 7, 31), fixed_rate=0.625, spec="uk_gb"),
+            ],
+            delivery=(dt(2025, 6, 2), dt(2025, 6, 30)),
+            spec="uk_gb_10y",
+        )
+        expected = (1.0383429, 0.9753142, 1.0189797, 1.0400109, 0.7835277, 1.0216443, 0.7203475)
+        assert bf.cfs == expected
+
     @pytest.mark.parametrize(
         ("mat", "coupon", "calc_mode", "exp"),
         [
@@ -3960,3 +4009,70 @@ class TestBondFuture:
             }
         )
         assert_frame_equal(result, expected)
+
+    def test_curves_on_individual_bonds(self):
+        # no curves are supplied to BondFuture meta or method an local instrument meta are used
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 2): 1.0, dt(2042, 1, 1): 0.5})
+        usz3 = BondFuture(  # Construct the BondFuture Instrument
+            coupon=6.0,
+            delivery=(dt(2023, 12, 1), dt(2023, 12, 29)),
+            basket=[
+                FixedRateBond(dt(2022, 1, 1), "10y", fixed_rate=4.5, spec="us_gb", curves=c1),
+                FixedRateBond(dt(2022, 1, 1), "10Y", fixed_rate=4.5, spec="us_gb", curves=c2),
+            ],
+            nominal=100e3,
+            calendar="nyc",
+            currency="usd",
+            calc_mode="ust_long",
+        )
+        cfs = usz3.cfs
+        assert cfs[0] == cfs[1]
+        result = usz3.rate()
+        assert abs(result - 118.06972328) < 1e-7
+
+    def test_curves_supplied_to_rate_method(self):
+        # the curves supplied to the method overrides the local instruments meta
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 2): 1.0, dt(2042, 1, 1): 0.5})
+        usz3 = BondFuture(  # Construct the BondFuture Instrument
+            coupon=6.0,
+            delivery=(dt(2023, 12, 1), dt(2023, 12, 29)),
+            basket=[
+                FixedRateBond(dt(2022, 1, 1), "10y", fixed_rate=4.5, spec="us_gb", curves=c1),
+                FixedRateBond(dt(2022, 1, 1), "10Y", fixed_rate=4.5, spec="us_gb", curves=c2),
+            ],
+            nominal=100e3,
+            calendar="nyc",
+            currency="usd",
+            calc_mode="ust_long",
+        )
+        cfs = usz3.cfs
+        assert cfs[0] == cfs[1]
+        # in this c1 is used as an override so both bonds are priced expensively - price is higher
+        result = usz3.rate(curves=c1)
+        assert abs(result - 150.184019411) < 1e-7
+
+    def test_curves_supplied_as_future_meta(self):
+        # the curves supplied to the BondFuture.curves meta override local instruments.
+        c1 = Curve({dt(2022, 1, 1): 1.0, dt(2042, 1, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 2): 1.0, dt(2042, 1, 1): 0.5})
+        usz3 = BondFuture(  # Construct the BondFuture Instrument
+            coupon=6.0,
+            delivery=(dt(2023, 12, 1), dt(2023, 12, 29)),
+            basket=[
+                FixedRateBond(dt(2022, 1, 1), "10y", fixed_rate=4.5, spec="us_gb", curves=c1),
+                FixedRateBond(dt(2022, 1, 1), "10Y", fixed_rate=4.5, spec="us_gb", curves=c2),
+            ],
+            nominal=100e3,
+            calendar="nyc",
+            currency="usd",
+            calc_mode="ust_long",
+            curves=c1,
+        )
+        cfs = usz3.cfs
+        assert cfs[0] == cfs[1]
+        # in this c1 is used as an override via the bond future metric so both bonds are priced
+        # expensively - price is higher
+        result = usz3.rate()
+        assert abs(result - 150.184019411) < 1e-7

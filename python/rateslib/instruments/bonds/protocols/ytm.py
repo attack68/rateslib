@@ -241,6 +241,11 @@ class _WithYTM(_WithAccrued, Protocol):
         Examples
         --------
         .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, FixedRateBond, Dual, Dual2
+
+        .. ipython:: python
 
            gilt = FixedRateBond(
                effective=dt(1998, 12, 7),

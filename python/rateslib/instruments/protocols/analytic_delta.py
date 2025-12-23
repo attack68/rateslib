@@ -53,7 +53,52 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
         """
-        TBD
+        Calculate the analytic rate delta of a *Leg* of the *Instrument*.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import dt, Curve, IRS
+
+        .. ipython:: python
+
+           curve = Curve({dt(2000, 1, 1): 1.0, dt(2010, 1, 1): 0.75})
+           irs = IRS(dt(2000, 1, 1), "3Y", spec="usd_irs", fixed_rate=1.0, curves=[curve])
+           irs.analytic_delta()
+           irs.analytic_delta(local=True)
+
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        local: bool, :green:`optional (set as False)`
+            An override flag to return a dict of NPV values indexed by string currency.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
+        leg: int, :green:`optional (set as 1)`
+            The *Leg* over which to calculate the analytic rate delta.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable or dict of such indexed by string currency.
         """
         _curves: _Curves = self._parse_curves(curves)
         _vol: _Vol = self._parse_vol(vol)
