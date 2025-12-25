@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 class FXStraddle(_BaseFXOptionStrat):
     """
-    An *FX Straddle* :class:`~rateslib.instruments._FXOptionStrat`.
+    An *FX Straddle* :class:`~rateslib.instruments._BaseFXOptionStrat`.
 
     A *Straddle* is composed of a :class:`~rateslib.instruments.FXPut`
     and :class:`~rateslib.instruments.FXCall` with the same strike.
@@ -36,23 +36,23 @@ class FXStraddle(_BaseFXOptionStrat):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXStraddle
-       from datetime import datetime as dt
+       from rateslib import FXStraddle, FXForwards, FXRates, FXDeltaVolSmile, Curve, dt
 
     .. ipython:: python
 
-       fxc = FXRiskReversal(
+       fxs = FXStraddle(
            expiry="3m",
-           strike="atm_delta",
+           strike=1.10,  # <- "atm_delta" is also a common input
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
+           notional=1000000,
        )
-       fxc.cashflows()
+       fxs.cashflows()
 
     .. rubric:: Pricing
 
-    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`.
-    Allowable inputs are:
+    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`. All options use the
+    same ``curves``. Allowable inputs are:
 
     .. code-block:: python
 
@@ -71,12 +71,48 @@ class FXStraddle(_BaseFXOptionStrat):
        vol = 12.0 | vol_obj  # a single item universally applied
        vol = [12.0, 12.0]  # values for the Put and Call respectively
 
-    The pricing ``metric`` will return the following calculations:
+    The following pricing ``metric`` are available, with examples:
 
-    - *'vol'*: the implied volatility value of the option from a volatility object.
-    - *'premium'*: the cash premium amount applicable to the 'payment' date.
-    - *'pips_or_%'*: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
-      the premium currency is RHS this gives a number of pips of the FX rate.
+    .. ipython:: python
+
+       eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+       usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+           fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+       )
+       fxvs = FXDeltaVolSmile(
+           nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+           expiry=dt(2020, 4, 1),
+           eval_date=dt(2020, 1, 1),
+           delta_type="forward",
+       )
+
+    - **'vol'**: the implied volatility value of the straddle from a volatility object.
+      **'single_vol'** is also an alias for this, since both options assume the same volatility.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+
+    - **'premium'**: the summed cash premium amount, of both options, applicable to the 'payment'
+      date.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+         fxs.instruments[0].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+         fxs.instruments[1].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+
+    - **'pips_or_%'**: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
+      the premium currency is RHS this gives a number of pips of the FX rate. Summed over both
+      options.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
+         fxs.instruments[0].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
+         fxs.instruments[1].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
 
     .. role:: red
 
@@ -153,19 +189,6 @@ class FXStraddle(_BaseFXOptionStrat):
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
 
-    Notes
-    -----
-    Buying a *Straddle* equates to buying a :class:`~rateslib.instruments.FXPut`
-    and buying a :class:`~rateslib.instruments.FXCall` with the same strike. The ``notional`` of
-    each are the same, and should be entered as a single value.
-
-    When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility.
-
-    This class is an alias constructor for an
-    :class:`~rateslib.instruments._FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically overloaded for
-    convenience.
     """
 
     _rate_scalar = 100.0

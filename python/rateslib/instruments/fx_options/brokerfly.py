@@ -31,33 +31,33 @@ if TYPE_CHECKING:
 
 class FXBrokerFly(_BaseFXOptionStrat):
     """
-    An *FX Strangle* :class:`~rateslib.instruments._FXOptionStrat`.
+    An *FX BrokerFly* :class:`~rateslib.instruments._BaseFXOptionStrat`.
 
-    A *Straddle* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
-    and a higher strike :class:`~rateslib.instruments.FXCall`.
+    A *BrokerFly* is composed of a :class:`~rateslib.instruments.FXStrangle`
+    and a :class:`~rateslib.instruments.FXStraddle`.
 
     .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXRiskReversal
-       from datetime import datetime as dt
+       from rateslib import FXBrokerFly, Curve, FXForwards, FXDeltaVolSmile, FXRates, dt
 
     .. ipython:: python
 
-       fxc = FXRiskReversal(
+       fxbf = FXBrokerFly(
            expiry="3m",
-           strike="atm_delta",
+           strike=[["-10d", "10d"], "atm_delta"],
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
+           notional=[1000000.0, None],  # <- straddle notional is derived from vega neutral
        )
-       fxc.cashflows()
+       fxbf.cashflows()
 
     .. rubric:: Pricing
 
     The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`.
-    Allowable inputs are:
+    All options use the same ``curves`. Allowable inputs are:
 
     .. code-block:: python
 
@@ -74,14 +74,53 @@ class FXBrokerFly(_BaseFXOptionStrat):
     .. code-block:: python
 
        vol = 12.0 | vol_obj  # a single item universally applied
-       vol = [12.0, 12.0]  # values for the Put and Call respectively
+       vol = [[13.1, 13.4], 12.0]  # values for Strangle and Straddle respectively
 
-    The pricing ``metric`` will return the following calculations:
+    *BrokerFlys* inherit the peculiarities of an :class:`~rateslib.instruments.FXStrangle`.
+    If the notional is not set on the *FXStraddle* then a calculation will be performed to derive a
+    notional that yields a vega neutral strategy.
+    The following pricing ``metric`` are available, with examples:
 
-    - *'vol'*: the implied volatility value of the option from a volatility object.
-    - *'premium'*: the cash premium amount applicable to the 'payment' date.
-    - *'pips_or_%'*: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
-      the premium currency is RHS this gives a number of pips of the FX rate.
+    .. ipython:: python
+
+       eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+       usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+           fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+       )
+       fxvs = FXDeltaVolSmile(
+           nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+           expiry=dt(2020, 4, 1),
+           eval_date=dt(2020, 1, 1),
+           delta_type="forward",
+       )
+
+    - **'single_vol'**: this is the *'single_vol'* price of the *FXStrangle* minus the *'single_vol'*
+      price of the *FXStraddle*. **'vol'** is an alias for single vol and returns the same value.
+
+      .. ipython:: python
+
+         fxbf.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="single_vol")
+         fxbf.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+
+    - **'premium'**: the summed cash premium amount, of both options, applicable to the 'payment'
+      date. If *FXStrangle* strikes are given as delta percentages then they are first determined
+      using the *'single_vol'*.
+
+      .. ipython:: python
+
+         fxbf.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+
+    - **'pips_or_%'**: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
+      the premium currency is RHS this gives a number of pips of the FX rate. Summed over both
+      options. For *FXStrangle* strikes set with delta percentages these are first determined using the
+      'single_vol'.
+
+      .. ipython:: python
+
+         fxbf.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
+
 
     .. role:: red
 
@@ -99,12 +138,14 @@ class FXBrokerFly(_BaseFXOptionStrat):
         The expiry of the option. If given in string tenor format, e.g. "1M" requires an
         ``eval_date``. See **Notes**.
     strike: 2-tuple of float, Variable, str, :red:`required`
-        The strikes of the put and the call in order.
+        The strikes of the *FXStrangle* and the *FXStraddle* in order.
     pair: str, :red:`required`
         The currency pair for the FX rate which settles the option, in 3-digit codes, e.g. "eurusd".
         May be included as part of ``spec``.
-    notional: float, :green:`optional (set by 'defaults')`
-        The notional amount of each option expressed in units of LHS of ``pair``.
+    notional: 2-tuple of float or None, :green:`optional (set by 'defaults')`
+        The notional amount of each option strategy expressed in units of LHS of ``pair``.
+        If the straddle notional is given as None then it will be determined from the strangle
+        notional under a vega neutral approach.
     eval_date: datetime, :green:`optional`
         Only required if ``expiry`` is given as string tenor.
         Should be entered as today (also called horizon) and **not** spot. Spot is derived
@@ -135,10 +176,10 @@ class FXBrokerFly(_BaseFXOptionStrat):
 
            The following define additional **rate** parameters.
 
-    premium: 2-tuple of float, :green:`optional`
-        The amount paid for the put and call in order. If not given assumes unpriced
+    premium: 2-tuple of 2-tuple float, :green:`optional`
+        The amount paid for each option in each strategy in order. If not given assumes unpriced
         *Options* and sets this as mid-market premium during pricing.
-    option_fixings: 2-tuple of float, Dual, Dual2, Variable, Series, str, :green:`optional`
+    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of each option's :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
 
@@ -171,7 +212,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
     :class:`~rateslib.instruments._FXOptionStrat` where the number
     of options and their definitions and nominals have been specifically overloaded for
     convenience.
-    """
+    """  # noqa: E501
 
     _rate_scalar = 100.0
 
@@ -281,7 +322,6 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_,
         solver: Solver_,
         fx: FXForwards_,
-        base: str_,
         vol: tuple[FXVolStrat_, FXVolStrat_],
         metric: str_,
     ) -> None:
@@ -302,7 +342,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
                 curves,
                 solver,
                 fx,
-                base,
+                base=NoInput(0),
                 vol=vol[0],
                 metric="single_vol",
                 record_greeks=True,
@@ -313,7 +353,6 @@ class FXBrokerFly(_BaseFXOptionStrat):
                 curves,
                 solver,
                 fx,
-                base,
                 vol=vol[1],
             )
             strangle_vega = self._greeks["strangle"]["market_vol"]["FXPut"]["vega"]
@@ -338,26 +377,6 @@ class FXBrokerFly(_BaseFXOptionStrat):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Returns the rate of the *FXBrokerFly* according to a pricing metric.
-
-        For parameters see :meth:`_FXOptionStrat.rate <rateslib.instruments._FXOptionStrat.rate>`.
-
-        Notes
-        ------
-
-        .. warning::
-
-           The default ``metric`` for an *FXBrokerFly* is *'single_vol'*, which requires an
-           iterative algorithm to solve.
-           For defined strikes it is usually very accurate but for strikes defined by delta it
-           will return a solution within 0.01 pips. This means it is both slower than other
-           instruments and inexact.
-
-           The ``metric`` *'vol'* is not sensible to use with an *FXBrokerFly*, although it will
-           return the arithmetic average volatility across both strategies, *'single_vol'* is the
-           more standardised choice.
-        """
         # Get curves and vol
         vol_ = tuple(
             [
@@ -368,7 +387,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         _curves = self._parse_curves(curves)
 
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
-        self._maybe_set_vega_neutral_notional(_curves, solver, fx, base, vol_, metric_)
+        self._maybe_set_vega_neutral_notional(_curves, solver, fx, vol_, metric_)
 
         if metric_ == "pips_or_%":
             straddle_scalar = (
@@ -402,17 +421,16 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
         vol: FXVolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
         # implicitly call set_pricing_mid for unpriced parameters
-        self.rate(curves=curves, solver=solver, fx=fx, base=base, vol=vol, metric="pips_or_%")
+        self.rate(curves=curves, solver=solver, fx=fx, base=NoInput(0), vol=vol, metric="pips_or_%")
 
         vol_ = self._parse_vol(vol)
 
         # TODO: this meth can be optimised because it calculates greeks at multiple times in frames
-        g_grks = self.instruments[0].analytic_greeks(curves, solver, fx, base, vol_[0])
-        d_grks = self.instruments[1].analytic_greeks(curves, solver, fx, base, vol_[1])
+        g_grks = self.instruments[0].analytic_greeks(curves, solver, fx, vol_[0])
+        d_grks = self.instruments[1].analytic_greeks(curves, solver, fx, vol_[1])
         sclr = abs(
             self.instruments[1].instruments[0]._option.settlement_params.notional
             / self.instruments[0].instruments[0]._option.settlement_params.notional,
@@ -443,14 +461,12 @@ class FXBrokerFly(_BaseFXOptionStrat):
 
     def _plot_payoff(
         self,
-        window: list[float] | NoInput = NoInput(0),  # noqa: A002
+        window: tuple[float, float] | NoInput = NoInput(0),  # noqa: A002
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
         vol_ = self._parse_vol(vol)
-        self._maybe_set_vega_neutral_notional(curves, solver, fx, base, vol_, metric="pips_or_%")
-        return super()._plot_payoff(window, curves, solver, fx, base, local, vol_)
+        self._maybe_set_vega_neutral_notional(curves, solver, fx, vol_, metric="pips_or_%")
+        return super()._plot_payoff(window, curves, solver, fx, vol_)

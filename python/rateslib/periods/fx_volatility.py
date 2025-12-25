@@ -833,7 +833,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         return None, v_, k
 
     def _payoff_at_expiry(
-        self, rng: list[float] | NoInput = NoInput(0)
+        self, rng: tuple[float, float] | NoInput = NoInput(0)
     ) -> tuple[Arr1dF64, Arr1dF64]:
         # used by plotting methods
         if isinstance(self.fx_option_params.strike, NoInput):

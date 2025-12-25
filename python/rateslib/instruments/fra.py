@@ -175,7 +175,7 @@ class FRA(_BaseInstrument):
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
         such as the ``calendar``, ``convention``, ``method_param`` etc.
     leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
 

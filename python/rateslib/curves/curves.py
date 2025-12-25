@@ -647,6 +647,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
 
         .. ipython:: python
+           :suppress:
+
+           from rateslib import Curve, dt
+
+        .. ipython:: python
 
            index_curve = Curve(
                nodes={
