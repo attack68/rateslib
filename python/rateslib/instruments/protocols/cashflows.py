@@ -127,10 +127,6 @@ class _WithCashflows(_WithPricingObjs, Protocol):
            should be avoided. It is more efficent to source relevant parameters or calculations
            from object attributes or other methods directly.
 
-        Parameters
-        ----------
-        XXX
-
         Returns
         -------
         dict of values

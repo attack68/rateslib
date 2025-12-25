@@ -8048,7 +8048,7 @@ class TestFXBrokerFly:
             s=[11.0, 2.4, 2.5, 4.5],
             fx=fxfo,
         )
-        result = obj.rate(solver=solver, vol=vol, metric="vol")
+        result = obj.rate(solver=solver, vol=vol, metric="single_vol")
         assert abs(result - exp) < 1e-6
 
 

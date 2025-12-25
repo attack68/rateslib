@@ -242,7 +242,7 @@ class NDXCS(_BaseInstrument):
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
     leg2_fixed : bool, :green:`optional (set as False)`

@@ -191,45 +191,6 @@ class _BaseFXOptionStrat(_BaseFXOption):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Return various pricing metrics of the *FXOptionStrat*.
-
-        Parameters
-        ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for ccy1, None, Curve for ccy2]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
-            calibrating instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            Not used by the `rate` method.
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
-            The volatility used in calculation. See notes.
-        metric: str in {"pips_or_%", "vol", "premium"}, optional
-            The pricing metric type to return. See notes for
-            :meth:`FXOption.rate <rateslib.instruments.FXOption.rate>`
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        If the ``vol`` option is given as a Sequence of volatility values, these should be
-        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
-        For nested *FXOptionStrat* use nested sequences.
-
-        For example, for an *FXBrokerFly*, which contains an *FXStrangle* and an *FXStraddle*,
-        ``vol`` may be entered as `[[12, 11], 10]` which are values of 12% and 11% on the
-        *Strangle* options and 10% for the two *Straddle* options, or just `"fx_surface1"` which
-        will determine all volatilities from an FXDeltaVolSurface associated with a *Solver*,
-        with id: "fx_surface1".
-
-        """
         vol_: FXVolStrat_ = self._parse_vol(vol)
         metric_: str = _drb(self.kwargs.meta["metric"], metric)
         map_ = {
@@ -269,37 +230,6 @@ class _BaseFXOptionStrat(_BaseFXOption):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
-        """
-        Return the NPV of the *FXOptionStrat*.
-
-        Parameters
-        ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as: `[None, Curve for ccy1, None, Curve for ccy2]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
-            calibrating instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            3-digit currency in which to express values.
-        local: bool, optional
-            If `True` will return a dict identifying NPV by local currencies on each
-            period.
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
-            The volatility used in calculation.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        If the ``vol`` option is given as a Sequence of volatility values, these should be
-        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
-        For nested *FXOptionStrat* use nested sequences.
-        """
         vol_ = self._parse_vol(vol)
 
         results = [
@@ -347,12 +277,10 @@ class _BaseFXOptionStrat(_BaseFXOption):
 
     def _plot_payoff(
         self,
-        window: list[float] | NoInput = NoInput(0),
+        window: tuple[float, float] | NoInput = NoInput(0),
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
         vol_: FXVolStrat_ = self._parse_vol(vol)
@@ -364,8 +292,6 @@ class _BaseFXOptionStrat(_BaseFXOption):
                 curves=curves,
                 solver=solver,
                 fx=fx,
-                base=base,
-                local=local,
                 vol=vol__,  # type: ignore[arg-type]
             )
             if y is None:
@@ -380,44 +306,13 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
         vol: FXVolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
-        """
-        Return aggregated greeks of the *FXOptionStrat*.
-
-        Parameters
-        ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
-            calibrating instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            Not used by `analytic_greeks`.
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface, or Sequence of such, optional
-            The volatility used in calculation.
-
-        Returns
-        -------
-        dict
-
-        Notes
-        -----
-        If the ``vol`` option is given as a Sequence of volatility values, these should be
-        ordered according to each *FXOption* or *FXOptionStrat* contained on the *Instrument*.
-        For nested *FXOptionStrat* use nested sequences.
-        """
-
         # implicitly call set_pricing_mid for unpriced parameters
         # this is important for Strategies whose options are
         # dependent upon each other, e.g. Strangle. (RR and Straddle do not have
         # interdependent options)
-        self.rate(curves=curves, solver=solver, fx=fx, base=base, vol=vol)
+        self.rate(curves=curves, solver=solver, fx=fx, vol=vol)
 
         vol_: FXVolStrat_ = self._parse_vol(vol=vol)
         gks = []
@@ -428,7 +323,6 @@ class _BaseFXOptionStrat(_BaseFXOption):
                         curves=curves,
                         solver=solver,
                         fx=fx,
-                        base=base,
                         vol=vol_i,
                     )
                 )
@@ -439,7 +333,6 @@ class _BaseFXOptionStrat(_BaseFXOption):
                         curves=curves,
                         solver=solver,
                         fx=fx,
-                        base=base,
                         vol=vol_i,  # type: ignore[arg-type]
                         set_metrics=False,  # already done in the rate call above
                     )
@@ -471,7 +364,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
 
 class FXRiskReversal(_BaseFXOptionStrat):
     """
-    An *FX Risk Reversal* :class:`~rateslib.instruments.FXOptionStrat`.
+    An *FX Risk Reversal* :class:`~rateslib.instruments._BaseFXOptionStrat`.
 
     A *RiskReversal* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
     and a higher strike :class:`~rateslib.instruments.FXCall`.
@@ -481,22 +374,23 @@ class FXRiskReversal(_BaseFXOptionStrat):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXRiskReversal
-       from datetime import datetime as dt
+       from rateslib import FXRiskReversal, Curve, FXForwards, FXRates, FXDeltaVolSmile, dt
 
     .. ipython:: python
 
-       fxc = FXRiskReversal(
+       fxrr = FXRiskReversal(
            expiry="3m",
            strike=["-25d", "25d"],
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
+           notional=1000000,
        )
-       fxc.cashflows()
+       fxrr.cashflows()
 
     .. rubric:: Pricing
 
-    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`.
+    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`. All options use the
+    same ``curves``.
     Allowable inputs are:
 
     .. code-block:: python
@@ -516,12 +410,50 @@ class FXRiskReversal(_BaseFXOptionStrat):
        vol = 12.0 | vol_obj  # a single item universally applied
        vol = [12.0, 13.0]  # values for the Put and Call respectively
 
-    The pricing ``metric`` will return the following calculations:
+    The following pricing ``metric`` are available, with examples:
 
-    - *'vol'*: the implied volatility value of the option from a volatility object.
-    - *'premium'*: the cash premium amount applicable to the 'payment' date.
-    - *'pips_or_%'*: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
-      the premium currency is RHS this gives a number of pips of the FX rate.
+    .. ipython:: python
+
+       eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+       usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+           fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+       )
+       fxvs = FXDeltaVolSmile(
+           nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+           expiry=dt(2020, 4, 1),
+           eval_date=dt(2020, 1, 1),
+           delta_type="forward",
+       )
+
+    - **'vol'**: the implied volatility value of the *FXCall* minus the volatility of the *FXPut*.
+      **'single_vol'** is also an alias for this.
+
+      .. ipython:: python
+
+         fxrr.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+         fxrr.instruments[0].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+         fxrr.instruments[1].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+
+    - **'premium'**: the summed cash premium amount, of both options, applicable to the 'payment'
+      date.
+
+      .. ipython:: python
+
+         fxrr.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+         fxrr.instruments[0].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+         fxrr.instruments[1].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+
+    - **'pips_or_%'**: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
+      the premium currency is RHS this gives a number of pips of the FX rate. Summed over both
+      options.
+
+      .. ipython:: python
+
+         fxrr.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
+         fxrr.instruments[0].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
+         fxrr.instruments[1].rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
 
     .. role:: red
 
@@ -578,7 +510,7 @@ class FXRiskReversal(_BaseFXOptionStrat):
     premium: 2-tuple of float, :green:`optional`
         The amount paid for the put and call in order. If not given assumes unpriced
         *Options* and sets this as mid-market premium during pricing.
-    option_fixings: 2-tuple of float, Dual, Dual2, Variable, Series, str, :green:`optional`
+    option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of each option's :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
 
@@ -598,20 +530,6 @@ class FXRiskReversal(_BaseFXOptionStrat):
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
 
-    Notes
-    -----
-    Buying a *Risk Reversal* equates to selling a lower strike :class:`~rateslib.instruments.FXPut`
-    and buying a higher strike :class:`~rateslib.instruments.FXCall`. The ``notional`` of each are
-    the same, and should be entered as a single value.
-    A positive *notional* will indicate a sale of the *Put* and a purchase of the *Call*.
-
-    When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility.
-
-    This class is an alias constructor for an
-    :class:`~rateslib.instruments.FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically overloaded for
-    convenience.
     """
 
     _rate_scalar = 100.0
