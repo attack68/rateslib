@@ -605,6 +605,7 @@ class NDXCS(_BaseInstrument):
             metric=metric,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
+            leg2_currency=NoInput(1),
             initial_exchange=True,
             final_exchange=True,
             leg2_initial_exchange=True,

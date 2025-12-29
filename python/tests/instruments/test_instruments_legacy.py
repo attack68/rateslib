@@ -4483,6 +4483,14 @@ class TestNDXCS:
         ):
             assert a == b
 
+    def test_init_default_ccy(self):
+        defaults.base_currency = "gbp"
+        ndxcs = NDXCS(dt(2000, 1, 1), "1y", spec="inrusd_ndxcs")
+        assert ndxcs.leg1.settlement_params.currency == "usd"
+        assert ndxcs.leg2.settlement_params.currency == "usd"
+        defaults.reset_defaults()
+        assert defaults.base_currency == "usd"
+
 
 class TestFixedFloatXCS:
     def test_mtmfixxcs_rate(self, curve, curve2) -> None:

@@ -98,7 +98,6 @@ class BondCalcMode:
     arguments. The available values are:
 
     - ``linear_days``: A calendar day, linear proportion used in any period.
-      (Used by UK and German GBs).
     
       .. math::
       
@@ -107,14 +106,15 @@ class BondCalcMode:
     - ``linear_days_long_front_split``: A modified version of the above which, **only for long
       stub** periods, uses a different formula treating the first quasi period as part of the
       long stub differently. This adjustment is then scaled according to the length of the period.
-      (Treasury method for US Treasuries, see Section 31B ii A.356, Code of Federal Regulations)
+      (Used by UK and German GBs and is the Treasury method for US Treasuries,
+      see Section 31B ii A.356, Code of Federal Regulations)
       
       .. math::
       
          \\xi = (\\bar{r}_u / \\bar{s}_u + r_u / s_u) / ( d_i * f )
       
     - ``30e360_backward``: For **stubs** this method reverts to ``linear_days``. Otherwise,
-      determines the DCF, under the required convention, of the remaining part of the coupon
+      determines the DCF, under *'30e360'* convention, of the remaining part of the coupon
       period from settlement and deducts this from the full accrual fraction.
       
       .. math::
@@ -146,15 +146,15 @@ class BondCalcMode:
     .. ipython:: python
 
        def _linear_days(obj, settlement, acc_idx, *args) -> float:
-            sch = obj.leg1.schedule
-            r_u = (settlement - sch.aschedule[acc_idx]).days
+            sch = obj.leg1.schedule  # <- obj is always the Bond itself
+            r_u = (settlement - sch.aschedule[acc_idx]).days  # <- acc_idx accesses the correct date
             s_u = (sch.aschedule[acc_idx + 1] - sch.aschedule[acc_idx]).days
             return r_u / s_u
     
     Yield-To-Maturity
     -----------------
     
-    Yield-to-maturity in *rateslib*, for *every bond*, is calculated using the below formula.
+    Yield-to-maturity in *rateslib*, for **every bond**, is calculated using the below formula.
     The specific discounting and cashflow generating functions must be provided to determine
     values based on the conventions of that specific bond. The cases where the number of remaining
     coupons are 1, 2, or generically >2 are outlined explicitly:
