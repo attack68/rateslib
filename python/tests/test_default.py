@@ -23,3 +23,10 @@ def test_reset_defaults() -> None:
     assert defaults.modifier == "MF"
     assert defaults.base_currency == "usd"
     assert "TEST" not in defaults.calendars
+
+
+def test_defaults_singleton() -> None:
+    from rateslib.default import Defaults
+
+    other = Defaults()
+    assert id(other) == id(defaults)
