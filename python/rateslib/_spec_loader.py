@@ -90,7 +90,7 @@ if DEVELOPMENT:
             d["roll"] = _map_str_int(d["roll"])
         if "leg2_roll" in d:
             d["leg2_roll"] = _map_str_int(d["leg2_roll"])
-        return d  # type: ignore[return-value]  # this is [Hashable, Any] not [str, Any]
+        return d
 
     INSTRUMENT_SPECS = {k: _get_kwargs(k) for k in df.columns[4:]}
 

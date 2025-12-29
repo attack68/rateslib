@@ -140,7 +140,7 @@ class Portfolio(_BaseInstrument):
             # Aggregate results:
             _ = DataFrame(results).fillna(0.0)
             _ = _.sum()
-            local_npv = _.to_dict()  # type: ignore[assignment]
+            local_npv = _.to_dict()
 
             # ret = {}
             # for result in results:
