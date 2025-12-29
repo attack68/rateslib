@@ -382,6 +382,10 @@ impl Cal {
             Calendar::NamedCal(c) => *self == c,
         }
     }
+
+    fn __repr__(&self) -> String {
+        format!("<rl.Cal at {:p}>", self)
+    }
 }
 
 #[pymethods]
@@ -591,6 +595,10 @@ impl UnionCal {
             Calendar::NamedCal(c) => *self == c,
         }
     }
+
+    fn __repr__(&self) -> String {
+        format!("<rl.UnionCal at {:p}>", self)
+    }
 }
 
 #[pymethods]
@@ -789,6 +797,10 @@ impl NamedCal {
             Calendar::Cal(c) => *self == c,
             Calendar::NamedCal(c) => *self == c,
         }
+    }
+
+    fn __repr__(&self) -> String {
+        format!("<rl.NamedCal:'{}' at {:p}>", self.name, self)
     }
 }
 
