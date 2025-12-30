@@ -2668,7 +2668,7 @@ class TestIndexValue:
         ],
     )
     def test_series_len_zero(self, curve, exp):
-        s = Series(data=[], index=[])
+        s = Series(data=[], index=[], dtype=float)
         result = _try_index_value(0, "curve", s, dt(2000, 1, 1), curve)
         assert isinstance(result, exp)
 

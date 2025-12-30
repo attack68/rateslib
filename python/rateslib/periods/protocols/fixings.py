@@ -227,7 +227,7 @@ def _replace_fixings_with_ad_variables(
                 for d, v in identifier[1].items()
             ],
         )
-        index = index.union(other=ad_series.index, sort=True)  # type: ignore[arg-type]
+        index = index.union(other=ad_series.index, sort=None)  # type: ignore[arg-type]  # will sort
         fixings.pop(name=identifier[0])
         fixings.add(
             name=identifier[0],
