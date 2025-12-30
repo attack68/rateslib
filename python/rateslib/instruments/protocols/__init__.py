@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from rateslib.instruments.protocols.analytic_delta import _WithAnalyticDelta
 from rateslib.instruments.protocols.analytic_fixings import _WithAnalyticRateFixings
 from rateslib.instruments.protocols.cashflows import _WithCashflows
+from rateslib.instruments.protocols.fixings import _WithFixings
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.npv import _WithNPV
 from rateslib.instruments.protocols.rate import _WithRate
@@ -21,6 +22,7 @@ class _BaseInstrument(
     _WithNPV,
     _WithRate,
     _WithCashflows,
+    _WithFixings,
     _WithAnalyticDelta,
     _WithAnalyticRateFixings,
     metaclass=ABCMeta,
@@ -33,6 +35,7 @@ __all__ = [
     "_WithNPV",
     "_WithRate",
     "_WithCashflows",
+    "_WithFixings",
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixings",
     "_WithSensitivities",

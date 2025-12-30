@@ -204,60 +204,6 @@ class Cashflow(_BasePeriodStatic):
         return Ok(DataFrame())
 
 
-# class NonDeliverableCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#         if self.is_indexed:
-#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-#
-#
-# class IndexCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if self.is_non_deliverable:
-#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#
-#
-# class NonDeliverableIndexCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-
-
 class MtmCashflow(_BasePeriodStatic):
     r"""
     A *Period* defined by a specific amount calculated from the difference between two

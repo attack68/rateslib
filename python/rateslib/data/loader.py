@@ -12,7 +12,15 @@ from pandas import __version__ as pandas_version
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 
 if TYPE_CHECKING:
-    from rateslib.typing import Adjuster, CalTypes, DualTypes, FloatRateSeries, Result, datetime_
+    from rateslib.typing import (
+        Adjuster,
+        CalTypes,
+        DualTypes,
+        FloatRateSeries,
+        Result,
+        datetime_,
+        int_,
+    )
 
 
 class _BaseFixingsLoader(metaclass=ABCMeta):
@@ -50,7 +58,7 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
         """
         Add a timeseries to the data loader directly from Python.
 
@@ -278,14 +286,18 @@ class DefaultFixingsLoader(_BaseFixingsLoader):
         self.loaded[name_] = data
         return data
 
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
         if name in self.loaded:
             raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
         s = series.sort_index(ascending=True)
         s.index.name = "reference_date"
         s.name = "rate"
         name_ = name.upper()
-        self.loaded[name_] = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))
+        if isinstance(state, NoInput):
+            state_: int = hash(os.urandom(64))
+        else:
+            state_ = state
+        self.loaded[name_] = (state_, s, (s.index[0], s.index[-1]))
 
     def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
         name_ = name.upper()
@@ -380,10 +392,44 @@ class Fixings(_BaseFixingsLoader):
         """
         return self._loader
 
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
-        return self.loader.add(name, series)
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
+        """
+        Add a Series to the Fixings object directly from Python
+
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        name: str, :red:`required`
+            The string identifier key for the timeseries.
+        series: Series, :red:`required`
+            The timeseries indexed by datetime.
+        state, int, :green:`optional`
+            The state id to be used upon insertion of the Series.
+
+        Returns
+        -------
+        None
+        """
+        return self.loader.add(name, series, state)
 
     def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
+        """
+        Remove a Series from the Fixings object.
+
+        .. role:: red
+
+        Parameters
+        ----------
+        name: str, :red:`required`
+            The string identifier key for the timeseries.
+
+        Returns
+        -------
+        Series, or None (if name not found)
+        """
         return self.loader.pop(name)
 
 

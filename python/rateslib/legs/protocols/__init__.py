@@ -3,10 +3,12 @@ from abc import ABCMeta
 from rateslib.legs.protocols.analytic_delta import _WithAnalyticDelta
 from rateslib.legs.protocols.analytic_fixings import _WithAnalyticRateFixings
 from rateslib.legs.protocols.cashflows import _WithCashflows, _WithExDiv
+from rateslib.legs.protocols.fixings import _WithFixings
 from rateslib.legs.protocols.npv import _WithNPV
 
 
 class _BaseLeg(
+    _WithFixings,  # inherits _WIthNPV so first in MRO
     _WithNPV,
     _WithCashflows,
     _WithAnalyticDelta,
@@ -21,6 +23,7 @@ class _BaseLeg(
 __all__ = [
     "_WithNPV",
     "_WithCashflows",
+    "_WithFixings",
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixings",
     "_WithExDiv",

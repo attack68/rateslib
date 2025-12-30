@@ -26,6 +26,19 @@ class _WithNPV(Protocol):
     """
     Protocol to establish value of any *Leg* type.
 
+    .. rubric:: Required methods
+
+    .. autosummary::
+
+       ~_WithNPV.spread
+
+    .. rubric:: Provided methods
+
+    .. autosummary::
+
+       ~_WithNPV.local_npv
+       ~_WithNPV.npv
+
     """
 
     @property
