@@ -295,7 +295,7 @@ class Defaults:
 
     def __new__(cls) -> Defaults:
         if cls._instance is None:
-            print("Creating the object")
+            # Singleton pattern creates only one instance: TODO (low) might not be thread safe
             cls._instance = super(Defaults, cls).__new__(cls)  # noqa: UP008
 
             for k, v in DEFAULTS.items():

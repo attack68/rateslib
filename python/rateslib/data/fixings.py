@@ -48,6 +48,7 @@ if TYPE_CHECKING:
         Result,
         _BaseCurve_,
         datetime_,
+        int_,
         str_,
     )
 
@@ -85,17 +86,53 @@ class _BaseFixing(metaclass=ABCMeta):
         self._state = 0
         self._date = date
 
-    def reset(self) -> None:
+    def reset(self, state: int_ = NoInput(0)) -> None:
         """
         Sets the ``value`` attribute to :class:`rateslib.enums.generics.NoInput`, which allows it
         to be redetermined from a timeseries.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import fixings, dt, NoInput, FXFixing
+           from pandas import Series
+
+        .. ipython:: python
+
+           fx_fixing1 = FXFixing(date=dt(2021, 1, 1), pair="eurusd", identifier="A")
+           fx_fixing2 = FXFixing(date=dt(2021, 1, 1), pair="gbpusd", identifier="B")
+           fixings.add("A_eurusd", Series(index=[dt(2021, 1, 1)], data=[1.1]), state=100)
+           fixings.add("B_gbpusd", Series(index=[dt(2021, 1, 1)], data=[1.4]), state=200)
+
+           # data is populated from the available Series
+           fx_fixing1.value
+           fx_fixing2.value
+
+           # fixings are reset according to the data state
+           fx_fixing1.reset(state=100)
+           fx_fixing2.reset(state=100)
+
+           # only the private data for fixing1 is removed because of its link to the data state
+           fx_fixing1._value
+           fx_fixing2._value
+
+        .. role:: green
+
+        Parameters
+        ----------
+        state: int, :green:`optional`
+            If given only fixings whose state matches this value will be reset. If no state is
+            given then the value will be reset.
 
         Returns
         -------
         None
         """
-        self._value = NoInput(0)
-        self._state = 0
+        if isinstance(state, NoInput) or self._state == state:
+            self._value = NoInput(0)
+            self._state = 0
 
     @property
     def value(self) -> DualTypes_:
@@ -796,6 +833,13 @@ class IBORStubFixing(_BaseFixing):
                 )
                 return self._value
 
+    def reset(self, state: int_ = NoInput(0)) -> None:
+        if not isinstance(self._fixing1, NoInput):
+            self._fixing1.reset(state=state)
+        if not isinstance(self._fixing2, NoInput):
+            self._fixing2.reset(state=state)
+        self._value = NoInput(0)
+
     @cached_property
     def weights(self) -> tuple[float, float]:
         """Scalar multiplier to apply to each tenor fixing for the interpolation."""
@@ -1018,6 +1062,12 @@ class RFRFixing(_BaseFixing):
         self._fixing_method = _get_float_fixing_method(fixing_method)
         self._method_param = method_param
         self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
+
+    def reset(self, state: int_ = NoInput(0)) -> None:
+        if isinstance(state, NoInput) or self._state == state:
+            self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
+            self._value = NoInput(0)
+            self._state = 0
 
     @property
     def fixing_method(self) -> FloatFixingMethod:

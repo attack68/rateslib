@@ -60,6 +60,7 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
+from rateslib.data.fixings import FXFixing, IBORFixing, IBORStubFixing, IndexFixing, RFRFixing
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
@@ -201,12 +202,12 @@ __all__ = [
     "ProxyCurve",
     "index_left",
     "index_value",
-    # # analytic_fixings.py  cannot load due to circular import
-    # "FXFixing",
-    # "IBORFixing",
-    # "IBORStubFixing",
-    # "IndexFixing",
-    # "RFRFixing",
+    # fixings.py
+    "FXFixing",
+    "IBORFixing",
+    "IBORStubFixing",
+    "IndexFixing",
+    "RFRFixing",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",

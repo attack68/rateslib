@@ -21,12 +21,16 @@ from rateslib.periods.protocols.cashflows import (
     _WithCashflows,
     _WithCashflowsStatic,
 )
+from rateslib.periods.protocols.fixings import (
+    _WithFixings,
+)
 
 
 class _BasePeriod(
     _WithCashflows,
     _WithAnalyticDelta,
     _WithAnalyticRateFixings,
+    _WithFixings,
     metaclass=ABCMeta,
 ):
     """Abstract base class for *Period* types."""
@@ -51,6 +55,7 @@ __all__ = [
     "_BasePeriodStatic",
     "_WithNPV",
     "_WithCashflows",
+    "_WithFixings",
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixings",
     "_WithAnalyticFXOptionGreeks",

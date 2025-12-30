@@ -8347,3 +8347,66 @@ def test_forward_npv_argument_with_fx(curve, curve2, inst, curves):
 
     result = npv / curve[dt(2022, 3, 15)] - forward_npv
     assert abs(result) < 1e-7
+
+
+class TestFixings:
+    def test_local_fixings_rate_and_fx(self):
+        fixings.add("wmr_eurusd", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+        fixings.add("rpi", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+        fixings.add("ibor_1M", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2000, 2, 15): 0.999, dt(2005, 1, 1): 0.9})
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.95})
+        fxf = FXForwards(
+            fx_curves={"eurusd": curve2, "usdusd": curve, "eureur": curve2},
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2000, 1, 1)),
+        )
+        irs = IRS(
+            dt(2000, 1, 1),
+            dt(2000, 4, 1),
+            "M",
+            currency="usd",
+            pair="eurusd",
+            fx_fixings="wmr",
+            leg2_fixing_method="ibor",
+            leg2_method_param=0,
+            leg2_rate_fixings="ibor",
+            payment_lag=0,
+            curves=[curve],
+            fixed_rate=2.07,
+        )
+
+        # cf = irs.cashflows(fx=fxf)
+        cft = irs.cashflows_table(fx=fxf)
+
+        result = irs.local_fixings(
+            identifiers=[
+                (
+                    "wmr_eurusd",
+                    Series(
+                        index=[dt(2000, 2, 1), dt(2000, 3, 1), dt(2000, 4, 1)],
+                        data=[1.0998008124280523, 1.1002139078693074, 1.101254251708383],
+                    ),
+                ),
+                (
+                    "ibor_1m",
+                    Series(
+                        index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)],
+                        data=[0.8006761616124619, 1.4777702977501797, 2.110198054725164],
+                    ),
+                ),
+            ],
+            scalars=(1.0, 0.01),
+            fx=fxf,
+        )
+
+        expected_rate_fixings = irs.local_analytic_rate_fixings(fx=fxf)
+        for i in range(3):
+            assert abs(result[("usd", "ibor_1m")].iloc[i] - expected_rate_fixings.iloc[i, 0]) < 1e-8
+        expected_fx_fixings = [
+            cft.iloc[0, 0] / 1.0998008124280523 * curve[dt(2000, 2, 1)],
+            cft.iloc[1, 0] / 1.1002139078693074 * curve[dt(2000, 3, 1)],
+            cft.iloc[2, 0] / 1.101254251708383 * curve[dt(2000, 4, 1)],
+        ]
+        for i in range(3):
+            assert abs(result[("usd", "wmr_eurusd")].iloc[i + 1] - expected_fx_fixings[i]) < 1e-6
