@@ -57,7 +57,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
     .. rubric:: Pricing
 
     The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`.
-    All options use the same ``curves`. Allowable inputs are:
+    All options use the same ``curves``. Allowable inputs are:
 
     .. code-block:: python
 

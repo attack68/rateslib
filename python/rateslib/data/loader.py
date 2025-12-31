@@ -9,7 +9,7 @@ import rateslib.errors as err
 from packaging import version
 from pandas import Series, read_csv
 from pandas import __version__ as pandas_version
-from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
     from rateslib.typing import (
@@ -327,14 +327,11 @@ class Fixings(_BaseFixingsLoader):
        Only this object is referenced internally and other instantiations of this class
        will be ignored.
 
-    Parameters
-    ----------
-    loader: _BaseFixingsLoader, optional
-        The object that performs data loading. If not given defaults to
-        :class:`~rateslib.data.loader.DefaultFixingsLoader`.
-
     Notes
     -----
+    The ``loader`` is initialised as the :class:`DefaultFixingsLoader`. This can be set as
+    a user implemented :class:`_BaseFixingsLoader`.
+
     This class maintains a dictionary of financial fixing Series indexed by string identifiers.
 
     **Fixing Population**
@@ -375,12 +372,18 @@ class Fixings(_BaseFixingsLoader):
        except ValueError as e:
            print(e)
 
-    The `Fixings` object can be overladed by a user customised implementation.
-    For further info see :ref:`working with fixings <cook-fixings-doc>`.
     """
 
-    def __init__(self, loader: _BaseFixingsLoader | NoInput = NoInput(0)) -> None:
-        self._loader: _BaseFixingsLoader = _drb(DefaultFixingsLoader(), loader)
+    _instance = None
+
+    def __new__(cls) -> Fixings:
+        if cls._instance is None:
+            # Singleton pattern creates only one instance: TODO (low) might not be thread safe
+            cls._instance = super(_BaseFixingsLoader, cls).__new__(cls)  # noqa: UP008
+
+            cls._loader: _BaseFixingsLoader = DefaultFixingsLoader()
+
+        return cls._instance
 
     def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         return self.loader.__getitem__(name)
@@ -391,6 +394,10 @@ class Fixings(_BaseFixingsLoader):
         Object responsible for fetching data from external sources.
         """
         return self._loader
+
+    @loader.setter
+    def loader(self, loader: _BaseFixingsLoader) -> None:
+        self._loader = loader
 
     def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
         """
@@ -406,7 +413,7 @@ class Fixings(_BaseFixingsLoader):
             The string identifier key for the timeseries.
         series: Series, :red:`required`
             The timeseries indexed by datetime.
-        state, int, :green:`optional`
+        state: int, :green:`optional`
             The state id to be used upon insertion of the Series.
 
         Returns
