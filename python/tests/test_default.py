@@ -1,5 +1,5 @@
 import pytest
-from rateslib import __version__, default_context, defaults
+from rateslib import __version__, default_context, defaults, fixings
 
 
 def test_version() -> None:
@@ -30,3 +30,10 @@ def test_defaults_singleton() -> None:
 
     other = Defaults()
     assert id(other) == id(defaults)
+
+
+def test_fixings_singleton() -> None:
+    from rateslib.data.loader import Fixings
+
+    other = Fixings()
+    assert id(other) == id(fixings)
