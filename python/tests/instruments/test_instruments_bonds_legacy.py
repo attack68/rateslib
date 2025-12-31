@@ -446,6 +446,20 @@ class TestFixedRateBond:
         )
         assert abs(note.leg1.periods[0].cashflow() - 386.474184670) < 5e-7
 
+    def test_calc_mode_ytm(self):
+        b = FixedRateBond(dt(1985, 11, 15), dt(1995, 11, 15), fixed_rate=9.5, spec="us_gb_tsy")
+
+        y1 = b.ytm(price=99.730918, settlement=dt(1985, 11, 29))
+        assert abs(y1 - 9.54) < 1e-6
+
+        b2 = FixedRateBond(dt(1985, 11, 15), dt(1995, 11, 15), fixed_rate=9.5, spec="us_gb")
+        exp_y2 = b2.ytm(price=99.730918, settlement=dt(1985, 11, 29))
+
+        # street convention
+        y2 = b.ytm(price=99.730918, settlement=dt(1985, 11, 29), calc_mode="us_gb")
+        assert abs(y2 - 9.54) > 1e-6
+        assert abs(y2 - exp_y2) < 1e-6
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize(

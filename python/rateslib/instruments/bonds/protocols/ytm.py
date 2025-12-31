@@ -160,6 +160,7 @@ class _WithYTM(_WithAccrued, Protocol):
         settlement: datetime,
         rate_curve: CurveOption_,
         dirty: bool,
+        calc_mode: BondCalcMode | str_ = NoInput(0),
     ) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
@@ -190,7 +191,7 @@ class _WithYTM(_WithAccrued, Protocol):
             return self._price_from_ytm(
                 ytm=g,
                 settlement=settlement,
-                calc_mode=NoInput(0),
+                calc_mode=calc_mode,
                 dirty=dirty,
                 rate_curve=rate_curve,
             )
@@ -212,21 +213,50 @@ class _WithYTM(_WithAccrued, Protocol):
         settlement: datetime,
         dirty: bool = False,
         rate_curve: CurveOption_ = NoInput(0),
+        calc_mode: BondCalcMode | str_ = NoInput(0),
     ) -> Number:
         """
         Calculate the yield-to-maturity of the security given its price.
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import FixedRateBond, dt, Dual, Dual2
+
+        .. ipython:: python
+
+           aapl_bond = FixedRateBond(dt(2013, 5, 4), dt(2043, 5, 4), fixed_rate=3.85, spec="us_corp")
+           aapl_bond.ytm(price=87.24, settlement=dt(2014, 3, 5))
+           aapl_bond.ytm(price=87.24, settlement=dt(2014, 3, 5), calc_mode="us_gb_tsy")
+
+        .. image:: https://ebrary.net/imag/econom/smith_bondm/image232.jpg
+           :align: center
+           :alt: Image from ebrary.net
+           :height: 310
+           :width: 433
+
+        .. role:: red
+
+        .. role:: green
+
         Parameters
         ----------
-        price : float, Dual, Dual2, Variable
+        price: float, Dual, Dual2, Variable, :red:`required`
             The price, per 100 nominal, against which to determine the yield.
-        settlement : datetime
+        settlement: datetime, :red:`required`
             The settlement date on which to determine the price.
-        dirty : bool, optional
+        dirty: bool, :green:`optional (set as False)`
             If `True` will assume the
             :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
-        rate_curve : XXXX
-            User to forecast floating rates if required.
+        rate_curve: _BaseCurve or dict of such, :green:`optional`
+            Used to forecast floating rates if required.
+        calc_mode: str or BondCalcMode, :green:`optional`
+            An alternative calculation mode to use. The ``calc_mode`` is typically set at
+            *Instrument* initialisation and is not required, but is useful as an override to
+            allow comparisons, e.g. of *"us_gb"* street convention versus *"us_gb_tsy"* treasury
+            convention.
 
         Returns
         -------
@@ -238,35 +268,19 @@ class _WithYTM(_WithAccrued, Protocol):
         :class:`~rateslib.dual.Dual2` input the result of the yield will be output
         as the same type with the variables passed through accordingly.
 
-        Examples
-        --------
-        .. ipython:: python
-           :suppress:
-
-           from rateslib import dt, FixedRateBond, Dual, Dual2
-
         .. ipython:: python
 
-           gilt = FixedRateBond(
-               effective=dt(1998, 12, 7),
-               termination=dt(2015, 12, 7),
-               frequency="S",
-               calendar="ldn",
-               currency="gbp",
-               convention="ActActICMA",
-               ex_div=7,
-               fixed_rate=8.0
-           )
-           gilt.ytm(
-               price=141.0701315,
-               settlement=dt(1999,5,27),
-               dirty=True
-           )
-           gilt.ytm(Dual(141.0701315, ["price", "a", "b"], [1, -0.5, 2]), dt(1999, 5, 27), True)
-           gilt.ytm(Dual2(141.0701315, ["price", "a", "b"], [1, -0.5, 2], []), dt(1999, 5, 27), True)
+           aapl_bond.ytm(price=Dual(87.24, ["price", "a"], [1, -0.75]), settlement=dt(2014, 3, 5))
+           aapl_bond.ytm(price=Dual2(87.24, ["price", "a"], [1, -0.75], []), settlement=dt(2014, 3, 5))
 
         """  # noqa: E501
-        return self._ytm(price=price, settlement=settlement, dirty=dirty, rate_curve=rate_curve)
+        return self._ytm(
+            price=price,
+            settlement=settlement,
+            dirty=dirty,
+            rate_curve=rate_curve,
+            calc_mode=calc_mode,
+        )
 
     def _period_cashflow(
         self, period: Cashflow | FixedPeriod | FloatPeriod, rate_curve: CurveOption_
