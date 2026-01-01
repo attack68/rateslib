@@ -112,31 +112,12 @@ impl Adjustment for Adjuster {
             Adjuster::PreviousSettle {} => reverse_backward_type(adate, self, calendar),
             Adjuster::ModifiedFollowingSettle {} => reverse_modified_type(adate, self, calendar),
             Adjuster::ModifiedPreviousSettle {} => reverse_modified_type(adate, self, calendar),
-            Adjuster::BusDaysLagSettle(n) => {
-                if Adjuster::BusDaysLagSettle(0).adjust(adate, calendar) != *adate {
-                    return vec![]; // input has no valid reversal
-                }
-                let date = calendar.add_bus_days(adate, -n, false).unwrap();
-                Adjuster::Previous {}.reverse(&date, calendar)
-            }
-            Adjuster::CalDaysLagSettle(n) => {
-                let ret: Vec<NaiveDateTime> = if *n < 0 {
-                    Adjuster::PreviousSettle {}.reverse(adate, calendar)
-                } else {
-                    Adjuster::FollowingSettle {}.reverse(adate, calendar)
-                };
-                ret.into_iter()
-                    .map(|d| calendar.add_cal_days(&d, -n, &Adjuster::Actual {}))
-                    .collect()
-            }
+            Adjuster::BusDaysLagSettle(n) => reverse_lag_settle_type(adate, self, calendar, n),
+            Adjuster::CalDaysLagSettle(n) => reverse_lag_settle_type(adate, self, calendar, n),
             Adjuster::FollowingExLast {} => reverse_forward_type(adate, self, calendar), // no vector
             Adjuster::FollowingExLastSettle {} => reverse_forward_type(adate, self, calendar), // no vector
             Adjuster::BusDaysLagSettleInAdvance(n) => {
-                if Adjuster::BusDaysLagSettle(0).adjust(adate, calendar) != *adate {
-                    return vec![]; // input has no valid reversal
-                }
-                let date = calendar.add_bus_days(adate, -n, false).unwrap();
-                Adjuster::Previous {}.reverse(&date, calendar)
+                reverse_lag_settle_type(adate, self, calendar, n)
             } // no vector
         }
     }
@@ -239,11 +220,54 @@ fn reverse_modified_type<T: DateRoll>(
     ret
 }
 
+fn reverse_lag_settle_type<T: DateRoll>(
+    adate: &NaiveDateTime,
+    adjuster: &Adjuster,
+    calendar: &T,
+    n: &i32,
+) -> Vec<NaiveDateTime> {
+    if (Adjuster::FollowingSettle {}).adjust(adate, calendar) != *adate {
+        // input adjusted date has no candidate reversals, return empty vec
+        vec![]
+    } else {
+        // will generally only be necessary when lagging by zero days
+        let mut ret: Vec<NaiveDateTime> = vec![];
+        if (*adjuster).adjust(adate, calendar) == *adate {
+            ret.push(*adate);
+        }
+
+        let mut date = *adate;
+        let mut adj_date: NaiveDateTime;
+        if *n < 0 {
+            loop {
+                date = date + Days::new(1);
+                adj_date = (*adjuster).adjust(&date, calendar);
+                if adj_date == *adate {
+                    ret.push(date);
+                } else if adj_date > *adate {
+                    break;
+                }
+            }
+        } else {
+            loop {
+                date = date - Days::new(1);
+                adj_date = (*adjuster).adjust(&date, calendar);
+                if adj_date == *adate {
+                    ret.push(date);
+                } else if adj_date < *adate {
+                    break;
+                }
+            }
+        }
+        ret
+    }
+}
+
 // UNIT TESTS
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{ndt, Cal, Calendar};
+    use crate::scheduling::{ndt, Cal, Calendar, UnionCal};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday
@@ -474,12 +498,507 @@ mod tests {
             (
                 ndt(2000, 1, 17),
                 Adjuster::BusDaysLagSettle(5),
-                vec![ndt(2000, 1, 9), ndt(2000, 1, 10), ndt(2000, 1, 11)],
+                vec![ndt(2000, 1, 11), ndt(2000, 1, 10), ndt(2000, 1, 9)],
             ),
         ];
         for option in options {
             let result = option.1.reverse(&option.0, &Calendar::Cal(cal.clone()));
             assert_eq!(result, option.2)
+        }
+    }
+
+    #[test]
+    fn test_forward_book_reverse() {
+        // Test Following and FollowingSettle from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27), ndt(2000, 6, 30)], vec![]);
+        let settle = Cal::new(
+            vec![
+                ndt(2000, 6, 26),
+                ndt(2000, 6, 29),
+                ndt(2000, 6, 30),
+                ndt(2000, 7, 1),
+            ],
+            vec![],
+        );
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adjustments for a Following Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 29)),
+            (ndt(2000, 6, 30), ndt(2000, 7, 1)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 1)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result = Adjuster::Following {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a Following Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 26), vec![ndt(2000, 6, 26)]),
+            (ndt(2000, 6, 27), vec![]),
+            (ndt(2000, 6, 28), vec![ndt(2000, 6, 28), ndt(2000, 6, 27)]),
+            (ndt(2000, 6, 29), vec![ndt(2000, 6, 29)]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![ndt(2000, 7, 1), ndt(2000, 6, 30)]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2)]),
+        ];
+        for option in options {
+            let result =
+                Adjuster::Following {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a FollowingSettle Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 30), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::FollowingSettle {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a FollowingSettle Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 26), vec![]),
+            (ndt(2000, 6, 27), vec![]),
+            (
+                ndt(2000, 6, 28),
+                vec![ndt(2000, 6, 28), ndt(2000, 6, 27), ndt(2000, 6, 26)],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (
+                ndt(2000, 7, 2),
+                vec![
+                    ndt(2000, 7, 2),
+                    ndt(2000, 7, 1),
+                    ndt(2000, 6, 30),
+                    ndt(2000, 6, 29),
+                ],
+            ),
+        ];
+        for option in options {
+            let result =
+                Adjuster::FollowingSettle {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+    }
+
+    #[test]
+    fn test_backward_book_reverse() {
+        // Test Previous and PreviousSettle from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27), ndt(2000, 6, 30)], vec![]);
+        let settle = Cal::new(
+            vec![
+                ndt(2000, 6, 26),
+                ndt(2000, 6, 29),
+                ndt(2000, 6, 30),
+                ndt(2000, 7, 1),
+            ],
+            vec![],
+        );
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adjustments for a Previous Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 29)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 29)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 1)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result = Adjuster::Previous {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a Previous Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 26), vec![ndt(2000, 6, 26), ndt(2000, 6, 27)]),
+            (ndt(2000, 6, 27), vec![]),
+            (ndt(2000, 6, 28), vec![ndt(2000, 6, 28)]),
+            (ndt(2000, 6, 29), vec![ndt(2000, 6, 29), ndt(2000, 6, 30)]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![ndt(2000, 7, 1)]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2)]),
+        ];
+        for option in options {
+            let result = Adjuster::Previous {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a PreviousSettle Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 25)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 25)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 28)),
+            (ndt(2000, 7, 1), ndt(2000, 6, 28)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::PreviousSettle {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a PreviousSettle Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (
+                ndt(2000, 6, 25),
+                vec![ndt(2000, 6, 25), ndt(2000, 6, 26), ndt(2000, 6, 27)],
+            ),
+            (ndt(2000, 6, 26), vec![]),
+            (ndt(2000, 6, 27), vec![]),
+            (
+                ndt(2000, 6, 28),
+                vec![
+                    ndt(2000, 6, 28),
+                    ndt(2000, 6, 29),
+                    ndt(2000, 6, 30),
+                    ndt(2000, 7, 1),
+                ],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2)]),
+        ];
+        for option in options {
+            let result =
+                Adjuster::PreviousSettle {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+    }
+
+    #[test]
+    fn test_modified_forward_book_reverse() {
+        // Test ModifiedFollowing and ModifiedFollowingSettle from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27), ndt(2000, 6, 30)], vec![]);
+        let settle = Cal::new(
+            vec![
+                ndt(2000, 6, 26),
+                ndt(2000, 6, 29),
+                ndt(2000, 6, 30),
+                ndt(2000, 7, 1),
+            ],
+            vec![],
+        );
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adjustments for a ModifiedFollowing Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 29)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 29)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 1)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::ModifiedFollowing {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a ModifiedFollowing Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 26), vec![ndt(2000, 6, 26)]),
+            (ndt(2000, 6, 27), vec![]),
+            (ndt(2000, 6, 28), vec![ndt(2000, 6, 28), ndt(2000, 6, 27)]),
+            (ndt(2000, 6, 29), vec![ndt(2000, 6, 29), ndt(2000, 6, 30)]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![ndt(2000, 7, 1)]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2)]),
+        ];
+        for option in options {
+            let result =
+                Adjuster::ModifiedFollowing {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a ModifiedFollowingSettle Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 28)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result = Adjuster::ModifiedFollowingSettle {}
+                .adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a ModifiedFollowingSettle Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 26), vec![]),
+            (ndt(2000, 6, 27), vec![]),
+            (
+                ndt(2000, 6, 28),
+                vec![
+                    ndt(2000, 6, 28),
+                    ndt(2000, 6, 27),
+                    ndt(2000, 6, 26),
+                    ndt(2000, 6, 29),
+                    ndt(2000, 6, 30),
+                ],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2), ndt(2000, 7, 1)]),
+        ];
+        for option in options {
+            let result = Adjuster::ModifiedFollowingSettle {}
+                .reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+    }
+
+    #[test]
+    fn test_modified_backward_book_reverse() {
+        // Test ModifiedPrevious and ModifiedPreviousSettle from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27), ndt(2000, 6, 30)], vec![]);
+        let settle = Cal::new(
+            vec![
+                ndt(2000, 6, 26),
+                ndt(2000, 6, 29),
+                ndt(2000, 6, 30),
+                ndt(2000, 7, 1),
+            ],
+            vec![],
+        );
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adjustments for a ModifiedPrevious Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 26)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 29)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 29)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 1)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::ModifiedPrevious {}.adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a ModifiedPrevious Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 25), vec![ndt(2000, 6, 25)]),
+            (ndt(2000, 6, 26), vec![ndt(2000, 6, 26), ndt(2000, 6, 27)]),
+            (ndt(2000, 6, 27), vec![]),
+            (ndt(2000, 6, 28), vec![ndt(2000, 6, 28)]),
+            (ndt(2000, 6, 29), vec![ndt(2000, 6, 29), ndt(2000, 6, 30)]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![ndt(2000, 7, 1)]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2)]),
+        ];
+        for option in options {
+            let result =
+                Adjuster::ModifiedPrevious {}.reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a ModifiedPreviousSettle Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 26), ndt(2000, 6, 25)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 25)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 30), ndt(2000, 6, 28)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result = Adjuster::ModifiedPreviousSettle {}
+                .adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversals for a ModifiedPreviousSettle Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (
+                ndt(2000, 6, 25),
+                vec![ndt(2000, 6, 25), ndt(2000, 6, 26), ndt(2000, 6, 27)],
+            ),
+            (ndt(2000, 6, 26), vec![]),
+            (ndt(2000, 6, 27), vec![]),
+            (
+                ndt(2000, 6, 28),
+                vec![ndt(2000, 6, 28), ndt(2000, 6, 29), ndt(2000, 6, 30)],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (ndt(2000, 7, 2), vec![ndt(2000, 7, 2), ndt(2000, 7, 1)]),
+        ];
+        for option in options {
+            let result = Adjuster::ModifiedPreviousSettle {}
+                .reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+    }
+
+    #[test]
+    fn test_bus_days_lag_settle_reverse() {
+        // Test BusDaysLagSettle(2) from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27), ndt(2000, 6, 30)], vec![]);
+        let settle = Cal::new(
+            vec![
+                ndt(2000, 6, 26),
+                ndt(2000, 6, 29),
+                ndt(2000, 6, 30),
+                ndt(2000, 7, 1),
+            ],
+            vec![],
+        );
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adjustments for a BusDaysLagSettle(2) Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 25), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 26), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 27), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 28), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 29), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 30), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(2).adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversal for a BusDaysLagSettle(2) Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 28), vec![ndt(2000, 6, 25), ndt(2000, 6, 24)]),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (
+                ndt(2000, 7, 2),
+                vec![
+                    ndt(2000, 6, 30),
+                    ndt(2000, 6, 29),
+                    ndt(2000, 6, 28),
+                    ndt(2000, 6, 27),
+                    ndt(2000, 6, 26),
+                ],
+            ),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(2).reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a BusDaysLagSettle(1) Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 25), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 26), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 29), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 30), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(1).adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversal for a BusDaysLagSettle(1) Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (
+                ndt(2000, 6, 28),
+                vec![ndt(2000, 6, 27), ndt(2000, 6, 26), ndt(2000, 6, 25)],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (
+                ndt(2000, 7, 2),
+                vec![
+                    ndt(2000, 7, 1),
+                    ndt(2000, 6, 30),
+                    ndt(2000, 6, 29),
+                    ndt(2000, 6, 28),
+                ],
+            ),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(1).reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // adjustments for a BusDaysLagSettle(0) Adjuster
+        let options: Vec<(NaiveDateTime, NaiveDateTime)> = vec![
+            (ndt(2000, 6, 25), ndt(2000, 6, 25)),
+            (ndt(2000, 6, 26), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 27), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 28), ndt(2000, 6, 28)),
+            (ndt(2000, 6, 29), ndt(2000, 7, 2)),
+            (ndt(2000, 6, 30), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 1), ndt(2000, 7, 2)),
+            (ndt(2000, 7, 2), ndt(2000, 7, 2)),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(0).adjust(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
+        }
+
+        // reversal for a BusDaysLagSettle(0) Adjuster
+        let options: Vec<(NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (ndt(2000, 6, 25), vec![ndt(2000, 6, 25)]),
+            (
+                ndt(2000, 6, 28),
+                vec![ndt(2000, 6, 28), ndt(2000, 6, 27), ndt(2000, 6, 26)],
+            ),
+            (ndt(2000, 6, 29), vec![]),
+            (ndt(2000, 6, 30), vec![]),
+            (ndt(2000, 7, 1), vec![]),
+            (
+                ndt(2000, 7, 2),
+                vec![
+                    ndt(2000, 7, 2),
+                    ndt(2000, 7, 1),
+                    ndt(2000, 6, 30),
+                    ndt(2000, 6, 29),
+                ],
+            ),
+        ];
+        for option in options {
+            let result =
+                Adjuster::BusDaysLagSettle(0).reverse(&option.0, &Calendar::UnionCal(uni.clone()));
+            assert_eq!(result, option.1)
         }
     }
 }
