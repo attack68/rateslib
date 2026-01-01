@@ -117,6 +117,8 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
+    ZeroFixedPeriod,
+    ZeroFloatPeriod,
 )
 from rateslib.scheduling import (
     Adjuster,
@@ -221,6 +223,8 @@ __all__ = [
     # periods.py,
     "FixedPeriod",
     "FloatPeriod",
+    "ZeroFixedPeriod",
+    "ZeroFloatPeriod",
     "Cashflow",
     "FXCallPeriod",
     "FXPutPeriod",
