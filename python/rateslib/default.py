@@ -45,6 +45,7 @@ DEFAULTS = dict(
         "nsw": NamedCal("nsw"),
         "wlg": NamedCal("wlg"),
         "mum": NamedCal("mum"),
+        "mex": NamedCal("mex"),
     },
     eom=False,
     eom_fx=True,
