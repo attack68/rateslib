@@ -699,3 +699,9 @@ def test_busdayslag_reverse():
     assert a.adjust(dt(2025, 12, 30), union) == dt(2026, 1, 2)
     assert a.adjust(dt(2025, 12, 31), union) == dt(2026, 1, 2)
     assert a.reverse(dt(2026, 1, 2), union) == [dt(2025, 12, 31), dt(2025, 12, 30)]
+
+
+def test_mex_loads():
+    cal = get_calendar("mex")
+    assert not cal.is_bus_day(dt(2026, 3, 16))
+    assert cal.is_bus_day(dt(2026, 3, 17))
