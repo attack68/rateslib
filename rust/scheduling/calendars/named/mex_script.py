@@ -18,6 +18,7 @@ RULES = [
     Holiday("Revolution Day", month=11, day=1, offset=DateOffset(weekday=MO(3))),
     Holiday("Day of the Virgin of Guadalupe", month=12, day=12),
     Holiday("Christmas Day", month=12, day=25),
+    *[Holiday(f"Election {y}", year=y, month=10, day=1) for y in range(2024, 2075, 6)],
 ]
 
 CALENDAR = CustomBusinessDay(  # type: ignore[call-arg]
