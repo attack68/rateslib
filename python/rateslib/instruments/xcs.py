@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.data.fixings import _get_fx_index
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import LegMtm
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
+        FXIndex,
         LegFixings,
         RollDay,
         Sequence,
@@ -61,13 +63,13 @@ class XCS(_BaseInstrument):
 
     .. ipython:: python
 
-       fixings.add("WMR_10AM_TY0_T+2_EURUSD", Series(index=[dt(2025, 4, 8)], data=[1.175]))
+       fixings.add("WMR_LDN11AM_EURUSD", Series(index=[dt(2025, 4, 4)], data=[1.175]))
        xcs = XCS(
            effective=dt(2025, 1, 8),
            termination="6m",
            spec="eurusd_xcs",
            notional=5e6,
-           leg2_fx_fixings=(1.15, "WMR_10AM_TY0_T+2"),
+           leg2_fx_fixings=(1.15, "WMR_LDN11AM"),
            leg2_mtm=True,
        )
        xcs.cashflows()
@@ -75,7 +77,7 @@ class XCS(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("WMR_10AM_TY0_T+2_EURUSD")
+       fixings.pop("WMR_LDN11AM_EURUSD")
 
     .. rubric:: Pricing
 
@@ -192,8 +194,9 @@ class XCS(_BaseInstrument):
         Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
         each successive period by that same value. Should have
         sign equal to that of notional if the notional is to reduce towards zero.
-    leg2_currency : str, :red:`required`
-        The currency of the leg2.
+    pair: FXIndex, str, :red:`required`
+        The :class:`~rateslib.data.fixings.FXIndex` implying the *leg2 currency*.
+        Must include ``currency`` as either LHS or RHS.
     leg2_notional : float, Dual, Dual2, Variable, :green:`optional (negatively inherited from leg1)`
     leg2_amortization : float, Dual, Dual2, Variable, str, Amortization, :green:`optional (negatively inherited from leg1)`
 
@@ -270,19 +273,46 @@ class XCS(_BaseInstrument):
 
     Notes
     -----
-    A *XCS* is a flexible *Instrument* which can handle either fixed or floating legs, controlled
-    by the ``fixed`` and ``leg2_fixed`` arguments. For a mark-to-market *XCS* one of ``mtm`` or
-    ``leg2_mtm`` can be set to *True*. By default, non-mark-to-market *XCS* are constructed. Only
-    one of ``notional`` or ``leg2_notional`` (and correspondingly ``amortization`` or
-    ``leg2_amortization``) must be given depending upon whether the notional is expressed in
-    units of ``currency`` or ``leg2_currency`` respectively. The derived notional is handled via
-    non-deliverability and either ``leg2_fx_fixings`` or ``fx_fixings`` respectively. These fixings
-    are always expressed using an FX rate of direction *'currency:leg2_currency'*. One requirement
-    is that if any leg is ``mtm`` then that leg cannot set the defining notional; the notional must
-    be set on the non-mtm leg.
+    A *XCS* is a flexible instrument.
 
-    **For example**, we initialise a MTM GBP/USD XCS in £100m. The MTM leg is USD so the notional
+    - Each *Leg* can either be ``fixed`` or, rather, floating.
+    - One *Leg* can be ``mtm`` or both legs can be non-mtm.
+
+      *Legs* are handled by using the mechanics of non-deliverability. If a *Leg* is set to be
+      *mtm* then the ``notional`` on the opposing *Leg* **must** be specified: this is because
+      a *mtm-Leg* has a varying notional which must be derived from some fixed reference notional.
+      Values should always be expressed in currency units of that *Leg* itself.
+
+    - ``fx_fixings`` are required on the *Leg* which does not specify a *notional*. This is
+      true either for a *mtm* or *non-mtm Leg*. It is common for the initial rate of exchange
+      to be agreed at execution time, meaning the most common form of entry for ``fx_fixings`` is
+      as a tuple: an arbitrary execution rate and the fixing series, e.g. *(1.224, "WMR_LDN11AM")*.
+      Fixings should always be expressed according to the direction in ``pair``.
+
+    - ``amortization`` can be added in the normal way on the same *Leg* as a *notional* is
+      specified.
+    - The pricing ``metric`` can specify which *Leg* a mid-market price is returned by the
+      :meth:`~rateslib.instruments.XCS.rate` method.
+
+    **Is it USD/CAD or CAD/USD or EUR/USD or USD/EUR?**
+
+    Actually any *XCS* can be constructed systematically:
+
+    i. Set the FX ``pair`` that is standard for the fixings, e.g. *'USDCAD'*.
+    ii. Set the ``currency`` required on *Leg1* and set the ``mtm`` or ``leg2_mtm``
+        flag respectively if required.
+    iii. Set the ``notional`` or ``leg2_notional`` as necessary or chosen.
+    iv. Set the ``fx_fixings`` or ``leg2_fx_fixings`` as necessary.
+    v. Set the ``metric``.
+
+    **For example**, we initialize a MTM GBP/USD XCS in £100m. The MTM leg is USD so the notional
     must be expressed on the GBP leg. The pricing spread is applied to the GBP leg.
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.add("WMR_LDN11AM_GBPUSD", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+       fixings.add("WMR_LDN11AM_USDJPY", Series(index=[dt(1999, 1, 1)], data=[100.0]))
 
     .. ipython:: python
 
@@ -293,8 +323,8 @@ class XCS(_BaseInstrument):
            currency="gbp",
            notional=100e6,
            leg2_mtm=True,
-           leg2_currency="usd",
-           leg2_fx_fixings=1.35,
+           pair="gbpusd",
+           leg2_fx_fixings=(1.35, "WMR_LDN11AM"),
            metric="leg1",
        )
 
@@ -309,13 +339,19 @@ class XCS(_BaseInstrument):
            frequency="Q",
            currency="usd",
            mtm=True,
-           fx_fixings=155.0,
-           leg2_currency="jpy",
+           fx_fixings=(155.0, "WMR_LDN11AM"),
+           pair="usdjpy",
            leg2_notional=1e9,
            leg2_amortization=100e6,
            metric="leg2",
        )
        xcs.cashflows()
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("WMR_LDN11AM_GBPUSD")
+       fixings.pop("WMR_LDN11AM_USDJPY")
 
     """  # noqa: E501
 
@@ -444,10 +480,10 @@ class XCS(_BaseInstrument):
         leg2_convention: str_ = NoInput(1),
         # settlement parameters
         currency: str_ = NoInput(0),
-        notional: float_ = NoInput(0),
+        notional: DualTypes_ = NoInput(0),
         amortization: float_ = NoInput(0),
-        leg2_currency: str_ = NoInput(0),
-        leg2_notional: float_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
+        leg2_notional: DualTypes_ = NoInput(0),
         leg2_amortization: float_ = NoInput(0),
         # rate parameters
         fixed: bool_ = NoInput(0),
@@ -466,7 +502,7 @@ class XCS(_BaseInstrument):
         leg2_fixed_rate: DualTypes_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: FixingsRates_ = NoInput(0),
+        leg2_rate_fixings: LegFixings = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
         leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
@@ -477,38 +513,25 @@ class XCS(_BaseInstrument):
         spec: str_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> None:
-        if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
-            notional = defaults.notional
-
-        mtm_, leg2_mtm_ = _drb(False, mtm), _drb(False, leg2_mtm)
+        currency_, leg2_currency_, pair_, mtm_, leg2_mtm_, notional_, leg2_notional_ = (
+            _validated_xcs_input_combinations(
+                currency=currency,
+                pair=pair,
+                mtm=mtm,
+                leg2_mtm=leg2_mtm,
+                notional=notional,
+                leg2_notional=leg2_notional,
+                fx_fixings=fx_fixings,
+                leg2_fx_fixings=leg2_fx_fixings,
+                spec=spec,
+            )
+        )
         del mtm
         del leg2_mtm
-
-        # validation
-        if mtm_ and leg2_mtm_:
-            raise ValueError("`mtm` and `leg2_mtm` must define at most one MTM leg.")
-        else:
-            mtm: LegMtm = LegMtm.XCS if mtm_ else LegMtm.Initial  # type: ignore[no-redef]
-            del mtm_
-            leg2_mtm: LegMtm = LegMtm.XCS if leg2_mtm_ else LegMtm.Initial  # type: ignore[no-redef]
-            del leg2_mtm_
-
-        if not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
-            raise ValueError(
-                "The `notional` can only be provided on one leg, expressed in its `currency`.\n"
-                "The other leg's cashflows are derived via `fx_fixings` and non-deliverability."
-            )
-
-        if not isinstance(notional, NoInput) and not isinstance(fx_fixings, NoInput):
-            raise ValueError(
-                "When `notional` is given only `leg2_fx_fixings` are required to derive "
-                "cashflows on leg2 via non-deliverability."
-            )
-        if not isinstance(leg2_notional, NoInput) and not isinstance(leg2_fx_fixings, NoInput):
-            raise ValueError(
-                "When `leg2_notional` is given only `fx_fixings` are required to derive "
-                "cashflows on leg1 via non-deliverability."
-            )
+        del pair
+        del currency
+        del notional
+        del leg2_notional
 
         user_args = dict(
             # scheduling
@@ -541,17 +564,17 @@ class XCS(_BaseInstrument):
             convention=convention,
             leg2_convention=leg2_convention,
             # settlement
-            currency=currency,
-            leg2_currency=leg2_currency,
-            notional=notional,
-            leg2_notional=leg2_notional,
+            currency=currency_,
+            leg2_currency=leg2_currency_,
+            notional=notional_,
+            leg2_notional=leg2_notional_,
             amortization=amortization,
             leg2_amortization=leg2_amortization,
             # non-deliverability
             fx_fixings=fx_fixings,
             leg2_fx_fixings=leg2_fx_fixings,
-            mtm=mtm,
-            leg2_mtm=leg2_mtm,
+            mtm=mtm_,
+            leg2_mtm=leg2_mtm_,
             # rate
             fixed_rate=fixed_rate,
             float_spread=float_spread,
@@ -570,6 +593,7 @@ class XCS(_BaseInstrument):
             leg2_fixing_frequency=leg2_fixing_frequency,
             leg2_fixing_series=leg2_fixing_series,
             # meta
+            pair=pair_,
             fixed=fixed,
             leg2_fixed=leg2_fixed,
             curves=self._parse_curves(curves),
@@ -598,7 +622,7 @@ class XCS(_BaseInstrument):
             spec=spec,
             user_args={**user_args, **instrument_args},
             default_args=default_args,
-            meta_args=["curves", "metric", "fixed", "leg2_fixed", "vol"],
+            meta_args=["curves", "metric", "fixed", "leg2_fixed", "vol", "pair"],
         )
 
         # narrowing of fixed or floating
@@ -630,9 +654,7 @@ class XCS(_BaseInstrument):
                 if isinstance(self._kwargs.leg2["amortization"], NoInput)
                 else -1.0 * self._kwargs.leg2["amortization"]
             )
-            self._kwargs.leg1["pair"] = (
-                f"{self._kwargs.leg1['currency']}{self._kwargs.leg2['currency']}"
-            )
+            self._kwargs.leg1["pair"] = self.kwargs.meta["pair"]
         if isinstance(self.kwargs.leg2["notional"], NoInput):
             self._kwargs.leg2["notional"] = -1.0 * self._kwargs.leg1["notional"]
             self._kwargs.leg2["amortization"] = (
@@ -640,9 +662,7 @@ class XCS(_BaseInstrument):
                 if isinstance(self._kwargs.leg1["amortization"], NoInput)
                 else -1.0 * self._kwargs.leg1["amortization"]
             )
-            self._kwargs.leg2["pair"] = (
-                f"{self._kwargs.leg1['currency']}{self._kwargs.leg2['currency']}"
-            )
+            self._kwargs.leg2["pair"] = self.kwargs.meta["pair"]
 
         if self.kwargs.meta["fixed"]:
             self._leg1: FixedLeg | FloatLeg = FixedLeg(
@@ -935,3 +955,92 @@ class XCS(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
+
+
+def _validated_xcs_input_combinations(
+    currency: str_,
+    pair: FXIndex | str_,
+    mtm: bool_,
+    leg2_mtm: bool_,
+    notional: DualTypes_,
+    leg2_notional: DualTypes_,
+    fx_fixings: LegFixings,
+    leg2_fx_fixings: LegFixings,
+    spec: str_,
+) -> tuple[str, str, FXIndex, LegMtm, LegMtm, DualTypes_, DualTypes_]:
+    kw = _KWArgs(
+        user_args=dict(
+            currency=currency,
+            pair=pair,
+            mtm=mtm,
+            leg2_mtm=leg2_mtm,
+            notional=notional,
+            leg2_notional=leg2_notional,
+            fx_fixings=fx_fixings,
+            leg2_fx_fixings=leg2_fx_fixings,
+        ),
+        default_args=dict(
+            mtm=False,
+            leg2_mtm=False,
+        ),
+        spec=spec,
+        meta_args=["pair"],
+    )
+
+    if kw.leg1["mtm"] and kw.leg2["mtm"]:
+        raise ValueError("`mtm` and `leg2_mtm` must define at most one MTM leg.")
+    mtm_obj: LegMtm = LegMtm.XCS if kw.leg1["mtm"] else LegMtm.Initial
+    leg2_mtm_obj: LegMtm = LegMtm.XCS if kw.leg2["mtm"] else LegMtm.Initial
+
+    # set a default `notional` if no notional on any leg is given
+    if isinstance(kw.leg1["notional"], NoInput) and isinstance(kw.leg2["notional"], NoInput):
+        notional_: DualTypes_ = defaults.notional
+        leg2_notional_: DualTypes_ = leg2_notional
+    elif not isinstance(kw.leg1["notional"], NoInput) and not isinstance(
+        kw.leg2["notional"], NoInput
+    ):
+        raise ValueError(
+            "The `notional` can only be provided on one leg, expressed in its `currency`.\n"
+            "For a XCS, the other leg's cashflows are derived via `fx_fixings` and "
+            "non-deliverability."
+        )
+    else:
+        notional_ = notional
+        leg2_notional_ = leg2_notional
+
+    if not isinstance(notional_, NoInput) and not isinstance(kw.leg1["fx_fixings"], NoInput):
+        raise ValueError(
+            "When `notional` is given, that leg is assumed to be deliverable and `fx_fixings` "
+            "should not be given.\nOnly `leg2_fx_fixings` are required to derive "
+            "cashflows on leg2 via non-deliverability from leg1's `notional`."
+        )
+    if not isinstance(leg2_notional_, NoInput) and not isinstance(kw.leg2["fx_fixings"], NoInput):
+        raise ValueError(
+            "When `leg2_notional` is given, that leg is assumed to be deliverable and "
+            "`leg2_fx_fixings` should not be given.\nOnly `fx_fixings` are required to derive "
+            "cashflows on leg1 via non-deliverability from leg2's `notional`."
+        )
+
+    if isinstance(kw.meta["pair"], NoInput):
+        raise ValueError(
+            "A `pair` must be supplied to a XCS along with the leg1 `currency` to imply the "
+            "second currency."
+        )
+    fx_index_ = _get_fx_index(kw.meta["pair"])
+    currency_ = _drb(defaults.base_currency, kw.leg1["currency"]).lower()
+    if currency_ not in fx_index_.pair:
+        raise ValueError(
+            "For a XCS, the `currency` must be one of the currencies in the FX index `pair`.\n"
+            f"Got '{currency_}' and '{fx_index_.pair}'."
+        )
+    leg2_currency_ = fx_index_.pair[:3] if currency_ == fx_index_.pair[3:] else fx_index_.pair[3:]
+
+    return (
+        currency_,
+        leg2_currency_,
+        fx_index_,
+        mtm_obj,
+        leg2_mtm_obj,
+        notional_,
+        leg2_notional_,
+    )

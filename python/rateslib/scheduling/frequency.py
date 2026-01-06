@@ -7,7 +7,7 @@ import rateslib.errors as err
 from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
-from rateslib.scheduling.calendars import get_calendar
+from rateslib.scheduling.calendars import _get_first_bus_day, get_calendar
 from rateslib.scheduling.rollday import _get_rollday
 
 if TYPE_CHECKING:
@@ -245,7 +245,7 @@ def add_tenor(
 def _get_fx_expiry_and_delivery_and_payment(
     eval_date: datetime_,
     expiry: str | datetime,
-    delivery_lag: int | datetime,
+    delivery_lag: Adjuster | int | datetime,
     calendar: CalInput,
     modifier: str,
     eom: bool,
@@ -262,7 +262,7 @@ def _get_fx_expiry_and_delivery_and_payment(
         The evaluation date, which is today (if required)
     expiry: str, datetime
         The expiry date
-    delivery_lag: int, datetime
+    delivery_lag: Adjuster, int, datetime
         Number of days, e.g. spot = 2, or a specified datetime for FX settlement after expiry.
     calendar: CalInput
         The calendar used for date rolling. This function makes use of the `settlement` option
@@ -271,7 +271,7 @@ def _get_fx_expiry_and_delivery_and_payment(
         Date rule, expected to be "MF" for most FX rate tenors.
     eom: bool
         Whether end-of-month is preserved in tenor date determination.
-    payment_lag: int, datetime
+    payment_lag: Adjuster, int, datetime
         Number of business days to lag payment by after expiry.
 
     Returns
@@ -279,37 +279,60 @@ def _get_fx_expiry_and_delivery_and_payment(
     tuple of datetime
     """
     calendar_ = get_calendar(calendar)
+    del calendar
+
+    if isinstance(delivery_lag, int):
+        delivery_lag_: datetime | Adjuster = Adjuster.BusDaysLagSettle(delivery_lag)
+    else:
+        delivery_lag_ = delivery_lag
+    del delivery_lag
+
+    if isinstance(payment_lag, int):
+        payment_lag_: datetime | Adjuster = Adjuster.BusDaysLagSettle(payment_lag)
+    else:
+        payment_lag_ = payment_lag
+    del payment_lag
+
     if isinstance(expiry, str):
+        # then use the objects to derive the expiry
+
         if isinstance(eval_date, NoInput):
             raise ValueError("`expiry` as string tenor requires `eval_date`.")
         # then the expiry will be implied
         e = expiry.upper()
         if "M" in e or "Y" in e:
             # method
-            if isinstance(delivery_lag, datetime):
+            if isinstance(delivery_lag_, datetime):
                 raise ValueError(
                     "Cannot determine FXOption expiry and delivery with given parameters.\n"
                     "Supply a `delivery_lag` as integer business days and not a datetime, when "
                     "using a string tenor `expiry`.",
                 )
             else:
-                spot = calendar_.lag_bus_days(eval_date, delivery_lag, True)
+                spot = delivery_lag_.adjust(eval_date, calendar_)
                 roll = "eom" if (eom and Imm.Eom.validate(spot)) else spot.day
-                delivery_: datetime = add_tenor(spot, expiry, modifier, calendar, roll, True)
-                expiry_ = calendar_.add_bus_days(delivery_, -delivery_lag, False)
+                delivery_: datetime = add_tenor(spot, expiry, modifier, calendar_, roll, True)
+                expiry_ = _get_first_bus_day(delivery_lag_.reverse(delivery_, calendar_), calendar_)
+            # else:
+            #     spot = calendar_.lag_bus_days(eval_date, delivery_lag, True)
+            #     roll = "eom" if (eom and Imm.Eom.validate(spot)) else spot.day
+            #     delivery_: datetime = add_tenor(spot, expiry, modifier, calendar_, roll, True)
+            #     expiry_ = calendar_.add_bus_days(delivery_, -delivery_lag, False)
         else:
             expiry_ = add_tenor(eval_date, expiry, "F", calendar_, NoInput(0), False)
     else:
         expiry_ = expiry
 
-    if isinstance(delivery_lag, datetime):
-        delivery_ = delivery_lag
+    if isinstance(delivery_lag_, datetime):
+        delivery_ = delivery_lag_
     else:
-        delivery_ = calendar_.lag_bus_days(expiry_, delivery_lag, True)
+        delivery_ = delivery_lag_.adjust(expiry_, calendar_)
+        # delivery_ = calendar_.lag_bus_days(expiry_, delivery_lag, True)
 
-    if isinstance(payment_lag, datetime):
-        payment_ = payment_lag
+    if isinstance(payment_lag_, datetime):
+        payment_ = payment_lag_
     else:
-        payment_ = calendar_.lag_bus_days(expiry_, payment_lag, True)
+        payment_ = payment_lag_.adjust(expiry_, calendar_)
+        # payment_ = calendar_.lag_bus_days(expiry_, payment_lag, True)
 
     return expiry_, delivery_, payment_

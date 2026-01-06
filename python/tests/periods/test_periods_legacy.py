@@ -12,7 +12,7 @@ from pandas.testing import assert_frame_equal
 from rateslib import defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.curves.curves import _try_index_value
-from rateslib.data.fixings import FloatRateSeries
+from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
@@ -4001,7 +4001,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
@@ -4012,7 +4012,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
             payment=dt(2025, 6, 1),
         )
         result = ndf.npv(disc_curve=fxf_ndf.curve("usd", "usd"), fx=fxf_ndf)
@@ -4023,7 +4023,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
@@ -4035,7 +4035,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
@@ -4047,7 +4047,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
@@ -4059,7 +4059,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
         )
         result = ndf.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
@@ -4070,7 +4070,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
         )
         result = ndf.non_deliverable_params.fx_fixing.try_value_or_forecast(fx=fxf_ndf).unwrap()
@@ -4081,7 +4081,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
@@ -4108,7 +4108,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
         )
         result = ndf.cashflows()
@@ -4134,7 +4134,7 @@ class TestNonDeliverableCashflow:
         ndf = Cashflow(
             notional=1e6,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             payment=dt(2025, 6, 1),
             fx_fixings=0.25,
         )
@@ -4163,7 +4163,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
             notional=1e6,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4182,7 +4182,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=0.2e6,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4201,7 +4201,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=1e6,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4216,7 +4216,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
             notional=1e9,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4236,7 +4236,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
             notional=1e9,
             fx_fixings=5.0,
             frequency=Frequency.Months(3, None),
@@ -4256,7 +4256,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
             notional=1e9,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4276,7 +4276,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=1e9,
             fx_fixings=fx_fixing,
             frequency=Frequency.Months(3, None),
@@ -4298,7 +4298,7 @@ class TestNonDeliverableFixedPeriod:
             payment=dt(2025, 5, 1),
             convention="30e360",
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=1e9,
             fx_fixings=NoInput(0),
             frequency=Frequency.Months(3, None),

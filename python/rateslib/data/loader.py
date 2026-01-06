@@ -278,8 +278,7 @@ class DefaultFixingsLoader(_BaseFixingsLoader):
             raise ValueError(
                 f"Fixing data for the index '{name}' has been attempted, but there is no file:\n"
                 f"'{name}.csv' located in the search directory.\n"
-                "For further info see the documentation for the `Fixings` class and/or the "
-                "cookbook article  'Working with Fixings'.",
+                "For further info see the documentation section regarding `Fixings`.",
             )
 
         data = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))

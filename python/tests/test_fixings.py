@@ -4,7 +4,7 @@ import pytest
 from pandas import Series
 from rateslib import dt, fixings
 from rateslib.curves import Curve
-from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, FXFixing, RFRFixing
+from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, FXFixing, FXIndex, RFRFixing
 from rateslib.enums.generics import NoInput
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
@@ -163,10 +163,10 @@ def test_series_combine():
 
 
 def test_reset_doc():
-    fx_fixing1 = FXFixing(date=dt(2021, 1, 1), pair="eurusd", identifier="A")
-    fx_fixing2 = FXFixing(date=dt(2021, 1, 1), pair="gbpusd", identifier="B")
-    fixings.add("A_eurusd", Series(index=[dt(2021, 1, 1)], data=[1.1]), state=100)
-    fixings.add("B_gbpusd", Series(index=[dt(2021, 1, 1)], data=[1.4]), state=200)
+    fx_fixing1 = FXFixing(delivery=dt(2021, 1, 1), fx_index="eurusd", identifier="A")
+    fx_fixing2 = FXFixing(delivery=dt(2021, 1, 1), fx_index="gbpusd", identifier="B")
+    fixings.add("A_eurusd", Series(index=[dt(2020, 12, 30)], data=[1.1]), state=100)
+    fixings.add("B_gbpusd", Series(index=[dt(2020, 12, 30)], data=[1.4]), state=200)
 
     # data is populated from the available Series
     assert fx_fixing1.value == 1.1
@@ -211,8 +211,8 @@ class TestFXFixing:
         fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
 
         fx_fixing = FXFixing(
-            dt(2000, 1, 1),
-            pair="usdrub",
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("usdrub", "fed", 2),
             identifier=name,
         )
         assert fx_fixing.value == 2.0
@@ -223,8 +223,8 @@ class TestFXFixing:
         fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
 
         fx_fixing = FXFixing(
-            dt(2000, 1, 1),
-            pair="rubusd",
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("rubusd", "fed", 2),
             identifier=name,
         )
         assert fx_fixing.value == 0.5
@@ -237,8 +237,8 @@ class TestFXFixing:
         fixings.add(name + "_USDINR", Series(index=[dt(2000, 1, 1)], data=[4.0]))
 
         fx_fixing = FXFixing(
-            dt(2000, 1, 1),
-            pair="rubinr",
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("rubinr", "fed", 2),
             identifier=name,
         )
         assert fx_fixing.value == 1 / 2.0 * 4.0
@@ -252,8 +252,8 @@ class TestFXFixing:
         fixings.add(name + "_INRUSD", Series(index=[dt(2000, 1, 1)], data=[4.0]))
 
         fx_fixing = FXFixing(
-            dt(2000, 1, 1),
-            pair="rubinr",
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("rubinr", "fed", 2),
             identifier=name,
         )
         assert fx_fixing.value == 2.0 * 1 / 4.0
@@ -261,7 +261,9 @@ class TestFXFixing:
         fixings.pop(name + "_INRUSD")
 
     def test_reset(self):
-        fx_fixing = FXFixing(dt(2000, 1, 1), pair="rubusd", identifier="test")
+        fx_fixing = FXFixing(
+            publication=dt(2000, 1, 1), fx_index=FXIndex("rubusd", "fed", 1), identifier="test"
+        )
         fixings.add("test_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
         assert fx_fixing.value == 0.5
         fx_fixing.reset(state=1)
@@ -272,7 +274,11 @@ class TestFXFixing:
 
     def test_no_state_update(self):
         # test that the fixing value and state is updated at the appropriate times.
-        fx_fixing = FXFixing(dt(2000, 1, 1), pair="rubusd", identifier="test")
+        fx_fixing = FXFixing(
+            delivery=dt(2000, 1, 1),
+            fx_index=FXIndex("rubusd", "fed", 1, "all", 0),
+            identifier="test",
+        )
         fixings.add("test_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
         assert fx_fixing.value == 0.5
         old_state = fx_fixing._state

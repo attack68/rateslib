@@ -7,6 +7,7 @@ from pandas import DataFrame
 
 import rateslib.errors as err
 from rateslib import defaults
+from rateslib.data.fixings import _maybe_get_fx_index
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.parameters import (
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         Result,
         RollDay,
         Schedule,
@@ -238,7 +240,7 @@ class FixedPeriod(_BasePeriodStatic):
         calendar: CalInput = NoInput(0),
         adjuster: Adjuster | str_ = NoInput(0),
         # non-deliverable args:
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
         # index-args:
@@ -255,11 +257,11 @@ class FixedPeriod(_BasePeriodStatic):
             _payment=payment,
             _notional=_drb(defaults.notional, notional),
             _ex_dividend=_drb(payment, ex_dividend),
-            _fx_pair=pair,
+            _fx_pair=_maybe_get_fx_index(pair),
         )
         self._non_deliverable_params = _init_or_none_NonDeliverableParams(
             _currency=self.settlement_params.currency,
-            _pair=pair,
+            _fx_index=pair,
             _delivery=_drb(self.settlement_params.payment, delivery),
             _fx_fixings=fx_fixings,
         )
@@ -363,33 +365,6 @@ class FixedPeriod(_BasePeriodStatic):
         fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())
-
-
-# class NonDeliverableFixedPeriod(FixedPeriod):
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#         if self.is_indexed:
-#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-#
-#
-# class IndexFixedPeriod(FixedPeriod):
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if self.is_non_deliverable:
-#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#
-#
-# class NonDeliverableIndexFixedPeriod(FixedPeriod):
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
 class ZeroFixedPeriod(_BasePeriodStatic):
@@ -550,7 +525,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         # period params
         convention: str_ = NoInput(0),
         # non-deliverable args:
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
         # index-args:
@@ -566,11 +541,11 @@ class ZeroFixedPeriod(_BasePeriodStatic):
             _payment=self.schedule.pschedule[-1],
             _notional=_drb(defaults.notional, notional),
             _ex_dividend=self.schedule.pschedule3[-1],
-            _fx_pair=pair,
+            _fx_pair=_maybe_get_fx_index(pair),
         )
         self._non_deliverable_params = _init_or_none_NonDeliverableParams(
             _currency=self.settlement_params.currency,
-            _pair=pair,
+            _fx_index=pair,
             _delivery=_drb(self.settlement_params.payment, delivery),
             _fx_fixings=fx_fixings,
         )

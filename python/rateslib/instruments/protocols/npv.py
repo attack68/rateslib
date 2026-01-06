@@ -20,6 +20,7 @@ if TYPE_CHECKING:
         Solver_,
         VolT_,
         _Curves,
+        _SettlementParams,
         _Vol,
         datetime_,
         str_,
@@ -32,6 +33,22 @@ class _WithNPV(_WithPricingObjs, Protocol):
     """
 
     _kwargs: _KWArgs
+
+    @property
+    def settlement_params(self) -> _SettlementParams:
+        """
+        The default :class:`~rateslib.periods.parameters._SettlementParams` of the *Instrument*.
+
+        This is used to define a ``base`` currency when one is not specified.
+        """
+        if hasattr(self, "legs"):
+            return self.legs[0].settlement_params  # type: ignore[no-any-return]
+        elif hasattr(self, "instruments"):
+            return self.instruments[0].settlement_params  # type: ignore[no-any-return]
+        else:
+            raise NotImplementedError(
+                f"`settlement_params` not implemented for type {type(self).__name__}"
+            )
 
     @property
     def kwargs(self) -> _KWArgs:
@@ -153,7 +170,7 @@ class _WithNPV(_WithPricingObjs, Protocol):
 
         if not local:
             single_value: DualTypes = 0.0
-            base_ = _drb(self.legs[0].settlement_params.currency, base)
+            base_ = _drb(self.settlement_params.currency, base)
             for k, v in local_npv.items():
                 single_value += _maybe_fx_converted(
                     value=v,
@@ -179,6 +196,8 @@ class _WithNPV(_WithPricingObjs, Protocol):
     ) -> dict[str, DualTypes]:
         """
         Private NPV summation function used with a single thread, over all `self.instruments`.
+
+        Returns a dict type: local = True
         """
         assert hasattr(self, "instruments")  # noqa: S101
 

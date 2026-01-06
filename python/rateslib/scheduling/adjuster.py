@@ -31,18 +31,21 @@ def _get_adjuster_none(adjuster: Adjuster | str_) -> Adjuster | None:
         return _get_adjuster(adjuster)
 
 
-def _get_adjuster(adjuster: str | Adjuster) -> Adjuster:
+def _get_adjuster(adjuster: int | str | Adjuster) -> Adjuster:
     """Convert a str such as 'F', 'MF' or '2B' or '5D' to an Adjuster."""
     if isinstance(adjuster, Adjuster):
         return adjuster
+    elif isinstance(adjuster, int):
+        # convert to business days
+        adjuster = f"{adjuster}B"
+
+    adjuster = adjuster.upper()
+    if adjuster[-1] == "B":
+        return Adjuster.BusDaysLagSettle(int(adjuster[:-1]))
+    elif adjuster[-1] == "D":
+        return Adjuster.CalDaysLagSettle(int(adjuster[:-1]))
     else:
-        adjuster = adjuster.upper()
-        if adjuster[-1] == "B":
-            return Adjuster.BusDaysLagSettle(int(adjuster[:-1]))
-        elif adjuster[-1] == "D":
-            return Adjuster.CalDaysLagSettle(int(adjuster[:-1]))
-        else:
-            return _A[adjuster]
+        return _A[adjuster]
 
 
 def _convert_to_adjuster(modifier: str | Adjuster, settlement: bool, mod_days: bool) -> Adjuster:
