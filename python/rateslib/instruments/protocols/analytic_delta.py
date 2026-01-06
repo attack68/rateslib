@@ -17,10 +17,8 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         FXForwards_,
-        Sequence,
         Solver_,
         VolT_,
-        _BaseLeg,
         _Curves,
         _KWArgs,
         datetime_,
@@ -35,9 +33,6 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
 
     @property
     def kwargs(self) -> _KWArgs: ...
-
-    @property
-    def legs(self) -> Sequence[_BaseLeg]: ...
 
     def analytic_delta(
         self,
@@ -107,21 +102,25 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
 
         prefix = "" if leg == 1 else "leg2_"
 
-        value: DualTypes | dict[str, DualTypes] = self.legs[leg - 1].analytic_delta(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                _curves_meta, _curves, f"{prefix}rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                _curves_meta, _curves, f"{prefix}disc_curve", solver
-            ),
-            index_curve=_maybe_get_curve_maybe_from_solver(
-                _curves_meta, _curves, f"{prefix}index_curve", solver
-            ),
-            fx_vol=_maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver),
-            fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
-            base=base,
-            local=local,
-            settlement=settlement,
-            forward=forward,
-        )
+        if hasattr(self, "legs"):
+            value: DualTypes | dict[str, DualTypes] = self.legs[leg - 1].analytic_delta(
+                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
+                    _curves_meta, _curves, f"{prefix}rate_curve", solver
+                ),
+                disc_curve=_maybe_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, f"{prefix}disc_curve", solver
+                ),
+                index_curve=_maybe_get_curve_maybe_from_solver(
+                    _curves_meta, _curves, f"{prefix}index_curve", solver
+                ),
+                fx_vol=_maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver),
+                fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
+                base=base,
+                local=local,
+                settlement=settlement,
+                forward=forward,
+            )
+        else:
+            raise NotImplementedError("`analytic_delta` can only called on Leg based Instruments.")
+
         return value

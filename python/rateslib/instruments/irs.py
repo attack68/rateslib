@@ -52,6 +52,7 @@ class IRS(_BaseInstrument):
        :suppress:
 
        from rateslib.instruments import IRS
+       from rateslib.data.fixings import FXIndex
        from datetime import datetime as dt
        from rateslib import fixings
 
@@ -209,7 +210,7 @@ class IRS(_BaseInstrument):
            directly deliverable do not use these parameters. Review the **notes** section
            non-deliverability.
 
-    pair: str, :green:`optional`
+    pair: FXIndex, str, :green:`optional`
         The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
@@ -253,14 +254,14 @@ class IRS(_BaseInstrument):
 
     .. ipython:: python
 
-       fixings.add("WMR_10AM_TYO_T+2_USDTHB", Series(index=[dt(2000, 7, 3), dt(2001, 1, 3)], data=[35.25, 37.0]))
+       fixings.add("WMR_10AM_TYO_USDTHB", Series(index=[dt(2000, 6, 30), dt(2001, 1, 2)], data=[35.25, 37.0]))
        irs = IRS(
            effective=dt(2000, 1, 1),
            termination="2y",
            frequency="S",
-           currency="usd",    #  <- USD set as the settlement currency
-           pair="usdthb",     #  <- THB inferred as the reference currency
-           fx_fixings="WMR_10AM_TYO_T+2",
+           currency="usd",                              #  <- USD set as the settlement currency
+           pair=FXIndex("usdthb", "fed", 1, "fed", -1), #  <- THB inferred as the reference currency
+           fx_fixings="WMR_10AM_TYO",
            fixed_rate=2.0,
            # all other arguments set as normal IRS
        )
@@ -269,7 +270,7 @@ class IRS(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("WMR_10AM_TYO_T+2_USDTHB")
+       fixings.pop("WMR_10AM_TYO_USDTHB")
 
     Further information is available in the documentation for a :class:`~rateslib.legs.FixedLeg`.
 

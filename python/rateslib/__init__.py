@@ -60,7 +60,16 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
-from rateslib.data.fixings import FXFixing, IBORFixing, IBORStubFixing, IndexFixing, RFRFixing
+from rateslib.data.fixings import (
+    FloatRateIndex,
+    FloatRateSeries,
+    FXFixing,
+    FXIndex,
+    IBORFixing,
+    IBORStubFixing,
+    IndexFixing,
+    RFRFixing,
+)
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
@@ -210,6 +219,9 @@ __all__ = [
     "IBORStubFixing",
     "IndexFixing",
     "RFRFixing",
+    "FXIndex",
+    "FloatRateIndex",
+    "FloatRateSeries",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",

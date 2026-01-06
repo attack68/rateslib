@@ -9,6 +9,7 @@ from pytz import UTC
 import rateslib.errors as err
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.data.fixings import _get_fx_index
 from rateslib.dual import dual_exp, dual_log, dual_norm_cdf, dual_norm_pdf, newton_1dim
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, Ok, Result, _drb
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         Number,
         Series,
         _BaseCurve,
@@ -144,7 +146,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         # option params:
         direction: OptionType,
         delivery: datetime,  # otherwise termed the 'payment' of the period
-        pair: str,
+        pair: FXIndex | str,
         expiry: datetime,
         strike: DualTypes_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
@@ -180,7 +182,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             _expiry=expiry,
             _delivery=delivery,
             _delta_type=_get_fx_delta_type(_drb(defaults.fx_delta_type, delta_type)),
-            _pair=pair,
+            _fx_index=_get_fx_index(pair),
             _strike=strike,
             _metric=_drb(defaults.fx_option_metric, metric),
             _option_fixings=option_fixings,
@@ -195,8 +197,8 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             self._settlement_params = _SettlementParams(
                 _notional=_drb(defaults.notional, notional),
                 _payment=delivery,
-                _currency=pair[3:].lower(),
-                _notional_currency=pair[:3].lower(),
+                _currency=self.fx_option_params.fx_index.pair[3:],
+                _notional_currency=self.fx_option_params.fx_index.pair[:3],
                 _ex_dividend=ex_dividend,
             )
         else:

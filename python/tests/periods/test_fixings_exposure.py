@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from rateslib import fixings
 from rateslib.curves import Curve
+from rateslib.data.fixings import FXIndex
 from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
 from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
@@ -400,7 +401,7 @@ class TestMtmCashflow:
                 (
                     "wmr12_eurusd",
                     pd.Series(
-                        index=[dt(2000, 1, 10), dt(2000, 2, 15)],
+                        index=[dt(2000, 1, 6), dt(2000, 2, 11)],
                         data=[
                             fxf.rate("eurusd", dt(2000, 1, 10)),
                             fxf.rate("eurusd", dt(2000, 2, 15)),
@@ -435,7 +436,7 @@ class TestFXCallPeriod:
         )
         result = fxo.local_fixings(
             identifiers=[
-                ("wmr13_eurusd", pd.Series(index=[dt(2000, 3, 1)], data=[fixing])),
+                ("wmr13_eurusd", pd.Series(index=[dt(2000, 2, 28)], data=[fixing])),
             ],
             disc_curve=curve1,
         )
@@ -483,7 +484,7 @@ def test_local_fixings_raises_scalars():
     mc = MtmCashflow(
         currency="usd",
         notional=2e6,
-        pair="eurusd",
+        pair=FXIndex("eurusd", "tgt|fed", 2, "all", 0),
         payment=dt(2000, 2, 15),
         start=dt(2000, 1, 10),
         end=dt(2000, 2, 15),

@@ -615,7 +615,7 @@ impl Schedule {
                 })
                 .collect();
             if schedules.len() == 0 {
-                // do nothing becuase the pre-check has failed: moved to usual construction
+                // do nothing because the pre-check has failed: moved to usual construction
             } else {
                 // filter regular schedules
                 return Ok(filter_schedules_by_eom(schedules, eom));

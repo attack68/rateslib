@@ -18,7 +18,9 @@ class TestFixedLeg:
             ),
             state=100,
         )
-        fixings.add(name="fx_eurusd", series=Series(index=[dt(2000, 1, 1)], data=[2.0]), state=100)
+        fixings.add(
+            name="fx_eurusd", series=Series(index=[dt(1999, 12, 30)], data=[2.0]), state=100
+        )
 
         fl = FixedLeg(
             schedule=Schedule(dt(2000, 1, 1), "1y", "S"),
@@ -53,7 +55,9 @@ class TestFixedLeg:
             ),
             state=100,
         )
-        fixings.add(name="fx_eurusd", series=Series(index=[dt(2000, 1, 1)], data=[2.0]), state=100)
+        fixings.add(
+            name="fx_eurusd", series=Series(index=[dt(1999, 12, 30)], data=[2.0]), state=100
+        )
 
         fl = FixedLeg(
             schedule=Schedule(dt(2000, 1, 1), "1y", "S"),
@@ -88,7 +92,9 @@ class TestFixedLeg:
             ),
             state=100,
         )
-        fixings.add(name="fx_eurusd", series=Series(index=[dt(2000, 1, 1)], data=[2.0]), state=100)
+        fixings.add(
+            name="fx_eurusd", series=Series(index=[dt(1999, 12, 30)], data=[2.0]), state=100
+        )
 
         fl = FixedLeg(
             schedule=Schedule(dt(2000, 1, 1), "1y", "S"),
@@ -126,7 +132,9 @@ class TestFloatLeg:
             ),
             state=100,
         )
-        fixings.add(name="fx_eurusd", series=Series(index=[dt(2000, 1, 1)], data=[2.0]), state=100)
+        fixings.add(
+            name="fx_eurusd", series=Series(index=[dt(1999, 12, 30)], data=[2.0]), state=100
+        )
         fixings.add(
             name="ibor_1M",
             series=Series(index=[dt(2000, 1, 1), dt(2000, 3, 1)], data=[1.0, 2.0]),
@@ -194,7 +202,9 @@ class TestFloatLeg:
             ),
             state=100,
         )
-        fixings.add(name="fx_eurusd", series=Series(index=[dt(2000, 1, 1)], data=[2.0]), state=100)
+        fixings.add(
+            name="fx_eurusd", series=Series(index=[dt(1999, 12, 30)], data=[2.0]), state=100
+        )
         fixings.add(
             name="ibor_1M",
             series=Series(index=[dt(2000, 1, 1), dt(2000, 3, 1)], data=[1.0, 2.0]),

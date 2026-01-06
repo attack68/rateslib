@@ -12,6 +12,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXDeltaMethod,
+        FXIndex,
         OptionType,
         datetime,
         str_,
@@ -25,7 +26,7 @@ class _FXOptionParams:
 
     _expiry: datetime
     _delivery: datetime
-    _pair: str
+    _fx_index: FXIndex
     _delta_type: FXDeltaMethod
     _metric: FXOptionMetric
     _option_fixing: FXFixing
@@ -38,7 +39,7 @@ class _FXOptionParams:
         _direction: OptionType,
         _expiry: datetime,
         _delivery: datetime,
-        _pair: str,
+        _fx_index: FXIndex,
         _delta_type: FXDeltaMethod,
         _metric: str | FXOptionMetric,
         _option_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
@@ -47,28 +48,31 @@ class _FXOptionParams:
         self._direction = _direction
         self._expiry = _expiry
         self._delivery = _delivery
-        self._pair = _pair.lower()
+        self._fx_index = _fx_index
         self._delta_type = _delta_type
         self._metric = _get_fx_option_metric(_metric)
         self._strike = _strike
         if isinstance(_option_fixings, Series):
             value = FXFixing._lookup(timeseries=_option_fixings, date=self.delivery)
             self._option_fixing = FXFixing(
-                date=self.delivery,
+                delivery=_delivery,
                 value=value,
-                pair=self.pair,
+                fx_index=_fx_index,
+                publication=_expiry,
             )
         elif isinstance(_option_fixings, str):
             self._option_fixing = FXFixing(
-                date=self.delivery,
+                delivery=_delivery,
                 identifier=_option_fixings,
-                pair=self.pair,
+                fx_index=_fx_index,
+                publication=_expiry,
             )
         else:
             self._option_fixing = FXFixing(
-                date=self.delivery,
+                delivery=_delivery,
                 value=_option_fixings,
-                pair=self.pair,
+                fx_index=_fx_index,
+                publication=_expiry,
             )
 
     @property
@@ -82,9 +86,14 @@ class _FXOptionParams:
         return self._delivery
 
     @property
+    def fx_index(self) -> FXIndex:
+        """The FX index defining the FX rate conventions"""
+        return self._fx_index
+
+    @property
     def pair(self) -> str:
         """The currency pair for settlement of the option."""
-        return self._pair
+        return self.fx_index.pair
 
     @property
     def direction(self) -> OptionType:
