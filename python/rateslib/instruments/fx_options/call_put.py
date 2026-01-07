@@ -9,6 +9,7 @@ from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.data.fixings import _fx_index_set_cross, _get_fx_index
 from rateslib.default import PlotOutput, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards,
         FXForwards_,
+        FXIndex,
         FXVol_,
         Sequence,
         Solver_,
@@ -133,7 +135,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         elif isinstance(curves, list | tuple) and len(curves) == 2:
             rate_curve = curves[0]  # type: ignore[assignment]
             disc_curve = curves[1]  # type: ignore[assignment]
-            if self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"][:3]:
+            if self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"].pair[:3]:
                 leg2_disc_curve = rate_curve
             else:
                 leg2_disc_curve = disc_curve
@@ -161,7 +163,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         self,
         expiry: datetime | str,
         strike: DualTypes | str,
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         *,
         notional: DualTypes_ = NoInput(0),
         eval_date: datetime | NoInput = NoInput(0),
@@ -214,9 +216,17 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             spec=spec,
             meta_args=["curves", "vol", "metric"],
         )
+
+        # This configuration here assumes that the options are physically settled, so do not
+        # allow WMR cross methodology to impact forecast rates for FXFixings.
+        self.kwargs.leg1["pair"] = _fx_index_set_cross(
+            _get_fx_index(self.kwargs.leg1["pair"]),
+            allow_cross=False,
+        )
+
         # apply the parse knowing the premium currency
         self._kwargs.leg2["premium_ccy"] = _drb(
-            self.kwargs.leg1["pair"][3:], self.kwargs.leg2["premium_ccy"]
+            self.kwargs.leg1["pair"].pair[3:], self.kwargs.leg2["premium_ccy"]
         )
         self._kwargs.meta["curves"] = self._parse_curves(self._kwargs.meta["curves"])
 
@@ -234,14 +244,14 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         )
 
         if self.kwargs.leg2["premium_ccy"] not in [
-            self.kwargs.leg1["pair"][:3],
-            self.kwargs.leg1["pair"][3:],
+            self.kwargs.leg1["pair"].pair[:3],
+            self.kwargs.leg1["pair"].pair[3:],
         ]:
             raise ValueError(
                 f"`premium_ccy`: '{self.kwargs.leg2['premium_ccy']}' must be one of option "
-                f"currency pair: '{self.kwargs.leg1['pair']}'.",
+                f"currency pair: '{self.kwargs.leg1['pair'].pair}'.",
             )
-        elif self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"][3:]:
+        elif self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"].pair[3:]:
             self.kwargs.meta["metric_period"] = "pips"
             self.kwargs.meta["delta_method"] = _get_fx_delta_type(self.kwargs.leg1["delta_type"])
         else:
@@ -332,7 +342,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             vol=None,
             k=None,
             delta_index=None,
-            spot=fx_.pairs_settlement[self.kwargs.leg1["pair"]],
+            spot=fx_.pairs_settlement[self.kwargs.leg1["pair"].pair],
             t_e=None,
             f_d=fx_.rate(self.kwargs.leg1["pair"], self.kwargs.leg1["delivery"]),
         )

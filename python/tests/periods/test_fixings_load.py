@@ -168,7 +168,7 @@ class TestSettlementParams:
         )
         assert c.non_deliverable_params.fx_fixing.value == 2.1
         assert isinstance(c.non_deliverable_params.fx_fixing.identifier, str)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
         fixings.pop(name + "_eurusd")
 
     def test_fx_fixings_str_state_cache(self):
@@ -184,10 +184,11 @@ class TestSettlementParams:
         )
         assert c.non_deliverable_params.fx_fixing.value is NoInput(0)
         assert isinstance(c.non_deliverable_params.fx_fixing.identifier, str)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        # states match the hash because the FXFixing uses composite FXFixingMajors
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
 
         assert c.non_deliverable_params.fx_fixing.value is NoInput(0)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
         fixings.pop(name + "_eurusd")
 
     def test_fx_fixing_cashflow(self):
