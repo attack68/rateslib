@@ -705,3 +705,9 @@ def test_mex_loads():
     cal = get_calendar("mex")
     assert not cal.is_bus_day(dt(2026, 3, 16))
     assert cal.is_bus_day(dt(2026, 3, 17))
+
+
+def test_replace_whitespace():
+    cal1 = get_calendar("nyc, tgt")
+    cal2 = get_calendar("nyc,tgt")
+    assert cal1 == cal2

@@ -568,7 +568,10 @@ def _fx_index_set_cross(pair: FXIndex, allow_cross: bool) -> FXIndex:
 
 
 class _UnitFixing(_BaseFixing):
-    """A :class:`~rateslib.data.fixings._BaseFixing` permanently adopting value 1.0. Used as a placeholder."""
+    """
+    A :class:`~rateslib.data.fixings._BaseFixing` permanently adopting value 1.0.
+    Used as a placeholder.
+    """
 
     def __init__(
         self, *, date: datetime, value: DualTypes_ = NoInput(0), identifier: str_ = NoInput(0)
@@ -767,7 +770,7 @@ class FXFixing(_BaseFixing):
        fxfix.value_or_forecast(fx=fxf)
        fxf.rate("cadsek", dt(2026, 1, 8))
 
-    """
+    """  # noqa: E501
 
     def __init__(
         self,
