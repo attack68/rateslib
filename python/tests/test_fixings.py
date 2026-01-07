@@ -4,7 +4,15 @@ import pytest
 from pandas import Series
 from rateslib import dt, fixings
 from rateslib.curves import Curve
-from rateslib.data.fixings import FloatRateIndex, FloatRateSeries, FXFixing, FXIndex, RFRFixing
+from rateslib.data.fixings import (
+    FloatRateIndex,
+    FloatRateSeries,
+    FXFixing,
+    FXIndex,
+    RFRFixing,
+    _FXFixingMajor,
+    _UnitFixing,
+)
 from rateslib.enums.generics import NoInput
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
@@ -275,6 +283,161 @@ class TestFXFixing:
     def test_no_state_update(self):
         # test that the fixing value and state is updated at the appropriate times.
         fx_fixing = FXFixing(
+            delivery=dt(2000, 1, 1),
+            fx_index=FXIndex("rubusd", "fed", 1, "all", 0),
+            identifier="test",
+        )
+        fixings.add("test_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+        assert fx_fixing.value == 0.5
+        old_state = fx_fixing._state
+        fixings.pop("test_USDRUB")
+        fixings.add("test_USDRUB", Series(index=[dt(2000, 1, 1)], data=[5.0]))
+        # value and state are unchanged
+        assert fx_fixing.value == 0.5
+        assert fx_fixing._state == old_state
+        fx_fixing.reset()
+        # value are state are now set after reset
+        assert fx_fixing.value == 0.20
+        assert fx_fixing._state == hash(fixings["TEST_USDRUB"][0])
+        fixings.pop("test_USDRUB")
+
+    # test all cross constructions
+
+    def test_construct_1_major_usd(self):
+        fx_fixing = FXFixing(fx_index="usdeur", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="eurusd", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index=FXIndex("usdbrl", "fed", 2), publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index=FXIndex("brlusd", "fed", 2), publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+    def test_construct_1_major_eur(self):
+        fx_fixing = FXFixing(fx_index="eursek", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="sekeur", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing2, _UnitFixing)
+
+    def test_construct_2_major_eur(self):
+        fx_fixing = FXFixing(fx_index="usdsek", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "usdeur"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="sekusd", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "sekeur"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="seknok", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "sekeur"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+    def test_construct_2_major_usd(self):
+        fx_fixing = FXFixing(fx_index="eurgbp", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "eurusd"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="gbpeur", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "gbpusd"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+        fx_fixing = FXFixing(fx_index="gbpcad", publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "gbpusd"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert isinstance(fx_fixing.fx_fixing3, _UnitFixing)
+
+    def test_construct_3_major(self):
+        fx_fixing = FXFixing(fx_index=FXIndex("nokcad", "tro", 2), publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "nokeur"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert fx_fixing.fx_fixing2.pair == "eurusd"
+        assert isinstance(fx_fixing.fx_fixing3, _FXFixingMajor)
+        assert fx_fixing.fx_fixing3.pair == "usdcad"
+
+        fx_fixing = FXFixing(fx_index=FXIndex("cadnok", "tro", 2), publication=dt(2000, 1, 1))
+        assert isinstance(fx_fixing.fx_fixing1, _FXFixingMajor)
+        assert fx_fixing.fx_fixing1.pair == "cadusd"
+        assert isinstance(fx_fixing.fx_fixing2, _FXFixingMajor)
+        assert fx_fixing.fx_fixing2.pair == "usdeur"
+        assert isinstance(fx_fixing.fx_fixing3, _FXFixingMajor)
+        assert fx_fixing.fx_fixing3.pair == "eurnok"
+
+
+class TestFXFixingMajor:
+    def test_direct(self) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+
+        fx_fixing = _FXFixingMajor(
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("usdrub", "fed", 2),
+            identifier=name,
+        )
+        assert fx_fixing.value == 2.0
+        fixings.pop(name + "_USDRUB")
+
+    def test_inverted(self) -> None:
+        name = str(hash(os.urandom(8)))
+        fixings.add(name + "_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+
+        fx_fixing = _FXFixingMajor(
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("rubusd", "fed", 2),
+            identifier=name,
+        )
+        assert fx_fixing.value == 0.5
+        fixings.pop(name + "_USDRUB")
+
+    def test_cross1(self) -> None:
+        name = str(hash(os.urandom(8)))
+
+        fixings.add(name + "_INRRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+
+        fx_fixing = _FXFixingMajor(
+            publication=dt(2000, 1, 1),
+            fx_index=FXIndex("rubinr", "fed", 2),
+            identifier=name,
+        )
+        assert fx_fixing.value == 1 / 2.0
+        fixings.pop(name + "_INRRUB")
+
+    def test_reset(self):
+        fx_fixing = _FXFixingMajor(
+            publication=dt(2000, 1, 1), fx_index=FXIndex("rubusd", "fed", 1), identifier="test"
+        )
+        fixings.add("test_USDRUB", Series(index=[dt(2000, 1, 1)], data=[2.0]))
+        assert fx_fixing.value == 0.5
+        fx_fixing.reset(state=1)
+        assert fx_fixing._value == 0.5
+        fx_fixing.reset(state=fixings["TEST_USDRUB"][0])
+        assert fx_fixing._value == NoInput(0)
+        fixings.pop("test_USDRUB")
+
+    def test_no_state_update(self):
+        # test that the fixing value and state is updated at the appropriate times.
+        fx_fixing = _FXFixingMajor(
             delivery=dt(2000, 1, 1),
             fx_index=FXIndex("rubusd", "fed", 1, "all", 0),
             identifier="test",

@@ -104,8 +104,14 @@ def _init_MtmParams(
     # FX fixing publication dates are derived under the ISDA conventions associated with FXIndex.
     return _MtmParams(
         _fx_fixing_start=_init_fx_fixing(
-            delivery=_start, fx_index=_fx_index, fixings=_fx_fixings_start
+            delivery=_start,
+            fx_index=_fx_index,
+            fixings=_fx_fixings_start,
         ),
-        _fx_fixing_end=_init_fx_fixing(delivery=_end, fx_index=_fx_index, fixings=_fx_fixings_end),
+        _fx_fixing_end=_init_fx_fixing(
+            delivery=_end,
+            fx_index=_fx_index,
+            fixings=_fx_fixings_end,
+        ),
         _currency=_currency,
     )

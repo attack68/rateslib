@@ -8668,3 +8668,40 @@ class TestFixings:
             assert (
                 abs(result[("usd", "wmr_eurusd")].iloc[i * 2 + 1] - expected_fx_fixings[i]) < 1e-6
             )
+
+
+def test_wmr_crosses_not_allowed_standard_instruments():
+    sek = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.8})
+    cad = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.85})
+    fxf = FXForwards(
+        fx_rates=FXRates({"cadsek": 8.0}, settlement=dt(2000, 1, 3)),
+        fx_curves={"cadcad": cad, "sekcad": sek, "seksek": sek},
+    )
+    fxvs = FXDeltaVolSmile(
+        eval_date=dt(2000, 1, 1),
+        expiry=dt(2000, 6, 2),
+        nodes={0.5: 10.0},
+        delta_type="forward",
+    )
+
+    instruments = [
+        FXForward(dt(2000, 6, 1), FXIndex("cadsek", "tro,stk", 2), curves=[cad, sek]),
+        FXForward(dt(2000, 6, 1), FXIndex("cadsek", "tro,stk", 2), fx_rate=8.1, curves=[cad, sek]),
+        FXSwap(dt(2000, 6, 2), dt(2000, 7, 2), FXIndex("cadsek", "tro,stk", 2), curves=[cad, sek]),
+        FXSwap(
+            dt(2000, 6, 2),
+            dt(2000, 7, 2),
+            FXIndex("cadsek", "tro,stk", 2),
+            leg2_fx_fixings=8.0,
+            points=100.0,
+            curves=[cad, sek],
+        ),
+        FXCall(
+            expiry=dt(2000, 6, 2),
+            strike=8.0,
+            pair=FXIndex("cadsek", "tro,stk", 2),
+            curves=[cad, sek],
+        ),
+    ]
+    for inst in instruments:
+        inst.npv(vol=fxvs, fx=fxf)

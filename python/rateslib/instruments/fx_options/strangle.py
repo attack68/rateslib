@@ -435,7 +435,7 @@ class FXStrangle(_BaseFXOptionStrat):
         )
 
         # Get initial data from objects in their native AD order
-        spot: datetime = fxf.pairs_settlement[self.kwargs.leg1["pair"]]
+        spot: datetime = fxf.pairs_settlement[self.kwargs.leg1["pair"].pair]
         w_spot: DualTypes = rate_curve[spot]
         w_deli: DualTypes = rate_curve[self.kwargs.leg1["delivery"]]
         f_d: DualTypes = fxf.rate(self.kwargs.leg1["pair"], self.kwargs.leg1["delivery"])

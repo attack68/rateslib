@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.data.fixings import _fx_index_set_cross, _get_fx_index
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         RollDay,
         Sequence,
         Solver_,
@@ -111,7 +113,7 @@ class FXSwap(_BaseInstrument):
 
            The following define generalised **settlement** parameters.
 
-    pair : str, :red:`required`
+    pair : FXIndex, str, :red:`required`
         The FX pair of the *Instrument* (6-digit code).
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         To define the notional of the trade in units of LHS pair use ``notional``.
@@ -240,7 +242,7 @@ class FXSwap(_BaseInstrument):
         # scheduling
         effective: datetime,
         termination: datetime | str,
-        pair: str,
+        pair: FXIndex | str,
         *,
         roll: int | RollDay | str_ = NoInput(0),
         eom: bool_ = NoInput(0),
@@ -258,7 +260,10 @@ class FXSwap(_BaseInstrument):
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
-        pair_ = pair.lower()
+        # FXSwaps are physically settled so do not allow WMR cross methodology to impact
+        # forecast rates for FXFixings.
+        pair_ = _fx_index_set_cross(_get_fx_index(pair), allow_cross=False)
+
         if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
             notional = defaults.notional
         elif not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
@@ -297,8 +302,8 @@ class FXSwap(_BaseInstrument):
         )
 
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
-            currency=pair[:3],
-            leg2_currency=pair[3:6],
+            currency=pair_.pair[:3],
+            leg2_currency=pair_.pair[3:6],
             pair=NoInput(0),
             leg2_pair=NoInput(0),
             vol=_Vol(),

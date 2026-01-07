@@ -442,9 +442,9 @@ class FXBrokerFly(_BaseFXOptionStrat):
             _[attr] = g_grks[attr] - sclr * d_grks[attr]
 
         _notional_attrs = [
-            f"delta_{self.kwargs.leg1['pair'][:3]}",
-            f"gamma_{self.kwargs.leg1['pair'][:3]}_1%",
-            f"vega_{self.kwargs.leg1['pair'][3:]}",
+            f"delta_{self.kwargs.leg1['pair'].pair[:3]}",
+            f"gamma_{self.kwargs.leg1['pair'].pair[:3]}_1%",
+            f"vega_{self.kwargs.leg1['pair'].pair[3:]}",
         ]
         for attr in _notional_attrs:
             _[attr] = g_grks[attr] - d_grks[attr]

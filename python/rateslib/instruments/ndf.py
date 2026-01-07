@@ -151,7 +151,7 @@ class NDF(_BaseInstrument):
     Notes
     -----
     *NDFs* in *rateslib* replicate an :class:`~rateslib.instruments.FXForward` whose cashflows
-    are paid out netted in a single **settlement currency*. Two types are allowed:
+    are paid out netted in a single *settlement currency*. Two types are allowed:
 
     - A **two currency** *NDF* where one *Leg* is directly deliverable in its own currency and
       the other *Leg* is non-deliverable.

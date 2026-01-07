@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from pandas import DataFrame, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
+from rateslib.data.fixings import FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, gradient
 from rateslib.fx import (
@@ -88,6 +89,9 @@ def test_rates() -> None:
     assert fxr.fx_array[1, 2].real == 1.25
     assert fxr.fx_array[1, 2] == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
     assert fxr.rate("eurgbp") == Dual(1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50])
+    assert fxr.rate(FXIndex("eurgbp", "tgt", 2)) == Dual(
+        1.25, ["fx_usdeur", "fx_usdgbp"], [-0.625, 0.50]
+    )
 
 
 def test_fxrates_multi_single_currency() -> None:
@@ -460,7 +464,7 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur) -> None:
         FXRates({"usdeur": 0.9}, settlement=dt(2022, 1, 3)),
         {"usdusd": usdusd, "eureur": eureur, "usdeur": usdeur},
     )
-    result = fxf.rate("usdeur", dt(2022, 3, 25))
+    result = fxf.rate(FXIndex("usdeur", "tgt", 2), dt(2022, 3, 25))
     expected = Dual(0.8991875219289739, ["fx_usdeur"], [0.99909725])
     assert abs(result - expected) < 1e-10
     assert np.isclose(result.dual, expected.dual)
@@ -470,6 +474,9 @@ def test_fxforwards_and_swap(usdusd, eureur, usdeur) -> None:
     expected = (expected - fxf.rate("usdeur", dt(2022, 1, 3))) * 10000
     assert abs(result - expected) < 1e-10
     assert np.isclose(result.dual, expected.dual)
+
+    result2 = fxf.swap(FXIndex("usdeur", "fed", 2), [dt(2022, 1, 3), dt(2022, 3, 25)])
+    assert abs(result2 - result) < 1e-12
 
     result = fxf.rate("eurusd", dt(2022, 3, 25))
     expected = Dual(1.1121150767915007, ["fx_usdeur"], [-1.23568342])

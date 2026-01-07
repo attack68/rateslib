@@ -7,7 +7,7 @@ from pandas import Series
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.data.fixings import FXFixing, FXIndex, _get_fx_index
+from rateslib.data.fixings import FXFixing, FXIndex, _FXFixingMajor, _get_fx_index
 from rateslib.enums.generics import (
     NoInput,
     _drb,
@@ -103,11 +103,11 @@ class _NonDeliverableParams:
         of the *FX* rate fixing that determines settlement, including its
         settlement and quotation conventions. The
         *reference currency* is implied from ``pair`` when it is not equal to ``currency``.
+    _delivery: datetime
+        The settlement delivery date of the *FX* rate fixing.
     _fx_fixings: float, Dual, Dual2, Variable, Series, str, optional
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
-    _delivery: datetime, optional
-        The settlement delivery date of the *FX* rate fixing.
 
     """
 
@@ -227,9 +227,10 @@ def _init_fx_fixing(
     fx_index: FXIndex,
     fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
 ) -> FXFixing:
+    # physical FX fixings do not set versus a screen therefore do not require cross methodology
     if isinstance(fixings, Series):
         publication_: datetime = fx_index.isda_fixing_date(delivery)
-        value = FXFixing._lookup(timeseries=fixings, date=publication_)
+        value = _FXFixingMajor._lookup(timeseries=fixings, date=publication_)
         return FXFixing(delivery=delivery, value=value, fx_index=fx_index)
     elif isinstance(fixings, str):
         return FXFixing(delivery=delivery, identifier=fixings, fx_index=fx_index)

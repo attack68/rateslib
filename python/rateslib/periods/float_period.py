@@ -298,7 +298,6 @@ class FloatPeriod(_BasePeriodStatic):
         pair: FXIndex | str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
-        publication: datetime_ = NoInput(0),
         # index-args:
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
