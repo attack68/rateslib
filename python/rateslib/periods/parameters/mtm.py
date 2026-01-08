@@ -13,8 +13,8 @@ if TYPE_CHECKING:
         DualTypes,
         FXFixing,
         FXForwards_,
-        FXIndex,
         Result,
+        _BaseFXIndex,
         datetime,
         str_,
     )
@@ -94,7 +94,7 @@ class _MtmParams:
 
 
 def _init_MtmParams(
-    _fx_index: FXIndex,
+    _fx_index: _BaseFXIndex,
     _start: datetime,
     _end: datetime,
     _fx_fixings_start: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]

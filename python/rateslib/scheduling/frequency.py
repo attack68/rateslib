@@ -7,8 +7,9 @@ import rateslib.errors as err
 from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster, Frequency, Imm, RollDay
 from rateslib.scheduling.adjuster import _convert_to_adjuster
-from rateslib.scheduling.calendars import _get_first_bus_day, get_calendar
+from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.rollday import _get_rollday
+from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
     from rateslib.typing import CalInput, datetime_, int_, str_

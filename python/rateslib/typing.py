@@ -25,6 +25,7 @@ from rateslib.data.fixings import IBORFixing as IBORFixing
 from rateslib.data.fixings import IBORStubFixing as IBORStubFixing
 from rateslib.data.fixings import IndexFixing as IndexFixing
 from rateslib.data.fixings import RFRFixing as RFRFixing
+from rateslib.data.fixings import _BaseFXIndex as _BaseFXIndex
 from rateslib.data.loader import Fixings as Fixings
 from rateslib.data.loader import _BaseFixingsLoader as _BaseFixingsLoader
 from rateslib.dual.variable import Variable as Variable
@@ -121,7 +122,7 @@ Solver_: TypeAlias = "Solver | NoInput"
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
 Adjuster_: TypeAlias = "Adjuster | NoInput"
-FXIndex_: TypeAlias = "FXIndex | NoInput"
+_BaseFXIndex_: TypeAlias = "_BaseFXIndex | NoInput"
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
 DualTypes_: TypeAlias = "DualTypes | NoInput"

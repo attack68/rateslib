@@ -29,12 +29,12 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
-        FXIndex,
         LegFixings,
         RollDay,
         Sequence,
         Solver_,
         VolT_,
+        _BaseFXIndex,
         _BaseLeg,
         bool_,
         datetime,
@@ -482,7 +482,7 @@ class XCS(_BaseInstrument):
         currency: str_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
         amortization: float_ = NoInput(0),
-        pair: FXIndex | str_ = NoInput(0),
+        pair: _BaseFXIndex | str_ = NoInput(0),
         leg2_notional: DualTypes_ = NoInput(0),
         leg2_amortization: float_ = NoInput(0),
         # rate parameters
@@ -959,7 +959,7 @@ class XCS(_BaseInstrument):
 
 def _validated_xcs_input_combinations(
     currency: str_,
-    pair: FXIndex | str_,
+    pair: _BaseFXIndex | str_,
     mtm: bool_,
     leg2_mtm: bool_,
     notional: DualTypes_,
@@ -967,7 +967,7 @@ def _validated_xcs_input_combinations(
     fx_fixings: LegFixings,
     leg2_fx_fixings: LegFixings,
     spec: str_,
-) -> tuple[str, str, FXIndex, LegMtm, LegMtm, DualTypes_, DualTypes_]:
+) -> tuple[str, str, _BaseFXIndex, LegMtm, LegMtm, DualTypes_, DualTypes_]:
     kw = _KWArgs(
         user_args=dict(
             currency=currency,

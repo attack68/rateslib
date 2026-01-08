@@ -208,12 +208,3 @@ def _adjust_date(
 def _is_day_type_tenor(tenor: str) -> bool:
     tenor_ = tenor.upper()
     return "D" in tenor_ or "B" in tenor_ or "W" in tenor_
-
-
-def _get_first_bus_day(dates: list[datetime], calendar: CalTypes) -> datetime:
-    if len(dates) == 0:
-        raise ValueError("The list of `dates` from which to select a business day is empty.")
-    for date in dates:
-        if calendar.is_bus_day(date):
-            return date
-    raise ValueError("No valid business days were found in `dates`.")

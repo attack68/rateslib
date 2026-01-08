@@ -64,11 +64,11 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXIndex,
         Number,
         Series,
         _BaseCurve,
         _BaseCurve_,
+        _BaseFXIndex,
         _FXVolOption,
         _FXVolOption_,
         datetime,
@@ -146,7 +146,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         # option params:
         direction: OptionType,
         delivery: datetime,  # otherwise termed the 'payment' of the period
-        pair: FXIndex | str,
+        pair: _BaseFXIndex | str,
         expiry: datetime,
         strike: DualTypes_ = NoInput(0),
         notional: DualTypes_ = NoInput(0),
