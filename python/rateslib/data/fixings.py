@@ -1,8 +1,17 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from functools import cached_property
 from math import prod
@@ -11,11 +20,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import rateslib.errors as err
 from pandas import Series, isna
-from rateslib import fixings
+from rateslib import defaults, fixings
 from rateslib.curves.curves import _BaseCurve, _index_value_from_series_no_curve
 from rateslib.curves.interpolation import index_left
 from rateslib.curves.utils import _CurveType
 from rateslib.data.loader import FixingMissingForecasterError, FixingRangeError
+from rateslib.default import _BaseFXIndex
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import Err, NoInput, Ok, _drb, _validate_obj_not_no_input
 from rateslib.enums.parameters import (
@@ -27,7 +37,7 @@ from rateslib.enums.parameters import (
 )
 from rateslib.rs import Adjuster, NamedCal
 from rateslib.scheduling.adjuster import _get_adjuster
-from rateslib.scheduling.calendars import _get_first_bus_day, get_calendar
+from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention, _get_convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
@@ -45,12 +55,12 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards,
         FXForwards_,
-        FXIndex_,
         IndexMethod,
         LegFixings,
         PeriodFixings,
         Result,
         _BaseCurve_,
+        _BaseFXIndex_,
         bool_,
         datetime_,
         int_,
@@ -295,6 +305,82 @@ class IndexFixing(_BaseFixing):
             return result.unwrap()
 
 
+class FXIndex(_BaseFXIndex):
+    """
+    Define the parameters of a specific FX pair and fixing index.
+
+    This object acts as a container to store market conventions for different FX pairs.
+    This allows the determination of dates under different methodologies, e.g. ISDA MTM fixings or
+    spot settlement dates.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.data.fixings import FXIndex
+
+    .. ipython:: python
+
+       fxi = FXIndex(
+           pair="eurusd",
+           calendar="tgt|fed",      # <- Spot FX measures settlement dates according to this calendar
+           settle=2,
+           isda_mtm_calendar="ldn", # <- MTM XCS FX fixing dates are determined according to this calendar
+           isda_mtm_settle=-2,
+       )
+       fxi.delivery(dt(2025, 7, 3))
+       fxi.isda_fixing_date(dt(2025, 7, 3))
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    pair: str, :red:`required`
+        The currency pair of the FX fixing. 6-digit iso code.
+    calendar: Calendar, str, :red:`required`
+        The calendar associated with the FX settlement date determination.
+    settle:  Adjuster, int, str :green:`optional (set by 'defaults')`
+        The delivery lag applied to any FX quotation to adjust 'today' to a delivery date, under
+        the given ``calendar``. If int is assumed to be settleable business days.
+    isda_mtm_calendar: Calendar, str, :green:`optional`
+        The calendar associated with the MTM fixing date determination.
+    isda_mtm_settle: Adjuster, str, int_, :green:`optional`,
+        The adjustment applied to determine the MTM fixing date.
+    allow_cross: bool, :green:`optional (set as True)`
+        This allows sub-division of the fixing into its *majors* as defined by WMR
+        benchmark methodology. For an example of using a *cross* see the documentation for
+        an :class:`FXFixing`.
+
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        pair: str,
+        calendar: CalTypes | str,
+        settle: Adjuster | str | int,
+        isda_mtm_calendar: CalInput = NoInput(0),
+        isda_mtm_settle: Adjuster | str | int_ = NoInput(0),
+        allow_cross: bool_ = NoInput(0),
+    ) -> None:
+        self._pair: str = pair.lower()
+        self._calendar: CalTypes = get_calendar(calendar)
+        self._settle: Adjuster = _get_adjuster(settle)
+        self._allow_cross: bool = _drb(True, allow_cross)
+
+        if isinstance(isda_mtm_calendar, NoInput):
+            self._isda_mtm_calendar: CalTypes | NoInput = NoInput(0)
+        else:
+            self._isda_mtm_calendar = get_calendar(isda_mtm_calendar)
+
+        if isinstance(isda_mtm_settle, NoInput):
+            self._isda_mtm_settle: Adjuster | NoInput = NoInput(0)
+        else:
+            self._isda_mtm_settle = _get_adjuster(isda_mtm_settle)
+
+
 class _FXFixingMajor(_BaseFixing):
     """
     An FX fixing value for cross currency settlement.
@@ -373,7 +459,7 @@ class _FXFixingMajor(_BaseFixing):
 
     def __init__(
         self,
-        fx_index: FXIndex | str,
+        fx_index: _BaseFXIndex | str,
         publication: datetime_ = NoInput(0),
         delivery: datetime_ = NoInput(0),
         value: DualTypes_ = NoInput(0),
@@ -409,7 +495,7 @@ class _FXFixingMajor(_BaseFixing):
         super().__init__(date=date_, value=value, identifier=identifier)
 
     @property
-    def fx_index(self) -> FXIndex:
+    def fx_index(self) -> _BaseFXIndex:
         """The :class:`FXIndex` for the FX fixing."""
         return self._fx_index
 
@@ -530,7 +616,7 @@ class _FXFixingMajor(_BaseFixing):
         return f"<rl.FXFixingMajor:{self.pair} at {hex(id(self))}>"
 
 
-def _clone_isda_mtm(pair: FXIndex | str, isda_index: FXIndex) -> FXIndex:
+def _clone_isda_mtm(pair: _BaseFXIndex | str, isda_index: _BaseFXIndex) -> _BaseFXIndex:
     """
     Attempt to lookup the conventions of pair, but maintain the original ISDA index conventions
     from the given isda_index
@@ -556,7 +642,7 @@ def _clone_isda_mtm(pair: FXIndex | str, isda_index: FXIndex) -> FXIndex:
     )
 
 
-def _fx_index_set_cross(pair: FXIndex, allow_cross: bool) -> FXIndex:
+def _fx_index_set_cross(pair: _BaseFXIndex, allow_cross: bool) -> _BaseFXIndex:
     return FXIndex(
         pair=pair.pair,
         settle=pair.settle,
@@ -774,7 +860,7 @@ class FXFixing(_BaseFixing):
 
     def __init__(
         self,
-        fx_index: FXIndex | str,
+        fx_index: _BaseFXIndex | str,
         publication: datetime_ = NoInput(0),
         delivery: datetime_ = NoInput(0),
         value: DualTypes_ = NoInput(0),
@@ -954,7 +1040,7 @@ class FXFixing(_BaseFixing):
         return self.fx_index.allow_cross
 
     @property
-    def fx_index(self) -> FXIndex:
+    def fx_index(self) -> _BaseFXIndex:
         """The :class:`FXIndex` for the FX fixing."""
         return self._fx_index
 
@@ -1331,313 +1417,23 @@ class FXFixing(_BaseFixing):
 #             return Ok(self.value)
 
 
-class FXIndex:
-    """
-    Define the parameters of a specific FX pair and fixing index.
-
-    This object acts as a container to store market conventions for different FX pairs.
-    This allows the determination of dates under different methodologies, e.g. ISDA MTM fixings or
-    spot settlement dates.
-
-    .. rubric:: Examples
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib.data.fixings import FXIndex
-
-    .. ipython:: python
-
-       fxi = FXIndex(
-           pair="eurusd",
-           calendar="tgt|fed",      # <- Spot FX measures settlement dates according to this calendar
-           settle=2,
-           isda_mtm_calendar="ldn", # <- MTM XCS FX fixing dates are determined according to this calendar
-           isda_mtm_settle=-2,
-       )
-       fxi.delivery(dt(2025, 7, 3))
-       fxi.isda_fixing_date(dt(2025, 7, 3))
-
-    .. role:: red
-
-    .. role:: green
-
-    Parameters
-    ----------
-    pair: str, :red:`required`
-        The currency pair of the FX fixing. 6-digit iso code.
-    calendar: Calendar, str, :red:`required`
-        The calendar associated with the FX settlement date determination.
-    settle:  Adjuster, int, str :green:`optional (set by 'defaults')`
-        The delivery lag applied to any FX quotation to adjust 'today' to a delivery date, under
-        the given ``calendar``. If int is assumed to be settleable business days.
-    isda_mtm_calendar: Calendar, str, :green:`optional`
-        The calendar associated with the MTM fixing date determination.
-    isda_mtm_settle: Adjuster, str, int_, :green:`optional`,
-        The adjustment applied to determine the MTM fixing date.
-    allow_cross: bool, :green:`optional (set as True)`
-        This allows sub-division of the fixing into its *majors* as defined by WMR
-        benchmark methodology. For an example of using a *cross* see the documentation for
-        an :class:`FXFixing`.
-
-    """  # noqa: E501
-
-    def __init__(
-        self,
-        pair: str,
-        calendar: CalTypes | str,
-        settle: Adjuster | str | int,
-        isda_mtm_calendar: CalInput = NoInput(0),
-        isda_mtm_settle: Adjuster | str | int_ = NoInput(0),
-        allow_cross: bool_ = NoInput(0),
-    ) -> None:
-        self._pair: str = pair.lower()
-        self._calendar: CalTypes = get_calendar(calendar)
-        self._settle: Adjuster = _get_adjuster(settle)
-        self._allow_cross: bool = _drb(True, allow_cross)
-
-        if isinstance(isda_mtm_calendar, NoInput):
-            self._isda_mtm_calendar: CalTypes | NoInput = NoInput(0)
-        else:
-            self._isda_mtm_calendar = get_calendar(isda_mtm_calendar)
-
-        if isinstance(isda_mtm_settle, NoInput):
-            self._isda_mtm_settle: Adjuster | NoInput = NoInput(0)
-        else:
-            self._isda_mtm_settle = _get_adjuster(isda_mtm_settle)
-
-    def __repr__(self) -> str:
-        return f"<rl.FXIndex:{self.pair} at {id(self)}>"
-
-    @property
-    def pair(self) -> str:
-        """The currency pair of the FX fixing."""
-        return self._pair
-
-    @property
-    def calendar(self) -> CalTypes:
-        """The calendar associated with the settlement delivery date determination."""
-        return self._calendar
-
-    @property
-    def settle(self) -> Adjuster:
-        """The :class:`Adjuster` associated with determining the settlement delivery date."""
-        return self._settle
-
-    @property
-    def isda_mtm_calendar(self) -> CalTypes | NoInput:
-        """The calendar associated with the MTM fixing date determination."""
-        return self._isda_mtm_calendar
-
-    @property
-    def isda_mtm_settle(self) -> Adjuster | NoInput:
-        """The :class:`Adjuster` associated with the MTM fixing date determination."""
-        return self._isda_mtm_settle
-
-    def isda_fixing_date(self, delivery: datetime) -> datetime:
-        """
-        Return the MTM FX fixing date under ISDA conventions.
-
-        Parameters
-        ----------
-        delivery: datetime
-            The delivery date of the notional exchange.
-
-        Returns
-        -------
-        datetime
-
-        Notes
-        -----
-        If ``isda`` attributes are not fully qualified on the object then uses the ``reverse``
-        method to reverse engineer the FX quotation date as a proxy.
-        """
-        if isinstance(self.isda_mtm_calendar, NoInput) or isinstance(self.isda_mtm_settle, NoInput):
-            # Fallback method for determining fixing date when ISDA fixing details not available.
-            # This may be due to instruments that only use for non-deliverability as a feature
-            # but do not technically have a published fixing, i.e. a physically settled
-            # FXForward or an FXOption.
-            # In these cases do the best to estimate a respectable date.
-            alternatives: list[datetime] = []
-            counter: int = 0
-            while len(alternatives) == 0:
-                alternatives = self.publications(delivery + timedelta(days=counter))
-                counter += 1
-            return _get_first_bus_day(alternatives, self.calendar)
-        else:
-            return self.isda_mtm_settle.adjust(delivery, self.isda_mtm_calendar)
-
-    def delivery(self, date: datetime) -> datetime:
-        """
-        Return the settlement delivery date associated with the publication date.
-
-        Parameters
-        ----------
-        date: datetime
-            The publication date of the quotation.
-
-        Returns
-        -------
-        datetime
-        """
-        return self.settle.adjust(date, self.calendar)
-
-    def publications(self, delivery: datetime) -> list[datetime]:
-        """
-        Return the potential publication dates that result in a given settlement delivery date.
-
-        Parameters
-        ----------
-        delivery: datetime
-            The settlement delivery date of the publication.
-
-        Returns
-        -------
-        list[datetime]
-        """
-        return self.settle.reverse(delivery, self.calendar)
-
-    @property
-    def allow_cross(self) -> bool:
-        """Whether to allow FXFixings which sub-divide into USD or EUR crosses."""
-        return self._allow_cross
-
-
-_FXINDEX_MAP: dict[str, FXIndex] = {
-    # ISDA values determined from the ISDA MTM Matrix documentation
-    "eurusd": FXIndex(
-        pair="eurusd",
-        calendar="tgt|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "eurgbp": FXIndex(
-        pair="eurgbp",
-        calendar="ldn,tgt|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "eursek": FXIndex(
-        pair="eursek",
-        calendar="tgt,stk|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="tgt,stk",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "gbpusd": FXIndex(
-        pair="gbpusd",
-        calendar="ldn|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdcad": FXIndex(
-        pair="usdcad",
-        calendar="tro|fed",
-        settle=Adjuster.BusDaysLagSettle(1),
-        isda_mtm_calendar="tro,nyc,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "gbpcad": FXIndex(
-        pair="gbpcad",
-        calendar="tro,ldn|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="tro,nyc,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdnok": FXIndex(
-        pair="usdnok",
-        calendar="osl|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="osl",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdsek": FXIndex(
-        pair="usdsek",
-        calendar="stk|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="stk",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "chfsek": FXIndex(
-        pair="chfsek",
-        calendar="stk,zur|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="stk,zur,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdchf": FXIndex(
-        pair="usdchf",
-        calendar="zur|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "seknok": FXIndex(
-        pair="seknok",
-        calendar="stk,osl|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="stk,osl",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "audusd": FXIndex(
-        pair="audusd",
-        calendar="syd|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="syd,nyc,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdjpy": FXIndex(
-        pair="usdjpy",
-        calendar="tyo|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="tyo,nyc,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "nzdusd": FXIndex(
-        pair="nzdusd",
-        calendar="wlg|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="wlg,nyc,ldn",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    # The following are not defined in the ISDA MTM Matrix
-    "audnzd": FXIndex(
-        pair="audnzd",
-        calendar="wlg,syd|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="wlg,syd,ldn,nyc",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-    "usdinr": FXIndex(
-        pair="usdinr",
-        calendar="mum|fed",
-        settle=Adjuster.BusDaysLagSettle(2),
-        isda_mtm_calendar="mum",
-        isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
-    ),
-}
-
-
-def _maybe_get_fx_index(val: FXIndex | str_) -> FXIndex_:
+def _maybe_get_fx_index(val: _BaseFXIndex | str_) -> _BaseFXIndex_:
     if isinstance(val, NoInput):
         return NoInput(0)
     else:
         return _get_fx_index(val)
 
 
-def _get_fx_index(val: FXIndex | str) -> FXIndex:
-    if isinstance(val, FXIndex):
+def _get_fx_index(val: _BaseFXIndex | str) -> _BaseFXIndex:
+    if isinstance(val, _BaseFXIndex):
         return val
     else:
         pair = val.lower()
         try:
-            return _FXINDEX_MAP[pair]
+            return defaults.fx_index[pair]
         except KeyError:
             try:
-                reverse_fxi = _FXINDEX_MAP[f"{pair[3:]}{pair[:3]}"]
+                reverse_fxi = defaults.fx_index[f"{pair[3:]}{pair[:3]}"]
                 return FXIndex(
                     pair=pair,
                     calendar=reverse_fxi.calendar,
@@ -3768,4 +3564,5 @@ __all__ = [
     "_FXFixingMajor",
     "_UnitFixing",
     "_BaseFixing",
+    "_BaseFXIndex",
 ]

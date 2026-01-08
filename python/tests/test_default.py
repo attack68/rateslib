@@ -1,5 +1,13 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
 import pytest
-from rateslib import __version__, default_context, defaults, fixings
+from rateslib import NamedCal, __version__, default_context, defaults, dt, fixings
 
 
 def test_version() -> None:
@@ -37,3 +45,20 @@ def test_fixings_singleton() -> None:
 
     other = Fixings()
     assert id(other) == id(fixings)
+
+
+def test_fx_index_change() -> None:
+    # test that default fx indexes can be overwritten and are loaded by constructed objects
+    from rateslib.data.fixings import FXFixing, FXIndex
+    from rateslib.scheduling import Adjuster
+
+    eurusd = FXFixing("eurusd", dt(2000, 1, 1))
+    assert eurusd.fx_index.calendar == NamedCal("tgt|fed")
+    assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(2)
+    defaults.fx_index["eurusd"] = FXIndex("eurusd", "stk", 3)
+    eurusd = FXFixing("eurusd", dt(2000, 1, 1))
+    assert eurusd.fx_index.calendar == NamedCal("stk")
+    assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(3)
+
+    defaults.reset_defaults()
+    assert defaults.fx_index["eurusd"].calendar == NamedCal("tgt|fed")
