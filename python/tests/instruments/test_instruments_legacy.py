@@ -704,7 +704,7 @@ class TestNullPricing:
                 pair="eurusd",
                 curves=["eureur", "usdeur"],
                 notional=-1e6,
-                leg2_fx_fixings=0.999851,
+                fx_rate=0.999851,
                 split_notional=-1003052.812,
                 points=-0.756443,
             ),
@@ -4892,7 +4892,7 @@ class TestFXSwap:
         assert abs(fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)) < 1e-7
 
     def test_fxswap_points_raises(self) -> None:
-        msg = "`points` has been set on an FXSwap without a defined `fx_fixings`"
+        msg = "For an FXSwap transaction both `fx_rate` and `points` must be given"
         with pytest.raises(ValueError, match=msg):
             FXSwap(
                 dt(2022, 2, 1),
@@ -4903,11 +4903,13 @@ class TestFXSwap:
             )
 
     def test_fxswap_points_warns(self) -> None:
-        with pytest.raises(ValueError, match="An FXSwap must set ``fx_fixings`` and ``points`` si"):
+        with pytest.raises(
+            ValueError, match="For an FXSwap transaction both `fx_rate` and `points` must be given"
+        ):
             FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                leg2_fx_fixings=11.0,
+                fx_rate=11.0,
                 pair="usdnok",
                 notional=1e6,
             )
@@ -4915,7 +4917,7 @@ class TestFXSwap:
         FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=11.0,
+            fx_rate=11.0,
             points=1000.0,
             pair="usdnok",
             notional=1e6,
@@ -4923,7 +4925,7 @@ class TestFXSwap:
         )
 
     @pytest.mark.parametrize(
-        ("fx_fixings", "points", "split_notional", "expected"),
+        ("fx_rate", "points", "split_notional", "expected"),
         [
             (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [0.0])),
             (11.0, 1800.0, NoInput(0), Dual(3734.617680, ["fx_usdnok"], [-3027.88203904])),
@@ -4951,7 +4953,7 @@ class TestFXSwap:
         self,
         curve,
         curve2,
-        fx_fixings,
+        fx_rate,
         points,
         split_notional,
         expected,
@@ -4976,7 +4978,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=fx_fixings,
+            fx_rate=fx_rate,
             points=points,
             split_notional=split_notional,
             pair="usdnok",
@@ -4997,7 +4999,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.0,
+            fx_rate=10.0,
             points=1000.0,
             pair="usdnok",
             notional=1e6,
@@ -5005,14 +5007,14 @@ class TestFXSwap:
         fxs2 = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.0,
+            fx_rate=10.0,
             points=1500.0,
             pair="usdnok",
             notional=-1e6,
         )
-        assert (
-            fxs.npv(curves=[curve, curve2], fx=fxf) - fxs2.npv(curves=[curve, curve2], fx=fxf)
-        ) > 0
+        npv1 = fxs.npv(curves=[curve, curve2], fx=fxf)
+        npv2 = fxs2.npv(curves=[curve, curve2], fx=fxf)
+        assert (npv1 - npv2) > 0
 
     @pytest.mark.parametrize("leg", [1, 2])
     def test_notional_directions_with_split_notional(self, leg):
@@ -5041,7 +5043,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.01,
+            fx_rate=10.01,
             points=1765,
             split_notional=1.01e6,
             pair="usdnok",
@@ -8583,7 +8585,7 @@ def test_forward_npv_argument(curve, curve2, inst, curves):
         ),
         (NDF(dt(2022, 2, 15), pair="eurusd", fx_rate=1.15), ["c"]),
         (
-            FXSwap(dt(2022, 2, 15), "1m", pair="eurusd", leg2_fx_fixings=1.15, points=56.5),
+            FXSwap(dt(2022, 2, 15), "1m", pair="eurusd", fx_rate=1.15, points=56.5),
             ["c", "c2"],
         ),
         (FXForward(dt(2022, 2, 16), "eurusd", fx_rate=1.15), ["c", "c2"]),
@@ -8692,7 +8694,7 @@ def test_wmr_crosses_not_allowed_standard_instruments():
             dt(2000, 6, 2),
             dt(2000, 7, 2),
             FXIndex("cadsek", "tro,stk", 2),
-            leg2_fx_fixings=8.0,
+            fx_rate=8.0,
             points=100.0,
             curves=[cad, sek],
         ),

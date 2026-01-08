@@ -35,6 +35,18 @@ if TYPE_CHECKING:
 class _BaseFixingsLoader(metaclass=ABCMeta):
     """
     Abstract base class to allow custom implementations of a fixings data loader.
+
+    Notes
+    -----
+    This class requires an implementation of ``__getitem__``, which should accept an
+    ``identifier`` and return a 3-tuple. The 3-tuple should include;
+
+    - an integer representing the state id of the loaded data, i.e. its hash or pseudo-hash.
+    - the data itself as a Series indexed by daily datetimes.
+    - a 2-tuple of datetimes indicating the min and max of the timeseries index.
+
+    If a valid Series object cannot be loaded for the ``identifier`` then this method
+    is required to raise a `ValeuError`.
     """
 
     @abstractmethod
