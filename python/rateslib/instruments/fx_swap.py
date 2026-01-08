@@ -28,11 +28,13 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXIndex,
+        LegFixings,
         RollDay,
         Sequence,
         Solver_,
         VolT_,
+        _BaseFXIndex,
+        _BaseFXIndex_,
         _BaseLeg,
         bool_,
         datetime_,
@@ -66,7 +68,7 @@ class FXSwap(_BaseInstrument):
            pair="eurusd",
            leg2_notional=-10e6,
            split_notional=-10.25e6,
-           fx_fixings=1.15,
+           fx_rate=1.15,
            points=56.5,
        )
        fxs.cashflows()
@@ -127,24 +129,22 @@ class FXSwap(_BaseInstrument):
 
         .. note::
 
-           The following are **rate parameters**.
+           The following are **rate parameters**. Both must be given simultaneously or not
+           at all.
 
-    fx_fixings : float, Dual, Dual2, Variable, :green:`optional`
-        If ``leg2_notional`` is given, this arguments can be provided to imply ``notional`` on leg1
-        via non-deliverability. The direction of these rates should mirror ``pair``.
-    leg2_fx_fixings : float, Dual, Dual2, Variable, :green:`optional`
-        If ``notional`` is given, this argument can be provided to imply ``leg2_notional``, via
-        non-deliverability. The direction of these rates should mirror ``pair``.
+    fx_rate : float, Dual, Dual2, Variable, :green:`optional`
+        The ``fx_rate`` with direction according to ``pair`` to define the missing notional.
     points : float, Dual, Dual2, Variable, :green:`optional`
-        If either ``fx_fixings`` or ``leg2_fx_fixings`` are given, this argument is required to
-        imply the second FX fixing.
+        The swap points valued (in 10,000ths) to add to ``fx_rate`` to arrive at the
+        FX rate at maturity of the swap.
 
         .. note::
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -172,7 +172,7 @@ class FXSwap(_BaseInstrument):
            dt(2000, 4, 10),
            pair="eurusd",
            notional=1e6,
-           leg2_fx_fixings=1.1502327721341274,  # <- mid-market value inserted as float
+           fx_rate=1.1502327721341274,  # <- mid-market value inserted as float
            points=30.303287307187343  # <- mid-market value inserted as float
        )
        fxs2 = FXSwap(
@@ -242,7 +242,7 @@ class FXSwap(_BaseInstrument):
         # scheduling
         effective: datetime,
         termination: datetime | str,
-        pair: FXIndex | str,
+        pair: _BaseFXIndex | str,
         *,
         roll: int | RollDay | str_ = NoInput(0),
         eom: bool_ = NoInput(0),
@@ -253,21 +253,32 @@ class FXSwap(_BaseInstrument):
         leg2_notional: DualTypes_ = NoInput(0),
         split_notional: DualTypes_ = NoInput(0),
         # rate
-        fx_fixings: DualTypes_ = NoInput(0),
-        leg2_fx_fixings: DualTypes_ = NoInput(0),
+        fx_rate: DualTypes_ = NoInput(0),
         points: DualTypes_ = NoInput(0),
         # meta
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
     ):
-        # FXSwaps are physically settled so do not allow WMR cross methodology to impact
-        # forecast rates for FXFixings.
-        pair_ = _fx_index_set_cross(_get_fx_index(pair), allow_cross=False)
-
-        if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
-            notional = defaults.notional
-        elif not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
-            raise ValueError("Only one of `notional` and `leg2_notional` can be given.")
+        (
+            fx_index_,
+            notional_,
+            leg2_notional_,
+            fx_fixings_,
+            leg2_fx_fixings_,
+            pair_,
+            leg2_pair_,
+            fx_rate_,
+            points_,
+        ) = _validated_fxswap_input_combinations(
+            pair=pair,
+            notional=notional,
+            leg2_notional=leg2_notional,
+            split_notional=split_notional,
+            fx_rate=fx_rate,
+            points=points,
+            spec=spec,
+        )
+        del pair, notional, leg2_notional, split_notional, fx_rate, points
 
         schedule = Schedule(
             effective=effective,
@@ -279,33 +290,25 @@ class FXSwap(_BaseInstrument):
             calendar=calendar,
         )
 
-        self._validate_init_combinations(
-            notional=notional,
-            leg2_notional=leg2_notional,
-            fx_fixings=fx_fixings,
-            leg2_fx_fixings=leg2_fx_fixings,
-            points=points,
-        )
-
         user_args = dict(
             effective=schedule.aschedule[0],
             termination=schedule.aschedule[1],
             leg2_effective=schedule.aschedule[0],
             leg2_termination=schedule.aschedule[1],
-            notional=notional,
-            leg2_notional=leg2_notional,
-            fx_fixings=fx_fixings,
-            leg2_fx_fixings=leg2_fx_fixings,
-            points=points,
-            split_notional=split_notional,
+            notional=notional_,
+            leg2_notional=leg2_notional_,
+            fx_fixings=fx_fixings_,
+            leg2_fx_fixings=leg2_fx_fixings_,
+            points=points_,
             curves=self._parse_curves(curves),
+            fx_rate=fx_rate_,
+            pair=pair_,
+            leg2_pair=leg2_pair_,
         )
 
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
-            currency=pair_.pair[:3],
-            leg2_currency=pair_.pair[3:6],
-            pair=NoInput(0),
-            leg2_pair=NoInput(0),
+            currency=fx_index_.pair[:3],
+            leg2_currency=fx_index_.pair[3:6],
             vol=_Vol(),
         )
         default_args: dict[str, Any] = dict()
@@ -316,59 +319,26 @@ class FXSwap(_BaseInstrument):
             meta_args=[
                 "curves",
                 "points",
-                "split_notional",
+                "fx_rate",
                 "vol",
             ],
         )
-
-        if isinstance(notional, NoInput):
-            self.kwargs.leg1["notional"] = -1.0 * self.kwargs.leg2["notional"]
-            self.kwargs.leg1["pair"] = pair_
-            if isinstance(split_notional, NoInput):
-                self.kwargs.leg1["split_notional"] = NoInput(0)
-                self.kwargs.leg2["split_notional"] = NoInput(0)
-            else:
-                self.kwargs.leg1["split_notional"] = split_notional
-                self.kwargs.leg2["split_notional"] = -split_notional
-        else:  # notional set on leg1
-            self.kwargs.leg2["notional"] = -1.0 * self.kwargs.leg1["notional"]
-            self.kwargs.leg2["pair"] = pair_
-            if isinstance(split_notional, NoInput):
-                self.kwargs.leg2["split_notional"] = NoInput(0)
-                self.kwargs.leg1["split_notional"] = NoInput(0)
-            else:
-                self.kwargs.leg2["split_notional"] = split_notional
-                self.kwargs.leg1["split_notional"] = -split_notional
-
-        # construct legs
-        if isinstance(self.kwargs.leg1["fx_fixings"], NoInput):
-            fx_fixings_2 = NoInput(0)
-        else:
-            fx_fixings_2 = self.kwargs.leg1["fx_fixings"] + self.kwargs.meta["points"] / 10000.0
-        if isinstance(self.kwargs.leg2["fx_fixings"], NoInput):
-            leg2_fx_fixings_2 = NoInput(0)
-        else:
-            leg2_fx_fixings_2 = (
-                self.kwargs.leg2["fx_fixings"] + self.kwargs.meta["points"] / 10000.0
-            )
 
         self._leg1 = CustomLeg(
             periods=[
                 Cashflow(
                     currency=self.kwargs.leg1["currency"],
-                    notional=self.kwargs.leg1["notional"],
+                    notional=self.kwargs.leg1["notional"][0],
                     payment=self.kwargs.leg1["effective"],
                     pair=self.kwargs.leg1["pair"],
-                    fx_fixings=self.kwargs.leg1["fx_fixings"],
+                    fx_fixings=self.kwargs.leg1["fx_fixings"][0],
                 ),
                 Cashflow(
                     currency=self.kwargs.leg1["currency"],
-                    notional=-1.0 * self.kwargs.leg1["notional"]
-                    if isinstance(split_notional, NoInput)
-                    else self.kwargs.leg1["split_notional"],
+                    notional=self.kwargs.leg1["notional"][1],
                     payment=self.kwargs.leg1["termination"],
                     pair=self.kwargs.leg1["pair"],
-                    fx_fixings=fx_fixings_2,
+                    fx_fixings=self.kwargs.leg1["fx_fixings"][1],
                 ),
             ]
         )
@@ -376,74 +346,21 @@ class FXSwap(_BaseInstrument):
             periods=[
                 Cashflow(
                     currency=self.kwargs.leg2["currency"],
-                    notional=self.kwargs.leg2["notional"],
+                    notional=self.kwargs.leg2["notional"][0],
                     payment=self.kwargs.leg2["effective"],
                     pair=self.kwargs.leg2["pair"],
-                    fx_fixings=self.kwargs.leg2["fx_fixings"],
+                    fx_fixings=self.kwargs.leg2["fx_fixings"][0],
                 ),
                 Cashflow(
                     currency=self.kwargs.leg2["currency"],
-                    notional=-1.0 * self.kwargs.leg2["notional"]
-                    if isinstance(split_notional, NoInput)
-                    else self.kwargs.leg2["split_notional"],
+                    notional=self.kwargs.leg2["notional"][1],
                     payment=self.kwargs.leg2["termination"],
                     pair=self.kwargs.leg2["pair"],
-                    fx_fixings=leg2_fx_fixings_2,
+                    fx_fixings=self.kwargs.leg2["fx_fixings"][1],
                 ),
             ]
         )
         self._legs = [self._leg1, self._leg2]
-
-    def _validate_init_combinations(
-        self,
-        notional: DualTypes_,
-        leg2_notional: DualTypes_,
-        fx_fixings: DualTypes_,
-        leg2_fx_fixings: DualTypes_,
-        points: DualTypes_,
-    ) -> None:
-        if not isinstance(fx_fixings, NoInput):
-            if not isinstance(notional, NoInput):
-                raise ValueError(
-                    "When `notional` is given only `leg2_fx_fixings` are required to derive "
-                    "cashflows on leg2 via non-deliverability."
-                )
-            if isinstance(points, NoInput):
-                raise ValueError(
-                    "An FXSwap must set ``fx_fixings`` and ``points`` simultaneously to determine"
-                    "a properly initialized FXSwap object.\n Only ``fx_fixings`` was given."
-                )
-        if not isinstance(leg2_fx_fixings, NoInput):
-            if not isinstance(leg2_notional, NoInput):
-                raise ValueError(
-                    "When `leg2_notional` is given only `fx_fixings` are required to derive "
-                    "cashflows on leg1 via non-deliverability."
-                )
-            if isinstance(points, NoInput):
-                raise ValueError(
-                    "An FXSwap must set ``fx_fixings`` and ``points`` simultaneously to determine"
-                    "a properly initialized FXSwap object.\n Only ``fx_fixings`` was given."
-                )
-
-        if not isinstance(points, NoInput) and (
-            isinstance(leg2_fx_fixings, NoInput) and isinstance(fx_fixings, NoInput)
-        ):
-            raise ValueError(
-                "`points` has been set on an FXSwap without a defined `fx_fixings` or "
-                "`leg2_fx_fixings`.\nThe initial FXFixing is required to determine the cashflow "
-                "exchanges at maturity."
-            )
-
-        if not isinstance(notional, NoInput) and not isinstance(fx_fixings, NoInput):
-            raise ValueError(
-                "When `notional` is given only `leg2_fx_fixings` is required to derive "
-                "cashflows on leg2 via non-deliverability."
-            )
-        if not isinstance(leg2_notional, NoInput) and not isinstance(leg2_fx_fixings, NoInput):
-            raise ValueError(
-                "When `leg2_notional` is given only `fx_fixings` is required to derive "
-                "cashflows on leg1 via non-deliverability."
-            )
 
     def cashflows(
         self,
@@ -554,3 +471,126 @@ class FXSwap(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
+
+
+def _validated_fxswap_input_combinations(
+    pair: _BaseFXIndex | str_,
+    notional: DualTypes_,
+    leg2_notional: DualTypes_,
+    split_notional: DualTypes_,
+    fx_rate: DualTypes_,
+    points: DualTypes_,
+    spec: str_,
+) -> tuple[
+    _BaseFXIndex,
+    list[DualTypes],
+    list[DualTypes],
+    LegFixings,
+    LegFixings,
+    _BaseFXIndex_,
+    _BaseFXIndex_,
+    DualTypes_,
+    DualTypes_,
+]:
+    """Method to handle arg parsing for 2 or 3 currency NDF instruments with default value
+    setting and erroring raising.
+
+    Returns
+    -------
+    (currency, pair, leg2_pair, notional, leg2_notional, fx_rate)
+    """
+
+    kw = _KWArgs(
+        user_args=dict(
+            pair=pair,
+            notional=notional,
+            leg2_notional=leg2_notional,
+            split_notional=split_notional,
+            fx_rate=fx_rate,
+            points=points,
+        ),
+        default_args=dict(),
+        spec=spec,
+        meta_args=["pair", "fx_rate", "split_notional", "points"],
+    )
+
+    # FXSwaps are physically settled so do not allow WMR cross methodology to impact
+    # forecast rates for FXFixings.
+    fx_index_ = _fx_index_set_cross(_get_fx_index(kw.meta["pair"]), allow_cross=False)
+
+    if isinstance(kw.leg1["notional"], NoInput) and isinstance(kw.leg2["notional"], NoInput):
+        # set a default
+        kw.leg1["notional"] = defaults.notional
+
+    match (
+        not isinstance(kw.leg1["notional"], NoInput),
+        not isinstance(kw.leg2["notional"], NoInput),
+        not isinstance(kw.meta["split_notional"], NoInput),
+    ):
+        case (True, True, _):
+            raise ValueError(
+                "The notional of an FXSwap can only be given on one Leg. Got two notionals.\n"
+                "Use one notional and the `fx_rate` of `pair` to establish the implied "
+                "transactional opposite notional."
+            )
+        case (False, True, False):
+            # then leg2 notional is given
+            kw.leg2["notional"] = [kw.leg2["notional"], -1.0 * kw.leg2["notional"]]
+            kw.leg1["notional"] = [-1.0 * v for v in kw.leg2["notional"]]
+            kw.leg1["pair"], kw.leg2["pair"] = fx_index_, NoInput(0)
+        case (False, True, True):
+            # then leg2 notional as a split
+            if kw.meta["split_notional"] * kw.leg2["notional"] < 0:
+                raise ValueError(
+                    "A notional and the `split_notional` cannot be given with different signs."
+                )
+            kw.leg2["notional"] = [kw.leg2["notional"], -1.0 * kw.meta["split_notional"]]
+            kw.leg1["notional"] = [-1.0 * v for v in kw.leg2["notional"]]
+            kw.leg1["pair"], kw.leg2["pair"] = fx_index_, NoInput(0)
+        case (True, False, False):
+            # then leg1 notional is given
+            kw.leg1["notional"] = [kw.leg1["notional"], -1.0 * kw.leg1["notional"]]
+            kw.leg2["notional"] = [-1.0 * v for v in kw.leg1["notional"]]
+            kw.leg1["pair"], kw.leg2["pair"] = NoInput(0), fx_index_
+        case (True, False, True):
+            kw.leg1["notional"] = [kw.leg1["notional"], -1.0 * kw.meta["split_notional"]]
+            kw.leg2["notional"] = [-1.0 * v for v in kw.leg1["notional"]]
+            kw.leg1["pair"], kw.leg2["pair"] = NoInput(0), fx_index_
+
+    if (not isinstance(kw.meta["fx_rate"], NoInput) and isinstance(kw.meta["points"], NoInput)) or (
+        isinstance(kw.meta["fx_rate"], NoInput) and not isinstance(kw.meta["points"], NoInput)
+    ):
+        raise ValueError(
+            "For an FXSwap transaction both `fx_rate` and `points` must be given.\n"
+            "Providing only one component is not allowed, please provide the missing element.\n"
+            f"Got for `fx_rate`: {kw.meta['fx_rate']}\n"
+            f"Got for `points`: {kw.meta['points']}\n"
+        )
+    elif not isinstance(kw.meta["fx_rate"], NoInput) and not isinstance(kw.meta["points"], NoInput):
+        if not isinstance(kw.leg1["pair"], NoInput):
+            kw.leg1["fx_fixings"] = [
+                kw.meta["fx_rate"],
+                kw.meta["fx_rate"] + kw.meta["points"] / 10000.0,
+            ]
+            kw.leg2["fx_fixings"] = [NoInput(0), NoInput(0)]
+        else:
+            kw.leg1["fx_fixings"] = [NoInput(0), NoInput(0)]
+            kw.leg2["fx_fixings"] = [
+                kw.meta["fx_rate"],
+                kw.meta["fx_rate"] + kw.meta["points"] / 10000.0,
+            ]
+    else:
+        kw.leg1["fx_fixings"] = [NoInput(0), NoInput(0)]
+        kw.leg2["fx_fixings"] = [NoInput(0), NoInput(0)]
+
+    return (
+        fx_index_,
+        kw.leg1["notional"],
+        kw.leg2["notional"],
+        kw.leg1["fx_fixings"],
+        kw.leg2["fx_fixings"],
+        kw.leg1["pair"],
+        kw.leg2["pair"],
+        kw.meta["fx_rate"],
+        kw.meta["points"],
+    )
