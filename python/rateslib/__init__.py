@@ -60,6 +60,10 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
+from rateslib.curves.academic import (
+    NelsonSiegelCurve,
+    NelsonSiegelSvenssonCurve,
+)
 from rateslib.data.fixings import (
     FloatRateIndex,
     FloatRateSeries,
@@ -213,6 +217,9 @@ __all__ = [
     "ProxyCurve",
     "index_left",
     "index_value",
+    # academic curves
+    "NelsonSiegelCurve",
+    "NelsonSiegelSvenssonCurve",
     # fixings.py
     "FXFixing",
     "IBORFixing",
