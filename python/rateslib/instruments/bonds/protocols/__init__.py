@@ -163,6 +163,7 @@ class _BaseBondInstrument(
         )
 
     def price(self, ytm: DualTypes, settlement: datetime, dirty: bool = False) -> DualTypes:
+        # overloaded by IndexFixedRateBond
         """
         Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.
@@ -236,6 +237,8 @@ class _BaseBondInstrument(
             calc_mode=NoInput(0),  # will be set to kwargs.meta
             dirty=dirty,
             rate_curve=NoInput(0),
+            indexed=False,
+            index_curve=NoInput(0),
         )
 
     def _maybe_get_settlement(

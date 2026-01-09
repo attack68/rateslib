@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
@@ -22,6 +23,7 @@ from rateslib.periods.parameters import _IndexParams
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
         CalInput,
+        CurveOption_,
         CurvesT_,
         DualTypes,
         DualTypes_,
@@ -29,6 +31,7 @@ if TYPE_CHECKING:
         FXForwards_,
         IndexMethod,
         LegFixings,
+        Number,
         RollDay,
         Sequence,
         Solver_,
@@ -84,8 +87,9 @@ class IndexFixedRateBond(_BaseBondInstrument):
        curves = [index_curve, disc_curve]   # two curves as a list
        curves = {"index_curve": index_curve, "disc_curve": disc_curve}  # dict form is explicit
 
-    The available ``metric`` are in {'clean_price', 'dirty_price', 'ytm', 'index_clean_price',
-    'index_dirty_price'}
+    The available ``metric`` for the :meth:`~rateslib.instruments.IndexFixedRateBond.rate`
+    are in *{'clean_price', 'dirty_price', 'ytm', 'index_ytm', 'index_clean_price',
+    'index_dirty_price'}*.
 
     .. role:: red
 
@@ -429,6 +433,80 @@ class IndexFixedRateBond(_BaseBondInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
+        """
+        Calculate some pricing rate metric for the *Instrument*.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from pandas import Series
+           from datetime import datetime as dt
+           from rateslib import fixings, Curve
+           from rateslib.instruments import IndexFixedRateBond
+
+        .. ipython:: python
+
+           disc_curve = Curve(
+               nodes={dt(2025, 7, 28): 1.0, dt(2045, 7, 25): 1.0},
+               convention="act365f"
+           ).shift(250)  # curve begins at 0% and gets shifted by 250 Act365F O/N basis points
+           index_curve = Curve(
+               nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
+               convention="act365f", index_lag=0, index_base=402.9
+           ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+           fixings.add(
+               "UK_RPI",
+               Series(index=[dt(2025, 3, 1), dt(2025, 4, 1), dt(2025, 5, 1)], data=[395.3, 402.2, 402.9]),
+           )
+           ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
+               effective=dt(2025, 6, 11),
+               termination=dt(2038, 9, 22),
+               fixed_rate=1.75,
+               spec="uk_gbi",
+               index_fixings="UK_RPI"
+           )
+           ukti.rate(curves=[index_curve, disc_curve], metric="clean_price")  # settles T+1 i.e. 29th July
+           ukti.rate(curves=[index_curve, disc_curve], metric="dirty_price")
+           ukti.rate(curves=[index_curve, disc_curve], metric="index_clean_price")
+           ukti.rate(curves=[index_curve, disc_curve], metric="index_dirty_price")
+           ukti.rate(curves=[index_curve, disc_curve], metric="ytm")
+           ukti.rate(curves=[index_curve, disc_curve], metric="index_ytm")
+
+        .. ipython:: python
+           :suppress:
+
+           fixings.pop("UK_RPI")
+
+        Parameters
+        ----------
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        base: str, :green:`optional (set to settlement currency)`
+            The currency to convert the *local settlement* NPV to.
+        local: bool, :green:`optional (set as False)`
+            An override flag to return a dict of NPV values indexed by string currency.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
+        metric: str, :green:`optional`
+            The specific calculation to perform and the value to return.
+            See **Pricing** on each *Instrument* for details of allowed inputs.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """  # noqa: E501
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
         _curves = self._parse_curves(curves)
         disc_curve = _validate_obj_not_no_input(
@@ -476,6 +554,10 @@ class IndexFixedRateBond(_BaseBondInstrument):
             return index_dirty_price
         elif metric_ == "index_clean_price":
             return index_dirty_price - self.accrued(settlement_) * index_ratio
+        elif metric_ == "index_ytm":
+            return self.ytm(
+                index_dirty_price, settlement_, True, indexed=True, index_curve=index_curve
+            )
         else:
             raise ValueError(
                 "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
@@ -765,3 +847,155 @@ class IndexFixedRateBond(_BaseBondInstrument):
             return value * self.index_ratio(settlement=settlement, index_curve=index_curve)  # type: ignore[return-value]
         else:
             return value
+
+    def ytm(
+        self,
+        price: DualTypes,
+        settlement: datetime,
+        dirty: bool = False,
+        rate_curve: CurveOption_ = NoInput(0),
+        calc_mode: BondCalcMode | str_ = NoInput(0),
+        indexed: bool = False,
+        index_curve: _BaseCurve_ = NoInput(0),
+    ) -> Number:
+        # overloaded ytm by IndexFixedRateBond
+        """
+        Calculate the yield-to-maturity of the security given its price.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import FixedRateBond, dt, Dual, Dual2
+
+        .. ipython:: python
+
+           aapl_bond = FixedRateBond(dt(2013, 5, 4), dt(2043, 5, 4), fixed_rate=3.85, spec="us_corp")
+           aapl_bond.ytm(price=87.24, settlement=dt(2014, 3, 5))
+           aapl_bond.ytm(price=87.24, settlement=dt(2014, 3, 5), calc_mode="us_gb_tsy")
+
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        price: float, Dual, Dual2, Variable, :red:`required`
+            The price, per 100 nominal, against which to determine the yield.
+        settlement: datetime, :red:`required`
+            The settlement date on which to determine the price.
+        dirty: bool, :green:`optional (set as False)`
+            If `True` will assume the
+            :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
+        rate_curve: _BaseCurve or dict of such, :green:`optional`
+            Used to forecast floating rates if required.
+        calc_mode: str or BondCalcMode, :green:`optional`
+            An alternative calculation mode to use. The ``calc_mode`` is typically set at
+            *Instrument* initialisation and is not required, but is useful as an override to
+            allow comparisons, e.g. of *"us_gb"* street convention versus *"us_gb_tsy"* treasury
+            convention.
+        indexed: bool, :green:`optional (set as False)`
+            If *True* will index all of the cashflows and determine a YTM comparable with
+            nominal bonds.
+        index_curve: _BaseCurve :green:`optional`
+            If ``indexed`` then a *Curve* may be required to determine index ratio's in order to
+            properly index up all of the cashflows.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Notes
+        -----
+        If ``price`` is given as :class:`~rateslib.dual.Dual` or
+        :class:`~rateslib.dual.Dual2` input the result of the yield will be output
+        as the same type with the variables passed through accordingly.
+
+        .. ipython:: python
+
+           aapl_bond.ytm(price=Dual(87.24, ["price", "a"], [1, -0.75]), settlement=dt(2014, 3, 5))
+           aapl_bond.ytm(price=Dual2(87.24, ["price", "a"], [1, -0.75], []), settlement=dt(2014, 3, 5))
+
+        """  # noqa: E501
+        return self._ytm(
+            price=price,
+            settlement=settlement,
+            dirty=dirty,
+            rate_curve=rate_curve,
+            calc_mode=calc_mode,
+            indexed=indexed,
+            index_curve=index_curve,
+        )
+
+    def price(
+        self,
+        ytm: DualTypes,
+        settlement: datetime,
+        dirty: bool = False,
+        indexed: bool = False,
+        index_curve: _BaseCurve_ = NoInput(0),
+    ) -> DualTypes:
+        """
+        Calculate the price of the security per nominal value of 100, given
+        yield-to-maturity.
+
+        Parameters
+        ----------
+        ytm : float
+            The yield-to-maturity against which to determine the price. If ``indexed`` this
+            should be given as a nominal ytm.
+        settlement : datetime
+            The settlement date on which to determine the price.
+        dirty : bool, optional
+            If `True` will include the
+            :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
+        indexed: bool, optional (set as False)
+            If *True* will index up all of the cashflows with determined index ratios.
+        index_curve: _BaseCurve, optional
+            An inflation curve to forecast index ratios if required.
+
+        Returns
+        -------
+        float, Dual, Dual2
+
+        Examples
+        --------
+
+        .. ipython:: python
+           :suppress:
+
+           from pandas import Series
+           from datetime import datetime as dt
+           from rateslib import fixings, Curve
+           from rateslib.instruments import IndexFixedRateBond
+
+        .. ipython:: python
+
+           index_curve = Curve(
+               nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
+               convention="act365f", index_lag=0, index_base=402.9
+           ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+           ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
+               effective=dt(2025, 6, 11),
+               termination=dt(2038, 9, 22),
+               fixed_rate=1.75,
+               spec="uk_gbi",
+               index_base=397.6,
+           )
+           ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8. 5)
+           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), indexed=True, index_curve=index_curve)
+           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed=False)
+           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), dirty=True, indexed=True, index_curve=index_curve)
+           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed=False)
+
+        """  # noqa: E501
+        return self._price_from_ytm(
+            ytm=ytm,
+            settlement=settlement,
+            calc_mode=NoInput(0),  # will be set to kwargs.meta
+            dirty=dirty,
+            rate_curve=NoInput(0),
+            indexed=indexed,
+            index_curve=index_curve,
+        )
