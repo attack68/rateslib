@@ -1097,6 +1097,32 @@ def test_index_curve_roll() -> None:
     assert rolled_curve.meta.index_base == crv.meta.index_base
 
 
+@pytest.mark.parametrize(
+    "s",
+    [
+        Series(index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)], data=[100.0, 200, 300]),
+        158.62068965517238,
+        "KLMN",
+    ],
+)
+def test_index_value_series(s) -> None:
+    # test that a Series input to fixings works
+    fixings.add(
+        "KLMN",
+        Series(index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)], data=[100.0, 200, 300]),
+    )
+    result = index_value(
+        index_lag=1,
+        index_method="daily",
+        index_fixings=s,
+        index_date=dt(2000, 2, 18),
+        index_curve=NoInput(0),
+    )
+    expected = 12 / 29 * 100.0 + 17 / 29 * 200
+    fixings.pop("KLMN")
+    assert abs(result - expected) < 1e-10
+
+
 def test_curve_translate_raises(curve) -> None:
     with pytest.raises(ValueError, match="Cannot translate into the past."):
         curve.translate(dt(2020, 4, 1))
