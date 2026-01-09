@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves import _BaseCurve
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
@@ -975,7 +974,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
            index_curve = Curve(
                nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
                convention="act365f", index_lag=0, index_base=402.9
-           ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+           ).shift(100)  # curves begins at 0% and gets shifted by 100 Act365f O/N basis points
            ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
                effective=dt(2025, 6, 11),
                termination=dt(2038, 9, 22),
@@ -983,7 +982,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
                spec="uk_gbi",
                index_base=397.6,
            )
-           ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8. 5)
+           ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8, 5))
            ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), indexed=True, index_curve=index_curve)
            ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed=False)
            ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), dirty=True, indexed=True, index_curve=index_curve)
