@@ -12,8 +12,8 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXDeltaMethod,
+        FXIndex,
         OptionType,
-        _BaseFXIndex,
         datetime,
         str_,
     )
@@ -26,7 +26,7 @@ class _FXOptionParams:
 
     _expiry: datetime
     _delivery: datetime
-    _fx_index: _BaseFXIndex
+    _fx_index: FXIndex
     _delta_type: FXDeltaMethod
     _metric: FXOptionMetric
     _option_fixing: FXFixing
@@ -39,7 +39,7 @@ class _FXOptionParams:
         _direction: OptionType,
         _expiry: datetime,
         _delivery: datetime,
-        _fx_index: _BaseFXIndex,
+        _fx_index: FXIndex,
         _delta_type: FXDeltaMethod,
         _metric: str | FXOptionMetric,
         _option_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
@@ -86,7 +86,7 @@ class _FXOptionParams:
         return self._delivery
 
     @property
-    def fx_index(self) -> _BaseFXIndex:
+    def fx_index(self) -> FXIndex:
         """The FX index defining the FX rate conventions"""
         return self._fx_index
 

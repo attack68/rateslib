@@ -18,8 +18,8 @@ if TYPE_CHECKING:
         Any,
         DualTypes,
         DualTypes_,
-        _BaseFXIndex,
-        _BaseFXIndex_,
+        FXIndex,
+        FXIndex_,
         datetime,
         datetime_,
         str_,
@@ -115,7 +115,7 @@ class _NonDeliverableParams:
     def __init__(
         self,
         _currency: str,
-        _fx_index: _BaseFXIndex,
+        _fx_index: FXIndex,
         _delivery: datetime,
         _fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
     ) -> None:
@@ -139,7 +139,7 @@ class _NonDeliverableParams:
         return ccy1 if ccy1 != self.currency else ccy2
 
     @property
-    def fx_index(self) -> _BaseFXIndex:
+    def fx_index(self) -> FXIndex:
         """
         The :class:`~rateslib.fixings.data.FXIndex` defining conventions of the FX fixing.
         """
@@ -177,7 +177,7 @@ class _NonDeliverableParams:
 
 def _init_or_none_NonDeliverableParams(
     _currency: str,
-    _fx_index: str | _BaseFXIndex_,
+    _fx_index: str | FXIndex_,
     _delivery: datetime,
     _fx_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
 ) -> _NonDeliverableParams | None:
@@ -197,7 +197,7 @@ def _init_SettlementParams_with_fx_pair(
     _payment: datetime,
     _notional: DualTypes_,
     _ex_dividend: datetime,
-    _fx_pair: _BaseFXIndex_,
+    _fx_pair: FXIndex_,
 ) -> _SettlementParams:
     notional = _drb(defaults.notional, _notional)
     ccy = _drb(defaults.base_currency, _currency).lower()
@@ -225,7 +225,7 @@ def _init_SettlementParams_with_fx_pair(
 
 def _init_fx_fixing(
     delivery: datetime,
-    fx_index: _BaseFXIndex,
+    fx_index: FXIndex,
     fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
 ) -> FXFixing:
     # physical FX fixings do not set versus a screen therefore do not require cross methodology

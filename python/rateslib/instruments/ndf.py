@@ -27,13 +27,13 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
+        FXIndex_,
         LegFixings,
         PeriodFixings,
         Sequence,
         Solver_,
         VolT_,
-        _BaseFXIndex,
-        _BaseFXIndex_,
         _BaseLeg,
         bool_,
         datetime_,
@@ -293,7 +293,7 @@ class NDF(_BaseInstrument):
     def __init__(
         self,
         settlement: datetime,
-        pair: _BaseFXIndex | str,
+        pair: FXIndex | str,
         *,
         # settlement and rate
         currency: str_ = NoInput(0),
@@ -513,7 +513,7 @@ class NDF(_BaseInstrument):
 
 def _validated_ndf_input_combinations(
     currency: str_,
-    pair: _BaseFXIndex | str_,
+    pair: FXIndex | str_,
     notional: DualTypes_,
     leg2_notional: DualTypes_,
     fx_fixings: LegFixings,
@@ -522,7 +522,7 @@ def _validated_ndf_input_combinations(
     reversed: bool_,  # noqa: A002
     leg2_reversed: bool_,
     spec: str_,
-) -> tuple[str, _BaseFXIndex_, _BaseFXIndex_, DualTypes_, DualTypes_, DualTypes_, _BaseFXIndex]:
+) -> tuple[str, FXIndex_, FXIndex_, DualTypes_, DualTypes_, DualTypes_, FXIndex]:
     """Method to handle arg parsing for 2 or 3 currency NDF instruments with default value
     setting and erroring raising.
 
@@ -587,13 +587,13 @@ def _validated_ndf_input_combinations(
 
 def _validated_2ccy_ndf_input_combinations(
     currency: str,
-    fx_index: _BaseFXIndex,
+    fx_index: FXIndex,
     notional: DualTypes_,
     leg2_notional: DualTypes_,
     fx_fixings: LegFixings,
     leg2_fx_fixings: LegFixings,
     fx_rate: DualTypes_,
-) -> tuple[str, _BaseFXIndex_, _BaseFXIndex_, DualTypes_, DualTypes_, DualTypes_, _BaseFXIndex]:
+) -> tuple[str, FXIndex_, FXIndex_, DualTypes_, DualTypes_, DualTypes_, FXIndex]:
     """Method to handle arg parsing for 2 currency NDF instruments with default value
     setting and erroring raising.
 
@@ -610,8 +610,8 @@ def _validated_2ccy_ndf_input_combinations(
     """
     leg1_nd = fx_index.pair[3:] == currency
     if leg1_nd:
-        pair_: _BaseFXIndex_ = fx_index
-        leg2_pair_: _BaseFXIndex_ = NoInput(0)
+        pair_: FXIndex_ = fx_index
+        leg2_pair_: FXIndex_ = NoInput(0)
     else:
         pair_ = NoInput(0)
         leg2_pair_ = fx_index
@@ -647,13 +647,13 @@ def _validated_2ccy_ndf_input_combinations(
 
 def _validated_3ccy_ndf_input_combinations(
     currency: str,
-    fx_index: _BaseFXIndex,
+    fx_index: FXIndex,
     notional: DualTypes_,
     leg2_notional: DualTypes_,
     fx_rate: DualTypes_,
     reversed: bool,  # noqa: A002
     leg2_reversed: bool,
-) -> tuple[str, _BaseFXIndex_, _BaseFXIndex_, DualTypes_, DualTypes_, DualTypes_, _BaseFXIndex]:
+) -> tuple[str, FXIndex_, FXIndex_, DualTypes_, DualTypes_, DualTypes_, FXIndex]:
     """Method to handle arg parsing for 3 currency NDF instruments with default value
     setting and erroring raising.
 
@@ -673,7 +673,7 @@ def _validated_3ccy_ndf_input_combinations(
         leg2_pair = f"{currency}{fx_index.pair[3:]}"
 
     try:
-        pair_index: _BaseFXIndex = _get_fx_index(pair)
+        pair_index: FXIndex = _get_fx_index(pair)
     except ValueError:
         # no index exists in STATIC, clone from fx_index
         pair_index = FXIndex(pair=pair, calendar=fx_index.calendar, settle=fx_index.settle)
@@ -686,7 +686,7 @@ def _validated_3ccy_ndf_input_combinations(
     )
 
     try:
-        leg2_pair_index: _BaseFXIndex = _get_fx_index(leg2_pair)
+        leg2_pair_index: FXIndex = _get_fx_index(leg2_pair)
     except ValueError:
         # no index exists in STATIC, clone from fx_index
         leg2_pair_index = FXIndex(pair=pair, calendar=fx_index.calendar, settle=fx_index.settle)

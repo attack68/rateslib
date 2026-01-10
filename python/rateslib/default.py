@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import matplotlib.dates as mdates
@@ -11,8 +11,7 @@ import numpy as np
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod
-from rateslib.rs import Adjuster, NamedCal
-from rateslib.utils.calendars import _get_first_bus_day
+from rateslib.rs import Adjuster, Convention, NamedCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 
@@ -24,126 +23,6 @@ if TYPE_CHECKING:
         Any,
         CalTypes,
     )
-
-
-class _BaseFXIndex:
-    """
-    Abstract base class to implement FXIndex.
-
-    See :class:`~rateslib.data.fixings.FXIndex`.
-    """  # noqa: E501
-
-    def __init__(
-        self,
-        pair: str,
-        calendar: CalTypes,
-        settle: Adjuster,
-        isda_mtm_calendar: CalTypes | NoInput,
-        isda_mtm_settle: Adjuster | NoInput,
-        allow_cross: bool,
-    ) -> None:
-        self._pair: str = pair.lower()
-        self._calendar: CalTypes = calendar
-        self._settle: Adjuster = settle
-        self._allow_cross: bool = allow_cross
-        self._isda_mtm_calendar = isda_mtm_calendar
-        self._isda_mtm_settle = isda_mtm_settle
-
-    def __repr__(self) -> str:
-        return f"<rl.FXIndex:{self.pair} at {id(self)}>"
-
-    @property
-    def pair(self) -> str:
-        """The currency pair of the FX fixing."""
-        return self._pair
-
-    @property
-    def calendar(self) -> CalTypes:
-        """The calendar associated with the settlement delivery date determination."""
-        return self._calendar
-
-    @property
-    def settle(self) -> Adjuster:
-        """The :class:`Adjuster` associated with determining the settlement delivery date."""
-        return self._settle
-
-    @property
-    def isda_mtm_calendar(self) -> CalTypes | NoInput:
-        """The calendar associated with the MTM fixing date determination."""
-        return self._isda_mtm_calendar
-
-    @property
-    def isda_mtm_settle(self) -> Adjuster | NoInput:
-        """The :class:`Adjuster` associated with the MTM fixing date determination."""
-        return self._isda_mtm_settle
-
-    def isda_fixing_date(self, delivery: datetime) -> datetime:
-        """
-        Return the MTM FX fixing date under ISDA conventions.
-
-        Parameters
-        ----------
-        delivery: datetime
-            The delivery date of the notional exchange.
-
-        Returns
-        -------
-        datetime
-
-        Notes
-        -----
-        If ``isda`` attributes are not fully qualified on the object then uses the ``reverse``
-        method to reverse engineer the FX quotation date as a proxy.
-        """
-        if isinstance(self.isda_mtm_calendar, NoInput) or isinstance(self.isda_mtm_settle, NoInput):
-            # Fallback method for determining fixing date when ISDA fixing details not available.
-            # This may be due to instruments that only use for non-deliverability as a feature
-            # but do not technically have a published fixing, i.e. a physically settled
-            # FXForward or an FXOption.
-            # In these cases do the best to estimate a respectable date.
-            alternatives: list[datetime] = []
-            counter: int = 0
-            while len(alternatives) == 0:
-                alternatives = self.publications(delivery + timedelta(days=counter))
-                counter += 1
-            return _get_first_bus_day(alternatives, self.calendar)
-        else:
-            return self.isda_mtm_settle.adjust(delivery, self.isda_mtm_calendar)
-
-    def delivery(self, date: datetime) -> datetime:
-        """
-        Return the settlement delivery date associated with the publication date.
-
-        Parameters
-        ----------
-        date: datetime
-            The publication date of the quotation.
-
-        Returns
-        -------
-        datetime
-        """
-        return self.settle.adjust(date, self.calendar)
-
-    def publications(self, delivery: datetime) -> list[datetime]:
-        """
-        Return the potential publication dates that result in a given settlement delivery date.
-
-        Parameters
-        ----------
-        delivery: datetime
-            The settlement delivery date of the publication.
-
-        Returns
-        -------
-        list[datetime]
-        """
-        return self.settle.reverse(delivery, self.calendar)
-
-    @property
-    def allow_cross(self) -> bool:
-        """Whether to allow FXFixings which sub-divide into USD or EUR crosses."""
-        return self._allow_cross
 
 
 DEFAULTS = dict(
@@ -345,7 +224,7 @@ DEFAULTS = dict(
     spec=INSTRUMENT_SPECS,
     fx_index={
         # ISDA values determined from the ISDA MTM Matrix documentation
-        "eurusd": _BaseFXIndex(
+        "eurusd": dict(
             pair="eurusd",
             calendar=NamedCal("tgt|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -353,7 +232,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "eurgbp": _BaseFXIndex(
+        "eurgbp": dict(
             pair="eurgbp",
             calendar=NamedCal("ldn,tgt|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -361,7 +240,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "eursek": _BaseFXIndex(
+        "eursek": dict(
             pair="eursek",
             calendar=NamedCal("tgt,stk|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -369,7 +248,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "gbpusd": _BaseFXIndex(
+        "gbpusd": dict(
             pair="gbpusd",
             calendar=NamedCal("ldn|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -377,7 +256,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "usdcad": _BaseFXIndex(
+        "usdcad": dict(
             pair="usdcad",
             calendar=NamedCal("tro|fed"),
             settle=Adjuster.BusDaysLagSettle(1),
@@ -385,7 +264,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "gbpcad": _BaseFXIndex(
+        "gbpcad": dict(
             pair="gbpcad",
             calendar=NamedCal("tro,ldn|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -393,7 +272,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "usdnok": _BaseFXIndex(
+        "usdnok": dict(
             pair="usdnok",
             calendar=NamedCal("osl|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -401,7 +280,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "usdsek": _BaseFXIndex(
+        "usdsek": dict(
             pair="usdsek",
             calendar=NamedCal("stk|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -409,7 +288,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "chfsek": _BaseFXIndex(
+        "chfsek": dict(
             pair="chfsek",
             calendar=NamedCal("stk,zur|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -417,7 +296,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "usdchf": _BaseFXIndex(
+        "usdchf": dict(
             pair="usdchf",
             calendar=NamedCal("zur|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -425,7 +304,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "seknok": _BaseFXIndex(
+        "seknok": dict(
             pair="seknok",
             calendar=NamedCal("stk,osl|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -433,7 +312,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "audusd": _BaseFXIndex(
+        "audusd": dict(
             pair="audusd",
             calendar=NamedCal("syd|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -441,7 +320,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "usdjpy": _BaseFXIndex(
+        "usdjpy": dict(
             pair="usdjpy",
             calendar=NamedCal("tyo|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -449,7 +328,7 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
         ),
-        "nzdusd": _BaseFXIndex(
+        "nzdusd": dict(
             pair="nzdusd",
             calendar=NamedCal("wlg|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -458,7 +337,7 @@ DEFAULTS = dict(
             allow_cross=True,
         ),
         # The following are not defined in the ISDA MTM Matrix
-        "audnzd": _BaseFXIndex(
+        "audnzd": dict(
             pair="audnzd",
             calendar=NamedCal("wlg,syd|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
@@ -466,13 +345,155 @@ DEFAULTS = dict(
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=True,
         ),
-        "usdinr": _BaseFXIndex(
+        "usdinr": dict(
             pair="usdinr",
             calendar=NamedCal("mum|fed"),
             settle=Adjuster.BusDaysLagSettle(2),
             isda_mtm_calendar=NamedCal("mum"),
             isda_mtm_settle=Adjuster.BusDaysLagSettle(-2),
             allow_cross=False,
+        ),
+    },
+    float_series={
+        "usd_ibor": dict(
+            lag=2,
+            calendar=NamedCal("nyc"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "usd_rfr": dict(
+            lag=0,
+            calendar=NamedCal("nyc"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "gbp_ibor": dict(
+            lag=0,
+            calendar=NamedCal("ldn"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act365F,
+            eom=True,
+        ),
+        "gbp_rfr": dict(
+            lag=0,
+            calendar=NamedCal("ldn"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "sek_ibor": dict(
+            lag=2,
+            calendar=NamedCal("ldn"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act360,
+            eom=True,
+        ),
+        "sek_rfr": dict(
+            lag=0,
+            calendar=NamedCal("ldn"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "eur_ibor": dict(
+            lag=2,
+            calendar=NamedCal("tgt"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "eur_rfr": dict(
+            lag=0,
+            calendar=NamedCal("tgt"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "nok_ibor": dict(
+            lag=2,
+            calendar=NamedCal("osl"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "nok_rfr": dict(
+            lag=0,
+            calendar=NamedCal("osl"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "chf_ibor": dict(
+            lag=2,
+            calendar=NamedCal("zur"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "chf_rfr": dict(
+            lag=0,
+            calendar=NamedCal("zur"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act360,
+            eom=False,
+        ),
+        "cad_ibor": dict(
+            lag=2,
+            calendar=NamedCal("tro"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "cad_rfr": dict(
+            lag=0,
+            calendar=NamedCal("tro"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "jpy_ibor": dict(
+            lag=2,
+            calendar=NamedCal("tyo"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "jpy_rfr": dict(
+            lag=0,
+            calendar=NamedCal("tyo"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "aud_ibor": dict(
+            lag=0,
+            calendar=NamedCal("syd"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act365F,
+            eom=True,
+        ),
+        "aud_rfr": dict(
+            lag=0,
+            calendar=NamedCal("syd"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
+        ),
+        "nzd_ibor": dict(
+            lag=0,
+            calendar=NamedCal("wlg"),
+            modifier=Adjuster.ModifiedFollowing(),
+            convention=Convention.Act365F,
+            eom=True,
+        ),
+        "nzd_rfr": dict(
+            lag=0,
+            calendar=NamedCal("wlg"),
+            modifier=Adjuster.Following(),
+            convention=Convention.Act365F,
+            eom=False,
         ),
     },
 )
@@ -547,7 +568,8 @@ class Defaults:
     # Commercial use of this code, and/or copying and redistribution is prohibited.
     # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
     spec: dict[str, dict[str, Any]]
-    fx_index: dict[str, _BaseFXIndex]
+    fx_index: dict[str, Any]
+    float_series: dict[str, Any]
 
     def __new__(cls) -> Defaults:
         if cls._instance is None:

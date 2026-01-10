@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from math import prod
@@ -25,7 +25,6 @@ from rateslib.curves.curves import _BaseCurve, _index_value_from_series_no_curve
 from rateslib.curves.interpolation import index_left
 from rateslib.curves.utils import _CurveType
 from rateslib.data.loader import FixingMissingForecasterError, FixingRangeError
-from rateslib.default import _BaseFXIndex
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import Err, NoInput, Ok, _drb, _validate_obj_not_no_input
 from rateslib.enums.parameters import (
@@ -35,12 +34,13 @@ from rateslib.enums.parameters import (
     _get_index_method,
     _get_spread_compound_method,
 )
-from rateslib.rs import Adjuster, NamedCal
+from rateslib.rs import Adjuster
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention, _get_convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
+from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
@@ -55,12 +55,12 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards,
         FXForwards_,
+        FXIndex_,
         IndexMethod,
         LegFixings,
         PeriodFixings,
         Result,
         _BaseCurve_,
-        _BaseFXIndex_,
         bool_,
         datetime_,
         int_,
@@ -305,7 +305,7 @@ class IndexFixing(_BaseFixing):
             return result.unwrap()
 
 
-class FXIndex(_BaseFXIndex):
+class FXIndex:
     """
     Define the parameters of a specific FX pair and fixing index.
 
@@ -379,6 +379,108 @@ class FXIndex(_BaseFXIndex):
             self._isda_mtm_settle: Adjuster | NoInput = NoInput(0)
         else:
             self._isda_mtm_settle = _get_adjuster(isda_mtm_settle)
+
+    def __repr__(self) -> str:
+        return f"<rl.FXIndex:{self.pair} at {id(self)}>"
+
+    @property
+    def pair(self) -> str:
+        """The currency pair of the FX fixing."""
+        return self._pair
+
+    @property
+    def calendar(self) -> CalTypes:
+        """The calendar associated with the settlement delivery date determination."""
+        return self._calendar
+
+    @property
+    def settle(self) -> Adjuster:
+        """
+        The :class:`~rateslib.scheduling.Adjuster` associated with determining
+        the settlement delivery date.
+        """
+        return self._settle
+
+    @property
+    def isda_mtm_calendar(self) -> CalTypes | NoInput:
+        """The calendar associated with the MTM fixing date determination."""
+        return self._isda_mtm_calendar
+
+    @property
+    def isda_mtm_settle(self) -> Adjuster | NoInput:
+        """
+        The :class:`~rateslib.scheduling.Adjuster` associated with the MTM fixing
+        date determination.
+        """
+        return self._isda_mtm_settle
+
+    def isda_fixing_date(self, delivery: datetime) -> datetime:
+        """
+        Return the MTM FX fixing date under ISDA conventions.
+
+        Parameters
+        ----------
+        delivery: datetime
+            The delivery date of the notional exchange.
+
+        Returns
+        -------
+        datetime
+
+        Notes
+        -----
+        If ``isda`` attributes are not fully qualified on the object then uses the ``reverse``
+        method to reverse engineer the FX quotation date as a proxy.
+        """
+        if isinstance(self.isda_mtm_calendar, NoInput) or isinstance(self.isda_mtm_settle, NoInput):
+            # Fallback method for determining fixing date when ISDA fixing details not available.
+            # This may be due to instruments that only use for non-deliverability as a feature
+            # but do not technically have a published fixing, i.e. a physically settled
+            # FXForward or an FXOption.
+            # In these cases do the best to estimate a respectable date.
+            alternatives: list[datetime] = []
+            counter: int = 0
+            while len(alternatives) == 0:
+                alternatives = self.publications(delivery + timedelta(days=counter))
+                counter += 1
+            return _get_first_bus_day(alternatives, self.calendar)
+        else:
+            return self.isda_mtm_settle.adjust(delivery, self.isda_mtm_calendar)
+
+    def delivery(self, date: datetime) -> datetime:
+        """
+        Return the settlement delivery date associated with the publication date.
+
+        Parameters
+        ----------
+        date: datetime
+            The publication date of the quotation.
+
+        Returns
+        -------
+        datetime
+        """
+        return self.settle.adjust(date, self.calendar)
+
+    def publications(self, delivery: datetime) -> list[datetime]:
+        """
+        Return the potential publication dates that result in a given settlement delivery date.
+
+        Parameters
+        ----------
+        delivery: datetime
+            The settlement delivery date of the publication.
+
+        Returns
+        -------
+        list[datetime]
+        """
+        return self.settle.reverse(delivery, self.calendar)
+
+    @property
+    def allow_cross(self) -> bool:
+        """Whether to allow FXFixings which sub-divide into USD or EUR crosses."""
+        return self._allow_cross
 
 
 class _FXFixingMajor(_BaseFixing):
@@ -459,7 +561,7 @@ class _FXFixingMajor(_BaseFixing):
 
     def __init__(
         self,
-        fx_index: _BaseFXIndex | str,
+        fx_index: FXIndex | str,
         publication: datetime_ = NoInput(0),
         delivery: datetime_ = NoInput(0),
         value: DualTypes_ = NoInput(0),
@@ -495,7 +597,7 @@ class _FXFixingMajor(_BaseFixing):
         super().__init__(date=date_, value=value, identifier=identifier)
 
     @property
-    def fx_index(self) -> _BaseFXIndex:
+    def fx_index(self) -> FXIndex:
         """The :class:`FXIndex` for the FX fixing."""
         return self._fx_index
 
@@ -616,7 +718,7 @@ class _FXFixingMajor(_BaseFixing):
         return f"<rl.FXFixingMajor:{self.pair} at {hex(id(self))}>"
 
 
-def _clone_isda_mtm(pair: _BaseFXIndex | str, isda_index: _BaseFXIndex) -> _BaseFXIndex:
+def _clone_isda_mtm(pair: FXIndex | str, isda_index: FXIndex) -> FXIndex:
     """
     Attempt to lookup the conventions of pair, but maintain the original ISDA index conventions
     from the given isda_index
@@ -642,7 +744,7 @@ def _clone_isda_mtm(pair: _BaseFXIndex | str, isda_index: _BaseFXIndex) -> _Base
     )
 
 
-def _fx_index_set_cross(pair: _BaseFXIndex, allow_cross: bool) -> _BaseFXIndex:
+def _fx_index_set_cross(pair: FXIndex, allow_cross: bool) -> FXIndex:
     return FXIndex(
         pair=pair.pair,
         settle=pair.settle,
@@ -860,7 +962,7 @@ class FXFixing(_BaseFixing):
 
     def __init__(
         self,
-        fx_index: _BaseFXIndex | str,
+        fx_index: FXIndex | str,
         publication: datetime_ = NoInput(0),
         delivery: datetime_ = NoInput(0),
         value: DualTypes_ = NoInput(0),
@@ -1040,7 +1142,7 @@ class FXFixing(_BaseFixing):
         return self.fx_index.allow_cross
 
     @property
-    def fx_index(self) -> _BaseFXIndex:
+    def fx_index(self) -> FXIndex:
         """The :class:`FXIndex` for the FX fixing."""
         return self._fx_index
 
@@ -1417,23 +1519,23 @@ class FXFixing(_BaseFixing):
 #             return Ok(self.value)
 
 
-def _maybe_get_fx_index(val: _BaseFXIndex | str_) -> _BaseFXIndex_:
+def _maybe_get_fx_index(val: FXIndex | str_) -> FXIndex_:
     if isinstance(val, NoInput):
         return NoInput(0)
     else:
         return _get_fx_index(val)
 
 
-def _get_fx_index(val: _BaseFXIndex | str) -> _BaseFXIndex:
-    if isinstance(val, _BaseFXIndex):
+def _get_fx_index(val: FXIndex | str) -> FXIndex:
+    if isinstance(val, FXIndex):
         return val
     else:
         pair = val.lower()
         try:
-            return defaults.fx_index[pair]
+            return FXIndex(**defaults.fx_index[pair])
         except KeyError:
             try:
-                reverse_fxi = defaults.fx_index[f"{pair[3:]}{pair[:3]}"]
+                reverse_fxi = FXIndex(**defaults.fx_index[f"{pair[3:]}{pair[:3]}"])
                 return FXIndex(
                     pair=pair,
                     calendar=reverse_fxi.calendar,
@@ -1443,10 +1545,18 @@ def _get_fx_index(val: _BaseFXIndex | str) -> _BaseFXIndex:
                 )
             except KeyError:
                 raise ValueError(
-                    f"The pair '{pair}' does not have a default `FXIndex` assigned.\n"
-                    f"Create one as the argument entry instead of '{pair}', for example: "
-                    f"FXIndex('eurusd', 'tgt|fed', 2)\nConsider requesting an addition at the "
-                    f"issues board for rateslib on github."
+                    f"The FXIndex: '{pair}' was not found in `defaults`.\n"
+                    "To add a default specification for the required FXIndex, for example, use:\n"
+                    f"> defaults.fx_index['{pair}'] = {{ \n"
+                    "      'pair': 'usdsek',\n"
+                    "      'calendar': 'stk|fed',\n"
+                    "      'settle': '2B',\n"
+                    "      'isda_mtm_settle': '-2B',\n"
+                    "      'isda_mtm_calendar': 'stk',\n"
+                    "      'allow_cross': True,\n"
+                    f"  }}\n"
+                    "Alternatively, create an FXIndex directly and supply it to `pair`, "
+                    "for example:\n> pair=FXIndex('usdsek', 'stk|fed\\, 2)"
                 )
 
 
@@ -3331,155 +3441,24 @@ class _RFRRate:
             return Ok(_)
 
 
-_SERIES_MAP = {
-    "usd_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("nyc"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "usd_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("nyc"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "gbp_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "gbp_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "sek_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=True,
-    ),
-    "sek_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "eur_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tgt"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "eur_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tgt"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "nok_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("osl"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "nok_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("osl"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "chf_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("zur"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "chf_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("zur"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "cad_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tro"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "cad_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tro"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "jpy_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tyo"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "jpy_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tyo"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "aud_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("syd"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "aud_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("syd"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "nzd_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("wlg"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "nzd_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("wlg"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-}
-
-
 def _get_float_rate_series(val: FloatRateSeries | str) -> FloatRateSeries:
     if isinstance(val, FloatRateSeries):
         return val
     else:
-        return _SERIES_MAP[val.lower()]
+        try:
+            return FloatRateSeries(**defaults.float_series[val.lower()])
+        except KeyError:
+            raise ValueError(
+                f"The FloatRateSeries: '{val.lower()}' was not found in `defaults`.\n"
+                "To add a default specification for a FloatRateSeries, for example, use:\n"
+                f"> defaults.float_series['{val.lower()}'] = {{ \n"
+                "      'lag': 2,\n"
+                "      'calendar': 'nyc',\n"
+                "      'modifier': 'MF',\n"
+                "      'convention': 'Act360',\n"
+                "      'eom': False,\n"
+                f"  }}"
+            )
 
 
 def _get_float_rate_series_or_blank(val: FloatRateSeries | str_) -> FloatRateSeries | NoInput:
@@ -3564,5 +3543,4 @@ __all__ = [
     "_FXFixingMajor",
     "_UnitFixing",
     "_BaseFixing",
-    "_BaseFXIndex",
 ]
