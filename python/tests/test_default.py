@@ -11,7 +11,7 @@ from rateslib import NamedCal, __version__, default_context, defaults, dt, fixin
 
 
 def test_version() -> None:
-    assert __version__ == "2.5.dev0"
+    assert __version__ == "2.5.0"
 
 
 def test_context_raises() -> None:
