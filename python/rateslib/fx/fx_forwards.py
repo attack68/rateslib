@@ -1,3 +1,12 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import json
@@ -13,6 +22,7 @@ from pandas import DataFrame, Series
 from rateslib import defaults
 from rateslib.curves import Curve, MultiCsaCurve, ProxyCurve
 from rateslib.curves.utils import _CurveType
+from rateslib.data.fixings import FXIndex
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.enums.generics import NoInput, _drb
@@ -399,7 +409,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     @_validate_states
     def rate(
         self,
-        pair: str,
+        pair: FXIndex | str,
         settlement: datetime_ = NoInput(0),
     ) -> DualTypes:
         """
@@ -407,7 +417,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         Parameters
         ----------
-        pair : str
+        pair : FXIndex, str
             The FX pair in usual domestic:foreign convention (6 digit code).
         settlement : datetime, optional
             The settlement date of currency exchange. If not given defaults to
@@ -436,6 +446,9 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
            f_{DOMFOR, i} = f_{DOMALT, i} ...  f_{ALTFOR, i}
 
         """  # noqa: E501
+        if isinstance(pair, FXIndex):
+            pair = pair.pair
+
         return self._rate_without_validation(pair, settlement)
 
     def _rate_without_validation(self, pair: str, settlement: datetime_ = NoInput(0)) -> DualTypes:
@@ -753,7 +766,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     @_validate_states
     def swap(
         self,
-        pair: str,
+        pair: FXIndex | str,
         settlements: list[datetime],
     ) -> DualTypes:
         """
@@ -761,7 +774,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         Parameters
         ----------
-        pair : str
+        pair : FXIndex, str
             The FX pair in usual domestic:foreign convention (6-digit code).
         settlements : list of datetimes,
             The settlement date of currency exchanges.
@@ -770,6 +783,9 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         -------
         Dual
         """
+        if isinstance(pair, FXIndex):
+            pair = pair.pair
+
         fx0 = self._rate_without_validation(pair, settlements[0])
         fx1 = self._rate_without_validation(pair, settlements[1])
         return (fx1 - fx0) * 10000
@@ -894,7 +910,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
     @_validate_states
     def plot(
         self,
-        pair: str,
+        pair: FXIndex | str,
         right: datetime | str | NoInput = NoInput(0),
         left: datetime | str | NoInput = NoInput(0),
         fx_swap: bool = False,
@@ -904,7 +920,7 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
 
         Parameters
         ----------
-        pair : str
+        pair : FXIndex, str
             The FX pair to determine rates for (6-digit code).
         right : datetime or str, optional
             The right bound of the graph. If given as str should be a tenor format
@@ -923,6 +939,9 @@ class FXForwards(_WithState, _WithCache[tuple[str, datetime], DualTypes]):
         -------
         (fig, ax, line) : Matplotlib.Figure, Matplotplib.Axes, Matplotlib.Lines2D
         """
+        if isinstance(pair, FXIndex):
+            pair = pair.pair
+
         if isinstance(left, NoInput):
             left_: datetime = self.immediate
         elif isinstance(left, str):

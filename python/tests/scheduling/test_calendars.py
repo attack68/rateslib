@@ -11,6 +11,7 @@ from rateslib.scheduling import (
     Convention,
     Frequency,
     RollDay,
+    UnionCal,
     add_tenor,
     dcf,
     get_calendar,
@@ -688,3 +689,25 @@ def test_wlg_changes():
     assert not cal.is_bus_day(dt(2022, 9, 26))
     assert not cal.is_bus_day(dt(2025, 1, 20))
     assert not cal.is_bus_day(dt(2025, 1, 27))
+
+
+def test_busdayslag_reverse():
+    # test that reverse operates over settleable days also
+    a = Adjuster.BusDaysLagSettle(2)
+    cal = Cal([dt(2026, 1, 1)], [5, 6])
+    union = UnionCal([Cal([], [])], [cal])
+    assert a.adjust(dt(2025, 12, 30), union) == dt(2026, 1, 2)
+    assert a.adjust(dt(2025, 12, 31), union) == dt(2026, 1, 2)
+    assert a.reverse(dt(2026, 1, 2), union) == [dt(2025, 12, 31), dt(2025, 12, 30)]
+
+
+def test_mex_loads():
+    cal = get_calendar("mex")
+    assert not cal.is_bus_day(dt(2026, 3, 16))
+    assert cal.is_bus_day(dt(2026, 3, 17))
+
+
+def test_replace_whitespace():
+    cal1 = get_calendar("nyc, tgt")
+    cal2 = get_calendar("nyc,tgt")
+    assert cal1 == cal2

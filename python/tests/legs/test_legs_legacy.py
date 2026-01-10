@@ -8,7 +8,7 @@ from pandas import DataFrame, Index, MultiIndex, Series, date_range, isna
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context, defaults, fixings
 from rateslib.curves import Curve
-from rateslib.data.fixings import FloatRateSeries
+from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual
 from rateslib.enums.generics import _drb
@@ -33,7 +33,7 @@ from rateslib.periods import (
     FixedPeriod,
     FloatPeriod,
 )
-from rateslib.scheduling import Frequency, Schedule
+from rateslib.scheduling import Frequency, Schedule, get_calendar
 
 
 @pytest.fixture
@@ -159,7 +159,7 @@ class TestFloatLeg:
             fixing_method="rfr_payment_delay",
             spread_compound_method="none_simple",
             currency="nok",
-            pair="usdnok",
+            pair=FXIndex("usdnok", "osl|fed", 2, "osl", -2),
             notional=1e8,
             mtm="xcs",
             initial_exchange=True,
@@ -690,7 +690,7 @@ class TestFloatLeg:
         ],
     )
     def test_non_mtm_xcs_type(self, fx_fixings, expected):
-        fixings.add("ABCD_EURUSD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fixings.add("ABCD_EURUSD", Series(index=[dt(1999, 12, 30)], data=[1.10]))
         fl = FloatLeg(
             schedule=Schedule(
                 effective=dt(2000, 1, 1),
@@ -708,10 +708,10 @@ class TestFloatLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 4 periods with only one initial fixing date
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
@@ -731,11 +731,11 @@ class TestFloatLeg:
             "ABCDE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
-                    dt(2000, 2, 3),
-                    dt(2000, 3, 2),
-                    dt(2000, 3, 3),
+                    dt(1999, 12, 30),
+                    dt(2000, 1, 31),
+                    dt(2000, 2, 1),
+                    dt(2000, 2, 29),
+                    dt(2000, 3, 1),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
@@ -757,8 +757,8 @@ class TestFloatLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 2 periods and only 2 relevant fixings dates
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 2, 1)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 3, 1)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         fixings.pop("ABCDE_EURUSD")
@@ -782,11 +782,11 @@ class TestFloatLeg:
             "ADE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
-                    dt(2000, 2, 3),
-                    dt(2000, 3, 2),
-                    dt(2000, 3, 3),
+                    dt(1999, 12, 30),
+                    dt(2000, 1, 31),
+                    dt(2000, 2, 1),
+                    dt(2000, 2, 29),
+                    dt(2000, 3, 1),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
@@ -808,11 +808,11 @@ class TestFloatLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 5 periods with only two relevant fixing dates
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 2, 2)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
-        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 1, 31)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 1, 31)
+        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 1, 31)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
@@ -839,11 +839,11 @@ class TestFloatLeg:
             "AXDE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
-                    dt(2000, 2, 3),
-                    dt(2000, 3, 2),
-                    dt(2000, 3, 3),
+                    dt(1999, 12, 30),
+                    dt(2000, 1, 31),
+                    dt(2000, 2, 1),
+                    dt(2000, 2, 29),
+                    dt(2000, 3, 1),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
@@ -865,10 +865,10 @@ class TestFloatLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 4 periods with 3 or 4 (if lag exchange is different) relevant fixing dates.
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
-        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 3, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 1)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 1)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 29)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
@@ -1662,7 +1662,7 @@ class TestZeroIndexLeg:
         name = str(hash(os.urandom(8)))
         fixings.add(name, Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[10.0, 15.0]))
         fixings.add(
-            name + "fx_EURUSD", Series(index=[dt(2000, 1, 1), dt(2001, 1, 1)], data=[2.0, 3.0])
+            name + "fx_EURUSD", Series(index=[dt(1999, 12, 30), dt(2000, 12, 28)], data=[2.0, 3.0])
         )
         leg = ZeroIndexLeg(
             schedule=Schedule(effective=dt(2000, 1, 1), termination=dt(2001, 1, 1), frequency="Z"),
@@ -1678,6 +1678,9 @@ class TestZeroIndexLeg:
         )
         assert len(leg.periods) == lenn
         assert leg.periods[-1].non_deliverable_params.delivery == nd_dt
+        assert leg.periods[-1].non_deliverable_params.publication == get_calendar(
+            "ldn"
+        ).lag_bus_days(nd_dt, -2, True)
         assert leg.periods[-1].cashflow() == cf
         fixings.pop(name)
         fixings.pop(name + "fx_EURUSD")
@@ -1900,7 +1903,7 @@ class TestFixedLeg:
             convention="Act360",
             fixed_rate=4.00,
             currency="usd",
-            pair="usdbrl",
+            pair=FXIndex("usdbrl", "all", 0),
         )
         cf = fixed_leg.cashflows(disc_curve=curve, fx=fxf)
 
@@ -2001,20 +2004,20 @@ class TestFixedLeg:
             fx_fixings=2.0,  # this should not impact the reference currency notional and amortiz
         )
         for rp in fl._regular_periods:
-            assert rp.non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+            assert rp.non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
             assert rp.non_deliverable_params.fx_fixing.value == 2.0
 
         if initial:
-            assert fl._exchange_periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+            assert fl._exchange_periods[0].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
             assert fl._exchange_periods[0].non_deliverable_params.fx_fixing.value == 2.0
 
         if final:
-            assert fl._exchange_periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+            assert fl._exchange_periods[1].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
             assert fl._exchange_periods[1].non_deliverable_params.fx_fixing.value == 2.0
 
         if amortization and final:
             assert fl._amortization_exchange_periods[0].non_deliverable_params.fx_fixing.date == dt(
-                2000, 1, 2
+                1999, 12, 30
             )
             assert (
                 fl._amortization_exchange_periods[0].non_deliverable_params.fx_fixing.value == 2.0
@@ -2070,18 +2073,19 @@ class TestFixedLeg:
     @pytest.mark.parametrize("amortization", [True, False])
     def test_construction_of_relevant_periods_non_deliverable_mtm(self, amortization):
         # when the leg is ND and MTM the FXFixings should be determined by their appropriate
-        # payment dates. This test excludes notional exchanges, designed for ND-IRS
+        # payment dates deriving fixing date. This test excludes notional exchanges,
+        # designed for ND-IRS
         name = str(hash(os.urandom(8)))
         fixings.add(
             name + "_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 1),
-                    dt(2000, 1, 2),
-                    dt(2000, 4, 1),
-                    dt(2000, 4, 2),
-                    dt(2000, 7, 1),
-                    dt(2000, 7, 2),
+                    dt(1999, 12, 24),
+                    dt(1999, 12, 29),
+                    dt(2000, 3, 29),
+                    dt(2000, 3, 30),
+                    dt(2000, 6, 28),
+                    dt(2000, 6, 29),
                 ],
                 data=[1.1, 2.2, 3.3, 4.4, 5.5, 6.6],
             ),
@@ -2089,15 +2093,15 @@ class TestFixedLeg:
 
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 7, 1),
+                effective=dt(2000, 1, 5),
+                termination=dt(2000, 7, 5),
                 frequency="Q",
                 payment_lag_exchange=1,
                 payment_lag=0,
             ),
             fixed_rate=10.0,
             currency="usd",
-            pair="eurusd",  # the notional of this leg is expressed in BRL but payments made in USD
+            pair=FXIndex("eurusd", "tgt|fed", 2, "ldn", -5),
             mtm="payment",
             initial_exchange=False,
             final_exchange=False,
@@ -2107,7 +2111,9 @@ class TestFixedLeg:
         expected = [3.3, 5.5]
         for i, rp in enumerate(fl._regular_periods):
             # every regular period in a typical leg has an FX fixing date equal to coupon payment dt
-            assert rp.non_deliverable_params.fx_fixing.date == fl.schedule.pschedule[i + 1]
+            assert rp.non_deliverable_params.fx_fixing.date == (
+                get_calendar("ldn").lag_bus_days(fl.schedule.pschedule[i + 1], -5, True)
+            )
             assert rp.non_deliverable_params.fx_fixing.value == expected[i]
 
         fixings.pop(name + "_EURUSD")
@@ -2120,12 +2126,12 @@ class TestFixedLeg:
             name + "_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 1),
-                    dt(2000, 1, 2),
-                    dt(2000, 4, 1),
-                    dt(2000, 4, 2),
-                    dt(2000, 7, 1),
-                    dt(2000, 7, 2),
+                    dt(1999, 12, 24),
+                    dt(1999, 12, 29),
+                    dt(2000, 3, 29),
+                    dt(2000, 3, 30),
+                    dt(2000, 6, 28),
+                    dt(2000, 6, 29),
                 ],
                 data=[1.1, 2.2, 3.3, 4.4, 5.5, 6.6],
             ),
@@ -2133,15 +2139,15 @@ class TestFixedLeg:
 
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 7, 1),
+                effective=dt(2000, 1, 5),
+                termination=dt(2000, 7, 5),
                 frequency="Q",
                 payment_lag_exchange=1,
                 payment_lag=0,
             ),
             fixed_rate=10.0,
             currency="usd",
-            pair="eurusd",  # the notional of this leg is expressed in BRL but payments made in USD
+            pair=FXIndex("eurusd", "tgt|fed", 2, "ldn", -5),
             mtm=LegMtm.XCS,
             initial_exchange=True,
             final_exchange=True,
@@ -2150,13 +2156,19 @@ class TestFixedLeg:
         )
         expected = [2.2, 4.4]
         for i, rp in enumerate(fl._regular_periods):
-            assert rp.non_deliverable_params.fx_fixing.date == fl.schedule.pschedule2[i]
+            assert rp.non_deliverable_params.fx_fixing.date == (
+                get_calendar("ldn").lag_bus_days(fl.schedule.pschedule2[i], -5, True)
+            )
             assert rp.non_deliverable_params.fx_fixing.value == expected[i]
 
         # there should be 1 MTM cashflow exchanges:
         assert len(fl._mtm_exchange_periods) == 1
-        assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_start.date == dt(2000, 1, 2)
-        assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_end.date == dt(2000, 4, 2)
+        assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_start.date == (
+            get_calendar("ldn").lag_bus_days(dt(2000, 1, 6), -5, True)
+        )
+        assert fl._mtm_exchange_periods[0].mtm_params.fx_fixing_end.date == (
+            get_calendar("ldn").lag_bus_days(dt(2000, 4, 6), -5, True)
+        )
 
         fixings.pop(name + "_EURUSD")
 
@@ -2172,8 +2184,8 @@ class TestFixedLeg:
         )
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 10, 1),
+                effective=dt(2000, 1, 5),
+                termination=dt(2000, 10, 5),
                 frequency="Q",
                 payment_lag=1,
                 payment_lag_exchange=0,
@@ -2181,25 +2193,25 @@ class TestFixedLeg:
             convention="actacticma",
             fixed_rate=1.0,
             currency="usd",
-            pair="eurusd",
+            pair=FXIndex("eurusd", "tgt|fed", 2, "ldn", -5),
             initial_exchange=True,
             mtm=LegMtm.XCS,
             notional=-1e6,
             amortization=-2e5,
             fx_fixings=Series(
                 index=[
-                    dt(2000, 1, 1),
-                    dt(2000, 1, 2),
-                    dt(2000, 4, 1),
-                    dt(2000, 4, 2),
-                    dt(2000, 7, 1),
-                    dt(2000, 7, 2),
-                    dt(2000, 10, 1),
+                    dt(1999, 12, 24),
+                    dt(1999, 12, 29),
+                    dt(2000, 3, 29),
+                    dt(2000, 3, 30),
+                    dt(2000, 6, 28),
+                    dt(2000, 6, 29),
+                    dt(2000, 9, 28),
                 ],
                 data=[1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7],
             ),
         )
-        d1, d2, d3 = dt(2000, 1, 1), dt(2000, 4, 1), dt(2000, 7, 1)
+        d1, d2, d3 = dt(1999, 12, 24), dt(2000, 3, 29), dt(2000, 6, 28)
         expected = DataFrame(
             {
                 "Type": [
@@ -2264,7 +2276,7 @@ class TestFixedLeg:
         ],
     )
     def test_non_mtm_xcs_type(self, fx_fixings, expected):
-        fixings.add("ABCD_EURUSD", Series(index=[dt(2000, 1, 2)], data=[1.10]))
+        fixings.add("ABCD_EURUSD", Series(index=[dt(1999, 12, 30)], data=[1.10]))
         fl = FixedLeg(
             schedule=Schedule(
                 effective=dt(2000, 1, 1),
@@ -2282,10 +2294,10 @@ class TestFixedLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 4 periods with only one initial fixing date
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(1999, 12, 30)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected
@@ -2295,9 +2307,9 @@ class TestFixedLeg:
     @pytest.mark.parametrize(
         ("fx_fixings", "expected"),
         [
-            ("ABCDE", [1.21, 1.31]),
+            ("ABCDE", [1.20, 1.30]),
             (1.5, [1.5, NoInput(0)]),  # this is bad practice: should just supply str ID
-            ((1.5, "ABCDE"), [1.5, 1.31]),  # this is bad practice: should just supply str ID
+            ((1.5, "ABCDE"), [1.5, 1.30]),  # this is bad practice: should just supply str ID
         ],
     )
     def test_irs_nd_type(self, fx_fixings, expected):
@@ -2305,21 +2317,21 @@ class TestFixedLeg:
             "ABCDE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
+                    dt(2000, 1, 5),
                     dt(2000, 2, 3),
-                    dt(2000, 3, 2),
+                    dt(2000, 2, 4),
                     dt(2000, 3, 3),
+                    dt(2000, 3, 6),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
         )
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 3, 1),
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
                 frequency="M",
-                payment_lag=2,
+                payment_lag=0,
                 payment_lag_exchange=1,
                 calendar="all",
             ),
@@ -2356,19 +2368,19 @@ class TestFixedLeg:
             "ADE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
-                    dt(2000, 2, 3),
-                    dt(2000, 3, 2),
-                    dt(2000, 3, 3),
+                    dt(2000, 1, 6),
+                    dt(2000, 2, 4),
+                    dt(2000, 2, 8),
+                    dt(2000, 3, 7),
+                    dt(2000, 3, 8),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
         )
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 3, 1),
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
                 frequency="M",
                 payment_lag=2,
                 payment_lag_exchange=1,
@@ -2382,11 +2394,11 @@ class TestFixedLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 5 periods with only two relevant fixing dates
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 2, 2)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
-        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 2, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 6)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 1, 6)
+        assert fl.periods[2].mtm_params.fx_fixing_end.date == dt(2000, 2, 4)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 2, 4)
+        assert fl.periods[4].non_deliverable_params.fx_fixing.date == dt(2000, 2, 4)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].mtm_params.fx_fixing_end.value == expected[2]
@@ -2413,22 +2425,22 @@ class TestFixedLeg:
             "AXDE_EURUSD",
             Series(
                 index=[
-                    dt(2000, 1, 2),
-                    dt(2000, 2, 2),
+                    dt(2000, 1, 5),
                     dt(2000, 2, 3),
-                    dt(2000, 3, 2),
+                    dt(2000, 2, 4),
                     dt(2000, 3, 3),
+                    dt(2000, 3, 6),
                 ],
                 data=[1.10, 1.20, 1.21, 1.30, 1.31],
             ),
         )
         fl = FixedLeg(
             schedule=Schedule(
-                effective=dt(2000, 1, 1),
-                termination=dt(2000, 3, 1),
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
                 frequency="M",
-                payment_lag=2,
-                payment_lag_exchange=1,
+                payment_lag=1,
+                payment_lag_exchange=0,
                 calendar="all",
             ),
             currency="usd",
@@ -2439,10 +2451,10 @@ class TestFixedLeg:
             fx_fixings=fx_fixings,
         )
         # this leg has 4 periods with 3 or 4 (if lag exchange is different) relevant fixing dates.
-        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 2)
-        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 3)
-        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
-        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 3, 2)
+        assert fl.periods[0].non_deliverable_params.fx_fixing.date == dt(2000, 1, 5)
+        assert fl.periods[1].non_deliverable_params.fx_fixing.date == dt(2000, 2, 4)
+        assert fl.periods[2].non_deliverable_params.fx_fixing.date == dt(2000, 3, 6)
+        assert fl.periods[3].non_deliverable_params.fx_fixing.date == dt(2000, 3, 3)
         assert fl.periods[0].non_deliverable_params.fx_fixing.value == expected[0]
         assert fl.periods[1].non_deliverable_params.fx_fixing.value == expected[1]
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
@@ -3129,8 +3141,8 @@ class TestFloatLegExchangeMtm:
             ([1.5], [1.5, NoInput(0), NoInput(0)]),
             (1.25, [1.25, NoInput(0), NoInput(0)]),
             ([1.25, 1.35], [1.25, 1.35, NoInput(0)]),
-            (Series([1.25, 1.3], index=[dt(2022, 1, 6), dt(2022, 4, 6)]), [1.25, 1.3, NoInput(0)]),
-            (Series([1.25], index=[dt(2022, 1, 6)]), [1.25, NoInput(0), NoInput(0)]),
+            (Series([1.25, 1.3], index=[dt(2022, 1, 4), dt(2022, 4, 4)]), [1.25, 1.3, NoInput(0)]),
+            (Series([1.25], index=[dt(2022, 1, 4)]), [1.25, NoInput(0), NoInput(0)]),
         ],
     )
     def test_float_leg_exchange_mtm(self, fx_fixings, exp) -> None:
@@ -3188,17 +3200,17 @@ class TestFloatLegExchangeMtm:
 
         assert float_leg_exch.periods[1].settlement_params.notional == 10e6
         assert float_leg_exch.periods[1].non_deliverable_params.fx_fixing.value == exp[0]
-        assert float_leg_exch.periods[1].non_deliverable_params.fx_fixing.date == dt(2022, 1, 6)
+        assert float_leg_exch.periods[1].non_deliverable_params.fx_fixing.date == dt(2022, 1, 4)
 
         assert type(float_leg_exch.periods[1]) is FloatPeriod
         assert float_leg_exch.periods[3].settlement_params.notional == 10e6
         assert float_leg_exch.periods[3].non_deliverable_params.fx_fixing.value == exp[1]
-        assert float_leg_exch.periods[3].non_deliverable_params.fx_fixing.date == dt(2022, 4, 6)
+        assert float_leg_exch.periods[3].non_deliverable_params.fx_fixing.date == dt(2022, 4, 4)
         assert type(float_leg_exch.periods[3]) is FloatPeriod
 
         assert float_leg_exch.periods[-1].settlement_params.notional == 10e6
         assert float_leg_exch.periods[-1].non_deliverable_params.fx_fixing.value == exp[1]
-        assert float_leg_exch.periods[-1].non_deliverable_params.fx_fixing.date == dt(2022, 4, 6)
+        assert float_leg_exch.periods[-1].non_deliverable_params.fx_fixing.date == dt(2022, 4, 4)
 
     def test_float_leg_exchange_fixings_table(self) -> None:
         float_leg_exch = FloatLeg(
@@ -3370,7 +3382,7 @@ class TestFloatLegExchangeMtm:
                 ),
                 float_spread=5.0,
                 currency="usd",
-                pair="eursek",
+                pair=FXIndex("eursek", "tgt,stk|fed", 2),
                 notional=10e6,
             )
 
@@ -3499,7 +3511,7 @@ class TestNonDeliverableFixedLeg:
             schedule=Schedule(dt(2000, 1, 1), dt(2000, 3, 1), "M"),
             fixed_rate=2.0,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
         )
         assert len(leg.periods) == 2
 
@@ -3517,7 +3529,7 @@ class TestNonDeliverableFixedLeg:
             schedule=Schedule(dt(2022, 1, 1), dt(2022, 3, 1), "M"),
             fixed_rate=2.0,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=1e6,  # 1mm BRL
             mtm="payment",
         )
@@ -3535,7 +3547,7 @@ class TestNonDeliverableFixedLeg:
             schedule=Schedule(dt(2022, 1, 1), dt(2022, 3, 1), "M"),
             fixed_rate=2.0,
             currency="usd",
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             notional=1e6,  # 1mm BRL
             fx_fixings=fixings,
             mtm="payment",
@@ -3644,7 +3656,7 @@ def test_custom_leg() -> None:
         (NoInput(0), [NoInput(0), NoInput(0), NoInput(0)]),
         ([1.5], [1.5, NoInput(0), NoInput(0)]),
         (1.25, [1.25, NoInput(0), NoInput(0)]),
-        ((1.25, Series([1.5], index=[dt(2022, 4, 6)])), [1.25, 1.5, NoInput(0)]),
+        ((1.25, Series([1.5], index=[dt(2022, 4, 4)])), [1.25, 1.5, NoInput(0)]),
     ],
 )
 def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
@@ -3696,17 +3708,17 @@ def test_fixed_leg_exchange_mtm(fx_fixings, exp) -> None:
 
     assert fixed_leg_exch.periods[1].settlement_params.notional == 10e6
     assert fixed_leg_exch.periods[1].non_deliverable_params.fx_fixing.value == exp[0]
-    assert fixed_leg_exch.periods[1].non_deliverable_params.fx_fixing.date == dt(2022, 1, 6)
+    assert fixed_leg_exch.periods[1].non_deliverable_params.fx_fixing.date == dt(2022, 1, 4)
 
     assert type(fixed_leg_exch.periods[1]) is FixedPeriod
     assert fixed_leg_exch.periods[3].settlement_params.notional == 10e6
     assert fixed_leg_exch.periods[3].non_deliverable_params.fx_fixing.value == exp[1]
-    assert fixed_leg_exch.periods[3].non_deliverable_params.fx_fixing.date == dt(2022, 4, 6)
+    assert fixed_leg_exch.periods[3].non_deliverable_params.fx_fixing.date == dt(2022, 4, 4)
     assert type(fixed_leg_exch.periods[3]) is FixedPeriod
 
     assert fixed_leg_exch.periods[-1].settlement_params.notional == 10e6
     assert fixed_leg_exch.periods[-1].non_deliverable_params.fx_fixing.value == exp[1]
-    assert fixed_leg_exch.periods[-1].non_deliverable_params.fx_fixing.date == dt(2022, 4, 6)
+    assert fixed_leg_exch.periods[-1].non_deliverable_params.fx_fixing.date == dt(2022, 4, 4)
 
 
 @pytest.mark.parametrize(

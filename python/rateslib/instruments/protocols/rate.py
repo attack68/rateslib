@@ -35,6 +35,7 @@ class _WithRate(Protocol):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
+        # Overloaded rate docs are for: IndexFixedRateBond
         """
         Calculate some pricing rate metric for the *Instrument*.
 

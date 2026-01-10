@@ -1,8 +1,18 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from datetime import datetime
+from datetime import datetime, timedelta
+from enum import Enum
 from functools import cached_property
 from math import prod
 from typing import TYPE_CHECKING
@@ -10,7 +20,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import rateslib.errors as err
 from pandas import Series, isna
-from rateslib import fixings
+from rateslib import defaults, fixings
 from rateslib.curves.curves import _BaseCurve, _index_value_from_series_no_curve
 from rateslib.curves.interpolation import index_left
 from rateslib.curves.utils import _CurveType
@@ -24,17 +34,20 @@ from rateslib.enums.parameters import (
     _get_index_method,
     _get_spread_compound_method,
 )
-from rateslib.rs import Adjuster, NamedCal
+from rateslib.rs import Adjuster
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention, _get_convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
+from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
+        Any,
         Arr1dF64,
         Arr1dObj,
+        CalInput,
         CalTypes,
         CurveOption_,
         DualTypes,
@@ -42,12 +55,15 @@ if TYPE_CHECKING:
         Frequency,
         FXForwards,
         FXForwards_,
+        FXIndex_,
         IndexMethod,
         LegFixings,
         PeriodFixings,
         Result,
         _BaseCurve_,
+        bool_,
         datetime_,
+        int_,
         str_,
     )
 
@@ -85,17 +101,53 @@ class _BaseFixing(metaclass=ABCMeta):
         self._state = 0
         self._date = date
 
-    def reset(self) -> None:
+    def reset(self, state: int_ = NoInput(0)) -> None:
         """
-        Sets the ``value`` attribute to :class:`rateslib.enums.generics.NoInput`, which allows it
+        Sets the ``value`` attribute to :class:`~rateslib.enums.generics.NoInput`, which allows it
         to be redetermined from a timeseries.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import fixings, dt, NoInput, FXFixing
+           from pandas import Series
+
+        .. ipython:: python
+
+           fx_fixing1 = FXFixing(publication=dt(2021, 1, 1), fx_index="eurusd", identifier="A")
+           fx_fixing2 = FXFixing(publication=dt(2021, 1, 1), fx_index="gbpusd", identifier="B")
+           fixings.add("A_eurusd", Series(index=[dt(2021, 1, 1)], data=[1.1]), state=100)
+           fixings.add("B_gbpusd", Series(index=[dt(2021, 1, 1)], data=[1.4]), state=200)
+
+           # data is populated from the available Series
+           fx_fixing1.value
+           fx_fixing2.value
+
+           # fixings are reset according to the data state
+           fx_fixing1.reset(state=100)
+           fx_fixing2.reset(state=100)
+
+           # only the private data for fixing1 is removed because of its link to the data state
+           fx_fixing1._value
+           fx_fixing2._value
+
+        .. role:: green
+
+        Parameters
+        ----------
+        state: int, :green:`optional`
+            If given only fixings whose state matches this value will be reset. If no state is
+            given then the value will be reset.
 
         Returns
         -------
         None
         """
-        self._value = NoInput(0)
-        self._state = 0
+        if isinstance(state, NoInput) or self._state == state:
+            self._value = NoInput(0)
+            self._state = 0
 
     @property
     def value(self) -> DualTypes_:
@@ -253,63 +305,301 @@ class IndexFixing(_BaseFixing):
             return result.unwrap()
 
 
-class FXFixing(_BaseFixing):
+class FXIndex:
     """
-    An FX fixing value for cross currency settlement.
+    Define the parameters of a specific FX pair and fixing index.
 
-    Parameters
-    ----------
-    date: datetime
-        The date of relevance for the FX fixing, which is its **delivery** date.
-    pair: str,
-        The currency pair related to the FX fixing.
-    value: float, Dual, Dual2, Variable, optional
-        The initial value for the fixing to adopt. Most commonly this is not given and it is
-        determined from a timeseries of published FX rates.
-    identifier: str, optional
-        The string name of the series to be loaded by the *Fixings* object. Will be
-        appended with "_{pair}" to derive the full timeseries key
+    This object acts as a container to store market conventions for different FX pairs.
+    This allows the determination of dates under different methodologies, e.g. ISDA MTM fixings or
+    spot settlement dates.
 
-    Examples
-    --------
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib.data.fixings import FXFixing
+       from rateslib.data.fixings import FXIndex
+
+    .. ipython:: python
+
+       fxi = FXIndex(
+           pair="eurusd",
+           calendar="tgt|fed",      # <- Spot FX measures settlement dates according to this calendar
+           settle=2,
+           isda_mtm_calendar="ldn", # <- MTM XCS FX fixing dates are determined according to this calendar
+           isda_mtm_settle=-2,
+       )
+       fxi.delivery(dt(2025, 7, 3))
+       fxi.isda_fixing_date(dt(2025, 7, 3))
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    pair: str, :red:`required`
+        The currency pair of the FX fixing. 6-digit iso code.
+    calendar: Calendar, str, :red:`required`
+        The calendar associated with the FX settlement date determination.
+    settle:  Adjuster, int, str :green:`optional (set by 'defaults')`
+        The delivery lag applied to any FX quotation to adjust 'today' to a delivery date, under
+        the given ``calendar``. If int is assumed to be settleable business days.
+    isda_mtm_calendar: Calendar, str, :green:`optional`
+        The calendar associated with the MTM fixing date determination.
+    isda_mtm_settle: Adjuster, str, int_, :green:`optional`,
+        The adjustment applied to determine the MTM fixing date.
+    allow_cross: bool, :green:`optional (set as True)`
+        This allows sub-division of the fixing into its *majors* as defined by WMR
+        benchmark methodology. For an example of using a *cross* see the documentation for
+        an :class:`FXFixing`.
+
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        pair: str,
+        calendar: CalTypes | str,
+        settle: Adjuster | str | int,
+        isda_mtm_calendar: CalInput = NoInput(0),
+        isda_mtm_settle: Adjuster | str | int_ = NoInput(0),
+        allow_cross: bool_ = NoInput(0),
+    ) -> None:
+        self._pair: str = pair.lower()
+        self._calendar: CalTypes = get_calendar(calendar)
+        self._settle: Adjuster = _get_adjuster(settle)
+        self._allow_cross: bool = _drb(True, allow_cross)
+
+        if isinstance(isda_mtm_calendar, NoInput):
+            self._isda_mtm_calendar: CalTypes | NoInput = NoInput(0)
+        else:
+            self._isda_mtm_calendar = get_calendar(isda_mtm_calendar)
+
+        if isinstance(isda_mtm_settle, NoInput):
+            self._isda_mtm_settle: Adjuster | NoInput = NoInput(0)
+        else:
+            self._isda_mtm_settle = _get_adjuster(isda_mtm_settle)
+
+    def __repr__(self) -> str:
+        return f"<rl.FXIndex:{self.pair} at {id(self)}>"
+
+    @property
+    def pair(self) -> str:
+        """The currency pair of the FX fixing."""
+        return self._pair
+
+    @property
+    def calendar(self) -> CalTypes:
+        """The calendar associated with the settlement delivery date determination."""
+        return self._calendar
+
+    @property
+    def settle(self) -> Adjuster:
+        """
+        The :class:`~rateslib.scheduling.Adjuster` associated with determining
+        the settlement delivery date.
+        """
+        return self._settle
+
+    @property
+    def isda_mtm_calendar(self) -> CalTypes | NoInput:
+        """The calendar associated with the MTM fixing date determination."""
+        return self._isda_mtm_calendar
+
+    @property
+    def isda_mtm_settle(self) -> Adjuster | NoInput:
+        """
+        The :class:`~rateslib.scheduling.Adjuster` associated with the MTM fixing
+        date determination.
+        """
+        return self._isda_mtm_settle
+
+    def isda_fixing_date(self, delivery: datetime) -> datetime:
+        """
+        Return the MTM FX fixing date under ISDA conventions.
+
+        Parameters
+        ----------
+        delivery: datetime
+            The delivery date of the notional exchange.
+
+        Returns
+        -------
+        datetime
+
+        Notes
+        -----
+        If ``isda`` attributes are not fully qualified on the object then uses the ``reverse``
+        method to reverse engineer the FX quotation date as a proxy.
+        """
+        if isinstance(self.isda_mtm_calendar, NoInput) or isinstance(self.isda_mtm_settle, NoInput):
+            # Fallback method for determining fixing date when ISDA fixing details not available.
+            # This may be due to instruments that only use for non-deliverability as a feature
+            # but do not technically have a published fixing, i.e. a physically settled
+            # FXForward or an FXOption.
+            # In these cases do the best to estimate a respectable date.
+            alternatives: list[datetime] = []
+            counter: int = 0
+            while len(alternatives) == 0:
+                alternatives = self.publications(delivery + timedelta(days=counter))
+                counter += 1
+            return _get_first_bus_day(alternatives, self.calendar)
+        else:
+            return self.isda_mtm_settle.adjust(delivery, self.isda_mtm_calendar)
+
+    def delivery(self, date: datetime) -> datetime:
+        """
+        Return the settlement delivery date associated with the publication date.
+
+        Parameters
+        ----------
+        date: datetime
+            The publication date of the quotation.
+
+        Returns
+        -------
+        datetime
+        """
+        return self.settle.adjust(date, self.calendar)
+
+    def publications(self, delivery: datetime) -> list[datetime]:
+        """
+        Return the potential publication dates that result in a given settlement delivery date.
+
+        Parameters
+        ----------
+        delivery: datetime
+            The settlement delivery date of the publication.
+
+        Returns
+        -------
+        list[datetime]
+        """
+        return self.settle.reverse(delivery, self.calendar)
+
+    @property
+    def allow_cross(self) -> bool:
+        """Whether to allow FXFixings which sub-divide into USD or EUR crosses."""
+        return self._allow_cross
+
+
+class _FXFixingMajor(_BaseFixing):
+    """
+    An FX fixing value for cross currency settlement.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.data.fixings import _FXFixingMajor, FXIndex
        from rateslib import fixings, dt
        from pandas import Series
 
     .. ipython:: python
 
-       fixings.add("WMR_10AM_TYO_T+2_USDJPY", Series(index=[dt(2000, 1, 1)], data=[155.00]))
-       fixings.add("WMR_10AM_TYO_T+2_AUDUSD", Series(index=[dt(2000, 1, 1)], data=[1.260]))
-       fxfix = FXFixing(date=dt(2000, 1, 1), pair="audjpy", identifier="WMR_10AM_TYO_T+2")
-       fxfix.value  #  <--  should be 1.26 * 155 = 202.5
+       fixings.add("Custom_CADSEK", Series(index=[dt(1999, 12, 29)], data=[8.7]))
+       fxfix = _FXFixingMajor(
+           delivery=dt(2000, 1, 4),
+           fx_index=FXIndex(
+               pair="cadsek",
+               calendar="tro,stk|fed",
+               settle=2,
+               isda_mtm_calendar="tro,stk,ldn,nyc",
+               isda_mtm_settle=-2,
+           ),
+           identifier="Custom"
+       )
+       fxfix.publication  #  <--  derived from isda attributes
+       fxfix.value        #  <--  should be 8.7
 
     .. ipython:: python
        :suppress:
 
-       fixings.pop("WMR_10AM_TYO_T+2_USDJPY")
-       fixings.pop("WMR_10AM_TYO_T+2_AUDUSD")
+       fixings.pop("Custom_CADSEK")
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    fx_index: FXIndex, str, :red:`required`
+        The :class:`~rateslib.data.fixings.FXIndex` defining the FX pair and its conventions.
+    publication: datetime, :green:`optional`
+        The publication date of the fixing. If not given, must provide ``delivery`` in order to
+        derive the *publication date*.
+    delivery: datetime, :green:`optional`
+        The settlement delivery date of the cashflow. Can be used to derive the *publication date*.
+        If not given is derived from the ``publication``.
+    value: float, Dual, Dual2, Variable, optional
+        The initial value for the fixing to adopt. Most commonly this is not given and it is
+        determined from a timeseries of published FX rates.
+    identifier: str, optional
+        The string name of the series to be loaded by the *Fixings* object. Will be
+        appended with "_{pair}" to derive the full timeseries key.
+
+    Notes
+    ------
+    The *FXFixingMajor* is a class designed to lookup and return FX fixings directly from a
+    Series in either the FX pair directly, or its inverse. This function depends upon what is
+    populated to the datastore. That is, if *'GBPMXN'* is an available dataseries then *'MXNGBP'*
+    would also be calculable as the inverse of *'GBPMXN'*.
+
+    When forecasting the fixing from an :class:`~rateslib.fx.FXForwards` object, the rate pair
+    will be looked up directly according to the ``delivery`` date.
+
+    The use of the name **major**, does not imply that only *FX majors* can be used by this class.
+    I.e. that it is only suitable for *'EURUSD'* and *'EURSEK'*, for example. Rather, the name
+    *major* implies that this object treats the given FX pair as a major and does not perform any
+    type of **cross**. This is, in fact, a sub-component of the more featureful
+    :class:`~rateslib.data.fixings.FXFixing` class which adheres to the ``allow_cross`` argument
+    on the :class:`~rateslib.data.fixings.FXIndex` in order to automatically handle different
+    types of required behaviour.
 
     """
 
     def __init__(
         self,
-        date: datetime,
-        pair: str,
+        fx_index: FXIndex | str,
+        publication: datetime_ = NoInput(0),
+        delivery: datetime_ = NoInput(0),
         value: DualTypes_ = NoInput(0),
         identifier: str_ = NoInput(0),
     ) -> None:
-        super().__init__(date=date, value=value, identifier=identifier)
-        self._pair = pair.lower()
-        self._is_cross = "usd" not in self._pair
+        self._fx_index = _get_fx_index(fx_index)
+        del fx_index
+
+        if isinstance(delivery, NoInput) and isinstance(publication, NoInput):
+            raise ValueError(
+                "At least one date; a `delivery` or `publication` is required to derive the "
+                "`date` used for the FX fixing."
+            )
+        elif isinstance(publication, NoInput) and isinstance(delivery, datetime):
+            # then derive it under conventions
+            date_ = self.fx_index.isda_fixing_date(delivery)
+            self._delivery = delivery
+            self._publication = date_
+        elif isinstance(publication, datetime) and isinstance(delivery, NoInput):
+            date_ = publication
+            self._publication = date_
+            self._delivery = self.fx_index.delivery(date_)
+        elif isinstance(publication, datetime) and isinstance(delivery, datetime):
+            date_ = publication
+            self._publication = date_
+            self._delivery = delivery
+        else:
+            raise TypeError(  # pragma: no cover
+                "`delivery` and `publication` given as incorrect types.\n"
+                f"Got {type(delivery).__name__} and {type(publication).__name__}."
+            )
+
+        super().__init__(date=date_, value=value, identifier=identifier)
 
     @property
-    def is_cross(self) -> bool:
-        """Whether the fixing is a cross rate derived from other USD dominated fixings."""
-        return self._is_cross
+    def fx_index(self) -> FXIndex:
+        """The :class:`FXIndex` for the FX fixing."""
+        return self._fx_index
 
     def _value_from_possible_inversion(self, identifier: str) -> DualTypes_:
         direct, inverted = self.pair, f"{self.pair[3:6]}{self.pair[0:3]}"
@@ -333,45 +623,17 @@ class FXFixing(_BaseFixing):
             self._value = v**exponent
             return self._value
 
-    def _value_from_cross(self, identifier: str) -> DualTypes_:
-        lhs1, lhs2 = "usd" + self.pair[:3], self.pair[:3] + "usd"
-        try:
-            state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs1)
-            exponent_l = -1.0
-        except ValueError:
-            try:
-                state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs2)
-                exponent_l = 1.0
-            except ValueError:
-                raise ValueError(
-                    "The LHS cross currency has no available fixing series, either "
-                    f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
-                )
+    @property
+    def publication(self) -> datetime:
+        """The publication date of the fixing as specified directly, or implied from
+        the :class:`~rateslib.data.fixings.FXIndex`."""
+        return self._publication
 
-        rhs1, rhs2 = "usd" + self.pair[3:], self.pair[3:] + "usd"
-        try:
-            state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs1)
-            exponent_r = 1.0
-        except ValueError:
-            try:
-                state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs2)
-                exponent_r = -1.0
-            except ValueError:
-                raise ValueError(
-                    "The RHS cross currency has no available fixing series, either "
-                    f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
-                )
-
-        if hash(state_l + state_r) == self._state:
-            return NoInput(0)
-        else:
-            self._state = hash(state_l + state_r)
-            v_l = self._lookup_and_calculate(timeseries_l, bounds_l)
-            v_r = self._lookup_and_calculate(timeseries_r, bounds_r)
-            if isinstance(v_l, NoInput) or isinstance(v_r, NoInput):
-                return NoInput(0)
-            self._value = v_l**exponent_l * v_r**exponent_r
-            return self._value
+    @property
+    def delivery(self) -> datetime:
+        """The settlement delivery date of the fixing as specified directly, or implied
+        from the :class:`~rateslib.data.fixings.FXIndex`."""
+        return self._delivery
 
     @property
     def value(self) -> DualTypes_:
@@ -381,10 +643,7 @@ class FXFixing(_BaseFixing):
             if isinstance(self._identifier, NoInput):
                 return NoInput(0)
             else:
-                if self.is_cross:
-                    return self._value_from_cross(identifier=self._identifier)
-                else:
-                    return self._value_from_possible_inversion(identifier=self._identifier)
+                return self._value_from_possible_inversion(identifier=self._identifier)
 
     def _lookup_and_calculate(
         self, timeseries: Series, bounds: tuple[datetime, datetime] | None
@@ -413,7 +672,7 @@ class FXFixing(_BaseFixing):
     @property
     def pair(self) -> str:
         """The currency pair related to the FX fixing."""
-        return self._pair
+        return self.fx_index.pair
 
     def value_or_forecast(self, fx: FXForwards_) -> DualTypes:
         """
@@ -430,7 +689,7 @@ class FXFixing(_BaseFixing):
         """
         if isinstance(self.value, NoInput):
             fx_: FXForwards = _validate_obj_not_no_input(fx, "FXForwards")
-            return fx_.rate(pair=self.pair, settlement=self.date)
+            return fx_.rate(pair=self.pair, settlement=self.delivery)
         else:
             return self.value
 
@@ -451,9 +710,854 @@ class FXFixing(_BaseFixing):
             if isinstance(fx, NoInput):
                 return Err(ValueError("Must provide `fx` argument to forecast FXFixing."))
             else:
-                return Ok(fx.rate(pair=self.pair, settlement=self.date))
+                return Ok(fx.rate(pair=self.pair, settlement=self.delivery))
         else:
             return Ok(self.value)
+
+    def __repr__(self) -> str:
+        return f"<rl.FXFixingMajor:{self.pair} at {hex(id(self))}>"
+
+
+def _clone_isda_mtm(pair: FXIndex | str, isda_index: FXIndex) -> FXIndex:
+    """
+    Attempt to lookup the conventions of pair, but maintain the original ISDA index conventions
+    from the given isda_index
+    """
+    if isinstance(pair, str):
+        try:
+            fx_index = _get_fx_index(pair)  # lookup the conventions from STATIC directly
+        except ValueError:
+            fx_index = FXIndex(
+                pair=pair,
+                settle=isda_index.settle,
+                calendar=isda_index.calendar,
+            )
+    else:
+        fx_index = pair
+
+    return FXIndex(
+        pair=fx_index.pair,
+        settle=fx_index.settle,
+        calendar=fx_index.calendar,
+        isda_mtm_settle=isda_index.isda_mtm_settle,
+        isda_mtm_calendar=isda_index.isda_mtm_calendar,
+    )
+
+
+def _fx_index_set_cross(pair: FXIndex, allow_cross: bool) -> FXIndex:
+    return FXIndex(
+        pair=pair.pair,
+        settle=pair.settle,
+        calendar=pair.calendar,
+        isda_mtm_settle=pair.isda_mtm_settle,
+        isda_mtm_calendar=pair.isda_mtm_calendar,
+        allow_cross=allow_cross,
+    )
+
+
+class _UnitFixing(_BaseFixing):
+    """
+    A :class:`~rateslib.data.fixings._BaseFixing` permanently adopting value 1.0.
+    Used as a placeholder.
+    """
+
+    def __init__(
+        self, *, date: datetime, value: DualTypes_ = NoInput(0), identifier: str_ = NoInput(0)
+    ) -> None:
+        self._value = 1.0
+        self._state = 0
+        self._date = date
+        self._identifier = identifier
+
+    @property
+    def value(self) -> DualTypes_:
+        """Returns 1.0."""
+        return 1.0
+
+    def value_or_forecast(self, *args: Any, **kwargs: Any) -> DualTypes:
+        """Returns 1.0."""
+        return 1.0
+
+    def __repr__(self) -> str:
+        return f"<rl._UnitFixing at {id(self)}>"
+
+    def reset(self, *args: Any, **kwargs: Any) -> None:
+        """Does nothing."""
+        pass
+
+    def _lookup_and_calculate(self, *args: Any, **kwargs: Any) -> DualTypes_:
+        return 1.0
+
+
+_WMR_EUR_BASE = ["czk", "dkk", "huf", "nok", "pln", "ron", "sek"]
+_WMR_USD_INVERTED = ["gbp", "eur", "aud", "nzd", "iep", "bwp", "sbd", "top", "wst", "xeu"]
+
+
+class _WMRClassification(Enum):
+    """
+    WMR FX Benchmarks classification. Either the currency is USD or EUR or it is a third currency
+    whose base is measured versus USD or EUR
+    """
+
+    USD = 0
+    EUR = 1
+    BASE_USD = 2
+    BASE_EUR = 3
+
+    @classmethod
+    def classify(cls, value: str) -> _WMRClassification:
+        if value == "usd":
+            return _WMRClassification.USD
+        elif value == "eur":
+            return _WMRClassification.EUR
+        elif value in _WMR_EUR_BASE:
+            return _WMRClassification.BASE_EUR
+        else:
+            return _WMRClassification.BASE_USD
+
+
+class FXFixing(_BaseFixing):
+    """
+    An FX fixing value for cross-currency or non-deliverable settlement.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.data.fixings import FXFixing, FXIndex
+       from rateslib import fixings, dt, FXForwards, FXRates, Curve
+       from pandas import Series
+
+    .. ipython:: python
+
+       fixings.add("WMR_10AMTYO_USDJPY", Series(index=[dt(1999, 12, 29)], data=[155.00]))
+       fixings.add("WMR_10AMTYO_AUDUSD", Series(index=[dt(1999, 12, 29)], data=[1.260]))
+       fxfix = FXFixing(
+           delivery=dt(2000, 1, 4),
+           fx_index=FXIndex(
+               pair="audjpy",
+               calendar="syd,tyo|fed",
+               settle=2,
+               isda_mtm_calendar="syd,tyo,ldn",
+               isda_mtm_settle=-2,
+               allow_cross=True,
+           ),
+           identifier="WMR_10AMTYO"
+       )
+       fxfix.publication  #  <--  derived from isda attributes
+       fxfix.value        #  <--  should be from the cross 1.26 * 155 = 195.3
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("WMR_10AMTYO_USDJPY")
+       fixings.pop("WMR_10AMTYO_AUDUSD")
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    fx_index: FXIndex, str, :red:`required`
+        The :class:`~rateslib.data.fixings.FXIndex` defining the FX pair and its conventions.
+    publication: datetime, :green:`optional`
+        The publication date of the fixing. If not given, must provide ``delivery`` in order to
+        derive the *publication date*.
+    delivery: datetime, :green:`optional`
+        The settlement delivery date of the cashflow. Can be used to derive the *publication date*.
+        If not given is derived from the ``publication``.
+    value: float, Dual, Dual2, Variable, optional
+        The initial value for the fixing to adopt. Most commonly this is not given and it is
+        determined from a timeseries of published FX rates.
+    identifier: str, optional
+        The string name of the series to be loaded by the *Fixings* object. Will be
+        appended with "_{pair}" to derive the full timeseries key.
+
+    Notes
+    -----
+    This object is designed to systematically handle FX fixings across variety of conventions
+    and is typically used for non-deliverable and MTM-XCS settlement.
+
+    If the :class:`~rateslib.data.fixings.FXIndex` is configured to ``allow_cross`` (which is
+    the general default) then it will adopt the `WMR Benchmark Methodology <https://www.lseg.com/content/dam/ftse-russell/en_us/documents/ground-rules/wmr-fx-methodology.pdf>`__
+    and assume cross rates against base USD, except if the currency is one of the European
+    currencies defined as having a base EUR, by that methodology.
+
+    Suppose one transacted a *CADSEK mtm-XCS* with a CAD mtm *Leg*. The ISDA MTM fixing date could
+    be defined as being 2 business days prior to the cashflow under the Stockholm, New York, London
+    and Toronto calendars. Under WMR, CAD has a USD base, and SEK has a EUR base, so the
+    determination of this FX Fixing will be a 3-way cross: CADUSD * USDEUR * EURSEK.
+
+    WMR ignores market settlement convention and local calendars in the determination of the cross.
+    So a cashflow due on 8th Jan '26 will determine a publication date as 5th Jan '26 (since the
+    6th Jan is holiday in Stockholm). All three WMR publication will have different
+    settlement (delivery dates) for the publication date on the 5th Jan:
+
+    .. ipython:: python
+
+       fxfix = FXFixing(
+           fx_index=FXIndex(
+               pair="cadsek",
+               calendar="tro,stk|fed",
+               settle=2,
+               isda_mtm_calendar="tro,ldn,stk,nyc",
+               isda_mtm_settle=-2,
+               allow_cross=True,
+           ),
+           delivery=dt(2026, 1, 8),
+       )
+       fxfix.publication  #  <-- is 5th Jan determnined from the isda specications
+       fxfix.fx_fixing1.delivery  #  <-- USDCAD is T+1 under "tro|fed" defined by defaults
+       fxfix.fx_fixing2.delivery  #  <-- EURUSD is T+2 under "tgt|fed" defined by defaults
+       fxfix.fx_fixing3.delivery  #  <-- EURSEK is T+2 under "tgt,stk|fed" defined by defaults
+
+    This has implications towards the forecasting of these fixing values. In order to properly
+    forecast the above an :class:`~rateslib.fx.FXForwards` with all four currencies is required.
+
+    .. ipython:: python
+       :suppress:
+
+       sek = Curve({dt(2026, 1, 1): 1.0, dt(2027, 1, 1): 0.98})
+       eur = Curve({dt(2026, 1, 1): 1.0, dt(2027, 1, 1): 0.981})
+       cad = Curve({dt(2026, 1, 1): 1.0, dt(2027, 1, 1): 0.97})
+       usd = Curve({dt(2026, 1, 1): 1.0, dt(2027, 1, 1): 0.965})
+
+       fxf = FXForwards(
+           fx_rates=[
+               FXRates({"usdcad": 1.38}, settlement=dt(2026, 1, 2)),
+               FXRates({"eurusd": 1.165, "eursek": 10.75}, settlement=dt(2026, 1, 3))
+           ],
+           fx_curves={
+               "seksek": sek, "sekusd": sek, "eureur": eur, "eurusd": eur, "cadcad": cad, "cadusd": cad, "usdusd": usd
+           }
+       )
+
+    .. ipython:: python
+
+       fxfix.value_or_forecast(fx=fxf)  #  <-  FXForwards:usd,cad,eur,sek
+       fxf.rate("cadusd", dt(2026, 1, 6)) * fxf.rate("usdeur", dt(2026, 1, 7)) * fxf.rate("eursek", dt(2026, 1, 8))
+
+    Note that this is different to the **actual** *CADSEK* forecast FX rate and this is due to
+    those milaligned crosses and calendars.
+
+    .. ipython:: python
+
+       fxfix = FXFixing(
+           fx_index=FXIndex(
+               pair="cadsek",
+               calendar="tro,stk|fed",
+               settle=2,
+               isda_mtm_calendar="tro,ldn,stk,nyc",
+               isda_mtm_settle=-2,
+               allow_cross=False,      #  <-  Everything the same except no crossing allowed
+           ),
+           delivery=dt(2026, 1, 8),
+       )
+       fxfix.value_or_forecast(fx=fxf)
+       fxf.rate("cadsek", dt(2026, 1, 8))
+
+    """  # noqa: E501
+
+    def __init__(
+        self,
+        fx_index: FXIndex | str,
+        publication: datetime_ = NoInput(0),
+        delivery: datetime_ = NoInput(0),
+        value: DualTypes_ = NoInput(0),
+        identifier: str_ = NoInput(0),
+    ) -> None:
+        self._fx_index = _get_fx_index(fx_index)
+        del fx_index
+
+        if isinstance(delivery, NoInput) and isinstance(publication, NoInput):
+            raise ValueError(
+                "At least one date; a `delivery` or `publication` is required to derive the "
+                "`date` used for the FX fixing."
+            )
+        elif isinstance(publication, NoInput) and isinstance(delivery, datetime):
+            # then derive it under conventions
+            date_ = self.fx_index.isda_fixing_date(delivery)
+            self._delivery = delivery
+            self._publication = date_
+        elif isinstance(publication, datetime) and isinstance(delivery, NoInput):
+            date_ = publication
+            self._publication = date_
+            self._delivery = self.fx_index.delivery(date_)
+        elif isinstance(publication, datetime) and isinstance(delivery, datetime):
+            date_ = publication
+            self._publication = date_
+            self._delivery = delivery
+        else:
+            raise TypeError(  # pragma: no cover
+                "`delivery` and `publication` given as incorrect types.\n"
+                f"Got {type(delivery).__name__} and {type(publication).__name__}."
+            )
+
+        self._identifier = identifier if isinstance(identifier, NoInput) else identifier.upper()
+        self._value = value
+        self._date = date_
+
+        if not self.allow_cross:
+            self._fx_fixing1: _FXFixingMajor = _FXFixingMajor(
+                fx_index=self.fx_index,
+                publication=self.publication,
+                delivery=self.delivery,
+                value=value,
+                identifier=identifier,
+            )
+            self._fx_fixing2: _FXFixingMajor | _UnitFixing = _UnitFixing(
+                date=self.publication, identifier=identifier
+            )
+            self._fx_fixing3: _FXFixingMajor | _UnitFixing = _UnitFixing(
+                date=self.publication, identifier=identifier
+            )
+        else:
+            ccy1, ccy2 = self.fx_index.pair[:3], self.fx_index.pair[3:]
+
+            match (
+                _WMRClassification.classify(self.pair[:3]),
+                _WMRClassification.classify(self.pair[3:]),
+            ):
+                case (_WMRClassification.USD, _WMRClassification.USD):
+                    raise ValueError("An FXFixing between 'usd' and 'usd' is not valid.")
+                case (_WMRClassification.EUR, _WMRClassification.EUR):
+                    raise ValueError("An FXFixing between 'eur' and 'eur' is not valid.")
+                case (
+                    (_WMRClassification.USD, _WMRClassification.EUR)
+                    | (_WMRClassification.EUR, _WMRClassification.USD)
+                    | (_WMRClassification.USD, _WMRClassification.BASE_USD)
+                    | (_WMRClassification.BASE_USD, _WMRClassification.USD)
+                    | (_WMRClassification.EUR, _WMRClassification.BASE_EUR)
+                    | (_WMRClassification.BASE_EUR, _WMRClassification.EUR)
+                ):
+                    # then the pair is a direct major determined by WMR
+                    self._fx_fixing1 = _FXFixingMajor(
+                        fx_index=self.fx_index,
+                        publication=self.publication,
+                        delivery=self.delivery,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing2 = _UnitFixing(date=self.publication, identifier=identifier)
+                    self._fx_fixing3 = _UnitFixing(date=self.publication, identifier=identifier)
+                case (
+                    (_WMRClassification.USD, _WMRClassification.BASE_EUR)
+                    | (_WMRClassification.BASE_EUR, _WMRClassification.USD)
+                    | (_WMRClassification.BASE_EUR, _WMRClassification.BASE_EUR)
+                ):
+                    # then must be a 2 pair cross involving EUR
+                    self._fx_fixing1 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"{ccy1}eur", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing2 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"eur{ccy2}", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing3 = _UnitFixing(date=self.publication, identifier=identifier)
+                case (
+                    (_WMRClassification.BASE_USD, _WMRClassification.EUR)
+                    | (_WMRClassification.EUR, _WMRClassification.BASE_USD)
+                    | (_WMRClassification.BASE_USD, _WMRClassification.BASE_USD)
+                ):
+                    # then must be a 2 pair cross involving USD
+                    self._fx_fixing1 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"{ccy1}usd", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing2 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"usd{ccy2}", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing3 = _UnitFixing(date=self.publication, identifier=identifier)
+                case (_WMRClassification.BASE_USD, _WMRClassification.BASE_EUR):
+                    # then must be a 4 currency cross involving EUR and USD
+                    self._fx_fixing1 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"{ccy1}usd", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing2 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm("usdeur", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing3 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"eur{ccy2}", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                case (_WMRClassification.BASE_EUR, _WMRClassification.BASE_USD):
+                    # then must be a 4 currency cross involving EUR and USD
+                    self._fx_fixing1 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"{ccy1}eur", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing2 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm("eurusd", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+                    self._fx_fixing3 = _FXFixingMajor(
+                        fx_index=_clone_isda_mtm(f"usd{ccy2}", self.fx_index),
+                        publication=self.publication,
+                        identifier=identifier,
+                    )
+
+    @property
+    def _state(self) -> int:  # type: ignore[override]
+        return hash(self.fx_fixing1._state + self.fx_fixing2._state + self.fx_fixing3._state)
+
+    @property
+    def fx_fixing1(self) -> _FXFixingMajor:
+        """
+        The first (or only) :class:`~rateslib.data.fixings._FXFixingMajor` required by the fixing.
+        """
+        return self._fx_fixing1
+
+    @property
+    def fx_fixing2(self) -> _FXFixingMajor | _UnitFixing:
+        """
+        The second :class:`~rateslib.data.fixings._FXFixingMajor` required by the fixing if crossed.
+        """
+        return self._fx_fixing2
+
+    @property
+    def fx_fixing3(self) -> _FXFixingMajor | _UnitFixing:
+        """
+        The third :class:`~rateslib.data.fixings._FXFixingMajor` required by the fixing if crossed.
+        """
+        return self._fx_fixing3
+
+    @property
+    def allow_cross(self) -> bool:
+        """Whether the fixing uses WMR base currencies and majors or directly looks up the given
+        pair."""
+        return self.fx_index.allow_cross
+
+    @property
+    def fx_index(self) -> FXIndex:
+        """The :class:`FXIndex` for the FX fixing."""
+        return self._fx_index
+
+    @property
+    def publication(self) -> datetime:
+        """The publication date of the fixing as specified directly, or implied from
+        the :class:`~rateslib.data.fixings.FXIndex`."""
+        return self._publication
+
+    @property
+    def delivery(self) -> datetime:
+        """The settlement delivery date of the fixing as specified directly, or implied
+        from the :class:`~rateslib.data.fixings.FXIndex`."""
+        return self._delivery
+
+    @property
+    def value(self) -> DualTypes_:
+        if not isinstance(self._value, NoInput):
+            return self._value
+        else:
+            if (
+                isinstance(self.fx_fixing1.value, NoInput)
+                or isinstance(self.fx_fixing2.value, NoInput)
+                or isinstance(self.fx_fixing3.value, NoInput)
+            ):
+                return NoInput(0)
+            else:
+                self._value = self.fx_fixing1.value * self.fx_fixing2.value * self.fx_fixing3.value
+                return self._value
+
+    @property
+    def pair(self) -> str:
+        """The currency pair related to the FX fixing."""
+        return self.fx_index.pair
+
+    def value_or_forecast(self, fx: FXForwards_) -> DualTypes:
+        """
+        Return the determined value of the fixing or forecast it if not available.
+
+        Parameters
+        ----------
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        if isinstance(self.value, NoInput):
+            fx_: FXForwards = _validate_obj_not_no_input(fx, "FXForwards")
+            f1 = self.fx_fixing1.value_or_forecast(fx=fx_)
+            f2 = self.fx_fixing2.value_or_forecast(fx=fx_)
+            f3 = self.fx_fixing3.value_or_forecast(fx=fx_)
+            return f1 * f2 * f3
+        else:
+            return self.value
+
+    def try_value_or_forecast(self, fx: FXForwards_) -> Result[DualTypes]:
+        """
+        Return the determined value of the fixing or forecast it if not available.
+
+        Parameters
+        ----------
+        fx: FXForwards, optional
+            The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
+
+        Returns
+        -------
+        Result[float, Dual, Dual2, Variable]
+        """
+        if isinstance(self.value, NoInput):
+            if isinstance(fx, NoInput):
+                return Err(ValueError("Must provide `fx` argument to forecast FXFixing."))
+            else:
+                return Ok(fx.rate(pair=self.pair, settlement=self.delivery))
+        else:
+            return Ok(self.value)
+
+    def _lookup_and_calculate(
+        self, timeseries: Series, bounds: tuple[datetime, datetime] | None
+    ) -> DualTypes_:
+        raise NotImplementedError("FXFixing does not support lookup and calculation.")
+
+    @classmethod
+    def _lookup(
+        cls,
+        timeseries: Series[DualTypes],  # type: ignore[type-var]
+        date: datetime,
+        bounds: tuple[datetime, datetime] | None = None,
+    ) -> DualTypes_:
+        raise NotImplementedError("FXFixing does not support lookup.")
+        result = fixings.__base_lookup__(
+            fixing_series=timeseries,
+            lookup_date=date,
+            bounds=bounds,
+        )
+        if isinstance(result, Err):
+            if isinstance(result._exception, FixingRangeError):
+                return NoInput(0)
+            result.unwrap()
+        else:
+            return result.unwrap()
+
+    def __repr__(self) -> str:
+        _1 = self.fx_fixing1.pair
+        _2 = ("/" + self.fx_fixing2.pair) if not isinstance(self.fx_fixing2, _UnitFixing) else ""
+        _3 = ("/" + self.fx_fixing3.pair) if not isinstance(self.fx_fixing3, _UnitFixing) else ""
+        return f"<rl.FXFixing:{_1}{_2}{_3} at {hex(id(self))}>"
+
+    def reset(self, state: int_ = NoInput(0)) -> None:
+        if (
+            isinstance(state, NoInput)
+            or self.fx_fixing1._state == state
+            or self.fx_fixing2._state == state
+            or self.fx_fixing3._state == state
+        ):
+            self._value = NoInput(0)
+        self._fx_fixing1.reset(state)
+        self._fx_fixing2.reset(state)
+        self._fx_fixing3.reset(state)
+
+
+# class FXFixing_Legacy(_BaseFixing):
+#     """
+#     An FX fixing value for cross currency settlement.
+#
+#     .. role:: red
+#
+#     .. role:: green
+#
+#     Parameters
+#     ----------
+#     fx_index: FXIndex, str, :red:`required`
+#         The :class:`~rateslib.data.fixings.FXIndex` defining the FX pair and its conventions.
+#     publication: datetime, :green:`optional`
+#         The publication date of the fixing. If not given, must provide ``delivery`` in order to
+#         derive the *publication date*.
+#     delivery: datetime, :green:`optional`
+#         The settlement delivery date of the cashflow. Can be used to derive the
+#         *publication date*. If not given is derived from the ``publication``.
+#     value: float, Dual, Dual2, Variable, optional
+#         The initial value for the fixing to adopt. Most commonly this is not given and it is
+#         determined from a timeseries of published FX rates.
+#     identifier: str, optional
+#         The string name of the series to be loaded by the *Fixings* object. Will be
+#         appended with "_{pair}" to derive the full timeseries key.
+#
+#     Examples
+#     --------
+#
+#     .. ipython:: python
+#        :suppress:
+#
+#        from rateslib.data.fixings import FXFixing, FXIndex
+#        from rateslib import fixings, dt
+#        from pandas import Series
+#
+#     .. ipython:: python
+#
+#        fixings.add("WMRPSPOT01_USDJPY", Series(index=[dt(1999, 12, 29)], data=[155.00]))
+#        fixings.add("WMRPSPOT01_AUDUSD", Series(index=[dt(1999, 12, 29)], data=[1.260]))
+#        fxfix = FXFixing(
+#            delivery=dt(2000, 1, 4),
+#            fx_index=FXIndex(
+#                pair="audjpy",
+#                calendar="syd,tyo|fed",
+#                settle=2,
+#                isda_mtm_calendar="syd,tyo,ldn",
+#                isda_mtm_settle=-2,
+#            ),
+#            identifier="WMRPSPOT01"
+#        )
+#        fxfix.publication  #  <--  derived from isda attributes
+#        fxfix.value  #  <--  should be 1.26 * 155 = 202.5
+#
+#     .. ipython:: python
+#        :suppress:
+#
+#        fixings.pop("WMRPSPOT01_USDJPY")
+#        fixings.pop("WMRPSPOT01_AUDUSD")
+#
+#     """
+#
+#     def __init__(
+#         self,
+#         fx_index: FXIndex | str,
+#         publication: datetime_ = NoInput(0),
+#         delivery: datetime_ = NoInput(0),
+#         value: DualTypes_ = NoInput(0),
+#         identifier: str_ = NoInput(0),
+#     ) -> None:
+#         fx_index_: FXIndex = _get_fx_index(fx_index)
+#         del fx_index
+#         if isinstance(delivery, NoInput) and isinstance(publication, NoInput):
+#             raise ValueError(
+#                 "At least one date; a `delivery` or `publication` is required to derive the "
+#                 "`date` used for the FX fixing."
+#             )
+#         elif isinstance(publication, NoInput) and isinstance(delivery, datetime):
+#             # then derive it under conventions
+#             date_ = fx_index_.isda_fixing_date(delivery)
+#             self._delivery = delivery
+#             self._publication = date_
+#         elif isinstance(publication, datetime):
+#             date_ = publication
+#             self._publication = date_
+#             if isinstance(delivery, NoInput):
+#                 self._delivery = fx_index_.delivery(date_)
+#
+#         super().__init__(date=date_, value=value, identifier=identifier)
+#         self._fx_index = fx_index_
+#         self._is_cross = "usd" not in self.fx_index.pair
+#
+#     @property
+#     def fx_index(self) -> FXIndex:
+#         """The :class:`FXIndex` for the FX fixing."""
+#         return self._fx_index
+#
+#     @property
+#     def is_cross(self) -> bool:
+#         """Whether the fixing is a cross rate derived from other USD dominated fixings."""
+#         return self._is_cross
+#
+#     def _value_from_possible_inversion(self, identifier: str) -> DualTypes_:
+#         direct, inverted = self.pair, f"{self.pair[3:6]}{self.pair[0:3]}"
+#         try:
+#             state, timeseries, bounds = fixings.__getitem__(identifier + "_" + direct)
+#             exponent = 1.0
+#         except ValueError as e:
+#             try:
+#                 state, timeseries, bounds = fixings.__getitem__(identifier + "_" + inverted)
+#                 exponent = -1.0
+#             except ValueError:
+#                 raise e
+#
+#         if state == self._state:
+#             return NoInput(0)
+#         else:
+#             self._state = state
+#             v = self._lookup_and_calculate(timeseries, bounds)
+#             if isinstance(v, NoInput):
+#                 return NoInput(0)
+#             self._value = v**exponent
+#             return self._value
+#
+#     def _value_from_cross(self, identifier: str) -> DualTypes_:
+#         lhs1, lhs2 = "usd" + self.pair[:3], self.pair[:3] + "usd"
+#         try:
+#             state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs1)
+#             exponent_l = -1.0
+#         except ValueError:
+#             try:
+#                 state_l, timeseries_l, bounds_l = fixings.__getitem__(identifier + "_" + lhs2)
+#                 exponent_l = 1.0
+#             except ValueError:
+#                 raise ValueError(
+#                     "The LHS cross currency has no available fixing series, either "
+#                     f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
+#                 )
+#
+#         rhs1, rhs2 = "usd" + self.pair[3:], self.pair[3:] + "usd"
+#         try:
+#             state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs1)
+#             exponent_r = 1.0
+#         except ValueError:
+#             try:
+#                 state_r, timeseries_r, bounds_r = fixings.__getitem__(identifier + "_" + rhs2)
+#                 exponent_r = -1.0
+#             except ValueError:
+#                 raise ValueError(
+#                     "The RHS cross currency has no available fixing series, either "
+#                     f"{identifier + '_' + lhs1} or {identifier + '_' + lhs2}"
+#                 )
+#
+#         if hash(state_l + state_r) == self._state:
+#             return NoInput(0)
+#         else:
+#             self._state = hash(state_l + state_r)
+#             v_l = self._lookup_and_calculate(timeseries_l, bounds_l)
+#             v_r = self._lookup_and_calculate(timeseries_r, bounds_r)
+#             if isinstance(v_l, NoInput) or isinstance(v_r, NoInput):
+#                 return NoInput(0)
+#             self._value = v_l**exponent_l * v_r**exponent_r
+#             return self._value
+#
+#     @property
+#     def publication(self) -> datetime:
+#         return self._publication
+#
+#     @property
+#     def delivery(self) -> datetime:
+#         return self._delivery
+#
+#     @property
+#     def value(self) -> DualTypes_:
+#         if not isinstance(self._value, NoInput):
+#             return self._value
+#         else:
+#             if isinstance(self._identifier, NoInput):
+#                 return NoInput(0)
+#             else:
+#                 if self.is_cross:
+#                     return self._value_from_cross(identifier=self._identifier)
+#                 else:
+#                     return self._value_from_possible_inversion(identifier=self._identifier)
+#
+#     def _lookup_and_calculate(
+#         self, timeseries: Series, bounds: tuple[datetime, datetime] | None
+#     ) -> DualTypes_:
+#         return self._lookup(timeseries=timeseries, date=self.date, bounds=bounds)
+#
+#     @classmethod
+#     def _lookup(
+#         cls,
+#         timeseries: Series[DualTypes],  # type: ignore[type-var]
+#         date: datetime,
+#         bounds: tuple[datetime, datetime] | None = None,
+#     ) -> DualTypes_:
+#         result = fixings.__base_lookup__(
+#             fixing_series=timeseries,
+#             lookup_date=date,
+#             bounds=bounds,
+#         )
+#         if isinstance(result, Err):
+#             if isinstance(result._exception, FixingRangeError):
+#                 return NoInput(0)
+#             result.unwrap()
+#         else:
+#             return result.unwrap()
+#
+#     @property
+#     def pair(self) -> str:
+#         """The currency pair related to the FX fixing."""
+#         return self.fx_index.pair
+#
+#     def value_or_forecast(self, fx: FXForwards_) -> DualTypes:
+#         """
+#         Return the determined value of the fixing or forecast it if not available.
+#
+#         Parameters
+#         ----------
+#         fx: FXForwards, optional
+#             The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
+#
+#         Returns
+#         -------
+#         float, Dual, Dual2, Variable
+#         """
+#         if isinstance(self.value, NoInput):
+#             fx_: FXForwards = _validate_obj_not_no_input(fx, "FXForwards")
+#             return fx_.rate(pair=self.pair, settlement=self.delivery)
+#         else:
+#             return self.value
+#
+#     def try_value_or_forecast(self, fx: FXForwards_) -> Result[DualTypes]:
+#         """
+#         Return the determined value of the fixing or forecast it if not available.
+#
+#         Parameters
+#         ----------
+#         fx: FXForwards, optional
+#             The :class:`~rateslib.fx.FXForwards` object to forecast the forward FX rate.
+#
+#         Returns
+#         -------
+#         Result[float, Dual, Dual2, Variable]
+#         """
+#         if isinstance(self.value, NoInput):
+#             if isinstance(fx, NoInput):
+#                 return Err(ValueError("Must provide `fx` argument to forecast FXFixing."))
+#             else:
+#                 return Ok(fx.rate(pair=self.pair, settlement=self.delivery))
+#         else:
+#             return Ok(self.value)
+
+
+def _maybe_get_fx_index(val: FXIndex | str_) -> FXIndex_:
+    if isinstance(val, NoInput):
+        return NoInput(0)
+    else:
+        return _get_fx_index(val)
+
+
+def _get_fx_index(val: FXIndex | str) -> FXIndex:
+    if isinstance(val, FXIndex):
+        return val
+    else:
+        pair = val.lower()
+        try:
+            return FXIndex(**defaults.fx_index[pair])
+        except KeyError:
+            try:
+                reverse_fxi = FXIndex(**defaults.fx_index[f"{pair[3:]}{pair[:3]}"])
+                return FXIndex(
+                    pair=pair,
+                    calendar=reverse_fxi.calendar,
+                    settle=reverse_fxi.settle,
+                    isda_mtm_calendar=reverse_fxi.isda_mtm_calendar,
+                    isda_mtm_settle=reverse_fxi.isda_mtm_settle,
+                )
+            except KeyError:
+                raise ValueError(
+                    f"The FXIndex: '{pair}' was not found in `defaults`.\n"
+                    "To add a default specification for the required FXIndex, for example, use:\n"
+                    f"> defaults.fx_index['{pair}'] = {{ \n"
+                    "      'pair': 'usdsek',\n"
+                    "      'calendar': 'stk|fed',\n"
+                    "      'settle': '2B',\n"
+                    "      'isda_mtm_settle': '-2B',\n"
+                    "      'isda_mtm_calendar': 'stk',\n"
+                    "      'allow_cross': True,\n"
+                    f"  }}\n"
+                    "Alternatively, create an FXIndex directly and supply it to `pair`, "
+                    "for example:\n> pair=FXIndex('usdsek', 'stk|fed\\, 2)"
+                )
 
 
 class IBORFixing(_BaseFixing):
@@ -796,6 +1900,13 @@ class IBORStubFixing(_BaseFixing):
                 )
                 return self._value
 
+    def reset(self, state: int_ = NoInput(0)) -> None:
+        if not isinstance(self._fixing1, NoInput):
+            self._fixing1.reset(state=state)
+        if not isinstance(self._fixing2, NoInput):
+            self._fixing2.reset(state=state)
+        self._value = NoInput(0)
+
     @cached_property
     def weights(self) -> tuple[float, float]:
         """Scalar multiplier to apply to each tenor fixing for the interpolation."""
@@ -1018,6 +2129,12 @@ class RFRFixing(_BaseFixing):
         self._fixing_method = _get_float_fixing_method(fixing_method)
         self._method_param = method_param
         self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
+
+    def reset(self, state: int_ = NoInput(0)) -> None:
+        if isinstance(state, NoInput) or self._state == state:
+            self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
+            self._value = NoInput(0)
+            self._state = 0
 
     @property
     def fixing_method(self) -> FloatFixingMethod:
@@ -1298,14 +2415,23 @@ class FloatRateSeries:
     """
     Define the general parameters of multiple tenors of an interest rate series.
 
+    .. role:: red
+
+    .. role:: green
+
     Parameters
     ----------
-    lag: int
-        The
+    lag: int, :red:`required`
+        The number of business days by which the fixing date is lagged to the accrual start date.
+    calendar: Calendar, str :green:`required`
+        The calendar associated with the floating rate's date determination.
+    modifier: Adjuster, str, :red:`required`
+        The :class:`Adjuster` associated with the end accrual day of the floating rate's date.
+    convention: Convention, str, :green:`required`
+        The day count :class:`~rateslib.scheduling.Convention` associated with the floating rate.
+    eom: bool, :red:`required`
+        Whether the interest rate index natively adopts EoM roll preference or not.
 
-    Examples
-    --------
-    None
     """
 
     _lag: int
@@ -2315,155 +3441,24 @@ class _RFRRate:
             return Ok(_)
 
 
-_SERIES_MAP = {
-    "usd_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("nyc"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "usd_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("nyc"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "gbp_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "gbp_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "sek_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=True,
-    ),
-    "sek_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("ldn"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "eur_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tgt"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "eur_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tgt"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "nok_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("osl"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "nok_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("osl"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "chf_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("zur"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "chf_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("zur"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act360,
-        eom=False,
-    ),
-    "cad_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tro"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "cad_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tro"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "jpy_ibor": FloatRateSeries(
-        lag=2,
-        calendar=NamedCal("tyo"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "jpy_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("tyo"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "aud_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("syd"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "aud_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("syd"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-    "nzd_ibor": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("wlg"),
-        modifier=Adjuster.ModifiedFollowing(),
-        convention=Convention.Act365F,
-        eom=True,
-    ),
-    "nzd_rfr": FloatRateSeries(
-        lag=0,
-        calendar=NamedCal("wlg"),
-        modifier=Adjuster.Following(),
-        convention=Convention.Act365F,
-        eom=False,
-    ),
-}
-
-
 def _get_float_rate_series(val: FloatRateSeries | str) -> FloatRateSeries:
     if isinstance(val, FloatRateSeries):
         return val
     else:
-        return _SERIES_MAP[val.lower()]
+        try:
+            return FloatRateSeries(**defaults.float_series[val.lower()])
+        except KeyError:
+            raise ValueError(
+                f"The FloatRateSeries: '{val.lower()}' was not found in `defaults`.\n"
+                "To add a default specification for a FloatRateSeries, for example, use:\n"
+                f"> defaults.float_series['{val.lower()}'] = {{ \n"
+                "      'lag': 2,\n"
+                "      'calendar': 'nyc',\n"
+                "      'modifier': 'MF',\n"
+                "      'convention': 'Act360',\n"
+                "      'eom': False,\n"
+                f"  }}"
+            )
 
 
 def _get_float_rate_series_or_blank(val: FloatRateSeries | str_) -> FloatRateSeries | NoInput:
@@ -2543,6 +3538,9 @@ __all__ = [
     "IBORFixing",
     "IBORStubFixing",
     "IndexFixing",
+    "FXIndex",
     "FXFixing",
+    "_FXFixingMajor",
+    "_UnitFixing",
     "_BaseFixing",
 ]

@@ -15,11 +15,11 @@ features = ["pyo3/extension-module"]
 
 [project]
 name = "rateslib"
-version = "2.5.dev0"
+version = "2.5.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
-license = { file = "LICENSE" }
+license-files = ["LICEN[CS]E"]
 keywords = ["interest rate", "derivatives", "swaps", "bonds", "fixed income"]
 dependencies = [
     "numpy>=1.21.5,<3.0",

@@ -33,6 +33,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         IndexMethod,
         LegFixings,
         Schedule,
@@ -125,8 +126,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
            The following define **non-deliverable** parameters. If the *Leg* is directly
            deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    pair: str, :green:`optional`
-        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
@@ -551,7 +553,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         currency: str_ = NoInput(0),
         # non-deliverable
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
         mtm: LegMtm | str = LegMtm.Initial,
         # period
@@ -855,8 +857,9 @@ class ZeroFixedLeg(_BaseLeg):
            The following define **non-deliverable** parameters. If the *Leg* is directly
            deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    pair: str, :green:`optional`
-        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
@@ -931,7 +934,7 @@ class ZeroFixedLeg(_BaseLeg):
         initial_exchange: bool = False,
         final_exchange: bool = False,
         # non-deliverable
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
         mtm: bool = False,
         # index params
@@ -1159,8 +1162,9 @@ class ZeroIndexLeg(_BaseLeg):
            The following define **non-deliverable** parameters. If the *Leg* is directly
            deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    pair: str, :green:`optional`
-        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
@@ -1256,7 +1260,7 @@ class ZeroIndexLeg(_BaseLeg):
         initial_exchange: bool = False,
         final_exchange: bool = False,
         # non-deliverable
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
         mtm: bool = False,
         # index params

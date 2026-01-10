@@ -1,0 +1,54 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Ubuntu latest
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.14"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Rust
+      uses: actions-rust-lang/setup-rust-toolchain@v1
+    - name: Rust linting checks
+      run: |
+        cargo fmt --check
+    - name: Rust library tests
+      run: |
+        cargo test --lib
+    - name: Rust doc tests
+      run: |
+        cargo test --doc
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev] -v
+    - name: Python Ruff linting
+      run: |
+        ruff check
+    - name: Python Ruff formatting
+      run: |
+        ruff format --check
+    - name: Python typing with Mypy
+      run: |
+        mypy --config-file pyproject.toml
+    - name: Test with pytest and display Coverage
+      run: |
+        coverage run -m --source=rateslib pytest
+        coverage report -m

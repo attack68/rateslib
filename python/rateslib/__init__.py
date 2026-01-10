@@ -60,6 +60,20 @@ from rateslib.curves import (
     index_left,
     index_value,
 )
+from rateslib.curves.academic import (
+    NelsonSiegelCurve,
+    NelsonSiegelSvenssonCurve,
+)
+from rateslib.data.fixings import (
+    FloatRateIndex,
+    FloatRateSeries,
+    FXFixing,
+    FXIndex,
+    IBORFixing,
+    IBORStubFixing,
+    IndexFixing,
+    RFRFixing,
+)
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.enums.generics import NoInput
 from rateslib.fx import FXForwards, FXRates
@@ -116,6 +130,8 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
+    ZeroFixedPeriod,
+    ZeroFloatPeriod,
 )
 from rateslib.scheduling import (
     Adjuster,
@@ -201,12 +217,18 @@ __all__ = [
     "ProxyCurve",
     "index_left",
     "index_value",
-    # # analytic_fixings.py  cannot load due to circular import
-    # "FXFixing",
-    # "IBORFixing",
-    # "IBORStubFixing",
-    # "IndexFixing",
-    # "RFRFixing",
+    # academic curves
+    "NelsonSiegelCurve",
+    "NelsonSiegelSvenssonCurve",
+    # fixings.py
+    "FXFixing",
+    "IBORFixing",
+    "IBORStubFixing",
+    "IndexFixing",
+    "RFRFixing",
+    "FXIndex",
+    "FloatRateIndex",
+    "FloatRateSeries",
     # fx_volatility.py
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
@@ -220,6 +242,8 @@ __all__ = [
     # periods.py,
     "FixedPeriod",
     "FloatPeriod",
+    "ZeroFixedPeriod",
+    "ZeroFloatPeriod",
     "Cashflow",
     "FXCallPeriod",
     "FXPutPeriod",
@@ -269,4 +293,4 @@ __all__ = [
     "FXBrokerFly",
 ]
 
-__version__ = "2.5.dev0"
+__version__ = "2.5.0"

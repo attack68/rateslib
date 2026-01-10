@@ -54,11 +54,16 @@ class _WithAccrued(Protocol):
 
         Notes
         -----
-        Fractionally apportions the coupon payment based on calendar days.
+        The amount of accrued interest is calculated using the following formula:
 
         .. math::
 
-           \\text{Accrued} = \\text{Coupon} \\times \\frac{\\text{Settle - Last Coupon}}{\\text{Next Coupon - Last Coupon}}
+           &AI = \\xi c_i \\qquad \\text{if not ex-dividend} \\\\
+           &AI = (\\xi - 1) c_i \\qquad \\text{if ex-dividend} \\\\
+
+        where :math:`c_i` is the physical ``cashflow`` related to the period in which ``settlement``
+        falls, and :math:`\\xi` is a fraction of that amount determined according to the
+        calculation mode specific to the :class:`~rateslib.instruments.BondCalcMode`.
 
         """  # noqa: E501
         return self._accrued(settlement, self.kwargs.meta["calc_mode"]._settle_accrual)

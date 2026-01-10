@@ -6,9 +6,13 @@ import pandas as pd
 import pytest
 from rateslib import fixings
 from rateslib.curves import Curve
+from rateslib.data.fixings import FXIndex
 from rateslib.enums import FloatFixingMethod, SpreadCompoundMethod
+from rateslib.enums.generics import NoInput
+from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
-from rateslib.periods import FixedPeriod, FloatPeriod
+from rateslib.periods import FixedPeriod, FloatPeriod, FXCallPeriod, MtmCashflow, ZeroFloatPeriod
+from rateslib.scheduling import Schedule
 from rateslib.solver import Solver
 
 
@@ -328,6 +332,31 @@ class TestFloatPeriod:
         for i in range(10):
             assert abs(expected[i] - result.iloc[i, 0] * 1000) < 5e-1
 
+    def test_doc_reset(self):
+        fp = FloatPeriod(
+            start=dt(2026, 1, 12),
+            end=dt(2026, 1, 16),
+            payment=dt(2026, 1, 16),
+            frequency="M",
+            fixing_method="rfr_payment_delay",
+            method_param=0,
+            rate_fixings="sofr",
+        )
+        fixings.add(
+            name="sofr_1B",
+            series=pd.Series(
+                index=[dt(2026, 1, 12), dt(2026, 1, 13), dt(2026, 1, 14), dt(2026, 1, 15)],
+                data=[3.1, 3.2, 3.3, 3.4],
+            ),
+        )
+        # value is populated from given data
+        assert 3.245 < fp.rate_params.rate_fixing.value < 3.255
+        fp.reset_fixings()
+        # private data related to fixing is removed and requires new data lookup
+        assert fp.rate_params.rate_fixing._value == NoInput(0)
+        assert fp.rate_params.rate_fixing._populated.empty
+        fixings.pop("sofr_1B")
+
 
 class TestFixedPeriod:
     def test_immediate_fixing_sensitivity(self, curve):
@@ -344,3 +373,133 @@ class TestFixedPeriod:
         result = p.try_immediate_analytic_rate_fixings(disc_curve=curve).unwrap()
         assert isinstance(result, pd.DataFrame)
         assert result.empty
+
+
+class TestMtmCashflow:
+    def test_local_fixings(self):
+        curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.10}, dt(2000, 1, 1)),
+            fx_curves={"eureur": curve2, "eurusd": curve2, "usdusd": curve1},
+        )
+        fixings.add("wmr12_eurusd", pd.Series(index=[dt(1999, 1, 1)], data=[1.15]))
+        mc = MtmCashflow(
+            currency="usd",
+            notional=2e6,
+            pair="eurusd",
+            payment=dt(2000, 2, 15),
+            start=dt(2000, 1, 10),
+            end=dt(2000, 2, 15),
+            fx_fixings_start="wmr12",
+            fx_fixings_end="wmr12",
+        )
+        result = mc.local_fixings(
+            disc_curve=curve1,
+            fx=fxf,
+            identifiers=[
+                (
+                    "wmr12_eurusd",
+                    pd.Series(
+                        index=[dt(2000, 1, 6), dt(2000, 2, 11)],
+                        data=[
+                            fxf.rate("eurusd", dt(2000, 1, 10)),
+                            fxf.rate("eurusd", dt(2000, 2, 15)),
+                        ],
+                    ),
+                )
+            ],
+        )
+        assert abs(result.iloc[0, 0] - 2e6 * 1.0 * curve1[dt(2000, 2, 15)]) < 1e-6
+        assert abs(result.iloc[1, 0] + 2e6 * 1.0 * curve1[dt(2000, 2, 15)]) < 1e-6
+        fixings.pop("wmr12_eurusd")
+
+
+class TestFXCallPeriod:
+    @pytest.mark.parametrize(("fixing", "itm"), [(1.15, True), (1.05, False)])
+    def test_itm_otm_fixing(self, fixing, itm):
+        curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        # curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+        # fxf = FXForwards(
+        #     fx_rates=FXRates({"eurusd": 1.10}, dt(2000, 1, 1)),
+        #     fx_curves={"eureur": curve2, "eurusd": curve2, "usdusd": curve1},
+        # )
+        fixings.add("wmr13_eurusd", pd.Series(index=[dt(1999, 1, 1)], data=[1.15]))
+        fxo = FXCallPeriod(
+            delivery=dt(2000, 3, 1),
+            pair="eurusd",
+            expiry=dt(2000, 2, 28),
+            strike=1.10,
+            delta_type="forward",
+            notional=1e6,
+            option_fixings="wmr13",
+        )
+        result = fxo.local_fixings(
+            identifiers=[
+                ("wmr13_eurusd", pd.Series(index=[dt(2000, 2, 28)], data=[fixing])),
+            ],
+            disc_curve=curve1,
+        )
+        assert abs(result.iloc[0, 0] - itm * 1e6 * 1.0 * curve1[dt(2000, 3, 1)]) < 1e-6
+        fixings.pop("wmr13_eurusd")
+
+
+class TestZeroFloatPeriod:
+    def test_multiple_sub_periods(self):
+        fixings.add("MY_RATE_INDEX_6M", pd.Series(index=[dt(1999, 1, 1)], data=[1.15]))
+        period = ZeroFloatPeriod(
+            schedule=Schedule(dt(2000, 1, 1), "2Y", "S"),
+            fixing_method="IBOR",
+            rate_fixings="MY_RATE_INDEX",
+            convention="Act360",
+            method_param=0,
+            notional=1e6,
+        )
+        rc = Curve({dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.95})
+        from rateslib.legs import CustomLeg
+
+        # cf = CustomLeg(periods=period.float_periods).cashflows(rate_curve=rc)
+        result = period.local_fixings(
+            identifiers=[
+                (
+                    "MY_RATE_INDEX_6M",
+                    pd.Series(index=[dt(2000, 1, 1), dt(2000, 7, 1)], data=[1.692, 1.692]),
+                )
+            ],
+            scalars=[0.01],
+            rate_curve=rc,
+        )
+        expected = period.local_analytic_rate_fixings(rate_curve=rc)
+
+        assert abs(result.iloc[0, 0] - expected.iloc[0, 0]) < 1e-4
+        assert abs(result.iloc[1, 0] - expected.iloc[1, 0]) < 1e-4
+
+        assert period.float_periods[0].rate_params.rate_fixing.value == NoInput(0)
+        fixings.pop("MY_RATE_INDEX_6M")
+
+
+def test_local_fixings_raises_scalars():
+    curve1 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.98})
+    fixings.add("wmr12_eurusd", pd.Series(index=[dt(1999, 1, 1)], data=[1.15]))
+    mc = MtmCashflow(
+        currency="usd",
+        notional=2e6,
+        pair=FXIndex("eurusd", "tgt|fed", 2, "all", 0),
+        payment=dt(2000, 2, 15),
+        start=dt(2000, 1, 10),
+        end=dt(2000, 2, 15),
+        fx_fixings_start="wmr12",
+        fx_fixings_end="wmr12",
+    )
+    with pytest.raises(ValueError, match="If given, ``scalars`` must be same length as"):
+        mc.local_fixings(
+            identifiers=[
+                (
+                    "wmr12_eurusd",
+                    pd.Series(index=[dt(2000, 1, 10), dt(2000, 2, 15)], data=[1.1, 1.1]),
+                )
+            ],
+            scalars=[1.0, 2.0],
+            disc_curve=curve1,
+        )
+    fixings.pop("wmr12_eurusd")

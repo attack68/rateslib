@@ -32,7 +32,7 @@ class _WithAnalyticRateFixings(Protocol):
 
     .. autosummary::
 
-       ~_WithAnalyticRateFixings.try_immediate_rate_fixings_sensitivity
+       ~_WithAnalyticRateFixings.try_immediate_analytic_rate_fixings
 
     .. rubric:: Provided methods
 

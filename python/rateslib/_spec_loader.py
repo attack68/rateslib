@@ -90,7 +90,7 @@ if DEVELOPMENT:
             d["roll"] = _map_str_int(d["roll"])
         if "leg2_roll" in d:
             d["leg2_roll"] = _map_str_int(d["leg2_roll"])
-        return d  # type: ignore[return-value]  # this is [Hashable, Any] not [str, Any]
+        return d  # type: ignore[return-value]
 
     INSTRUMENT_SPECS = {k: _get_kwargs(k) for k in df.columns[4:]}
 
@@ -485,7 +485,6 @@ else:
             "payment_lag": 2,
             "currency": "eur",
             "convention": "act360",
-            "leg2_currency": "usd",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
             "method_param": 0,
@@ -496,6 +495,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "eurusd",
         },
         "gbpusd_xcs": {
             "frequency": "q",
@@ -506,7 +506,6 @@ else:
             "payment_lag": 2,
             "currency": "gbp",
             "convention": "act365f",
-            "leg2_currency": "usd",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
@@ -518,6 +517,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "gbpusd",
         },
         "eurgbp_xcs": {
             "frequency": "q",
@@ -528,7 +528,6 @@ else:
             "payment_lag": 2,
             "currency": "eur",
             "convention": "act360",
-            "leg2_currency": "gbp",
             "leg2_convention": "act365f",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
@@ -540,6 +539,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "eurgbp",
         },
         "gbpeur_xcs": {
             "frequency": "q",
@@ -550,7 +550,6 @@ else:
             "payment_lag": 2,
             "currency": "gbp",
             "convention": "act365f",
-            "leg2_currency": "eur",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
@@ -562,6 +561,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "eurgbp",
         },
         "jpyusd_xcs": {
             "frequency": "q",
@@ -572,7 +572,6 @@ else:
             "payment_lag": 2,
             "currency": "jpy",
             "convention": "act365f",
-            "leg2_currency": "usd",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
@@ -584,6 +583,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "usdjpy",
         },
         "audusd_xcs3": {
             "frequency": "q",
@@ -594,7 +594,6 @@ else:
             "payment_lag": 2,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_currency": "usd",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "ibor",
@@ -606,6 +605,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "audusd",
         },
         "audusd_xcs": {
             "frequency": "q",
@@ -616,7 +616,6 @@ else:
             "payment_lag": 2,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_currency": "usd",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
@@ -628,6 +627,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "audusd",
         },
         "nzdusd_xcs3": {
             "frequency": "q",
@@ -638,7 +638,6 @@ else:
             "payment_lag": 2,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_currency": "usd",
             "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "ibor",
@@ -650,6 +649,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "nzdusd",
         },
         "nzdaud_xcs3": {
             "frequency": "q",
@@ -660,7 +660,6 @@ else:
             "payment_lag": 2,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_currency": "aud",
             "leg2_convention": "act365f",
             "spread_compound_method": "none_simple",
             "fixing_method": "ibor",
@@ -672,6 +671,7 @@ else:
             "fixed": False,
             "leg2_fixed": False,
             "leg2_mtm": True,
+            "pair": "audnzd",
         },
         "eur_zcis": {
             "frequency": "a",

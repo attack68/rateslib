@@ -62,7 +62,7 @@ class NDXCS(_BaseInstrument):
 
     .. ipython:: python
 
-       fixings.add("WMR_10AM_TY0_T+2_USDINR", Series(index=[dt(2025, 1, 8), dt(2025, 7, 8)], data=[92.0, 92.5]))
+       fixings.add("WMR_10AM_TY0_USDINR", Series(index=[dt(2025, 1, 8), dt(2025, 7, 4)], data=[92.0, 92.5]))
        ndxcs = NDXCS(
            effective=dt(2025, 1, 8),
            termination="1y",
@@ -71,7 +71,7 @@ class NDXCS(_BaseInstrument):
            pair="usdinr",
            notional=5e6,           # <- INR Leg
            fixed=True,
-           fx_fixings="WMR_10AM_TY0_T+2",
+           fx_fixings="WMR_10AM_TY0",
            leg2_fx_fixings=91.55,  # <- USD Notional at execution
            payment_lag=0,
        )
@@ -242,7 +242,7 @@ class NDXCS(_BaseInstrument):
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
     leg2_fixed : bool, :green:`optional (set as False)`
@@ -326,7 +326,7 @@ class NDXCS(_BaseInstrument):
                  currency="usd",          #  <-  USD settlement currency
                  pair="usdinr",           #  <-  INR reference currency implied
                  notional=500e6,          #  <-  Leg1 is based on the reference currency
-                 fx_fixings="WMR_10AM_TY0_T+2",
+                 fx_fixings="WMR_10AM_TY0",
                  leg2_fx_fixings=92.0,    #  <-  The USD Leg notional is implied as 5.43mm
              )
              ndxcs.cashflows()
@@ -356,7 +356,7 @@ class NDXCS(_BaseInstrument):
 
           .. ipython:: python
 
-             fixings.add("WMR_10AM_TY0_T+2_USDCHF", Series(index=[dt(2025, 1, 8)], data=[0.9]))
+             fixings.add("WMR_10AM_TY0_USDCHF", Series(index=[dt(2025, 1, 6)], data=[0.9]))
              ndxcs = NDXCS(
                  effective=dt(2026, 1, 1),
                  termination="18M",
@@ -366,8 +366,8 @@ class NDXCS(_BaseInstrument):
                  leg2_pair="usdchf",           #  <-  CHF reference currency 2 implied
                  notional=500e6,               #  <-  Leg1 is based on the reference currency 1
                  leg2_notional=500e6/125.0,    #  <-  Leg2 entered directly in ref currency 2 units
-                 fx_fixings="WMR_10AM_TY0_T+2",       #  <-  Data series tag for FXFixings on Leg1
-                 leg2_fx_fixings="WMR_10AM_TY0_T+2",  #  <-  Data series tag for FXFixings on Leg2
+                 fx_fixings="WMR_10AM_TY0",       #  <-  Data series tag for FXFixings on Leg1
+                 leg2_fx_fixings="WMR_10AM_TY0",  #  <-  Data series tag for FXFixings on Leg2
              )
              ndxcs.cashflows()
 
@@ -376,8 +376,8 @@ class NDXCS(_BaseInstrument):
     .. ipython:: python
        :suppress:
 
-       fixings.pop("WMR_10AM_TY0_T+2_USDINR")
-       fixings.pop("WMR_10AM_TY0_T+2_USDCHF")
+       fixings.pop("WMR_10AM_TY0_USDINR")
+       fixings.pop("WMR_10AM_TY0_USDCHF")
 
     """  # noqa: E501
 
@@ -605,6 +605,7 @@ class NDXCS(_BaseInstrument):
             metric=metric,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
+            leg2_currency=NoInput(1),
             initial_exchange=True,
             final_exchange=True,
             leg2_initial_exchange=True,

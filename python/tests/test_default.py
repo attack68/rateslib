@@ -1,9 +1,17 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
 import pytest
-from rateslib import __version__, default_context, defaults
+from rateslib import NamedCal, __version__, default_context, defaults, dt, fixings
 
 
 def test_version() -> None:
-    assert __version__ == "2.5.dev0"
+    assert __version__ == "2.5.0"
 
 
 def test_context_raises() -> None:
@@ -23,3 +31,49 @@ def test_reset_defaults() -> None:
     assert defaults.modifier == "MF"
     assert defaults.base_currency == "usd"
     assert "TEST" not in defaults.calendars
+
+
+def test_defaults_singleton() -> None:
+    from rateslib.default import Defaults
+
+    other = Defaults()
+    assert id(other) == id(defaults)
+
+
+def test_fixings_singleton() -> None:
+    from rateslib.data.loader import Fixings
+
+    other = Fixings()
+    assert id(other) == id(fixings)
+
+
+def test_fx_index_change() -> None:
+    # test that default fx indexes can be overwritten and are loaded by constructed objects
+    from rateslib.data.fixings import FXFixing, FXIndex
+    from rateslib.scheduling import Adjuster
+
+    eurusd = FXFixing("eurusd", dt(2000, 1, 1))
+    assert eurusd.fx_index.calendar == NamedCal("tgt|fed")
+    assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(2)
+    defaults.fx_index["eurusd"] = {"pair": "eurusd", "calendar": "stk", "settle": 3}
+    eurusd = FXFixing("eurusd", dt(2000, 1, 1))
+    assert eurusd.fx_index.calendar == NamedCal("stk")
+    assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(3)
+
+    defaults.reset_defaults()
+    assert defaults.fx_index["eurusd"]["calendar"] == NamedCal("tgt|fed")
+
+
+def test_float_series_change():
+    from rateslib import IRS
+
+    with pytest.raises(ValueError, match="The FloatRateSeries: 'monkey' was not found "):
+        IRS(dt(2000, 1, 1), "1y", "A", leg2_fixing_series="monkey")
+
+    defaults.float_series["monkey"] = dict(
+        lag=0, calendar="nyc", modifier="f", eom=False, convention="act360"
+    )
+    IRS(dt(2000, 1, 1), "1y", "A", leg2_fixing_series="monkey")
+
+    defaults.reset_defaults()
+    assert "monkey" not in defaults.float_series

@@ -1,7 +1,17 @@
 import pytest
 from rateslib import dt
 from rateslib.dual import Dual, Dual2
-from rateslib.scheduling import Adjuster, Frequency, Imm, NamedCal, RollDay, Schedule, StubInference
+from rateslib.scheduling import (
+    Adjuster,
+    Cal,
+    Frequency,
+    Imm,
+    NamedCal,
+    RollDay,
+    Schedule,
+    StubInference,
+    UnionCal,
+)
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 
@@ -35,6 +45,9 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             ),
             "PPSplineDual2",
         ),
+        (Cal([], []), "Cal"),
+        (UnionCal([Cal([], []), Cal([], [])], []), "UnionCal"),
+        (NamedCal("tgt,ldn|fed"), "NamedCal:'tgt,ldn|fed'"),
     ],
 )
 def test_repr_strings(obj, expected) -> None:

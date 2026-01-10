@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
+from rateslib.data.fixings import _fx_index_set_cross, _get_fx_index
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates, forward_fx
 from rateslib.instruments.protocols import _BaseInstrument
@@ -80,7 +81,7 @@ class FXForward(_BaseInstrument):
     ----------
     settlement : datetime, :red:`required`
         The date of the currency exchange.
-    pair: str, :red:`required`
+    pair: FXIndex, str, :red:`required`
         The currency pair of the exchange, e.g. "eurusd", using 3-digit iso codes.
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         To define the notional of the trade in units of LHS pair use ``notional``.
@@ -160,7 +161,10 @@ class FXForward(_BaseInstrument):
         leg2_notional: DualTypes_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
     ):
-        pair_ = pair.lower()
+        # FXForwards are physically settled so do not allow WMR cross methodology to impact
+        # forecast rates for FXFixings.
+        pair_ = _fx_index_set_cross(_get_fx_index(pair), allow_cross=False)
+
         if isinstance(notional, NoInput) and isinstance(leg2_notional, NoInput):
             notional = defaults.notional
         elif not isinstance(notional, NoInput) and not isinstance(leg2_notional, NoInput):
@@ -168,8 +172,8 @@ class FXForward(_BaseInstrument):
 
         user_args = dict(
             settlement=settlement,
-            currency=pair[:3],
-            leg2_currency=pair[3:6],
+            currency=pair_.pair[:3],
+            leg2_currency=pair_.pair[3:6],
             notional=notional,
             leg2_notional=leg2_notional,
             curves=self._parse_curves(curves),

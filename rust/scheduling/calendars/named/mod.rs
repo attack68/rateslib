@@ -5,6 +5,7 @@ pub mod all;
 pub mod bus;
 pub mod fed;
 pub mod ldn;
+pub mod mex;
 pub mod mum;
 pub mod nsw;
 pub mod nyc;
@@ -39,6 +40,7 @@ pub(crate) fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
         ("nsw", nsw::WEEKMASK),
         ("wlg", wlg::WEEKMASK),
         ("mum", mum::WEEKMASK),
+        ("mex", mex::WEEKMASK),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!(
@@ -66,6 +68,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
         ("nsw", nsw::HOLIDAYS),
         ("wlg", wlg::HOLIDAYS),
         ("mum", mum::HOLIDAYS),
+        ("mex", mex::HOLIDAYS),
     ]);
     match hmap.get(name) {
         None => Err(PyValueError::new_err(format!(
@@ -96,6 +99,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
 //         ("nsw", nsw::RULES),
 //         ("wlg", wlg::RULES),
 //         ("mum", mum::RULES),
+//         ("mex", mex::RULES),
 //     ]);
 //     match hmap.get(name) {
 //         None => Err(PyValueError::new_err(format!(

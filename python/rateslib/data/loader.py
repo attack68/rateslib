@@ -1,3 +1,12 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import os
@@ -9,15 +18,35 @@ import rateslib.errors as err
 from packaging import version
 from pandas import Series, read_csv
 from pandas import __version__ as pandas_version
-from rateslib.enums.generics import Err, NoInput, Ok, _drb
+from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
-    from rateslib.typing import Adjuster, CalTypes, DualTypes, FloatRateSeries, Result, datetime_
+    from rateslib.typing import (
+        Adjuster,
+        CalTypes,
+        DualTypes,
+        FloatRateSeries,
+        Result,
+        datetime_,
+        int_,
+    )
 
 
 class _BaseFixingsLoader(metaclass=ABCMeta):
     """
     Abstract base class to allow custom implementations of a fixings data loader.
+
+    Notes
+    -----
+    This class requires an implementation of ``__getitem__``, which should accept an
+    ``identifier`` and return a 3-tuple. The 3-tuple should include;
+
+    - an integer representing the state id of the loaded data, i.e. its hash or pseudo-hash.
+    - the data itself as a Series indexed by daily datetimes.
+    - a 2-tuple of datetimes indicating the min and max of the timeseries index.
+
+    If a valid Series object cannot be loaded for the ``identifier`` then this method
+    is required to raise a `ValeuError`.
     """
 
     @abstractmethod
@@ -50,7 +79,7 @@ class _BaseFixingsLoader(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
         """
         Add a timeseries to the data loader directly from Python.
 
@@ -270,22 +299,25 @@ class DefaultFixingsLoader(_BaseFixingsLoader):
             raise ValueError(
                 f"Fixing data for the index '{name}' has been attempted, but there is no file:\n"
                 f"'{name}.csv' located in the search directory.\n"
-                "For further info see the documentation for the `Fixings` class and/or the "
-                "cookbook article  'Working with Fixings'.",
+                "For further info see the documentation section regarding `Fixings`.",
             )
 
         data = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))
         self.loaded[name_] = data
         return data
 
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
         if name in self.loaded:
             raise ValueError(f"Fixing data for the index '{name}' has already been loaded.")
         s = series.sort_index(ascending=True)
         s.index.name = "reference_date"
         s.name = "rate"
         name_ = name.upper()
-        self.loaded[name_] = (hash(os.urandom(8)), s, (s.index[0], s.index[-1]))
+        if isinstance(state, NoInput):
+            state_: int = hash(os.urandom(64))
+        else:
+            state_ = state
+        self.loaded[name_] = (state_, s, (s.index[0], s.index[-1]))
 
     def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
         name_ = name.upper()
@@ -315,14 +347,11 @@ class Fixings(_BaseFixingsLoader):
        Only this object is referenced internally and other instantiations of this class
        will be ignored.
 
-    Parameters
-    ----------
-    loader: _BaseFixingsLoader, optional
-        The object that performs data loading. If not given defaults to
-        :class:`~rateslib.data.loader.DefaultFixingsLoader`.
-
     Notes
     -----
+    The ``loader`` is initialised as the :class:`DefaultFixingsLoader`. This can be set as
+    a user implemented :class:`_BaseFixingsLoader`.
+
     This class maintains a dictionary of financial fixing Series indexed by string identifiers.
 
     **Fixing Population**
@@ -363,12 +392,18 @@ class Fixings(_BaseFixingsLoader):
        except ValueError as e:
            print(e)
 
-    The `Fixings` object can be overladed by a user customised implementation.
-    For further info see :ref:`working with fixings <cook-fixings-doc>`.
     """
 
-    def __init__(self, loader: _BaseFixingsLoader | NoInput = NoInput(0)) -> None:
-        self._loader: _BaseFixingsLoader = _drb(DefaultFixingsLoader(), loader)
+    _instance = None
+
+    def __new__(cls) -> Fixings:
+        if cls._instance is None:
+            # Singleton pattern creates only one instance: TODO (low) might not be thread safe
+            cls._instance = super(_BaseFixingsLoader, cls).__new__(cls)  # noqa: UP008
+
+            cls._loader: _BaseFixingsLoader = DefaultFixingsLoader()
+
+        return cls._instance
 
     def __getitem__(self, name: str) -> tuple[int, Series[DualTypes], tuple[datetime, datetime]]:  # type: ignore[type-var]
         return self.loader.__getitem__(name)
@@ -380,10 +415,48 @@ class Fixings(_BaseFixingsLoader):
         """
         return self._loader
 
-    def add(self, name: str, series: Series[DualTypes]) -> None:  # type: ignore[type-var]
-        return self.loader.add(name, series)
+    @loader.setter
+    def loader(self, loader: _BaseFixingsLoader) -> None:
+        self._loader = loader
+
+    def add(self, name: str, series: Series[DualTypes], state: int_ = NoInput(0)) -> None:  # type: ignore[type-var]
+        """
+        Add a Series to the Fixings object directly from Python
+
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        name: str, :red:`required`
+            The string identifier key for the timeseries.
+        series: Series, :red:`required`
+            The timeseries indexed by datetime.
+        state: int, :green:`optional`
+            The state id to be used upon insertion of the Series.
+
+        Returns
+        -------
+        None
+        """
+        return self.loader.add(name, series, state)
 
     def pop(self, name: str) -> Series[DualTypes] | None:  # type: ignore[type-var]
+        """
+        Remove a Series from the Fixings object.
+
+        .. role:: red
+
+        Parameters
+        ----------
+        name: str, :red:`required`
+            The string identifier key for the timeseries.
+
+        Returns
+        -------
+        Series, or None (if name not found)
+        """
         return self.loader.pop(name)
 
 

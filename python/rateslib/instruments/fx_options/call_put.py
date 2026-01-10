@@ -9,6 +9,7 @@ from pandas import DataFrame
 
 from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.data.fixings import _fx_index_set_cross, _get_fx_index
 from rateslib.default import PlotOutput, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards,
         FXForwards_,
+        FXIndex,
         FXVol_,
         Sequence,
         Solver_,
@@ -133,7 +135,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         elif isinstance(curves, list | tuple) and len(curves) == 2:
             rate_curve = curves[0]  # type: ignore[assignment]
             disc_curve = curves[1]  # type: ignore[assignment]
-            if self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"][:3]:
+            if self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"].pair[:3]:
                 leg2_disc_curve = rate_curve
             else:
                 leg2_disc_curve = disc_curve
@@ -161,7 +163,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         self,
         expiry: datetime | str,
         strike: DualTypes | str,
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         *,
         notional: DualTypes_ = NoInput(0),
         eval_date: datetime | NoInput = NoInput(0),
@@ -214,9 +216,17 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             spec=spec,
             meta_args=["curves", "vol", "metric"],
         )
+
+        # This configuration here assumes that the options are physically settled, so do not
+        # allow WMR cross methodology to impact forecast rates for FXFixings.
+        self.kwargs.leg1["pair"] = _fx_index_set_cross(
+            _get_fx_index(self.kwargs.leg1["pair"]),
+            allow_cross=False,
+        )
+
         # apply the parse knowing the premium currency
         self._kwargs.leg2["premium_ccy"] = _drb(
-            self.kwargs.leg1["pair"][3:], self.kwargs.leg2["premium_ccy"]
+            self.kwargs.leg1["pair"].pair[3:], self.kwargs.leg2["premium_ccy"]
         )
         self._kwargs.meta["curves"] = self._parse_curves(self._kwargs.meta["curves"])
 
@@ -234,14 +244,14 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         )
 
         if self.kwargs.leg2["premium_ccy"] not in [
-            self.kwargs.leg1["pair"][:3],
-            self.kwargs.leg1["pair"][3:],
+            self.kwargs.leg1["pair"].pair[:3],
+            self.kwargs.leg1["pair"].pair[3:],
         ]:
             raise ValueError(
                 f"`premium_ccy`: '{self.kwargs.leg2['premium_ccy']}' must be one of option "
-                f"currency pair: '{self.kwargs.leg1['pair']}'.",
+                f"currency pair: '{self.kwargs.leg1['pair'].pair}'.",
             )
-        elif self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"][3:]:
+        elif self.kwargs.leg2["premium_ccy"] == self.kwargs.leg1["pair"].pair[3:]:
             self.kwargs.meta["metric_period"] = "pips"
             self.kwargs.meta["delta_method"] = _get_fx_delta_type(self.kwargs.leg1["delta_type"])
         else:
@@ -332,7 +342,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             vol=None,
             k=None,
             delta_index=None,
-            spot=fx_.pairs_settlement[self.kwargs.leg1["pair"]],
+            spot=fx_.pairs_settlement[self.kwargs.leg1["pair"].pair],
             t_e=None,
             f_d=fx_.rate(self.kwargs.leg1["pair"], self.kwargs.leg1["delivery"]),
         )
@@ -465,52 +475,6 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Return various pricing metrics of the *FX Option*.
-
-        Parameters
-        ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs *Curves*, *Smiles* or *Surfaces* from
-            calibrating instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            3-digit currency to express values in (not used by the `rate` method).
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
-            The volatility used in calculation.
-        metric: str in {"pips_or_%", "vol", "premium"}, optional
-            The pricing metric type to return. See notes.
-
-        Returns
-        -------
-        float, Dual, Dual2
-
-        Notes
-        -----
-        The available choices for the pricing ``metric`` that can be used are:
-
-        - *"pips_or_%"*: if the ``premium_ccy`` is the foreign (RHS) currency then *pips* will
-          be returned, else
-          if the premium is the domestic (LHS) currency then % of notional will be returned.
-
-        - *"vol"*: the volatility used to price the option at that strike / delta is returned.
-
-        - *"premium"*: the monetary amount in ``premium_ccy`` payable at the payment date is
-          returned.
-
-        If calculating the *rate* of an *FXOptionStrat* then the attributes ``rate_weight``
-        and ``rate_weight_vol``
-        will be used to combine the output for each individual *FXOption* within the strategy.
-
-        *FXStrangle* and *FXBrokerFly* have the additional ``metric`` *'single_vol'* which is a
-        more complex and
-        integrated calculation.
-        """
         _curves = self._parse_curves(curves)
         _vol = self._parse_vol(vol)
         rate_curve = _maybe_get_curve_maybe_from_solver(
@@ -542,8 +506,10 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         )
         if metric == "premium":
             if self._option.fx_option_params.metric == FXOptionMetric.Pips:
+                # is expressed in RHS currency
                 _ *= self._option.settlement_params.notional / 10000
             else:  # == "percent"
+                # is expressed in LHS currency
                 _ *= self._option.settlement_params.notional / 100
         return _
 
@@ -664,37 +630,60 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
     ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
 
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import Curve, FXCall, dt, FXForwards, FXRates, FXDeltaVolSmile
+
+        .. ipython:: python
+
+           eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+           usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+           fxf = FXForwards(
+               fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+               fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+           )
+           fxvs = FXDeltaVolSmile(
+               nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+               delta_type="forward",
+               eval_date=dt(2020, 1, 1),
+               expiry=dt(2020, 4, 1)
+           )
+           fxc = FXCall(
+               expiry="3m",
+               strike=1.10,
+               eval_date=dt(2020, 1, 1),
+               spec="eurusd_call",
+           )
+           fxc.analytic_greeks(fx=fxf, curves=[eur, usd], vol=fxvs)
+
         Parameters
         ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            Not used by `analytic_greeks`.
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
-            The volatility used in calculation.
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
 
         Returns
         -------
-        float, Dual, Dual2
+        dict
         """
         return self._analytic_greeks_set_metrics(
             curves=curves,
             solver=solver,
             fx=fx,
-            base=base,
             vol=vol,
             set_metrics=True,
         )
@@ -704,28 +693,11 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
         vol: FXVol_ = NoInput(0),
         set_metrics: bool_ = True,
     ) -> dict[str, Any]:
         """
         Return various pricing metrics of the *FX Option*.
-
-        Parameters
-        ----------
-        curves : list of Curve
-            Curves for discounting cashflows. List follows the structure used by IRDs and
-            should be given as:
-            `[None, Curve for domestic ccy, None, Curve for foreign ccy]`
-        solver : Solver, optional
-            The numerical :class:`Solver` that constructs ``Curves`` from calibrating
-            instruments.
-        fx: FXForwards
-            The object to project the relevant forward and spot FX rates.
-        base: str, optional
-            Not used by `analytic_greeks`.
-        vol: float, Dual, Dual2, FXDeltaVolSmile or FXDeltaVolSurface
-            The volatility used in calculation.
 
         Returns
         -------
@@ -801,18 +773,16 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
         """Not implemented for Option types.
-        Use :class:`~rateslib.instruments._FXOption.analytic_greeks`.
+        Use :meth:`~rateslib.instruments._BaseFXOption.analytic_greeks`.
         """
         raise NotImplementedError("For Option types use `analytic_greeks`.")
 
     def _plot_payoff(
         self,
-        window: list[float] | NoInput = NoInput(0),
+        window: tuple[float, float] | NoInput = NoInput(0),
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        base: str_ = NoInput(0),
-        local: bool = False,
         vol: FXVol_ = NoInput(0),
     ) -> tuple[
         np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
@@ -853,17 +823,36 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
 
     def plot_payoff(
         self,
-        range: list[float] | NoInput = NoInput(0),  # noqa: A002
+        range: tuple[float, float] | NoInput = NoInput(0),  # noqa: A002
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
-        local: bool = False,
         vol: float_ = NoInput(0),
     ) -> PlotOutput:
-        x, y = self._plot_payoff(
-            window=range, curves=curves, solver=solver, fx=fx, base=base, local=local, vol=vol
-        )
+        """
+        Return a plot of the payoff at expiry, indexed by the *FXFixing* value.
+
+        Parameters
+        ----------
+        range: list of float, :green:`optional`
+            A range of values for the *FXFixing* value at expiry to use as the x-axis.
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+
+        Returns
+        -------
+        (Figure, Axes, list[Lines2D])
+        """
+
+        x, y = self._plot_payoff(window=range, curves=curves, solver=solver, fx=fx, vol=vol)
         return plot([x], [y])  # type: ignore
 
     def local_analytic_rate_fixings(
@@ -889,6 +878,9 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
+        """
+        Not implemented for Option types. Use :meth:`~rateslib.instruments._BaseFXOption.rate`.
+        """
         raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
 
@@ -901,8 +893,7 @@ class FXCall(_BaseFXOption):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXCall
-       from datetime import datetime as dt
+       from rateslib import dt, FXCall, FXForwards, FXRates, FXDeltaVolSmile, Curve
 
     .. ipython:: python
 
@@ -937,12 +928,42 @@ class FXCall(_BaseFXOption):
        vol = 12.0  #  a specific calendar-day annualized %-volatility until expiry
        vol = vol_obj  # an explicit volatility object, e.g. FXDeltaVolSurface
 
-    The pricing ``metric`` will return the following calculations:
+    The following pricing ``metric`` are available, with examples:
 
-    - *'vol'*: the implied volatility value of the option from a volatility object.
-    - *'premium'*: the cash premium amount applicable to the 'payment' date.
-    - *'pips_or_%'*: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
+    .. ipython:: python
+
+       eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+       usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+           fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+       )
+       fxvs = FXDeltaVolSmile(
+           nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+           expiry=dt(2020, 4, 1),
+           eval_date=dt(2020, 1, 1),
+           delta_type="forward",
+       )
+
+    - **'vol'**: the implied volatility value of the option from a volatility object.
+
+      .. ipython:: python
+
+         fxc.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="vol")
+
+    - **'premium'**: the cash premium amount applicable to the 'payment' date, expressed in the
+      premium currency.
+
+      .. ipython:: python
+
+         fxc.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+
+    - **'pips_or_%'**: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
       the premium currency is RHS this gives a number of pips of the FX rate.
+
+      .. ipython:: python
+
+         fxc.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
 
     .. role:: red
 
@@ -1058,9 +1079,9 @@ class FXCall(_BaseFXOption):
 
 class FXPut(_BaseFXOption):
     """
-    Create an *FX Put* option.
+    An *FX Put* option.
 
-    For parameters see :class:`~rateslib.instruments._FXOption`.
+    For parameters and examples see :class:`~rateslib.instruments.FXCall`.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, NoReturn
 from pandas import DataFrame
 
 from rateslib import defaults
-from rateslib.enums.generics import NoInput
+from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.pricing import (
     _get_fx_maybe_from_solver,
@@ -152,12 +152,13 @@ class Portfolio(_BaseInstrument):
 
         if not local:
             single_value: DualTypes = 0.0
+            base_ = _drb(self.settlement_params.currency, base)
             for k, v in local_npv.items():
                 single_value += _maybe_fx_converted(
                     value=v,
                     currency=k,
                     fx=_get_fx_maybe_from_solver(fx=fx, solver=solver),
-                    base=base,
+                    base=base_,
                     forward=forward,
                 )
             return single_value

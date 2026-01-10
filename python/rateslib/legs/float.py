@@ -26,6 +26,7 @@ if TYPE_CHECKING:
         FloatRateSeries,
         Frequency,
         FXForwards_,
+        FXIndex,
         IndexMethod,
         LegFixings,
         Schedule,
@@ -102,8 +103,9 @@ class FloatLeg(_BaseLeg, _WithExDiv):
            The following define **non-deliverable** parameters. If the *Leg* is directly
            deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    pair: str, :green:`optional`
-        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
@@ -149,7 +151,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
 
@@ -253,7 +255,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         currency: str_ = NoInput(0),
         # non-deliverable
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
         mtm: LegMtm | str = LegMtm.Initial,
         # period
@@ -537,7 +539,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
 
 class ZeroFloatLeg(_BaseLeg):
     """
-    A zero coupon *Leg* composd of a single :class:`~rateslib.periods.ZeroFloatPeriod`.
+    A zero coupon *Leg* composed of a single :class:`~rateslib.periods.ZeroFloatPeriod`.
 
     .. rubric:: Examples
 
@@ -620,7 +622,7 @@ class ZeroFloatLeg(_BaseLeg):
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
 
@@ -629,8 +631,9 @@ class ZeroFloatLeg(_BaseLeg):
            The following define **non-deliverable** parameters. If the *Leg* is directly
            deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
 
-    pair: str, :green:`optional`
-        The currency pair for :class:`~rateslib.data.fixings.FXFixing` that determines *Period*
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
@@ -729,7 +732,7 @@ class ZeroFloatLeg(_BaseLeg):
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
         # non-deliverable
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
         mtm: bool = False,
         # period
@@ -816,7 +819,7 @@ class ZeroFloatLeg(_BaseLeg):
                 notional=self._notional,
                 # period params
                 convention=self._convention,
-                # non-deliverable : Not allowed with notional exchange
+                # non-deliverable: Not allowed with notional exchange
                 pair=pair,
                 fx_fixings=fx_fixings_[0],
                 delivery=self.schedule.pschedule2[0]

@@ -119,6 +119,12 @@ pub trait DateRoll {
     /// *Note*: if the number of business days is **zero** a non-business day will be rolled
     /// **forwards**.
     ///
+    /// *Note*: `settlement` enforcement is handled post date determination. If the number of
+    /// business `days` is zero or greater the date is rolled forwards to the nearest settleable
+    /// day if not already one.
+    /// If the number of business `days` is less than zero then the date is rolled backwards
+    /// to the nearest settleable date.
+    ///
     /// *Note*: if the given `date` is a non-business date adding or subtracting 1 business
     /// day is equivalent to the rolling forwards or backwards, respectively.
     fn lag_bus_days(&self, date: &NaiveDateTime, days: i32, settlement: bool) -> NaiveDateTime {
@@ -126,7 +132,9 @@ pub trait DateRoll {
             return self.add_bus_days(date, days, settlement).unwrap();
         }
         match days.cmp(&0_i32) {
-            Ordering::Equal => self.roll_forward_bus_day(date),
+            Ordering::Equal => self
+                .add_bus_days(&self.roll_forward_bus_day(date), 0, settlement)
+                .unwrap(),
             Ordering::Less => self
                 .add_bus_days(&self.roll_backward_bus_day(date), days + 1, settlement)
                 .unwrap(),
@@ -447,6 +455,38 @@ mod tests {
                 ndt(2015, 9, 8),
                 ndt(2015, 9, 8)
             ]
+        );
+    }
+
+    #[test]
+    fn test_lag_bus_days_zero_with_settlement() {
+        // Test ModifiedPrevious and ModifiedPreviousSettle from the book diagram
+        let cal = Cal::new(vec![ndt(2000, 6, 27)], vec![]);
+        let settle = Cal::new(vec![ndt(2000, 6, 26), ndt(2000, 6, 28)], vec![]);
+        let uni = UnionCal::new(vec![cal], Some(vec![settle]));
+
+        // adding zero bus days not settleable yields 28th June
+        assert_eq!(
+            ndt(2000, 6, 28),
+            uni.lag_bus_days(&ndt(2000, 6, 27), 0, false)
+        );
+
+        // adding zero bus days settleable yields 29th June
+        assert_eq!(
+            ndt(2000, 6, 29),
+            uni.lag_bus_days(&ndt(2000, 6, 27), 0, true)
+        );
+
+        // adding zero bus days not settleable yields 28th June
+        assert_eq!(
+            ndt(2000, 6, 28),
+            uni.lag_bus_days(&ndt(2000, 6, 28), 0, false)
+        );
+
+        // adding zero bus days settleable yields 29th June
+        assert_eq!(
+            ndt(2000, 6, 29),
+            uni.lag_bus_days(&ndt(2000, 6, 28), 0, true)
         );
     }
 }

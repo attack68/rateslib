@@ -8,6 +8,7 @@ from pandas.testing import assert_frame_equal
 from rateslib import default_context, defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
+from rateslib.data.fixings import FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.enums.parameters import LegMtm
@@ -151,7 +152,7 @@ def simple_solver():
             "3M",
             "A",
             currency="usd",
-            leg2_currency="eur",
+            pair="eurusd",
             curves=["usdusd", "usdusd", "eureur", "eurusd"],
             notional=1e6,
         ),
@@ -423,7 +424,7 @@ class TestSolverFXandBase:
             leg2_mtm=False,
             curves=[cls.curve] * 4,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             float_spread=2.0,
         )
 
@@ -598,7 +599,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=False,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
@@ -610,7 +611,7 @@ class TestNullPricing:
                 leg2_fixed=True,
                 leg2_mtm=False,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 fixed_rate=1.2,
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
@@ -623,7 +624,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=True,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
             ),
@@ -635,7 +636,7 @@ class TestNullPricing:
                 leg2_fixed=True,
                 leg2_mtm=True,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_fixed_rate=1.3,
                 curves=["eureur", "eureur", "usdusd", "usdusd"],
                 notional=1e6,
@@ -648,7 +649,7 @@ class TestNullPricing:
                 leg2_fixed=True,
                 leg2_mtm=True,
                 currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 curves=["usdusd", "usdusd", "eureur", "eureur"],
                 notional=-1e6,
             ),
@@ -703,7 +704,7 @@ class TestNullPricing:
                 pair="eurusd",
                 curves=["eureur", "usdeur"],
                 notional=-1e6,
-                leg2_fx_fixings=0.999851,
+                fx_rate=0.999851,
                 split_notional=-1003052.812,
                 points=-0.756443,
             ),
@@ -766,7 +767,7 @@ class TestNullPricing:
                 "3M",
                 "A",
                 currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
                 float_spread=-12.876098007605556,
@@ -779,7 +780,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=False,
                 currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 curves=["usdusd", "usdusd", "eureur", "eurusd"],
                 notional=1e6,
                 metric="leg2",
@@ -1078,7 +1079,7 @@ class TestNullPricing:
                 "3M",
                 "A",
                 currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 notional=1e6,
             ),
             XCS(  # XCS-FloatFloatNonMtm
@@ -1089,7 +1090,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=False,
                 currency="usd",
-                leg2_currency="eur",
+                pair="usdeur",
                 notional=1e6,
             ),
             XCS(  # XCS-FixedFloatNonMtm
@@ -1100,7 +1101,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=False,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 notional=1e6,
             ),
             XCS(  # XCS-FixedFixedNonMtm
@@ -1111,7 +1112,7 @@ class TestNullPricing:
                 leg2_fixed=True,
                 leg2_mtm=False,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_fixed_rate=1.2,
                 notional=1e6,
             ),
@@ -1123,7 +1124,7 @@ class TestNullPricing:
                 leg2_fixed=False,
                 leg2_mtm=True,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 notional=1e6,
             ),
             XCS(  # XCS-FixedFixed
@@ -1134,7 +1135,7 @@ class TestNullPricing:
                 leg2_fixed=True,
                 leg2_mtm=True,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_fixed_rate=1.3,
                 notional=1e6,
             ),
@@ -2551,10 +2552,10 @@ class TestFXForward:
         pf = Portfolio([fx1, fx2])
         fx = FXRates({"eurusd": 1.30}, base="usd")
         result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
-        expected = 100000.0
-        assert abs(result - expected) < 1e-8
-        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
         expected = 100000.0 / 1.30
+        assert abs(result - expected) < 1e-8
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="usd")
+        expected = 100000.0
         assert abs(result - expected) < 1e-8
 
     def test_analytic_delta_is_zero(self, curve, curve2) -> None:
@@ -2592,28 +2593,214 @@ class TestFXForward:
         pf = Portfolio([fx1, fx2])
         fx = FXRates({"eurusd": 1.30}, base="usd")
         result = pf.npv(curves=[None, curve, None, curve2], fx=fx)
-        expected = 100000.0
-        assert abs(result - expected) < 1e-8
-        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="eur")
         expected = 100000.0 / 1.30
+        assert abs(result - expected) < 1e-8
+        result = pf.npv(curves=[None, curve, None, curve2], fx=fx, base="usd")
+        expected = 100000.0
         assert abs(result - expected) < 1e-8
 
 
 class TestNDF:
+    def test_2ccy_constructions(self):
+        # no notionals or fx_rate, notional=1mm by default, pricing set at price time.
+        a1 = NDF(pair="eurusd", currency="eur", settlement=dt(2000, 1, 1))
+        a2 = NDF(pair="eurusd", currency="eur", notional=1e6, settlement=dt(2000, 1, 1))
+
+        assert a1.kwargs.leg1["notional"] == 1e6
+        assert a2.kwargs.leg1["notional"] == 1e6
+        assert a1.kwargs.leg2["notional"] == NoInput(0)
+        assert a2.kwargs.leg2["notional"] == NoInput(0)
+        assert a1.kwargs.meta["fx_rate"] == NoInput(0)
+        assert a2.kwargs.meta["fx_rate"] == NoInput(0)
+
+        # no notional with fx_rate, notional=1mm by default and ==> leg2_notional
+        b1 = NDF(pair="eurusd", currency="eur", fx_rate=2.0, settlement=dt(2000, 1, 1))
+        b2 = NDF(
+            pair="eurusd", currency="eur", fx_rate=2.0, notional=1e6, settlement=dt(2000, 1, 1)
+        )
+        b3 = NDF(
+            pair="eurusd",
+            currency="eur",
+            fx_rate=2.0,
+            leg2_notional=-2e6,
+            settlement=dt(2000, 1, 1),
+        )
+
+        assert b1.kwargs.leg1["notional"] == 1e6
+        assert b2.kwargs.leg1["notional"] == 1e6
+        assert b3.kwargs.leg1["notional"] == 1e6
+        assert b1.kwargs.leg2["notional"] == -2e6
+        assert b2.kwargs.leg2["notional"] == -2e6
+        assert b3.kwargs.leg2["notional"] == -2e6
+        assert b1.kwargs.meta["fx_rate"] == 2.0
+        assert b2.kwargs.meta["fx_rate"] == 2.0
+        assert b3.kwargs.meta["fx_rate"] == 2.0
+
+        # reversed pair
+        c1 = NDF(
+            pair="usdeur", currency="eur", fx_rate=0.5, notional=-2e6, settlement=dt(2000, 1, 1)
+        )
+        c2 = NDF(
+            pair="usdeur", currency="eur", fx_rate=0.5, leg2_notional=1e6, settlement=dt(2000, 1, 1)
+        )
+
+        assert c1.kwargs.leg1["notional"] == -2e6
+        assert c2.kwargs.leg1["notional"] == -2e6
+        assert c1.kwargs.leg2["notional"] == 1e6
+        assert c2.kwargs.leg2["notional"] == 1e6
+        assert c1.kwargs.meta["fx_rate"] == 0.5
+        assert c2.kwargs.meta["fx_rate"] == 0.5
+
+        # 2 notionals imply fx rate
+        d1 = NDF(
+            pair="eurusd",
+            currency="eur",
+            notional=-1e6,
+            leg2_notional=2e6,
+            settlement=dt(2000, 1, 1),
+        )
+        d2 = NDF(
+            pair="usdeur",
+            currency="eur",
+            notional=2e6,
+            leg2_notional=-1e6,
+            settlement=dt(2000, 1, 1),
+        )
+
+        assert d1.kwargs.meta["fx_rate"] == 2.0
+        assert d2.kwargs.meta["fx_rate"] == 0.5
+
     def test_construction(self) -> None:
         ndf = NDF(
-            pair="brlusd",
+            pair=FXIndex("brlusd", "all", 0),
             settlement=dt(2022, 1, 1),
+            fx_rate=1.20,
+            fx_fixings=2.25,
+            notional=1e6,  # <- should be expressed in BRL
+            currency="usd",
         )
         assert ndf.leg1.periods[0].settlement_params.currency == "usd"
         assert ndf.leg1.periods[0].non_deliverable_params.reference_currency == "brl"
         assert ndf.leg1.periods[0].non_deliverable_params.fx_reversed is False
 
+        # value is 1.05mm usd
+        c = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        fxf = FXForwards(
+            fx_rates=FXRates({"brlusd": 2.20}, settlement=dt(2022, 1, 1)),
+            fx_curves={"brlbrl": c2, "brlusd": c2, "usdusd": c},
+        )
+        result = ndf.npv(curves=[c], fx=fxf)  # value should be expressed in USD
+        assert abs(result - 1000000.0 * (2.25 - 1.2)) < 1e-8
+
+    def test_construction_opposite(self) -> None:
+        ndf = NDF(
+            pair=FXIndex("brlusd", "all", 0),
+            settlement=dt(2022, 1, 1),
+            fx_rate=1.20,
+            leg2_fx_fixings=2.25,
+            notional=1e6,  # <- should be expressed in BRL
+            currency="brl",
+        )
+        assert ndf.leg2.periods[0].settlement_params.currency == "brl"
+        assert ndf.leg2.periods[0].non_deliverable_params.reference_currency == "usd"
+        assert ndf.leg2.periods[0].non_deliverable_params.fx_reversed is True
+
+        # value is 1.05mm usd
+        c = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        fxf = FXForwards(
+            fx_rates=FXRates({"brlusd": 2.20}, settlement=dt(2022, 1, 1)),
+            fx_curves={"brlbrl": c2, "brlusd": c2, "usdusd": c},
+        )
+        result = ndf.npv(curves=[c], fx=fxf)  # value should be expressed in BRL
+        assert abs(result - 1000000.0 * (2.25 - 1.2) / 2.25) < 1e-8
+
     def test_construction_reversed(self) -> None:
-        ndf = NDF(pair="usdbrl", settlement=dt(2022, 1, 1), currency="usd")
+        ndf = NDF(
+            pair=FXIndex("usdbrl", "all", 0),
+            settlement=dt(2022, 1, 1),
+            currency="usd",
+            fx_rate=1.20,
+            leg2_fx_fixings=2.25,
+            notional=1e6,  # <- should be expressed in USD
+        )
         assert ndf.leg1.periods[0].settlement_params.currency == "usd"
         assert ndf.leg2.periods[0].non_deliverable_params.reference_currency == "brl"
         assert ndf.leg2.periods[0].non_deliverable_params.fx_reversed is True
+
+        # value is 1.05mm BRL
+        c = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        fxf = FXForwards(
+            fx_rates=FXRates({"brlusd": 2.20}, settlement=dt(2022, 1, 1)),
+            fx_curves={"brlbrl": c2, "brlusd": c2, "usdusd": c},
+        )
+        result = ndf.npv(curves=[c], fx=fxf)  # value should be expressed in USD
+        assert abs(result - 1000000.0 * (2.25 - 1.2) / 2.25) < 1e-8
+
+    def test_construction_reversed_opposite(self) -> None:
+        ndf = NDF(
+            pair=FXIndex("usdbrl", "all", 0),
+            settlement=dt(2022, 1, 1),
+            currency="brl",
+            fx_rate=1.20,
+            fx_fixings=2.25,
+            notional=1e6,  # <- should be expressed in USD
+        )
+        assert ndf.leg1.periods[0].settlement_params.currency == "brl"
+        assert ndf.leg1.periods[0].non_deliverable_params.reference_currency == "usd"
+        assert ndf.leg1.periods[0].non_deliverable_params.fx_reversed is False
+
+        # value is 1.05mm BRL
+        c = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        c2 = Curve({dt(2022, 1, 1): 1.0, dt(2022, 7, 1): 1.0})
+        fxf = FXForwards(
+            fx_rates=FXRates({"brlusd": 2.20}, settlement=dt(2022, 1, 1)),
+            fx_curves={"brlbrl": c2, "brlusd": c2, "usdusd": c},
+        )
+        result = ndf.npv(curves=[c], fx=fxf)  # value should be expressed in USD
+        assert abs(result - 1000000.0 * (2.25 - 1.2)) < 1e-8
+
+    def test_3ccy_constructions(self):
+        # no notionals or fx_rate, notional=1mm by default, pricing set at price time.
+        a1 = NDF(
+            pair="seknok", currency="usd", notional=1e6, fx_rate=2.0, settlement=dt(2000, 1, 1)
+        )
+        a2 = NDF(
+            pair="seknok",
+            currency="usd",
+            notional=1e6,
+            fx_rate=2.0,
+            reversed=True,
+            settlement=dt(2000, 1, 1),
+        )
+        a3 = NDF(
+            pair="seknok",
+            currency="usd",
+            notional=1e6,
+            fx_rate=2.0,
+            leg2_reversed=True,
+            settlement=dt(2000, 1, 1),
+        )
+        a4 = NDF(
+            pair="seknok",
+            currency="usd",
+            notional=1e6,
+            fx_rate=2.0,
+            reversed=True,
+            leg2_reversed=True,
+            settlement=dt(2000, 1, 1),
+        )
+
+        assert a1.leg1.periods[0].non_deliverable_params.fx_index.pair == "usdsek"
+        assert a1.leg2.periods[0].non_deliverable_params.fx_index.pair == "usdnok"
+        assert a2.leg1.periods[0].non_deliverable_params.fx_index.pair == "sekusd"
+        assert a2.leg2.periods[0].non_deliverable_params.fx_index.pair == "usdnok"
+        assert a3.leg1.periods[0].non_deliverable_params.fx_index.pair == "usdsek"
+        assert a3.leg2.periods[0].non_deliverable_params.fx_index.pair == "nokusd"
+        assert a4.leg1.periods[0].non_deliverable_params.fx_index.pair == "sekusd"
+        assert a4.leg2.periods[0].non_deliverable_params.fx_index.pair == "nokusd"
 
     @pytest.mark.parametrize(
         ("lag", "eval1", "exp2"),
@@ -2624,12 +2811,10 @@ class TestNDF:
     )
     def test_dates(self, lag, eval1, exp2):
         ndf = NDF(
-            pair="eurusd",
+            pair=FXIndex("eurusd", "tgt|fed", lag),
             settlement="3m",
             eval_date=eval1,
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=lag,
         )
         assert ndf.leg1.periods[0].settlement_params.payment == exp2
 
@@ -2646,8 +2831,6 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2025, 2, 26),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
             eom=eom,
         )
         assert ndf.leg1.periods[0].settlement_params.payment == exp
@@ -2663,8 +2846,6 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2009, 8, 13),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
         )
         assert ndf.analytic_delta(curves=curve, fx=fxf) == 0.0
 
@@ -2676,8 +2857,6 @@ class TestNDF:
                 currency="jpy",
                 settlement="3m",
                 eval_date=dt(2009, 8, 13),
-                calendar="tgt|fed",
-                payment_lag=2,
             )
 
     def test_cashflows(self, usdusd, usdeur, eureur):
@@ -2690,8 +2869,6 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2022, 1, 1),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
             fx_rate=1.05,
         )
         result = ndf.cashflows(curves=usdusd, fx=fxf)
@@ -2715,10 +2892,32 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2022, 1, 1),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
             fx_rate=1.05,
             notional=1e6,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        expected = {"usd": -28665.269}
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", -28103.831), ("usd", -28665.269)])
+    def test_npv_leg2_notional(self, usdusd, usdeur, eureur, base, expected):
+        # same test as above expressed with leg2 notional
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            fx_rate=1.05,
+            # notional=1e6,
+            leg2_notional=-1.05e6,
         )
         result = ndf.npv(curves=usdusd, fx=fxf, base=base)
         assert abs(result - expected) < 1e-3
@@ -2739,8 +2938,6 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2022, 1, 1),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
             fx_rate=rate,
             notional=1e6 if pair[:3] == "eur" else -1e6 / rate,
         )
@@ -2759,8 +2956,27 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2022, 1, 1),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
+        )
+        result = ndf.npv(curves=usdusd, fx=fxf, base=base)
+        assert abs(result - expected) < 1e-3
+
+        local_result = ndf.npv(curves=usdusd, fx=fxf, base=base, local=True)
+        expected = {"usd": 0.0}
+        assert len(local_result.keys()) == 1
+        assert abs(local_result["usd"] - expected["usd"]) < 1e-3
+
+    @pytest.mark.parametrize(("base", "expected"), [("eur", 0.0), ("usd", 0.0)])
+    def test_npv_unpriced_leg2_notional(self, usdusd, usdeur, eureur, base, expected):
+        fxf = FXForwards(
+            FXRates({"eurusd": 1.02}, settlement=dt(2022, 1, 3)),
+            {"eureur": eureur, "usdeur": usdeur, "usdusd": usdusd},
+        )
+        ndf = NDF(
+            pair="eurusd",
+            settlement="3m",
+            eval_date=dt(2022, 1, 1),
+            currency="usd",
+            leg2_notional=-1e6,
         )
         result = ndf.npv(curves=usdusd, fx=fxf, base=base)
         assert abs(result - expected) < 1e-3
@@ -2780,12 +2996,35 @@ class TestNDF:
             settlement="3m",
             eval_date=dt(2022, 1, 1),
             currency="usd",
-            calendar="tgt|fed",
-            payment_lag=2,
         )
         result = ndf.rate(curves=usdusd, fx=fxf)
         expected = 1.021035
         assert abs(result - expected) < 1e-6
+
+    def test_raising(self):
+        with pytest.raises(ValueError, match="`notional`, `leg2_notional` and `fx_rate` cannot"):
+            NDF(
+                pair="eurusd",
+                settlement=dt(2000, 1, 1),
+                notional=1e6,
+                leg2_notional=-1e6,
+                fx_rate=1.05,
+            )
+
+        with pytest.raises(ValueError, match="Leg1 of NDF is directly deliverable"):
+            NDF(pair="eurusd", settlement=dt(2000, 1, 1), notional=1e6, fx_fixings=1.0)
+
+        with pytest.raises(ValueError, match="Leg2 of NDF is directly deliverable"):
+            NDF(
+                pair="eurusd",
+                currency="usd",
+                settlement=dt(2000, 1, 1),
+                notional=1e6,
+                leg2_fx_fixings=1.0,
+            )
+
+        with pytest.raises(ValueError, match="When providing `notional` and `leg2_notional` on an"):
+            NDF(pair="eurusd", settlement=dt(2000, 1, 1), notional=1e6, leg2_notional=1.2e6)
 
 
 # test the commented out FXSwap variant
@@ -2835,7 +3074,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
@@ -2852,7 +3091,7 @@ class TestNonMtmXCS:
             payment_lag=0,
             amortization=100e3,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
         )
         # npv2 = xcs._npv2(curve2, curve2, curve, curve, 1.10)
@@ -2869,7 +3108,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
             leg2_fx_fixings=2.0,
             notional=1e6,
@@ -2901,7 +3140,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             float_spread=float_spd,
@@ -2929,7 +3168,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="usd",
-            leg2_currency="nok",
+            pair="usdnok",
             payment_lag_exchange=0,
             notional=1e6,
             leg2_float_spread=float_spd,
@@ -2948,7 +3187,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             float_spread=0.0,
@@ -2982,7 +3221,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3029,7 +3268,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=mapping[fix],
@@ -3047,7 +3286,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=Dual2(10.0, ["x"], [], []),
@@ -3072,7 +3311,7 @@ class TestNonMtmXCS:
             leg2_float_spread=1.0,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             metric="leg2",
@@ -3092,7 +3331,7 @@ class TestNonMtmXCS:
             leg2_float_spread=1.0,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3109,7 +3348,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3128,7 +3367,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3158,7 +3397,7 @@ class TestNonMtmXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3190,7 +3429,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_fixed=False,
             leg2_mtm=False,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_spread_compound_method=compound,
@@ -3227,7 +3466,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
             leg2_fx_fixings=2.0,
             notional=1e6,
@@ -3245,7 +3484,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3273,7 +3512,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3316,7 +3555,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=mapping[fix],
@@ -3336,7 +3575,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=Dual2(2.0, ["c"], [], []),
@@ -3360,7 +3599,7 @@ class TestNonMtmFixedFloatXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -3457,7 +3696,7 @@ class TestNonMtmFixedFixedXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=mapping[fix],
@@ -3476,7 +3715,7 @@ class TestNonMtmFixedFixedXCS:
             leg2_mtm=False,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_fx_fixings=Dual2(10.0, ["s"], [], []),
@@ -3500,7 +3739,7 @@ class TestNonMtmFixedFixedXCS:
             leg2_fixed=True,
             leg2_mtm=False,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -4033,7 +4272,7 @@ class TestXCS:
             "M",
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
             leg2_mtm=True,
         )
@@ -4053,7 +4292,7 @@ class TestXCS:
             "M",
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             leg2_mtm=True,
@@ -4091,7 +4330,7 @@ class TestXCS:
                 "M",
                 fx_fixings=NoInput(0),
                 currency="usd",
-                leg2_currency="eur",
+                pair="eurusd",
             )
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
@@ -4104,7 +4343,7 @@ class TestXCS:
                 leg2_fixed=False,
                 leg2_mtm=True,
                 currency="usd",
-                leg2_currency="eur",
+                pair="eurusd",
             )
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
@@ -4117,7 +4356,7 @@ class TestXCS:
                 leg2_fixed=True,
                 leg2_mtm=True,
                 currency="usd",
-                leg2_currency="eur",
+                pair="eurusd",
             )
 
         with pytest.raises(ValueError, match="`fx_fixings` for MTM XCS should"):
@@ -4130,7 +4369,7 @@ class TestXCS:
                 leg2_fixed=True,
                 leg2_mtm=True,
                 currency="usd",
-                leg2_currency="eur",
+                pair="eurusd",
             )
 
     @pytest.mark.parametrize(
@@ -4154,7 +4393,7 @@ class TestXCS:
             "M",
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             float_spread=float_spd,
@@ -4180,10 +4419,10 @@ class TestXCS:
             "M",
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
-            leg2_fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 3, 1), dt(2022, 4, 1)])),
+            leg2_fx_fixings=(1.25, Series([1.5, 1.75], index=[dt(2022, 2, 25), dt(2022, 3, 30)])),
             leg2_mtm=True,
         )
         assert xcs.leg2._regular_periods[0].non_deliverable_params.fx_fixing.value == 1.25
@@ -4201,7 +4440,7 @@ class TestXCS:
                 fx_fixings=0.7407407407407407,
                 leg2_notional=20e6,
                 currency="cad",
-                leg2_currency="usd",
+                pair="cadusd",
                 leg2_mtm=False,
             )
 
@@ -4222,7 +4461,7 @@ class TestXCS:
             frequency="M",
             payment_lag=0,
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             payment_lag_exchange=0,
             fixed=fixed1,
             leg2_fixed=fixed2,
@@ -4251,9 +4490,9 @@ class TestXCS:
         # tests a series as string can be provided to XCS in tuple
         name = str(hash(os.urandom(8)))
         fixings.add(
-            name,
+            name + "_GBPUSD",
             Series(
-                index=[dt(2023, 1, 17), dt(2023, 4, 17), dt(2023, 7, 17)],
+                index=[dt(2023, 1, 13), dt(2023, 4, 13), dt(2023, 7, 13)],
                 data=[1.19, 1.21, 1.24],
             ),
         )
@@ -4278,12 +4517,12 @@ class TestXCS:
                 currency="usd",
                 mtm=True,
                 leg2_fx_fixings=155.0,
-                leg2_currency="jpy",
+                pair="usdjpy",
                 notional=1e9,
             )
 
     def test_attributes_get(self):
-        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, leg2_currency="eur")
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, pair="eurusd")
         assert xcs.fixed_rate == NoInput(0)
         assert xcs.leg2_fixed_rate == NoInput(0)
         with pytest.raises(AttributeError, match="Leg1 is of type"):
@@ -4292,7 +4531,7 @@ class TestXCS:
             xcs.leg2_float_spread
 
     def test_attributes_get_float(self):
-        xcs = XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur")
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", pair="eurusd")
         assert xcs.float_spread == 0.0
         assert xcs.leg2_float_spread == 0.0
         with pytest.raises(AttributeError, match="Leg1 is of type"):
@@ -4301,7 +4540,7 @@ class TestXCS:
             xcs.leg2_fixed_rate
 
     def test_attributes_set(self):
-        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, leg2_currency="eur")
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", fixed=True, leg2_fixed=True, pair="eurusd")
         xcs.fixed_rate = 2.0
         xcs.leg2_fixed_rate = 1.5
         with pytest.raises(AttributeError, match="Leg1 is of type"):
@@ -4310,7 +4549,7 @@ class TestXCS:
             xcs.leg2_float_spread = 1.5
 
     def test_attributes_set_float(self):
-        xcs = XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur")
+        xcs = XCS(dt(2000, 1, 1), "6m", "Q", pair="eurusd")
         xcs.float_spread = 2.0
         xcs.leg2_float_spread = 1.5
         with pytest.raises(AttributeError, match="Leg1 is of type"):
@@ -4324,21 +4563,23 @@ class TestXCS:
                 dt(2000, 1, 1),
                 "6m",
                 "Q",
-                leg2_currency="eur",
+                pair="eurusd",
                 mtm=True,
                 leg2_mtm=True,
             )
 
     def test_notional_fixings_mismatch_raises(self):
-        with pytest.raises(ValueError, match="When `notional` is given only `leg2_fx_fixings` are"):
-            XCS(dt(2000, 1, 1), "6m", "Q", leg2_currency="eur", mtm=True, fx_fixings=1.10)
+        with pytest.raises(ValueError, match="When `notional` is given, that leg is assumed to be"):
+            XCS(dt(2000, 1, 1), "6m", "Q", pair="eurusd", mtm=True, fx_fixings=1.10)
 
-        with pytest.raises(ValueError, match="When `leg2_notional` is given only `fx_fixings` are"):
+        with pytest.raises(
+            ValueError, match="When `leg2_notional` is given, that leg is assumed to be"
+        ):
             XCS(
                 dt(2000, 1, 1),
                 "6m",
                 "Q",
-                leg2_currency="eur",
+                pair="usdeur",
                 mtm=True,
                 leg2_fx_fixings=1.10,
                 leg2_notional=10.0,
@@ -4351,7 +4592,7 @@ class TestXCS:
                 dt(2000, 1, 1),
                 "6m",
                 "Q",
-                leg2_currency="eur",
+                pair="usdeur",
                 mtm=True,
                 fx_fixings=1.10,
                 leg2_notional=10.0,
@@ -4364,7 +4605,7 @@ class TestXCS:
                 dt(2000, 1, 1),
                 "6m",
                 "Q",
-                leg2_currency="eur",
+                pair="usdeur",
                 mtm=True,
                 fx_fixings=1.10,
                 leg2_notional=10.0,
@@ -4378,7 +4619,7 @@ class TestXCS:
                 dt(2000, 1, 1),
                 "6m",
                 "Q",
-                leg2_currency="eur",
+                pair="eurusd",
                 mtm=True,
                 fx_fixings=1.10,
                 leg2_notional=10.0,
@@ -4393,7 +4634,7 @@ class TestXCS:
             termination="6m",
             frequency="Q",
             currency="eur",
-            leg2_currency="usd",
+            pair="eurusd",
             mtm=True,
             leg2_notional=10.0,
         )
@@ -4479,9 +4720,18 @@ class TestNDXCS:
         assert abs(ndxcs.npv(fx=fxf) + ndxcs.analytic_delta(fx=fxf, leg=1) * 0.1) < 1e-8
         for a, b in zip(
             df["FX Fix Date"],
-            [dt(2022, 2, 1), dt(2022, 3, 3), dt(2022, 4, 3), dt(2022, 5, 3), dt(2022, 5, 1)] * 2,
+            [dt(2022, 1, 28), dt(2022, 3, 1), dt(2022, 3, 31), dt(2022, 4, 28), dt(2022, 4, 28)]
+            * 2,
         ):
             assert a == b
+
+    def test_init_default_ccy(self):
+        defaults.base_currency = "gbp"
+        ndxcs = NDXCS(dt(2000, 1, 1), "1y", spec="inrusd_ndxcs")
+        assert ndxcs.leg1.settlement_params.currency == "usd"
+        assert ndxcs.leg2.settlement_params.currency == "usd"
+        defaults.reset_defaults()
+        assert defaults.base_currency == "usd"
 
 
 class TestFixedFloatXCS:
@@ -4500,7 +4750,7 @@ class TestFixedFloatXCS:
             leg2_mtm=True,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -4527,7 +4777,7 @@ class TestFixedFloatXCS:
             leg2_mtm=True,
             payment_lag=0,
             currency="usd",
-            leg2_currency="nok",
+            pair="usdnok",
             payment_lag_exchange=0,
             notional=10e6,
         )
@@ -4559,7 +4809,7 @@ class TestFixedFixedXCS:
             leg2_mtm=True,
             payment_lag=0,
             currency="nok",
-            leg2_currency="usd",
+            pair="nokusd",
             payment_lag_exchange=0,
             notional=10e6,
             fixed_rate=nok_rate,
@@ -4642,7 +4892,7 @@ class TestFXSwap:
         assert abs(fxs.npv(curves=[NoInput(0), curve, NoInput(0), curve2], fx=fxf)) < 1e-7
 
     def test_fxswap_points_raises(self) -> None:
-        msg = "`points` has been set on an FXSwap without a defined `fx_fixings`"
+        msg = "For an FXSwap transaction both `fx_rate` and `points` must be given"
         with pytest.raises(ValueError, match=msg):
             FXSwap(
                 dt(2022, 2, 1),
@@ -4653,11 +4903,13 @@ class TestFXSwap:
             )
 
     def test_fxswap_points_warns(self) -> None:
-        with pytest.raises(ValueError, match="An FXSwap must set ``fx_fixings`` and ``points`` si"):
+        with pytest.raises(
+            ValueError, match="For an FXSwap transaction both `fx_rate` and `points` must be given"
+        ):
             FXSwap(
                 dt(2022, 2, 1),
                 "8M",
-                leg2_fx_fixings=11.0,
+                fx_rate=11.0,
                 pair="usdnok",
                 notional=1e6,
             )
@@ -4665,7 +4917,7 @@ class TestFXSwap:
         FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=11.0,
+            fx_rate=11.0,
             points=1000.0,
             pair="usdnok",
             notional=1e6,
@@ -4673,7 +4925,7 @@ class TestFXSwap:
         )
 
     @pytest.mark.parametrize(
-        ("fx_fixings", "points", "split_notional", "expected"),
+        ("fx_rate", "points", "split_notional", "expected"),
         [
             (NoInput(0), NoInput(0), NoInput(0), Dual(0, ["fx_usdnok"], [0.0])),
             (11.0, 1800.0, NoInput(0), Dual(3734.617680, ["fx_usdnok"], [-3027.88203904])),
@@ -4701,7 +4953,7 @@ class TestFXSwap:
         self,
         curve,
         curve2,
-        fx_fixings,
+        fx_rate,
         points,
         split_notional,
         expected,
@@ -4726,7 +4978,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=fx_fixings,
+            fx_rate=fx_rate,
             points=points,
             split_notional=split_notional,
             pair="usdnok",
@@ -4747,7 +4999,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.0,
+            fx_rate=10.0,
             points=1000.0,
             pair="usdnok",
             notional=1e6,
@@ -4755,14 +5007,14 @@ class TestFXSwap:
         fxs2 = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.0,
+            fx_rate=10.0,
             points=1500.0,
             pair="usdnok",
             notional=-1e6,
         )
-        assert (
-            fxs.npv(curves=[curve, curve2], fx=fxf) - fxs2.npv(curves=[curve, curve2], fx=fxf)
-        ) > 0
+        npv1 = fxs.npv(curves=[curve, curve2], fx=fxf)
+        npv2 = fxs2.npv(curves=[curve, curve2], fx=fxf)
+        assert (npv1 - npv2) > 0
 
     @pytest.mark.parametrize("leg", [1, 2])
     def test_notional_directions_with_split_notional(self, leg):
@@ -4791,7 +5043,7 @@ class TestFXSwap:
         fxs = FXSwap(
             dt(2022, 2, 1),
             "8M",
-            leg2_fx_fixings=10.01,
+            fx_rate=10.01,
             points=1765,
             split_notional=1.01e6,
             pair="usdnok",
@@ -5146,7 +5398,7 @@ class TestPricingMechanism:
             "6m",
             "S",
             currency="usd",
-            leg2_currency="eur",
+            pair="eurusd",
             curves=[curve, NoInput(0), curve2, NoInput(0)],
             **kwargs,
         )
@@ -5861,7 +6113,7 @@ class TestSpec:
                 "3M",
                 "M",
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_mtm=True,
                 curves=["eureur", "eurusd", "usdusd", "usdusd"],
             ),
@@ -5937,7 +6189,7 @@ def test_fx_settlements_table(inst, expected) -> None:
                 "1y",
                 "Q",
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 curves=[eureur, eurusd, usdusd, usdusd],
             ),
         ],
@@ -6776,7 +7028,7 @@ class TestFXOptions:
         assert np.all(gradient(result.vol, vars=["v_0_0", "v_1_0"]) < 50.6)
 
     @pytest.mark.skip(reason="non-deliverability for FXOption instruments not yet implemented")
-    @pytest.mark.parametrize("ndpair", ["usdbrl", "brlusd"])
+    @pytest.mark.parametrize("ndpair", [FXIndex("usdbrl", "all", 0), FXIndex("brlusd", "all", 0)])
     def test_non_deliverable_fx_option_npv_vol_from_delta(self, ndpair):
         # see the equivalent test for an FXOptionPeriod with static vol
         fxf = FXForwards(
@@ -8048,7 +8300,7 @@ class TestFXBrokerFly:
             s=[11.0, 2.4, 2.5, 4.5],
             fx=fxfo,
         )
-        result = obj.rate(solver=solver, vol=vol, metric="vol")
+        result = obj.rate(solver=solver, vol=vol, metric="single_vol")
         assert abs(result - exp) < 1e-6
 
 
@@ -8178,53 +8430,6 @@ def test_unpriced_cashflows_string_id(inst):
             ["c", "c", "c2", "c"],
         ),
         (STIRFuture(dt(2022, 2, 1), "1m", spec="usd_stir1", price=99.0), ["c"]),
-        (
-            XCS(
-                dt(2022, 1, 1),
-                "2m",
-                fixed=True,
-                leg2_fixed=True,
-                fixed_rate=2.0,
-                leg2_fixed_rate=2.5,
-                frequency="1M",
-                leg2_fx_fixings=2.0,
-            ),
-            ["c", "c", "c2", "c"],
-        ),
-        (
-            XCS(
-                dt(2022, 1, 1),
-                "2m",
-                fixed=True,
-                fixed_rate=2.0,
-                frequency="1M",
-                leg2_fx_fixings=2.0,
-            ),
-            ["c", "c", "c2", "c"],
-        ),
-        (
-            XCS(
-                dt(2022, 1, 1),
-                "2m",
-                leg2_fixed=True,
-                leg2_fixed_rate=2.0,
-                float_spread=0.0,
-                frequency="1M",
-                leg2_fx_fixings=2.0,
-            ),
-            ["c", "c", "c2", "c"],
-        ),
-        (
-            XCS(
-                dt(2022, 1, 1),
-                "2m",
-                float_spread=0.0,
-                leg2_float_spread=0.0,
-                frequency="1M",
-                leg2_fx_fixings=2.0,
-            ),
-            ["c", "c", "c2", "c"],
-        ),
         (CDS(dt(2022, 2, 1), "1m", frequency="1M", fixed_rate=1.0), ["c2", "c"]),
         (ZCS(dt(2022, 1, 1), "2m", frequency="3M", fixed_rate=2.0), ["c"]),
         (
@@ -8250,7 +8455,10 @@ def test_unpriced_cashflows_string_id(inst):
 def test_forward_npv_argument(curve, curve2, inst, curves):
     c_ = {"c": curve, "c2": curve2}
     npv = inst.npv(curves=[c_[v] for v in curves])
-    forward_npv = inst.npv(curves=[c_[v] for v in curves], forward=dt(2022, 3, 15))
+    forward_npv = inst.npv(
+        curves=[c_[v] for v in curves],
+        forward=dt(2022, 3, 15),
+    )
     assert abs(forward_npv - npv / curve[dt(2022, 3, 15)]) < 1e-10
 
 
@@ -8269,7 +8477,7 @@ def test_forward_npv_argument(curve, curve2, inst, curves):
                 frequency="1M",
                 fx_fixings=2.0,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_notional=10e6,
             ),
             ["c", "c", "c2", "c2"],
@@ -8284,7 +8492,7 @@ def test_forward_npv_argument(curve, curve2, inst, curves):
                 frequency="1M",
                 fx_fixings=2.0,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_notional=10e6,
             ),
             ["c", "c", "c2", "c2"],
@@ -8300,7 +8508,7 @@ def test_forward_npv_argument(curve, curve2, inst, curves):
                 frequency="1M",
                 fx_fixings=2.0,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_notional=10e6,
             ),
             ["c", "c", "c2", "c2"],
@@ -8315,14 +8523,69 @@ def test_forward_npv_argument(curve, curve2, inst, curves):
                 frequency="1M",
                 fx_fixings=2.0,
                 currency="eur",
-                leg2_currency="usd",
+                pair="eurusd",
                 leg2_notional=10e6,
             ),
             ["c", "c", "c2", "c2"],
         ),
-        (NDF(dt(2022, 2, 15), pair="eurusd", fx_rate=1.15), ["c2"]),
         (
-            FXSwap(dt(2022, 2, 15), "1m", pair="eurusd", leg2_fx_fixings=1.15, points=56.5),
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                fixed=True,
+                leg2_fixed=True,
+                fixed_rate=2.0,
+                leg2_fixed_rate=2.5,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+                currency="usd",
+                pair="eurusd",
+            ),
+            ["c2", "c2", "c", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                fixed=True,
+                fixed_rate=2.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+                currency="usd",
+                pair="usdeur",
+            ),
+            ["c2", "c2", "c", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                leg2_fixed=True,
+                leg2_fixed_rate=2.0,
+                float_spread=0.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+                currency="usd",
+                pair="usdeur",
+            ),
+            ["c2", "c2", "c", "c"],
+        ),
+        (
+            XCS(
+                dt(2022, 1, 1),
+                "2m",
+                float_spread=0.0,
+                leg2_float_spread=0.0,
+                frequency="1M",
+                leg2_fx_fixings=2.0,
+                currency="usd",
+                pair="usdeur",
+            ),
+            ["c2", "c2", "c", "c"],
+        ),
+        (NDF(dt(2022, 2, 15), pair="eurusd", fx_rate=1.15), ["c"]),
+        (
+            FXSwap(dt(2022, 2, 15), "1m", pair="eurusd", fx_rate=1.15, points=56.5),
             ["c", "c2"],
         ),
         (FXForward(dt(2022, 2, 16), "eurusd", fx_rate=1.15), ["c", "c2"]),
@@ -8339,3 +8602,108 @@ def test_forward_npv_argument_with_fx(curve, curve2, inst, curves):
 
     result = npv / curve[dt(2022, 3, 15)] - forward_npv
     assert abs(result) < 1e-7
+
+
+class TestFixings:
+    def test_local_fixings_rate_and_fx(self):
+        fixings.add("wmr_eurusd", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+        fixings.add("rpi", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+        fixings.add("ibor_1M", Series(index=[dt(1999, 1, 1)], data=[100.0]))
+
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2000, 2, 15): 0.999, dt(2005, 1, 1): 0.9})
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.95})
+        fxf = FXForwards(
+            fx_curves={"eurusd": curve2, "usdusd": curve, "eureur": curve2},
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2000, 1, 1)),
+        )
+        irs = IRS(
+            dt(2000, 1, 1),
+            dt(2000, 4, 1),
+            "M",
+            currency="usd",
+            pair="eurusd",
+            fx_fixings="wmr",
+            leg2_fixing_method="ibor",
+            leg2_method_param=0,
+            leg2_rate_fixings="ibor",
+            payment_lag=0,
+            curves=[curve],
+            fixed_rate=2.07,
+        )
+
+        # cf = irs.cashflows(fx=fxf)
+        cft = irs.cashflows_table(fx=fxf)
+
+        result = irs.local_fixings(
+            identifiers=[
+                (
+                    "wmr_eurusd",
+                    Series(
+                        index=[dt(2000, 1, 28), dt(2000, 2, 28), dt(2000, 3, 30)],
+                        data=[1.0998008124280523, 1.1002139078693074, 1.101254251708383],
+                    ),
+                ),
+                (
+                    "ibor_1m",
+                    Series(
+                        index=[dt(2000, 1, 1), dt(2000, 2, 1), dt(2000, 3, 1)],
+                        data=[0.8006761616124619, 1.4777702977501797, 2.110198054725164],
+                    ),
+                ),
+            ],
+            scalars=(1.0, 0.01),
+            fx=fxf,
+        )
+
+        expected_rate_fixings = irs.local_analytic_rate_fixings(fx=fxf)
+        for i in range(3):
+            assert (
+                abs(result[("usd", "ibor_1m")].iloc[i * 2] - expected_rate_fixings.iloc[i, 0])
+                < 1e-8
+            )
+        expected_fx_fixings = [
+            cft.iloc[0, 0] / 1.0998008124280523 * curve[dt(2000, 2, 1)],
+            cft.iloc[1, 0] / 1.1002139078693074 * curve[dt(2000, 3, 1)],
+            cft.iloc[2, 0] / 1.101254251708383 * curve[dt(2000, 4, 1)],
+        ]
+        for i in range(3):
+            assert (
+                abs(result[("usd", "wmr_eurusd")].iloc[i * 2 + 1] - expected_fx_fixings[i]) < 1e-6
+            )
+
+
+def test_wmr_crosses_not_allowed_standard_instruments():
+    sek = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.8})
+    cad = Curve({dt(2000, 1, 1): 1.0, dt(2005, 1, 1): 0.85})
+    fxf = FXForwards(
+        fx_rates=FXRates({"cadsek": 8.0}, settlement=dt(2000, 1, 3)),
+        fx_curves={"cadcad": cad, "sekcad": sek, "seksek": sek},
+    )
+    fxvs = FXDeltaVolSmile(
+        eval_date=dt(2000, 1, 1),
+        expiry=dt(2000, 6, 2),
+        nodes={0.5: 10.0},
+        delta_type="forward",
+    )
+
+    instruments = [
+        FXForward(dt(2000, 6, 1), FXIndex("cadsek", "tro,stk", 2), curves=[cad, sek]),
+        FXForward(dt(2000, 6, 1), FXIndex("cadsek", "tro,stk", 2), fx_rate=8.1, curves=[cad, sek]),
+        FXSwap(dt(2000, 6, 2), dt(2000, 7, 2), FXIndex("cadsek", "tro,stk", 2), curves=[cad, sek]),
+        FXSwap(
+            dt(2000, 6, 2),
+            dt(2000, 7, 2),
+            FXIndex("cadsek", "tro,stk", 2),
+            fx_rate=8.0,
+            points=100.0,
+            curves=[cad, sek],
+        ),
+        FXCall(
+            expiry=dt(2000, 6, 2),
+            strike=8.0,
+            pair=FXIndex("cadsek", "tro,stk", 2),
+            curves=[cad, sek],
+        ),
+    ]
+    for inst in instruments:
+        inst.npv(vol=fxvs, fx=fxf)

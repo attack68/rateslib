@@ -1,3 +1,12 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import warnings
@@ -9,6 +18,7 @@ import numpy as np
 from pandas import DataFrame, Series
 
 from rateslib import defaults
+from rateslib.data.fixings import FXIndex
 from rateslib.default import (
     _make_py_json,
 )
@@ -241,13 +251,13 @@ class FXRates(_WithState):
     def _ad(self) -> int:
         return self.obj.ad
 
-    def rate(self, pair: str) -> Number:
+    def rate(self, pair: FXIndex | str) -> Number:
         """
         Return a specified FX rate for a given currency pair.
 
         Parameters
         ----------
-        pair : str
+        pair : FXIndex, str
             The FX pair in usual domestic:foreign convention (6 digit code).
 
         Returns
@@ -262,6 +272,9 @@ class FXRates(_WithState):
            fxr = FXRates({"usdeur": 2.0, "usdgbp": 2.5})
            fxr.rate("eurgbp")
         """
+        if isinstance(pair, FXIndex):
+            pair = pair.pair
+
         domi, fori = self.currencies[pair[:3].lower()], self.currencies[pair[3:].lower()]
         return self._fx_array_el(domi, fori)
 

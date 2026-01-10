@@ -191,7 +191,7 @@ class ZCS(_BaseInstrument):
         of the period rate when combining a ``float_spread``. Used **only** with RFR type
         ``fixing_method``.
     leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See XXX (working with fixings).
+        See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
 
@@ -205,18 +205,6 @@ class ZCS(_BaseInstrument):
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
-
-    Notes
-    ------
-    The various different ``leg2_fixing_methods``, which describe how an
-    individual *FloatPeriod* calculates its *rate*, are
-    fully documented in the notes for the :class:`~rateslib.periods.FloatPeriod`.
-    These configurations provide the mechanics to differentiate between IBOR swaps, and
-    OISs with different mechanisms such as *payment delay*, *observation shift*,
-    *lockout*, and/or *averaging*.
-    Similarly some information is provided in that same link regarding
-    ``leg2_fixings``, but a cookbook article is also produced for
-    :ref:`working with fixings <cook-fixings-doc>`.
 
     """  # noqa: E501
 

@@ -20,6 +20,7 @@ from rateslib.curves import _CurveMeta as _CurveMeta
 from rateslib.data.fixings import FloatRateIndex as FloatRateIndex
 from rateslib.data.fixings import FloatRateSeries as FloatRateSeries
 from rateslib.data.fixings import FXFixing as FXFixing
+from rateslib.data.fixings import FXIndex as FXIndex
 from rateslib.data.fixings import IBORFixing as IBORFixing
 from rateslib.data.fixings import IBORStubFixing as IBORStubFixing
 from rateslib.data.fixings import IndexFixing as IndexFixing
@@ -120,6 +121,7 @@ Solver_: TypeAlias = "Solver | NoInput"
 CalTypes: TypeAlias = "Cal | UnionCal | NamedCal"
 CalInput: TypeAlias = "CalTypes | str | NoInput"
 Adjuster_: TypeAlias = "Adjuster | NoInput"
+FXIndex_: TypeAlias = "FXIndex | NoInput"
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"
 DualTypes_: TypeAlias = "DualTypes | NoInput"

@@ -9,6 +9,7 @@ from rateslib.data.fixings import (
     FloatRateIndex,
     FloatRateSeries,
     FXFixing,
+    FXIndex,
     IBORFixing,
     IBORStubFixing,
     RFRFixing,
@@ -151,7 +152,7 @@ class TestSettlementParams:
         assert c.non_deliverable_params.fx_fixing._state == 0
 
     def test_fx_fixings_series_input(self):
-        s = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.1, 2.1])
+        s = Series(index=[dt(1999, 12, 29), dt(1999, 12, 30)], data=[1.1, 2.1])
         c = Cashflow(
             currency="usd", pair="eurusd", payment=dt(2000, 1, 2), notional=2.0, fx_fixings=s
         )
@@ -159,7 +160,7 @@ class TestSettlementParams:
         assert c.non_deliverable_params.fx_fixing.value == 2.1
 
     def test_fx_fixings_str_input(self):
-        s = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.1, 2.1])
+        s = Series(index=[dt(1999, 12, 29), dt(1999, 12, 30)], data=[1.1, 2.1])
         name = str(hash(os.urandom(8)))
         fixings.add(name + "_eurusd", s)
         c = Cashflow(
@@ -167,7 +168,7 @@ class TestSettlementParams:
         )
         assert c.non_deliverable_params.fx_fixing.value == 2.1
         assert isinstance(c.non_deliverable_params.fx_fixing.identifier, str)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
         fixings.pop(name + "_eurusd")
 
     def test_fx_fixings_str_state_cache(self):
@@ -183,14 +184,15 @@ class TestSettlementParams:
         )
         assert c.non_deliverable_params.fx_fixing.value is NoInput(0)
         assert isinstance(c.non_deliverable_params.fx_fixing.identifier, str)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        # states match the hash because the FXFixing uses composite FXFixingMajors
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
 
         assert c.non_deliverable_params.fx_fixing.value is NoInput(0)
-        assert c.non_deliverable_params.fx_fixing._state == fixings[name + "_eurusd"][0]
+        assert c.non_deliverable_params.fx_fixing._state == hash(fixings[name + "_eurusd"][0])
         fixings.pop(name + "_eurusd")
 
     def test_fx_fixing_cashflow(self):
-        s = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.1, 2.1])
+        s = Series(index=[dt(1999, 12, 29), dt(1999, 12, 30)], data=[1.1, 2.1])
         name = str(hash(os.urandom(8)))
         fixings.add(name + "_eurusd", s)
         c = Cashflow(
@@ -218,7 +220,7 @@ class TestSettlementParams:
             c.non_deliverable_params.fx_fixing = 2.0
 
     def test_fx_missing_data_raises(self):
-        s = Series(index=[dt(2000, 1, 1), dt(2000, 1, 3)], data=[1.1, 2.1])
+        s = Series(index=[dt(1999, 12, 29), dt(2000, 1, 1)], data=[1.1, 2.1])
         name = str(hash(os.urandom(8)))
         fixings.add(name + "_eurusd", s)
         c = Cashflow(
@@ -233,8 +235,8 @@ class TestSettlementParams:
         fixings.pop(name + "_eurusd")
 
     def test_fx_missing_data_raises_cross(self):
-        s = Series(index=[dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.1, 2.1])
-        s2 = Series(index=[dt(2000, 1, 1), dt(2000, 1, 3)], data=[1.1, 2.1])
+        s = Series(index=[dt(1999, 12, 29), dt(1999, 12, 30)], data=[1.1, 2.1])
+        s2 = Series(index=[dt(1999, 12, 29), dt(2000, 1, 1)], data=[1.1, 2.1])
         name = str(hash(os.urandom(8)))
         fixings.add(name + "_usdinr", s)
         fixings.add(name + "_usdrub", s2)
@@ -242,7 +244,7 @@ class TestSettlementParams:
             notional=100,
             payment=dt(2000, 1, 2),
             currency="inr",
-            pair="inrrub",
+            pair=FXIndex("inrrub", "mum|fed", 2, "mum", -2),
             fx_fixings=name,
         )
         with pytest.raises(FixingMissingDataError, match="Fixing lookup for date "):

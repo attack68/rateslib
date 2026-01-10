@@ -1,3 +1,12 @@
+#############################################################
+# COPYRIGHT 2022 Siffrorna Technology Limited
+# This code may not be copied, modified, used or distributed
+# except with the express permission and licence to
+# do so, provided by the copyright holder.
+# See: https://rateslib.com/py/en/latest/i_licence.html
+#############################################################
+
+
 from __future__ import annotations
 
 import json
@@ -29,7 +38,7 @@ from rateslib.curves.utils import (
 )
 from rateslib.data.loader import FixingMissingDataError, FixingRangeError
 from rateslib.default import PlotOutput, plot
-from rateslib.dual import Dual, Dual2, Variable, dual_exp, set_order_convert
+from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, set_order_convert
 from rateslib.dual.utils import _dual_float, _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod, _get_index_method
@@ -647,6 +656,11 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         the value that was published for the RFR index on 7th Sep 2021 by the Riksbank.
 
         .. ipython:: python
+           :suppress:
+
+           from rateslib import Curve, dt
+
+        .. ipython:: python
 
            index_curve = Curve(
                nodes={
@@ -738,7 +752,10 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
                 )
             else:
                 pm_ = comparator._plot_modifier(tenor)
-                y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
+                if upper_tenor == "Z":
+                    y_.append([comparator._plot_zero_rate(_x) for _x in x])
+                else:
+                    y_.append([comparator._plot_rate(_x, tenor, pm_) for _x in x])
 
         return plot([x] * len(y_), y_, labels)
 
@@ -747,7 +764,10 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
     ) -> DualTypes | None:  # pragma: no cover
         if rate is None:
             return None
-        rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
+        if tenor == "Z" or tenor == "z":
+            rate2 = comparator._plot_zero_rate(date)
+        else:
+            rate2 = comparator._plot_rate(date, tenor, comparator._plot_modifier(tenor))
         if rate2 is None:
             return None
         return rate2 - rate
@@ -777,13 +797,17 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
             raise ValueError("`left` must be supplied as datetime or tenor string.")
 
         if isinstance(right, NoInput):
-            # pre-adjust the end date to enforce business date.
-            right_: datetime = add_tenor(
-                self.meta.calendar.adjust(self.nodes.final, Adjuster.Previous()),
-                "-" + upper_tenor,
-                "P",
-                self.meta.calendar,
-            )
+            if upper_tenor == "Z":
+                # then plotting zero rates just use the last date
+                right_: datetime = self.nodes.final
+            else:
+                # pre-adjust the end date to enforce business date.
+                right_ = add_tenor(
+                    self.meta.calendar.adjust(self.nodes.final, Adjuster.Previous()),
+                    "-" + upper_tenor,
+                    "P",
+                    self.meta.calendar,
+                )
         elif isinstance(right, str):
             right_ = add_tenor(self.nodes.initial, right, "P", NoInput(0))
         elif isinstance(right, datetime):
@@ -792,7 +816,12 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
             raise ValueError("`right` must be supplied as datetime or tenor string.")
 
         dates = self.meta.calendar.cal_date_range(start=left_, end=right_)
-        rates = [self._plot_rate(_, upper_tenor, self._plot_modifier(upper_tenor)) for _ in dates]
+        if upper_tenor == "Z":
+            rates = [self._plot_zero_rate(_) for _ in dates]
+        else:
+            rates = [
+                self._plot_rate(_, upper_tenor, self._plot_modifier(upper_tenor)) for _ in dates
+            ]
         return dates, rates
 
     def _plot_rate(
@@ -806,6 +835,23 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         except ValueError:
             return None
         return rate
+
+    def _plot_zero_rate(
+        self,
+        maturity: datetime,
+    ) -> DualTypes | None:
+        """plotting a continuously compounded zero rate is done using the ActActISDA convention"""
+        if self._base_type != _CurveType.dfs:
+            raise ValueError(
+                "To plot continuously compounded zero rates ('Z') the Curve `_base_type` must be "
+                f"discount factor based. Got: '{self._base_type}'."
+            )
+
+        if maturity <= self.nodes.initial:
+            return None
+        else:
+            t = dcf(self.nodes.initial, maturity, Convention.ActActISDA)
+            return (dual_log(self[maturity]) / -t) * 100.0
 
     # Index Plotting
 

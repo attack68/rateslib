@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from pandas import DataFrame
 
 from rateslib import defaults
+from rateslib.data.fixings import _get_fx_index, _maybe_get_fx_index
 from rateslib.enums.generics import NoInput, Ok, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.periods.parameters import (
@@ -25,6 +26,7 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         Result,
         Series,
         _BaseCurve_,
@@ -94,7 +96,7 @@ class Cashflow(_BasePeriodStatic):
            The following parameters define **non-deliverability**. If the *Period* is directly
            deliverable do not supply these parameters.
 
-    pair: str, :green:`optional`
+    pair: FXIndex, str, :green:`optional`
         The currency pair of the :class:`~rateslib.data.fixings.FXFixing` that determines
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
@@ -141,7 +143,7 @@ class Cashflow(_BasePeriodStatic):
         currency: str_ = NoInput(0),
         ex_dividend: datetime_ = NoInput(0),
         # non-deliverable args:
-        pair: str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
         # index-args:
@@ -158,11 +160,11 @@ class Cashflow(_BasePeriodStatic):
             _payment=payment,
             _currency=_drb(defaults.base_currency, currency).lower(),
             _ex_dividend=_drb(payment, ex_dividend),
-            _fx_pair=pair,
+            _fx_pair=_maybe_get_fx_index(pair),
         )
         self._non_deliverable_params = _init_or_none_NonDeliverableParams(
             _currency=self.settlement_params.currency,
-            _pair=pair,
+            _fx_index=pair,
             _fx_fixings=fx_fixings,
             _delivery=_drb(self.settlement_params.payment, delivery),
         )
@@ -202,60 +204,6 @@ class Cashflow(_BasePeriodStatic):
         fx_vol: _FXVolOption_ = NoInput(0),
     ) -> Result[DataFrame]:
         return Ok(DataFrame())
-
-
-# class NonDeliverableCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#         if self.is_indexed:
-#             raise ValueError(err.VE_HAS_INDEX_PARAMS.format(type(self).__name__))
-#
-#
-# class IndexCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if self.is_non_deliverable:
-#             raise ValueError(err.VE_HAS_ND_CURRENCY_PARAMS.format(type(self).__name__))
-#
-#
-# class NonDeliverableIndexCashflow(Cashflow):
-#     """
-#     Deprecated
-#
-#     .. warning::
-#
-#        This object is deprecated. Use a :class:`~rateslib.periods.Cashflow` instead.
-#
-#     """
-#
-#     def __init__(self, **kwargs: Any) -> None:
-#         super().__init__(**kwargs)
-#         if not self.is_indexed:
-#             raise ValueError(err.VE_NEEDS_INDEX_PARAMS.format(type(self).__name__))
-#         if not self.is_non_deliverable:
-#             raise ValueError(err.VE_NEEDS_ND_CURRENCY_PARAMS.format(type(self).__name__))
 
 
 class MtmCashflow(_BasePeriodStatic):
@@ -324,7 +272,7 @@ class MtmCashflow(_BasePeriodStatic):
 
            The following parameters define the specific **mtm** aspects of the *cashflow*.
 
-    pair: str, :red:`required`
+    pair: FXIndex, str, :red:`required`
         The currency pair of the two :class:`~rateslib.data.fixings.FXFixing` that determines
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     start: datetime, :red:`required`
@@ -382,7 +330,7 @@ class MtmCashflow(_BasePeriodStatic):
         *,
         payment: datetime,
         notional: DualTypes,
-        pair: str,
+        pair: FXIndex | str,
         start: datetime,
         end: datetime_ = NoInput(0),
         currency: str_ = NoInput(0),
@@ -398,15 +346,16 @@ class MtmCashflow(_BasePeriodStatic):
         index_base_date: datetime_ = NoInput(0),
         index_reference_date: datetime_ = NoInput(0),
     ):
+        fx_index = _get_fx_index(pair)
         self._settlement_params = _init_SettlementParams_with_fx_pair(
             _notional=notional,
             _payment=payment,
             _currency=_drb(defaults.base_currency, currency).lower(),
             _ex_dividend=_drb(payment, ex_dividend),
-            _fx_pair=pair,
+            _fx_pair=fx_index,
         )
         self._mtm_params = _init_MtmParams(
-            _pair=pair,
+            _fx_index=fx_index,
             _currency=_drb(defaults.base_currency, currency).lower(),
             _start=start,
             _end=_drb(payment, end),

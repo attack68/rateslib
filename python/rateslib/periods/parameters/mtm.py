@@ -9,7 +9,15 @@ from rateslib.enums import Err, Ok
 from rateslib.periods.parameters.settlement import _init_fx_fixing
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, FXFixing, FXForwards_, Result, datetime, str_
+    from rateslib.typing import (
+        DualTypes,
+        FXFixing,
+        FXForwards_,
+        FXIndex,
+        Result,
+        datetime,
+        str_,
+    )
 
 
 class _MtmParams:
@@ -86,15 +94,24 @@ class _MtmParams:
 
 
 def _init_MtmParams(
-    _pair: str,
+    _fx_index: FXIndex,
     _start: datetime,
     _end: datetime,
     _fx_fixings_start: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
     _fx_fixings_end: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
     _currency: str,
 ) -> _MtmParams:
+    # FX fixing publication dates are derived under the ISDA conventions associated with FXIndex.
     return _MtmParams(
-        _fx_fixing_start=_init_fx_fixing(date=_start, pair=_pair, fixings=_fx_fixings_start),
-        _fx_fixing_end=_init_fx_fixing(date=_end, pair=_pair, fixings=_fx_fixings_end),
+        _fx_fixing_start=_init_fx_fixing(
+            delivery=_start,
+            fx_index=_fx_index,
+            fixings=_fx_fixings_start,
+        ),
+        _fx_fixing_end=_init_fx_fixing(
+            delivery=_end,
+            fx_index=_fx_index,
+            fixings=_fx_fixings_end,
+        ),
         _currency=_currency,
     )

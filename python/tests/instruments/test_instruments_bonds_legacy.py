@@ -446,6 +446,20 @@ class TestFixedRateBond:
         )
         assert abs(note.leg1.periods[0].cashflow() - 386.474184670) < 5e-7
 
+    def test_calc_mode_ytm(self):
+        b = FixedRateBond(dt(1985, 11, 15), dt(1995, 11, 15), fixed_rate=9.5, spec="us_gb_tsy")
+
+        y1 = b.ytm(price=99.730918, settlement=dt(1985, 11, 29))
+        assert abs(y1 - 9.54) < 1e-6
+
+        b2 = FixedRateBond(dt(1985, 11, 15), dt(1995, 11, 15), fixed_rate=9.5, spec="us_gb")
+        exp_y2 = b2.ytm(price=99.730918, settlement=dt(1985, 11, 29))
+
+        # street convention
+        y2 = b.ytm(price=99.730918, settlement=dt(1985, 11, 29), calc_mode="us_gb")
+        assert abs(y2 - 9.54) > 1e-6
+        assert abs(y2 - exp_y2) < 1e-6
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize(
@@ -2460,6 +2474,118 @@ class TestIndexFixedRateBond:
         expected = -1006875.3812
         assert abs(result1 - expected) < 1e-5
         assert abs(result1 - result2) < 1e-5
+
+    def test_rate_docs(self):
+        disc_curve = Curve(
+            nodes={dt(2025, 7, 28): 1.0, dt(2045, 7, 25): 1.0}, convention="act365f"
+        ).shift(250)  # curve begins at 0% and gets shifted by 250 Act365F O/N basis points
+        index_curve = Curve(
+            nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
+            convention="act365f",
+            index_lag=0,
+            index_base=402.9,
+        ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+        fixings.add(
+            "UK_RPI_987",
+            Series(
+                index=[dt(2025, 3, 1), dt(2025, 4, 1), dt(2025, 5, 1)], data=[395.3, 402.2, 402.9]
+            ),
+        )
+        ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
+            effective=dt(2025, 6, 11),
+            termination=dt(2038, 9, 22),
+            fixed_rate=1.75,
+            spec="uk_gbi",
+            index_fixings="UK_RPI_987",
+        )
+        a1 = ukti.rate(
+            curves=[index_curve, disc_curve], metric="clean_price"
+        )  # settles T+1 i.e. 29th July
+        a2 = ukti.rate(curves=[index_curve, disc_curve], metric="dirty_price")
+        a3 = ukti.rate(curves=[index_curve, disc_curve], metric="index_clean_price")
+        a4 = ukti.rate(curves=[index_curve, disc_curve], metric="index_dirty_price")
+        a5 = ukti.rate(curves=[index_curve, disc_curve], metric="ytm")
+        a6 = ukti.accrued(settlement=dt(2025, 7, 29))
+        a7 = ukti.accrued(settlement=dt(2025, 7, 29), indexed=True)
+        a8 = ukti.rate(curves=[index_curve, disc_curve], metric="index_ytm")
+
+        assert abs(a1 - 102.90237315163287) < 1e-5
+        assert abs(a2 - 103.13063402119809) < 1e-5
+        assert abs(a3 - 104.25652750721756) < 1e-5
+        assert abs(a4 - 104.487792199156) < 1e-5
+        assert abs(a5 - 1.5058915118424034) < 1e-5
+        assert abs(a6 - 0.228260) < 1e-5
+        assert abs(a7 - 0.231264) < 1e-5
+        assert abs(a8 - 2.5174145913908443) < 1e-5
+
+        fixings.pop("UK_RPI_987")
+
+    def test_index_ytm(self):
+        fixings.add(
+            "UK_RPI_9843",
+            Series(
+                index=[
+                    dt(2025, 1, 1),
+                    dt(2026, 1, 1),
+                    dt(2027, 1, 1),
+                    dt(2028, 1, 1),
+                    dt(2029, 1, 1),
+                    dt(2030, 1, 1),
+                ],
+                data=[100.0, 102, 103, 104, 105, 106],
+            ),
+        )
+        bond = IndexFixedRateBond(
+            effective=dt(2025, 1, 6),
+            termination=dt(2030, 1, 6),
+            roll=6,
+            calendar="bus",
+            convention="actacticma",
+            frequency="A",
+            # index_base=100.0,
+            index_lag=0,
+            index_method="monthly",
+            ex_div=1,
+            fixed_rate=2.0,
+            index_fixings="UK_RPI_9843",
+        )
+        assert bond.leg1.periods[0].index_params.index_base.value == 100.0
+        result = bond.ytm(price=101.9456166, settlement=dt(2026, 1, 6), indexed=True, dirty=True)
+        expected = 3.00
+        # 101.9456166 = 2 * 1.03/1.03 + 2 * 1.04/1.03**2 + 2 * 1.05/1.03**3 + 102 * 1.06/1.03**4
+        fixings.pop("UK_RPI_9843")
+        assert abs(result - expected) < 1e-6
+
+        result = bond.ytm(
+            price=101.9456166 / 1.02, settlement=dt(2026, 1, 6), indexed=False, dirty=True
+        )
+        expected = 2.0140070859464996
+        assert abs(result - expected) < 1e-6
+        # clean yield is approximately 1% lower than indexed yield since inflation is approx 1%
+
+    def test_index_price(self):
+        index_curve = Curve(
+            nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
+            convention="act365f",
+            index_lag=0,
+            index_base=402.9,
+        ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+        ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
+            effective=dt(2025, 6, 11),
+            termination=dt(2038, 9, 22),
+            fixed_rate=1.75,
+            spec="uk_gbi",
+            index_base=397.60,
+        )
+        r1 = ukti.price(ytm=2.51, settlement=dt(2025, 8, 5), indexed=True, index_curve=index_curve)
+        r2 = ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed=False)
+        r3 = ukti.price(
+            ytm=2.51, settlement=dt(2025, 8, 5), dirty=True, indexed=True, index_curve=index_curve
+        )
+        r4 = ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed=False)
+        r5 = ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8, 5))
+        assert abs(r2 - r1 / r5) < 1e-1
+        assert abs(r4 - r3 / r5) < 1e-1
 
 
 class TestBill:

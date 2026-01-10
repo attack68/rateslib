@@ -45,9 +45,9 @@ if TYPE_CHECKING:
 
 class FXStrangle(_BaseFXOptionStrat):
     """
-    An *FX Strangle* :class:`~rateslib.instruments._FXOptionStrat`.
+    An *FX Strangle* :class:`~rateslib.instruments._BaseFXOptionStrat`.
 
-    A *Straddle* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
+    A *Strangle* is composed of a lower strike :class:`~rateslib.instruments.FXPut`
     and a higher strike :class:`~rateslib.instruments.FXCall`.
 
     .. rubric:: Examples
@@ -55,22 +55,23 @@ class FXStrangle(_BaseFXOptionStrat):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FXRiskReversal
-       from datetime import datetime as dt
+       from rateslib import FXStrangle, Curve, FXForwards, FXRates, FXDeltaVolSmile, dt
 
     .. ipython:: python
 
-       fxc = FXRiskReversal(
+       fxs = FXStrangle(
            expiry="3m",
-           strike="atm_delta",
+           strike=["-10d", "10d"],
            eval_date=dt(2020, 1, 1),
            spec="eurusd_call",
+           notional=1000000,
        )
-       fxc.cashflows()
+       fxs.cashflows()
 
     .. rubric:: Pricing
 
-    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`.
+    The pricing mirrors that for an :class:`~rateslib.instruments.FXCall`. All options use the
+    same ``curves``.
     Allowable inputs are:
 
     .. code-block:: python
@@ -90,12 +91,55 @@ class FXStrangle(_BaseFXOptionStrat):
        vol = 12.0 | vol_obj  # a single item universally applied
        vol = [12.0, 12.0]  # values for the Put and Call respectively
 
-    The pricing ``metric`` will return the following calculations:
+    *FXStrangles* have peculiar market conventions. If the strikes are given as delta percentages
+    then numeric values will first be derived using the *'single_vol'* approach. Any *'premium'*
+    or *'pips_or_%'* values can then be calculated using those strikes and this volatility.
+    The following pricing ``metric`` are available, with examples:
 
-    - *'vol'*: the implied volatility value of the option from a volatility object.
-    - *'premium'*: the cash premium amount applicable to the 'payment' date.
-    - *'pips_or_%'*: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
-      the premium currency is RHS this gives a number of pips of the FX rate.
+    .. ipython:: python
+
+       eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+       usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+       fxf = FXForwards(
+           fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+           fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+       )
+       fxvs = FXDeltaVolSmile(
+           nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+           expiry=dt(2020, 4, 1),
+           eval_date=dt(2020, 1, 1),
+           delta_type="forward",
+       )
+
+    - **'single_vol'**: the singular volatility value that when applied to each option separately
+      yields a summed premium amount equal to the summed premium when each option is valued with
+      the appropriate volatility from an object (with the strikes determined by the single vol).
+      **'vol'** is an alias for single vol and returns the same value.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="single_vol")
+         fxs.rate(vol=[12.163490, 12.163490], curves=[eur, usd], fx=fxf, metric="premium")
+
+      This requires an iterative calculation for which the tolerance is set to 1e-6 with a
+      maximum allowed number of iterations of 10.
+
+    - **'premium'**: the summed cash premium amount, of both options, applicable to the 'payment'
+      date. If strikes are given as delta percentages then they are first determined using the
+      *'single_vol'*.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="premium")
+
+    - **'pips_or_%'**: if the premium currency is LHS of ``pair`` this is a % of notional, whilst if
+      the premium currency is RHS this gives a number of pips of the FX rate. Summed over both
+      options. For strikes set with delta percentages these are first determined using the
+      'single_vol'.
+
+      .. ipython:: python
+
+         fxs.rate(vol=fxvs, curves=[eur, usd], fx=fxf, metric="pips_or_%")
 
     .. role:: red
 
@@ -160,7 +204,7 @@ class FXStrangle(_BaseFXOptionStrat):
 
            The following are **meta parameters**.
 
-    metric : str, :green:`optional (set as "pips_or_%")`
+    metric : str, :green:`optional (set as "single_vol")`
         The pricing metric returned by the ``rate`` method. See **Pricing**.
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
         Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
@@ -172,19 +216,6 @@ class FXStrangle(_BaseFXOptionStrat):
         An identifier to pre-populate many field with conventional values. See
         :ref:`here<defaults-doc>` for more info and available values.
 
-    Notes
-    -----
-    Buying a *Straddle* equates to buying a :class:`~rateslib.instruments.FXPut`
-    and buying a :class:`~rateslib.instruments.FXCall` with the same strike. The ``notional`` of
-    each are the same, and should be entered as a single value.
-
-    When supplying ``strike`` as a string delta the strike will be determined at price time from
-    the provided volatility.
-
-    This class is an alias constructor for an
-    :class:`~rateslib.instruments._FXOptionStrat` where the number
-    of options and their definitions and nominals have been specifically overloaded for
-    convenience.
     """
 
     _rate_scalar = 100.0
@@ -298,26 +329,6 @@ class FXStrangle(_BaseFXOptionStrat):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        """
-        Returns the rate of the *FXStrangle* according to a pricing metric.
-
-        For parameters see :meth:`_FXOptionStrat.rate <rateslib.instruments._FXOptionStrat.rate>`.
-
-        Notes
-        ------
-
-        .. warning::
-
-           The default ``metric`` for an *FXStrangle* is *'single_vol'*, which requires an
-           iterative algorithm to solve.
-           For defined strikes it is usually very accurate but for strikes defined by delta it
-           will return a solution within 0.01 pips. This means it is both slower than other
-           instruments and inexact.
-
-           The ``metric`` *'vol'* is not sensible to use with an *FXStrangle*, although it will
-           return the arithmetic average volatility across both options, *'single_vol'* is the
-           more standardised choice.
-        """
         return self._rate(
             curves=curves,
             solver=solver,
@@ -341,24 +352,35 @@ class FXStrangle(_BaseFXOptionStrat):
         forward: datetime_,
         record_greeks: bool = False,
     ) -> DualTypes:
-        metric = _drb(self.kwargs.meta["metric"], metric).lower()
-        if metric != "single_vol" and not any(self.kwargs.meta["fixed_delta"]):
+        metric_: str = _drb(self.kwargs.meta["metric"], metric).lower()
+        if metric_ != "single_vol" and not any(self.kwargs.meta["fixed_delta"]):
             # the strikes are explicitly defined and independent across options.
             # can evaluate separately, therefore the default method will suffice.
             return super().rate(
-                curves=curves, solver=solver, fx=fx, base=base, vol=vol, metric=metric
+                curves=curves, solver=solver, fx=fx, base=base, vol=vol, metric=metric_
             )
         else:
             # must perform single vol evaluation to determine mkt convention strikes
             single_vol = self._rate_single_vol(
                 curves=curves, solver=solver, fx=fx, base=base, vol=vol, record_greeks=record_greeks
             )
-            if metric == "single_vol":
+            if metric_ == "single_vol":
                 return single_vol
-            else:
+            elif metric_ in ["premium", "pips_or_%"]:
                 # return the premiums using the single_vol as the volatility
                 return super().rate(
-                    curves=curves, solver=solver, fx=fx, base=base, vol=single_vol, metric=metric
+                    curves=curves, solver=solver, fx=fx, vol=single_vol, metric=metric_
+                )
+            elif metric_ == "vol":
+                # this will return the same value as the single_vol, since the `vol` is
+                # directly specified
+                # return super().rate(
+                #     curves=curves, solver=solver, fx=fx, vol=single_vol, metric=metric_
+                # )
+                return single_vol
+            else:
+                raise ValueError(
+                    f"Metric {metric_} must be in {{'single_vol', 'premium', 'pips_or_%', 'vol'}}."
                 )
 
     def _rate_single_vol(
@@ -413,7 +435,7 @@ class FXStrangle(_BaseFXOptionStrat):
         )
 
         # Get initial data from objects in their native AD order
-        spot: datetime = fxf.pairs_settlement[self.kwargs.leg1["pair"]]
+        spot: datetime = fxf.pairs_settlement[self.kwargs.leg1["pair"].pair]
         w_spot: DualTypes = rate_curve[spot]
         w_deli: DualTypes = rate_curve[self.kwargs.leg1["delivery"]]
         f_d: DualTypes = fxf.rate(self.kwargs.leg1["pair"], self.kwargs.leg1["delivery"])
@@ -565,12 +587,8 @@ class FXStrangle(_BaseFXOptionStrat):
         if record_greeks:  # this needs to be explicitly called since it degrades performance
             self._greeks["strangle"] = {
                 "single_vol": {
-                    "FXPut": self.instruments[0].analytic_greeks(
-                        curves, solver, fxf, base, tgt_vol
-                    ),
-                    "FXCall": self.instruments[1].analytic_greeks(
-                        curves, solver, fxf, base, tgt_vol
-                    ),
+                    "FXPut": self.instruments[0].analytic_greeks(curves, solver, fxf, tgt_vol),
+                    "FXCall": self.instruments[1].analytic_greeks(curves, solver, fxf, tgt_vol),
                 },
                 "market_vol": {
                     "FXPut": put_op_period.analytic_greeks(rate_curve, disc_curve, fxf, vol_0),
