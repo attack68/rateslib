@@ -28,13 +28,13 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
+        FXIndex_,
         LegFixings,
         RollDay,
         Sequence,
         Solver_,
         VolT_,
-        _BaseFXIndex,
-        _BaseFXIndex_,
         _BaseLeg,
         bool_,
         datetime_,
@@ -242,7 +242,7 @@ class FXSwap(_BaseInstrument):
         # scheduling
         effective: datetime,
         termination: datetime | str,
-        pair: _BaseFXIndex | str,
+        pair: FXIndex | str,
         *,
         roll: int | RollDay | str_ = NoInput(0),
         eom: bool_ = NoInput(0),
@@ -474,7 +474,7 @@ class FXSwap(_BaseInstrument):
 
 
 def _validated_fxswap_input_combinations(
-    pair: _BaseFXIndex | str_,
+    pair: FXIndex | str_,
     notional: DualTypes_,
     leg2_notional: DualTypes_,
     split_notional: DualTypes_,
@@ -482,13 +482,13 @@ def _validated_fxswap_input_combinations(
     points: DualTypes_,
     spec: str_,
 ) -> tuple[
-    _BaseFXIndex,
+    FXIndex,
     list[DualTypes],
     list[DualTypes],
     LegFixings,
     LegFixings,
-    _BaseFXIndex_,
-    _BaseFXIndex_,
+    FXIndex_,
+    FXIndex_,
     DualTypes_,
     DualTypes_,
 ]:

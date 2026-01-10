@@ -55,10 +55,25 @@ def test_fx_index_change() -> None:
     eurusd = FXFixing("eurusd", dt(2000, 1, 1))
     assert eurusd.fx_index.calendar == NamedCal("tgt|fed")
     assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(2)
-    defaults.fx_index["eurusd"] = FXIndex("eurusd", "stk", 3)
+    defaults.fx_index["eurusd"] = {"pair": "eurusd", "calendar": "stk", "settle": 3}
     eurusd = FXFixing("eurusd", dt(2000, 1, 1))
     assert eurusd.fx_index.calendar == NamedCal("stk")
     assert eurusd.fx_index.settle == Adjuster.BusDaysLagSettle(3)
 
     defaults.reset_defaults()
-    assert defaults.fx_index["eurusd"].calendar == NamedCal("tgt|fed")
+    assert defaults.fx_index["eurusd"]["calendar"] == NamedCal("tgt|fed")
+
+
+def test_float_series_change():
+    from rateslib import IRS
+
+    with pytest.raises(ValueError, match="The FloatRateSeries: 'monkey' was not found "):
+        IRS(dt(2000, 1, 1), "1y", "A", leg2_fixing_series="monkey")
+
+    defaults.float_series["monkey"] = dict(
+        lag=0, calendar="nyc", modifier="f", eom=False, convention="act360"
+    )
+    IRS(dt(2000, 1, 1), "1y", "A", leg2_fixing_series="monkey")
+
+    defaults.reset_defaults()
+    assert "monkey" not in defaults.float_series

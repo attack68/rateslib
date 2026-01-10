@@ -26,10 +26,10 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
+        FXIndex,
         Result,
         Series,
         _BaseCurve_,
-        _BaseFXIndex,
         _FXVolOption_,
         bool_,
         datetime,
@@ -143,7 +143,7 @@ class Cashflow(_BasePeriodStatic):
         currency: str_ = NoInput(0),
         ex_dividend: datetime_ = NoInput(0),
         # non-deliverable args:
-        pair: _BaseFXIndex | str_ = NoInput(0),
+        pair: FXIndex | str_ = NoInput(0),
         fx_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         delivery: datetime_ = NoInput(0),
         # index-args:
@@ -330,7 +330,7 @@ class MtmCashflow(_BasePeriodStatic):
         *,
         payment: datetime,
         notional: DualTypes,
-        pair: _BaseFXIndex | str,
+        pair: FXIndex | str,
         start: datetime,
         end: datetime_ = NoInput(0),
         currency: str_ = NoInput(0),
