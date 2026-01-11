@@ -1179,6 +1179,16 @@ class TestFixedRateBond:
         result = gilt.convexity(4.445, dt(1999, 5, 27))
         assert (result - numeric * 1000) < 1e-3
 
+        price = gilt.price(4.445, dt(1999, 5, 27), dirty=True)
+        result2 = gilt.convexity(4.445, dt(1999, 5, 27), "convexity")
+        assert abs(result2 - result * 100.0 / price) < 1e-6
+
+    def test_convexity_traditional(self):
+        aapl_bond = FixedRateBond(dt(2013, 5, 4), dt(2043, 5, 4), fixed_rate=3.85, spec="us_corp")
+        # c1 = aapl_bond.convexity(4.653674794785435, dt(2014, 3, 5))
+        c2 = aapl_bond.convexity(4.653674794785435, dt(2014, 3, 5), metric="convexity")
+        assert abs(c2 - 3.803) < 1e-4
+
     def test_fixed_rate_bond_rate(self) -> None:
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),

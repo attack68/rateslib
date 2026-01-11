@@ -58,7 +58,7 @@ class _WithDuration(Protocol):
 
              mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
 
-        - *"duration"*: the duration which is modified duration reverse modified.
+        - *"duration"*: (i.e. Macauley) the duration which is modified duration reverse modified.
 
           .. math::
 
@@ -105,7 +105,7 @@ class _WithDuration(Protocol):
             _ = -gradient(price_dual, ["y"])[0] / float(price_dual) * v * 100
         return _
 
-    def convexity(self, ytm: DualTypes, settlement: datetime) -> float:
+    def convexity(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
         """
         Return the second derivative of ``price`` w.r.t. ``ytm``.
 
@@ -115,10 +115,28 @@ class _WithDuration(Protocol):
             The yield-to-maturity for the bond.
         settlement : datetime
             The settlement date of the bond.
+        metric: str, optional
 
         Returns
         -------
         float
+
+        Notes
+        ------
+        The default metric is similar to the :meth:`duration` method and is *'risk'* based,
+        but the traditional calculation is available.
+
+        - *"risk"*: the second derivative of price w.r.t. ytm, scaled to -1bp.
+
+          .. math::
+
+             risk = \\frac{\\partial^2 P }{\\partial y^2}
+
+        - *"convexity"*: the standard formula for convexity which is the above scaled by price.
+
+          .. math::
+
+             convexity = \\frac{1}{P} \\frac{\\partial P^2 }{\\partial y^2}
 
         Examples
         --------
@@ -151,6 +169,11 @@ class _WithDuration(Protocol):
         """
         # TODO: method is not AD safe: returns float
         ytm_: float = _dual_float(ytm)
-        _ = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement)
-        ret: float = gradient(_, ["_ytm__§"], 2)[0][0]
+        d = self.price(Dual2(ytm_, ["_ytm__§"], [], []), settlement, dirty=True)
+        ret: float = gradient(d, ["_ytm__§"], 2)[0][0]
+
+        if metric == "risk":
+            return ret
+        elif metric == "convexity":
+            return ret * 100.0 / _dual_float(d)
         return ret
