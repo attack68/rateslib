@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -1051,10 +1062,10 @@ class IndexFixedRateBond(_BaseBondInstrument):
                index_base=397.6,
            )
            ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8, 5))
-           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), indexed=True, index_curve=index_curve)
-           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed=False)
-           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), dirty=True, indexed=True, index_curve=index_curve)
-           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed=False)
+           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), indexed_ytm=True, index_curve=index_curve)
+           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed_ytm=False)
+           ukti.price(ytm=2.5, settlement=dt(2025, 8, 5), dirty=True, indexed_ytm=True, index_curve=index_curve)
+           ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed_ytm=False)
 
         """  # noqa: E501
         _price = self._price_from_ytm(
