@@ -3,3 +3,6 @@ method or class, version deprecated, version removal, notes
 get_imm, 2.2.0, 2.4.0, arg inputs only
 next_imm, 2.2.0, 2.4.0, arg inputs only
 BasePeriod, 2.2.0, 2.4.0, error on str input for Frequency.
+
+---
+IndexFixedRateBond.rate(metric variants), 2.5.1, not yet removed.

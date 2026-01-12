@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.dual import Dual, gradient
+from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
@@ -87,8 +89,8 @@ class IndexFixedRateBond(_BaseBondInstrument):
        curves = {"index_curve": index_curve, "disc_curve": disc_curve}  # dict form is explicit
 
     The available ``metric`` for the :meth:`~rateslib.instruments.IndexFixedRateBond.rate`
-    are in *{'clean_price', 'dirty_price', 'ytm', 'index_ytm', 'index_clean_price',
-    'index_dirty_price'}*.
+    are in *{'clean_price', 'dirty_price', 'ytm', 'indexed_ytm', 'indexed_clean_price',
+    'indexed_dirty_price'}*.
 
     .. role:: red
 
@@ -468,10 +470,10 @@ class IndexFixedRateBond(_BaseBondInstrument):
            )
            ukti.rate(curves=[index_curve, disc_curve], metric="clean_price")  # settles T+1 i.e. 29th July
            ukti.rate(curves=[index_curve, disc_curve], metric="dirty_price")
-           ukti.rate(curves=[index_curve, disc_curve], metric="index_clean_price")
-           ukti.rate(curves=[index_curve, disc_curve], metric="index_dirty_price")
+           ukti.rate(curves=[index_curve, disc_curve], metric="indexed_clean_price")
+           ukti.rate(curves=[index_curve, disc_curve], metric="indexed_dirty_price")
            ukti.rate(curves=[index_curve, disc_curve], metric="ytm")
-           ukti.rate(curves=[index_curve, disc_curve], metric="index_ytm")
+           ukti.rate(curves=[index_curve, disc_curve], metric="indexed_ytm")
 
         .. ipython:: python
            :suppress:
@@ -549,18 +551,23 @@ class IndexFixedRateBond(_BaseBondInstrument):
             return dirty_price - self.accrued(settlement_)
         elif metric_ == "ytm":
             return self.ytm(dirty_price, settlement_, True)
-        elif metric_ == "index_dirty_price":
+        elif metric_ == "index_dirty_price" or metric_ == "indexed_dirty_price":
             return index_dirty_price
-        elif metric_ == "index_clean_price":
+        elif metric_ == "index_clean_price" or metric_ == "indexed_clean_price":
             return index_dirty_price - self.accrued(settlement_) * index_ratio
-        elif metric_ == "index_ytm":
+        elif metric_ == "index_ytm" or metric_ == "indexed_ytm":
             return self.ytm(
-                index_dirty_price, settlement_, True, indexed=True, index_curve=index_curve
+                price=index_dirty_price,
+                settlement=settlement_,
+                dirty=True,
+                indexed_price=True,
+                indexed_ytm=True,
+                index_curve=index_curve,
             )
         else:
             raise ValueError(
                 "`metric` must be in {'dirty_price', 'clean_price', 'ytm', "
-                "'index_dirty_price', 'index_clean_price'}.",
+                "'indexed_dirty_price', 'indexed_clean_price', 'indexed_ytm'}.",
             )
 
     def accrued(
@@ -666,24 +673,25 @@ class IndexFixedRateBond(_BaseBondInstrument):
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        if not indexed:
-            ir = self.index_ratio(settlement=settlement, index_curve=index_curve)
-            if not dirty:
-                # convert unindexed clean price
-                idx_dp = (price + self.accrued(settlement, indexed=False)) * ir
-            else:
-                # convert unindexed dirty price
-                idx_dp = price * ir
-        else:
-            if not dirty:
-                # convert indexed clean price
-                idx_dp = price + self.accrued(settlement, indexed=True, index_curve=index_curve)
-            else:
-                # price is indexed dirty
-                idx_dp = price
+        match (indexed, dirty):
+            # need to adjust any input to yield an indexed_dirty_price
+            case (True, True):
+                indexed_dirty_price = price
+            case (False, True):
+                indexed_dirty_price = price * self.index_ratio(
+                    settlement=settlement, index_curve=index_curve
+                )
+            case (True, False):
+                indexed_dirty_price = price + self.accrued(
+                    settlement, indexed=True, index_curve=index_curve
+                )
+            case (False, False):
+                indexed_dirty_price = (
+                    price + self.accrued(settlement, indexed=False)
+                ) * self.index_ratio(settlement=settlement, index_curve=index_curve)
 
-        fwd_idx_dp = super().fwd_from_repo(
-            price=idx_dp,
+        forward_indexed_dirty_price = super().fwd_from_repo(
+            price=indexed_dirty_price,
             settlement=settlement,
             forward_settlement=forward_settlement,
             repo_rate=repo_rate,
@@ -692,24 +700,24 @@ class IndexFixedRateBond(_BaseBondInstrument):
             method=method,
         )
 
-        if not indexed:
-            irf = self.index_ratio(settlement=forward_settlement, index_curve=index_curve)
-            if not dirty:
-                # revert back to unindexed clean price
-                price = fwd_idx_dp / irf - self.accrued(forward_settlement, indexed=False)
-            else:
-                # revert to unindexed dirty price
-                price = fwd_idx_dp / irf
-        else:
-            if not dirty:
-                # revert to indexed clean price
-                price = fwd_idx_dp - self.accrued(
-                    settlement=forward_settlement, indexed=True, index_curve=index_curve
+        match (indexed, dirty):
+            # reverse adjust the forward indexed_dirty_price to suit the input arguments
+            case (True, True):
+                forward_price = forward_indexed_dirty_price
+            case (False, True):
+                forward_price = forward_indexed_dirty_price / self.index_ratio(
+                    forward_settlement, index_curve=index_curve
                 )
-            else:
-                price = fwd_idx_dp
+            case (True, False):
+                forward_price = forward_indexed_dirty_price - self.accrued(
+                    forward_settlement, indexed=True, index_curve=index_curve
+                )
+            case (False, False):
+                forward_price = forward_indexed_dirty_price / self.index_ratio(
+                    forward_settlement, index_curve=index_curve
+                ) - self.accrued(forward_settlement, indexed=False)
 
-        return price
+        return forward_price
 
     def repo_from_fwd(
         self,
@@ -754,34 +762,38 @@ class IndexFixedRateBond(_BaseBondInstrument):
         Any intermediate (non ex-dividend) cashflows between ``settlement`` and
         ``forward_settlement`` will also be assumed to accrue at ``repo_rate``.
         """
-        if not indexed:
-            ir = self.index_ratio(settlement=settlement, index_curve=index_curve)
-            fir = self.index_ratio(settlement=forward_settlement, index_curve=index_curve)
-            if not dirty:
-                # convert unindexed clean price
-                idx_dp = (price + self.accrued(settlement, indexed=False)) * ir
-                fwd_idx_dp = (forward_price + self.accrued(forward_settlement, indexed=False)) * fir
-            else:
-                # convert unindexed dirty price
-                idx_dp = price * ir
-                fwd_idx_dp = forward_price * fir
-        else:
-            if not dirty:
-                # convert indexed clean price
-                idx_dp = price + self.accrued(settlement, indexed=True, index_curve=index_curve)
-                fwd_idx_dp = forward_price + self.accrued(
+        match (indexed, dirty):
+            # must convert input price to indexed_dirty_price equivalents
+            case (True, True):
+                indexed_dirty_price = price
+                forward_indexed_dirty_price = forward_price
+            case (False, True):
+                indexed_dirty_price = price * self.index_ratio(
+                    settlement=settlement, index_curve=index_curve
+                )
+                forward_indexed_dirty_price = forward_price * self.index_ratio(
+                    settlement=forward_settlement, index_curve=index_curve
+                )
+            case (True, False):
+                indexed_dirty_price = price + self.accrued(
+                    settlement, indexed=True, index_curve=index_curve
+                )
+                forward_indexed_dirty_price = forward_price + self.accrued(
                     forward_settlement, indexed=True, index_curve=index_curve
                 )
-            else:
-                # price is indexed dirty
-                idx_dp = price
-                fwd_idx_dp = forward_price
+            case (False, False):
+                indexed_dirty_price = (
+                    price + self.accrued(settlement, indexed=False)
+                ) * self.index_ratio(settlement=settlement, index_curve=index_curve)
+                forward_indexed_dirty_price = (
+                    forward_price + self.accrued(forward_settlement, indexed=False)
+                ) * self.index_ratio(settlement=forward_settlement, index_curve=index_curve)
 
         repo = super().repo_from_fwd(
-            price=idx_dp,
+            price=indexed_dirty_price,
             settlement=settlement,
             forward_settlement=forward_settlement,
-            forward_price=fwd_idx_dp,
+            forward_price=forward_indexed_dirty_price,
             convention=convention,
             dirty=True,
         )
@@ -792,7 +804,8 @@ class IndexFixedRateBond(_BaseBondInstrument):
         ytm: DualTypes,
         settlement: datetime,
         metric: str = "risk",
-        indexed: bool = False,
+        indexed_price: bool = False,
+        indexed_ytm: bool = False,
         index_curve: _BaseCurve_ = NoInput(0),
     ) -> float:
         """
@@ -806,8 +819,13 @@ class IndexFixedRateBond(_BaseBondInstrument):
             The settlement date of the bond.
         metric : str
             The specific duration calculation to return. See notes.
-        indexed : bool, optional
-            Whether the metric is indexed or not.
+        indexed_price: bool, :green:`optional (set as False)`
+            Indicated whether the returned price should be indexed or not.
+        indexed_ytm: bool, :green:`optional (set as False)`
+            Indicates if the given ``ytm`` is expressed indexed or not.
+        index_curve : _BaseCurve, optional
+            If either the ytm or the price are indicated as indexed then an index curve may be
+            required to forecast index values.
 
         Returns
         -------
@@ -815,37 +833,55 @@ class IndexFixedRateBond(_BaseBondInstrument):
 
         Notes
         -----
+        For an *IndexFixedRateBond* both the price and the ytm are expressible unindexed or
+        indexed. The below notation :math:`P_i` and :math:`y_j` describes either of these
+        varieties provided they align with the ``indexed_price`` and ``indexed_ytm`` arguments.
+
         The available metrics are:
 
         - *"risk"*: the derivative of price w.r.t. ytm, scaled to -1bp.
 
           .. math::
 
-             risk = - \\frac{\\partial P }{\\partial y}
+             risk = - \\frac{\\partial P_i }{\\partial y_j}
 
-        - *"modified"*: the modified duration which is *risk* divided by price.
-
-          .. math::
-
-             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
-
-        - *"duration"*: the duration which is modified duration reverse modified.
+        - *"modified"*: the modified duration which is *risk* divided by dirty price.
 
           .. math::
 
-             duration = mduration \\times (1 + y / f)
+             mod \\; duration = \\frac{risk}{P_i} = - \\frac{1}{P_i} \\frac{\\partial P_i }{\\partial y_j}
 
-        """
+        - *"duration"* (or *"macaulay"*): the duration which is modified duration reverse modified.
+
+          .. math::
+
+             duration = mod \\; duration \\times (1 + y_j / f)
+
+        """  # noqa: E501
         # TODO: this is not AD safe: returns only float
-        value = super().duration(
-            ytm=ytm,
+        ytm_: Dual = Dual(_dual_float(ytm), ["__y__§"], [])
+        dirty_price: Dual = self.price(  # type: ignore[assignment]
+            ytm=ytm_,
             settlement=settlement,
-            metric=metric,
+            dirty=True,
+            indexed_price=indexed_price,
+            indexed_ytm=indexed_ytm,
+            index_curve=index_curve,
         )
-        if metric == "risk" and indexed:
-            return value * self.index_ratio(settlement=settlement, index_curve=index_curve)  # type: ignore[return-value]
+
+        if metric == "risk":
+            ret: float = -gradient(dirty_price, ["__y__§"])[0]
+        elif metric == "modified":
+            ret = -gradient(dirty_price, ["__y__§"])[0] / _dual_float(dirty_price) * 100
+        elif metric == "duration" or metric == "macaulay":
+            f = self.leg1.schedule.periods_per_annum
+            v = _dual_float(1 + ytm_ / (100 * f))
+            ret = -gradient(dirty_price, ["__y__§"])[0] / _dual_float(dirty_price) * v * 100
         else:
-            return value
+            raise ValueError(
+                "`metric` must be one of {'risk', 'modified', 'duration'}."
+            )  # pragma: no cover
+        return ret
 
     def ytm(
         self,
@@ -854,7 +890,8 @@ class IndexFixedRateBond(_BaseBondInstrument):
         dirty: bool = False,
         rate_curve: CurveOption_ = NoInput(0),
         calc_mode: BondCalcMode | str_ = NoInput(0),
-        indexed: bool = False,
+        indexed_price: bool = False,
+        indexed_ytm: bool = False,
         index_curve: _BaseCurve_ = NoInput(0),
     ) -> Number:
         # overloaded ytm by IndexFixedRateBond
@@ -881,7 +918,8 @@ class IndexFixedRateBond(_BaseBondInstrument):
         Parameters
         ----------
         price: float, Dual, Dual2, Variable, :red:`required`
-            The price, per 100 nominal, against which to determine the yield.
+            The price, per 100 nominal, against which to determine the yield. Can be given as
+            either clean or dirty, and either unindexed or indexed.
         settlement: datetime, :red:`required`
             The settlement date on which to determine the price.
         dirty: bool, :green:`optional (set as False)`
@@ -894,12 +932,13 @@ class IndexFixedRateBond(_BaseBondInstrument):
             *Instrument* initialisation and is not required, but is useful as an override to
             allow comparisons, e.g. of *"us_gb"* street convention versus *"us_gb_tsy"* treasury
             convention.
-        indexed: bool, :green:`optional (set as False)`
-            If *True* will index all of the cashflows and determine a YTM comparable with
-            nominal bonds.
+        indexed_price: bool, :green:`optional (set as False)`
+            Indicates whether the input price is indexed or not.
+        indexed_ytm: bool, :green:`optional (set as False)`
+            Indicates whether the returned ``ytm`` is expressed indexed or not.
         index_curve: _BaseCurve :green:`optional`
-            If ``indexed`` then a *Curve* may be required to determine index ratio's in order to
-            properly index up all of the cashflows.
+            If any element is ``indexed`` then a *Curve* may be required to determine
+            index ratio's in order to properly index up cashflows.
 
         Returns
         -------
@@ -917,13 +956,35 @@ class IndexFixedRateBond(_BaseBondInstrument):
            aapl_bond.ytm(price=Dual2(87.24, ["price", "a"], [1, -0.75], []), settlement=dt(2014, 3, 5))
 
         """  # noqa: E501
+        match (indexed_price, indexed_ytm):
+            case (False, False) | (True, True):
+                # when both price and yield are expressed in the same indexation this will be
+                # handled directly
+                adjusted_price = price
+            case (False, True):
+                # if the ytm is requested indexed but the price is given unindexed then it
+                # must be indexed-up for calculation
+                adjusted_price = price * self.index_ratio(
+                    settlement=settlement, index_curve=index_curve
+                )
+            case (True, False):
+                # if the ytm is requested unindexed but the price is given as indexed then it must
+                # be indexed down for calculation
+                adjusted_price = price / self.index_ratio(
+                    settlement=settlement, index_curve=index_curve
+                )
+            case _:  # pragma: no cover
+                raise ValueError(
+                    "`indexed_price` and `indexed_ytm` must each be given as a boolean."
+                )
+
         return self._ytm(
-            price=price,
+            price=adjusted_price,
             settlement=settlement,
             dirty=dirty,
             rate_curve=rate_curve,
             calc_mode=calc_mode,
-            indexed=indexed,
+            indexed=indexed_ytm,
             index_curve=index_curve,
         )
 
@@ -932,26 +993,33 @@ class IndexFixedRateBond(_BaseBondInstrument):
         ytm: DualTypes,
         settlement: datetime,
         dirty: bool = False,
-        indexed: bool = False,
+        indexed_price: bool = False,
+        indexed_ytm: bool = False,
         index_curve: _BaseCurve_ = NoInput(0),
     ) -> DualTypes:
         """
         Calculate the price of the security per nominal value of 100, given
         yield-to-maturity.
 
+        .. role:: red
+
+        .. role:: green
+
         Parameters
         ----------
-        ytm : float
+        ytm : float, :red:`required`
             The yield-to-maturity against which to determine the price. If ``indexed`` this
             should be given as a nominal ytm.
-        settlement : datetime
+        settlement : datetime, :red:`required`
             The settlement date on which to determine the price.
-        dirty : bool, optional
+        dirty : bool, optional, :green:`optional (set as False)`
             If `True` will include the
             :meth:`rateslib.instruments.FixedRateBond.accrued` in the price.
-        indexed: bool, optional (set as False)
-            If *True* will index up all of the cashflows with determined index ratios.
-        index_curve: _BaseCurve, optional
+        indexed_price: bool, :green:`optional (set as False)`
+            Indicated whether the returned price should be indexed or not.
+        indexed_ytm: bool, :green:`optional (set as False)`
+            Indicates if the given ``ytm`` is expressed indexed or not.
+        index_curve: _BaseCurve, :green:`optional`
             An inflation curve to forecast index ratios if required.
 
         Returns
@@ -989,12 +1057,27 @@ class IndexFixedRateBond(_BaseBondInstrument):
            ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed=False)
 
         """  # noqa: E501
-        return self._price_from_ytm(
+        _price = self._price_from_ytm(
             ytm=ytm,
             settlement=settlement,
             calc_mode=NoInput(0),  # will be set to kwargs.meta
             dirty=dirty,
             rate_curve=NoInput(0),
-            indexed=indexed,
+            indexed=indexed_ytm,
             index_curve=index_curve,
         )
+
+        match (indexed_price, indexed_ytm):
+            case (True, True) | (False, False):
+                # then both price and ytm has the same indexation expression
+                return _price
+            case (True, False):
+                # then the yield is given unindexed but the returned price must be indexed-up
+                return _price * self.index_ratio(settlement, index_curve)
+            case (False, True):
+                # then the yield is given unindexed but the returned price requires indexing-down
+                return _price / self.index_ratio(settlement, index_curve)
+            case _:  # pragma: no cover
+                raise ValueError(
+                    "`indexed_price` and `indexed_ytm` must each be given as a boolean."
+                )

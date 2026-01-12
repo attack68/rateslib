@@ -252,7 +252,8 @@ class _WithYTM(_WithAccrued, Protocol):
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.settlement_params.notional * 100
 
-        return p if dirty else p - self._accrued(settlement, accrual)
+        settle_ir = self.index_ratio(settlement=settlement, index_curve=index_curve)
+        return p if dirty else p - self._accrued(settlement, accrual) * settle_ir
 
     def _ytm(
         self,
