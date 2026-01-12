@@ -52,17 +52,17 @@ class _WithDuration(Protocol):
 
              risk = - \\frac{\\partial P }{\\partial y}
 
-        - *"modified"*: the modified duration which is *risk* divided by price.
+        - *"modified"*: the modified duration which is *risk* divided by dirty price.
 
           .. math::
 
-             mduration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
+             mod \\; duration = \\frac{risk}{P} = - \\frac{1}{P} \\frac{\\partial P }{\\partial y}
 
-        - *"duration"*: (i.e. Macauley) the duration which is modified duration reverse modified.
+        - *"duration"* (or *"macaulay"*): the duration which is modified duration reverse modified.
 
           .. math::
 
-             duration = mduration \\times (1 + y / f)
+             duration = mod \\; duration \\times (1 + y / f)
 
         Examples
         --------
@@ -93,16 +93,16 @@ class _WithDuration(Protocol):
         # TODO: this is not AD safe: returns only float
         ytm_: float = _dual_float(ytm)
         if metric == "risk":
-            price_dual: Dual = self.price(Dual(ytm_, ["y"], []), settlement)  # type: ignore[assignment]
-            _: float = -gradient(price_dual, ["y"])[0]
+            price_dual: Dual = self.price(Dual(ytm_, ["__y__§"], []), settlement)  # type: ignore[assignment]
+            _: float = -gradient(price_dual, ["__y__§"])[0]
         elif metric == "modified":
-            price_dual = -self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)  # type: ignore[assignment]
-            _ = -gradient(price_dual, ["y"])[0] / float(price_dual) * 100
-        elif metric == "duration":
-            price_dual = self.price(Dual(ytm_, ["y"], []), settlement, dirty=True)  # type: ignore[assignment]
+            price_dual = -self.price(Dual(ytm_, ["__y__§"], []), settlement, dirty=True)  # type: ignore[assignment]
+            _ = -gradient(price_dual, ["__y__§"])[0] / float(price_dual) * 100
+        elif metric == "duration" or metric == "macaulay":
+            price_dual = self.price(Dual(ytm_, ["__y__§"], []), settlement, dirty=True)  # type: ignore[assignment]
             f = self.leg1.schedule.periods_per_annum
             v = 1 + ytm_ / (100 * f)
-            _ = -gradient(price_dual, ["y"])[0] / float(price_dual) * v * 100
+            _ = -gradient(price_dual, ["__y__§"])[0] / float(price_dual) * v * 100
         return _
 
     def convexity(self, ytm: DualTypes, settlement: datetime, metric: str = "risk") -> float:
