@@ -2822,3 +2822,20 @@ class TestStateManagement:
 def test_objects_ad_attribute(obj):
     result = getattr(obj, "_ad", None)
     assert result is not None
+
+
+@pytest.mark.parametrize("label", ["shift", "rolled", "translated"])
+def test_curves_without_their_own_params(label):
+    curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
+    _map = {
+        "shift": curve.shift(5, id="shift"),
+        "rolled": curve.roll(5, id="rolled"),
+        "translated": curve.translate(dt(2000, 1, 1), id="translated"),
+    }
+
+    sv = Solver(
+        curves=[curve, _map[label]],
+        instruments=[IRS(dt(2000, 2, 1), dt(2000, 3, 1), spec="usd_irs", curves=["curve", label])],
+        s=[2.0],
+    )
+    assert sv.result["status"] == "SUCCESS"

@@ -23,7 +23,16 @@ from pandas import DataFrame, MultiIndex, Series, concat
 from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
-from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve, _BaseCurve
+from rateslib.curves import (
+    CompositeCurve,
+    Curve,
+    MultiCsaCurve,
+    ProxyCurve,
+    RolledCurve,
+    ShiftedCurve,
+    TranslatedCurve,
+    _BaseCurve,
+)
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
@@ -946,6 +955,16 @@ class Gradients:
         return grad_s_sT_Pbas
 
 
+NO_PARAMETER_CURVES = [
+    ProxyCurve,
+    CompositeCurve,
+    MultiCsaCurve,
+    RolledCurve,
+    ShiftedCurve,
+    TranslatedCurve,
+]
+
+
 class Solver(Gradients, _WithState):
     """
     A numerical solver to determine node values on multiple pricing objects simultaneously.
@@ -1111,8 +1130,7 @@ class Solver(Gradients, _WithState):
         self.curves = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
-            if type(curve) not in [ProxyCurve, CompositeCurve, MultiCsaCurve]
-            # Proxy and Composite curves have no parameters of their own
+            if type(curve) not in NO_PARAMETER_CURVES
         }
         self.variables = ()
         for curve in self.curves.values():
@@ -1142,8 +1160,8 @@ class Solver(Gradients, _WithState):
             {
                 curve.id: curve
                 for curve in curves
-                if type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
-                # Proxy and Composite curves added to the collection without variables
+                if type(curve) in NO_PARAMETER_CURVES
+                # no parameter curves added to the collection without variables
             },
         )
         curve_collection.extend(curves)
