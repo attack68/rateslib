@@ -24,6 +24,8 @@ impl Convention {
             11_u8 => Ok(Convention::ActActICMA),
             12_u8 => Ok(Convention::Bus252),
             13_u8 => Ok(Convention::ActActICMAStubAct365F),
+            14_u8 => Ok(Convention::Act365_25),
+            15_u8 => Ok(Convention::Act364),
             _ => Err(PyValueError::new_err(
                 "unreachable code on Convention pickle.",
             )),
@@ -109,6 +111,8 @@ impl Convention {
             Convention::ActActICMA => "ActActICMA".to_string(),
             Convention::Bus252 => "Bus252".to_string(),
             Convention::ActActICMAStubAct365F => "ActActICMAStubAct365F".to_string(),
+            Convention::Act365_25 => "Act365_25".to_string(),
+            Convention::Act364 => "Act364".to_string(),
         }
     }
 
