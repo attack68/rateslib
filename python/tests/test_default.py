@@ -1,17 +1,20 @@
-#############################################################
-# COPYRIGHT 2022 Siffrorna Technology Limited
-# This code may not be copied, modified, used or distributed
-# except with the express permission and licence to
-# do so, provided by the copyright holder.
-# See: https://rateslib.com/py/en/latest/i_licence.html
-#############################################################
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
 
 import pytest
 from rateslib import NamedCal, __version__, default_context, defaults, dt, fixings
 
 
 def test_version() -> None:
-    assert __version__ == "2.5.0"
+    assert __version__ == "2.5.1"
 
 
 def test_context_raises() -> None:

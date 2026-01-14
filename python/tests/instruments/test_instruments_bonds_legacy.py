@@ -1,5 +1,17 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 import os
 from datetime import datetime as dt
+from itertools import product
 
 import numpy as np
 import pytest
@@ -1179,6 +1191,16 @@ class TestFixedRateBond:
         result = gilt.convexity(4.445, dt(1999, 5, 27))
         assert (result - numeric * 1000) < 1e-3
 
+        price = gilt.price(4.445, dt(1999, 5, 27), dirty=True)
+        result2 = gilt.convexity(4.445, dt(1999, 5, 27), "convexity")
+        assert abs(result2 - result * 100.0 / price) < 1e-6
+
+    def test_convexity_traditional(self):
+        aapl_bond = FixedRateBond(dt(2013, 5, 4), dt(2043, 5, 4), fixed_rate=3.85, spec="us_corp")
+        # c1 = aapl_bond.convexity(4.653674794785435, dt(2014, 3, 5))
+        c2 = aapl_bond.convexity(4.653674794785435, dt(2014, 3, 5), metric="convexity")
+        assert abs(c2 - 3.803) < 1e-4
+
     def test_fixed_rate_bond_rate(self) -> None:
         gilt = FixedRateBond(
             effective=dt(1998, 12, 7),
@@ -2281,17 +2303,10 @@ class TestIndexFixedRateBond:
         assert abs(repo - 4.00) < 2e-3
 
     @pytest.mark.parametrize(
-        ("indexed", "metric", "expected"),
-        [
-            (False, "risk", 11.325806780126937),
-            (False, "duration", 11.750399858451622),
-            (False, "modified", 11.634059265793685),
-            (True, "risk", 11.47484989849331),
-            (True, "duration", 11.750399858451622),
-            (True, "modified", 11.634059265793685),
-        ],
+        ("indexed_price", "indexed_ytm"),
+        [(False, False), (False, True), (True, False), (True, True)],
     )
-    def test_duration_index_linked(self, indexed, metric, expected):
+    def test_duration_index_linked_finite_diff(self, indexed_price, indexed_ytm):
         # GB00BMY62Z61
         name = str(hash(os.urandom(8)))
         fixings.add(
@@ -2310,6 +2325,9 @@ class TestIndexFixedRateBond:
                 data=[395.3, 402.2, 402.9, 404.5, 406.2, 407.7, 406.1, 407.4],
             ),
         )
+        index_curve = Curve({dt(2025, 10, 1): 1.0, dt(2045, 10, 1): 1.0}, index_base=407.4).shift(
+            100
+        )
         gilt = IndexFixedRateBond(
             effective=dt(2025, 6, 11),
             termination=dt(2038, 9, 22),
@@ -2320,11 +2338,54 @@ class TestIndexFixedRateBond:
         value = gilt.duration(
             ytm=2.00,
             settlement=dt(2025, 7, 29),
-            metric=metric,
-            indexed=indexed,
+            metric="risk",
+            indexed_price=indexed_price,
+            indexed_ytm=indexed_ytm,
+            index_curve=index_curve,
         )
+
+        # finite diff test:
+        original_price = gilt.price(
+            ytm=2.00,
+            settlement=dt(2025, 7, 29),
+            indexed_price=indexed_price,
+            indexed_ytm=indexed_ytm,
+            index_curve=index_curve,
+            dirty=True,
+        )
+        bumped_price = gilt.price(
+            ytm=1.999,
+            settlement=dt(2025, 7, 29),
+            indexed_ytm=indexed_ytm,
+            indexed_price=indexed_price,
+            index_curve=index_curve,
+            dirty=True,
+        )
+        expected = (bumped_price - original_price) * 1000.0
+        assert abs(value - expected) < 1e-3
+
+        ## Test modified
+        modified = gilt.duration(
+            ytm=2.00,
+            settlement=dt(2025, 7, 29),
+            metric="modified",
+            indexed_price=indexed_price,
+            indexed_ytm=indexed_ytm,
+            index_curve=index_curve,
+        )
+        assert abs(value / original_price * 100.0 - modified) < 1e-6
+
+        # Test macauley
+        macauley = gilt.duration(
+            ytm=2.00,
+            settlement=dt(2025, 7, 29),
+            metric="duration",
+            indexed_price=indexed_price,
+            indexed_ytm=indexed_ytm,
+            index_curve=index_curve,
+        )
+        assert abs(modified * (1 + 0.02 / 2) - macauley) < 1e-6
         fixings.pop(name)
-        assert abs(value - expected) < 1e-6
 
     # TODO: implement these tests
     #
@@ -2550,18 +2611,67 @@ class TestIndexFixedRateBond:
             index_fixings="UK_RPI_9843",
         )
         assert bond.leg1.periods[0].index_params.index_base.value == 100.0
-        result = bond.ytm(price=101.9456166, settlement=dt(2026, 1, 6), indexed=True, dirty=True)
+        result = bond.ytm(
+            price=101.9456166,
+            settlement=dt(2026, 1, 6),
+            indexed_price=True,
+            indexed_ytm=True,
+            dirty=True,
+        )
         expected = 3.00
         # 101.9456166 = 2 * 1.03/1.03 + 2 * 1.04/1.03**2 + 2 * 1.05/1.03**3 + 102 * 1.06/1.03**4
         fixings.pop("UK_RPI_9843")
         assert abs(result - expected) < 1e-6
 
         result = bond.ytm(
-            price=101.9456166 / 1.02, settlement=dt(2026, 1, 6), indexed=False, dirty=True
+            price=101.9456166 / 1.02,
+            settlement=dt(2026, 1, 6),
+            indexed_price=False,
+            indexed_ytm=False,
+            dirty=True,
         )
         expected = 2.0140070859464996
         assert abs(result - expected) < 1e-6
         # clean yield is approximately 1% lower than indexed yield since inflation is approx 1%
+
+    def test_index_ytm2(self):
+        index_curve = Curve(
+            nodes={dt(2025, 5, 1): 1.0, dt(2045, 5, 1): 1.0},
+            convention="act365f",
+            index_lag=0,
+            index_base=402.9,
+        ).shift(100)  # curves begins at 0% and gets shifted by 100 Ac6t365f O/N basis points
+        ukti = IndexFixedRateBond(  # ISIN: GB00BMY62Z61
+            effective=dt(2025, 6, 11),
+            termination=dt(2038, 9, 22),
+            fixed_rate=1.75,
+            spec="uk_gbi",
+            index_base=397.60,
+        )
+
+        prices = [104.62775438373183, 103.24009646398126, 104.3626899720302, 102.97854755093778]
+
+        for i, (dirty, indexed_price) in enumerate(product([True, False], [True, False])):
+            indexed_ytm = ukti.ytm(
+                price=prices[i],
+                settlement=dt(2025, 8, 5),
+                indexed_price=indexed_price,
+                indexed_ytm=True,
+                dirty=dirty,
+                index_curve=index_curve,
+            )
+            assert abs(indexed_ytm - 2.5100000) < 1e-8
+
+        for i, (dirty, indexed_price) in enumerate(product([True, False], [True, False])):
+            unindexed_ytm = ukti.ytm(
+                price=prices[i],
+                settlement=dt(2025, 8, 5),
+                indexed_price=indexed_price,
+                indexed_ytm=False,
+                dirty=dirty,
+                index_curve=index_curve,
+            )
+            assert abs(unindexed_ytm - 1.499260363) < 1e-8
 
     def test_index_price(self):
         index_curve = Curve(
@@ -2577,15 +2687,34 @@ class TestIndexFixedRateBond:
             spec="uk_gbi",
             index_base=397.60,
         )
-        r1 = ukti.price(ytm=2.51, settlement=dt(2025, 8, 5), indexed=True, index_curve=index_curve)
-        r2 = ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), indexed=False)
-        r3 = ukti.price(
-            ytm=2.51, settlement=dt(2025, 8, 5), dirty=True, indexed=True, index_curve=index_curve
-        )
-        r4 = ukti.price(ytm=1.5, settlement=dt(2025, 8, 5), dirty=True, indexed=False)
-        r5 = ukti.index_ratio(index_curve=index_curve, settlement=dt(2025, 8, 5))
-        assert abs(r2 - r1 / r5) < 1e-1
-        assert abs(r4 - r3 / r5) < 1e-1
+
+        prices_from_indexed_ytm = []
+        for dirty, indexed_price in product([True, False], [True, False]):
+            prices_from_indexed_ytm.append(
+                ukti.price(
+                    ytm=2.5100000,
+                    settlement=dt(2025, 8, 5),
+                    indexed_price=indexed_price,
+                    indexed_ytm=True,
+                    dirty=dirty,
+                    index_curve=index_curve,
+                )
+            )
+        prices_from_unindexed_ytm = []
+        for dirty, indexed_price in product([True, False], [True, False]):
+            prices_from_unindexed_ytm.append(
+                ukti.price(
+                    ytm=1.499260363,
+                    settlement=dt(2025, 8, 5),
+                    indexed_price=indexed_price,
+                    indexed_ytm=False,
+                    dirty=dirty,
+                    index_curve=index_curve,
+                )
+            )
+
+        for p1, p2 in zip(prices_from_indexed_ytm, prices_from_unindexed_ytm):
+            assert abs(p1 - p2) < 1e-8
 
 
 class TestBill:

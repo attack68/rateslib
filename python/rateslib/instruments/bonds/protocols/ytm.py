@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
@@ -252,7 +263,8 @@ class _WithYTM(_WithAccrued, Protocol):
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.settlement_params.notional * 100
 
-        return p if dirty else p - self._accrued(settlement, accrual)
+        settle_ir = self.index_ratio(settlement=settlement, index_curve=index_curve)
+        return p if dirty else p - self._accrued(settlement, accrual) * settle_ir
 
     def _ytm(
         self,

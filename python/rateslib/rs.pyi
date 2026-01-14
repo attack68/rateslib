@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from collections.abc import Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -111,6 +122,8 @@ class Schedule:
 class Convention:
     Act365F: Convention
     Act360: Convention
+    Act364: Convention
+    Act365_25: Convention
     Thirty360: Convention
     ThirtyU360: Convention
     ThirtyE360: Convention

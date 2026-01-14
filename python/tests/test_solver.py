@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 import warnings
 from datetime import datetime as dt
 from math import exp
@@ -2811,3 +2822,20 @@ class TestStateManagement:
 def test_objects_ad_attribute(obj):
     result = getattr(obj, "_ad", None)
     assert result is not None
+
+
+@pytest.mark.parametrize("label", ["shift", "rolled", "translated"])
+def test_curves_without_their_own_params(label):
+    curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="curve")
+    _map = {
+        "shift": curve.shift(5, id="shift"),
+        "rolled": curve.roll(5, id="rolled"),
+        "translated": curve.translate(dt(2000, 1, 1), id="translated"),
+    }
+
+    sv = Solver(
+        curves=[curve, _map[label]],
+        instruments=[IRS(dt(2000, 2, 1), dt(2000, 3, 1), spec="usd_irs", curves=["curve", label])],
+        s=[2.0],
+    )
+    assert sv.result["status"] == "SUCCESS"

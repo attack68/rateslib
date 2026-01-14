@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from datetime import datetime as dt
 
 import pytest
@@ -224,6 +235,8 @@ def test_modifiers_eom(cal_, modifier, expected) -> None:
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
         (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
         (dt(2022, 1, 1), dt(2022, 4, 1), "30U360", 0.25),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "ACT365_25", 0.2464065708418891),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "ACT364", 0.24725274725274726),
     ],
 )
 def test_dcf(start, end, conv, expected) -> None:

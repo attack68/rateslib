@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from __future__ import annotations
 
 import warnings
@@ -12,7 +23,16 @@ from pandas import DataFrame, MultiIndex, Series, concat
 from pandas.errors import PerformanceWarning
 
 from rateslib import defaults
-from rateslib.curves import CompositeCurve, Curve, MultiCsaCurve, ProxyCurve, _BaseCurve
+from rateslib.curves import (
+    CompositeCurve,
+    Curve,
+    MultiCsaCurve,
+    ProxyCurve,
+    RolledCurve,
+    ShiftedCurve,
+    TranslatedCurve,
+    _BaseCurve,
+)
 from rateslib.dual import Dual, Dual2, dual_solve, gradient
 from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
@@ -253,11 +273,11 @@ class Gradients:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
         # dv/dr_l * d2r_l / dvdv
-        _: NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0))  # type: ignore[assignment]
+        _: NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0))
         # dv_z /ds * d2v / dv_zdv
-        _ = np.tensordot(grad_s_vT, _, (1, 0))  # type: ignore[assignment]
+        _ = np.tensordot(grad_s_vT, _, (1, 0))
         # dv_h /ds * d2v /dvdv_h
-        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # type: ignore[assignment]
+        _ = -np.tensordot(grad_s_vT, _, (1, 1))
         grad_s_s_vT = _
         return grad_s_s_vT
         # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
@@ -426,7 +446,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
+        grad_f_f_vT: NDArray[Nf64] = _
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -520,7 +540,7 @@ class Gradients:
         """
         grad_s_f: NDArray[Nf64] = np.tensordot(
             self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0)
-        )  # type: ignore[assignment]
+        )
         return grad_s_f
 
     def grad_s_sT_f_pre(self, f: Dual | Dual2 | Variable) -> NDArray[Nf64]:
@@ -540,8 +560,8 @@ class Gradients:
         grad_s_vT = self.grad_s_vT_pre
         grad_v_vT_f = gradient(f, self.pre_variables, order=2)
 
-        _: NDArray[Nf64] = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))  # type: ignore[assignment]
-        _ = np.tensordot(_, grad_s_vT, (1, 1))  # type: ignore[assignment]
+        _: NDArray[Nf64] = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))
+        _ = np.tensordot(_, grad_s_vT, (1, 1))
 
         grad_s_sT_f = _
         return grad_s_sT_f
@@ -935,6 +955,16 @@ class Gradients:
         return grad_s_sT_Pbas
 
 
+NO_PARAMETER_CURVES = [
+    ProxyCurve,
+    CompositeCurve,
+    MultiCsaCurve,
+    RolledCurve,
+    ShiftedCurve,
+    TranslatedCurve,
+]
+
+
 class Solver(Gradients, _WithState):
     """
     A numerical solver to determine node values on multiple pricing objects simultaneously.
@@ -1100,8 +1130,7 @@ class Solver(Gradients, _WithState):
         self.curves = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
-            if type(curve) not in [ProxyCurve, CompositeCurve, MultiCsaCurve]
-            # Proxy and Composite curves have no parameters of their own
+            if type(curve) not in NO_PARAMETER_CURVES
         }
         self.variables = ()
         for curve in self.curves.values():
@@ -1131,8 +1160,8 @@ class Solver(Gradients, _WithState):
             {
                 curve.id: curve
                 for curve in curves
-                if type(curve) in [ProxyCurve, CompositeCurve, MultiCsaCurve]
-                # Proxy and Composite curves added to the collection without variables
+                if type(curve) in NO_PARAMETER_CURVES
+                # no parameter curves added to the collection without variables
             },
         )
         curve_collection.extend(curves)

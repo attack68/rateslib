@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 import math
 from statistics import NormalDist
 
@@ -760,13 +771,15 @@ def test_perturbation_confusion() -> None:
     # Utilised tagged variables
     x = Dual(1.0, ["x"], [])
     y = Dual(1.0, ["y"], [])
-    result = gradient(x * gradient(x + y, ["y"]), ["x"])
+    z = gradient(x + y, ["y"])[0]
+    result = gradient(x * z, ["x"])
     assert result == 1.0
 
     # Replicates untagged variables
     x = Dual(1.0, ["x"], [])
     y = Dual(1.0, ["x"], [])
-    result = gradient(x * gradient(x + y, ["x"]), ["x"])
+    z = gradient(x + y, ["x"])[0]
+    result = gradient(x * z, ["x"])
     assert result == 2.0
 
 

@@ -1,3 +1,14 @@
+# SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+#
+# Copyright (c) 2026 Siffrorna Technology Limited
+#
+# Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+# Source-available, not open source.
+#
+# See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+# and/or contact info (at) rateslib (dot) com
+####################################################################################################
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -11,6 +22,8 @@ _CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,
     "ACT365": Convention.Act365F,
     "ACT360": Convention.Act360,
+    "ACT365_25": Convention.Act365_25,
+    "ACT364": Convention.Act364,
     ###
     "30360": Convention.Thirty360,
     "THIRTY360": Convention.Thirty360,
