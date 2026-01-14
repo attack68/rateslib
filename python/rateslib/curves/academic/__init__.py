@@ -11,5 +11,6 @@
 
 from rateslib.curves.academic.ns import NelsonSiegelCurve
 from rateslib.curves.academic.nss import NelsonSiegelSvenssonCurve
+from rateslib.curves.academic.sw import SmithWilsonCurve
 
-__all__ = ["NelsonSiegelCurve", "NelsonSiegelSvenssonCurve"]
+__all__ = ["NelsonSiegelCurve", "NelsonSiegelSvenssonCurve", "SmithWilsonCurve"]
