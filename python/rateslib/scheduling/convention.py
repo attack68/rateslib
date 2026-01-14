@@ -22,6 +22,8 @@ _CONVENTIONS_MAP: dict[str, Convention] = {
     "ACT365F": Convention.Act365F,
     "ACT365": Convention.Act365F,
     "ACT360": Convention.Act360,
+    "ACT365_25": Convention.Act365_25,
+    "ACT364": Convention.Act364,
     ###
     "30360": Convention.Thirty360,
     "THIRTY360": Convention.Thirty360,

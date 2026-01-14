@@ -67,6 +67,10 @@ pub enum Convention {
     ///
     /// For [dcf][Convention::dcf]: requires the same arguments as ``ActActICMA`` variant.
     ActActICMAStubAct365F = 13,
+    /// Actual days in period divided by 365.25.
+    Act365_25 = 14,
+    /// Actual days in period divided by 364.
+    Act364 = 15,
 }
 
 impl Convention {
@@ -83,6 +87,8 @@ impl Convention {
         match self {
             Convention::Act360 => Ok(dcf_act_numeric(360.0, start, end)),
             Convention::Act365F => Ok(dcf_act_numeric(365.0, start, end)),
+            Convention::Act365_25 => Ok(dcf_act_numeric(365.25, start, end)),
+            Convention::Act364 => Ok(dcf_act_numeric(364.0, start, end)),
             Convention::YearsAct365F => Ok(dcf_years_and_act_numeric(365.0, start, end)),
             Convention::YearsAct360 => Ok(dcf_years_and_act_numeric(360.0, start, end)),
             Convention::YearsMonths => Ok(dcf_years_and_months(start, end)),

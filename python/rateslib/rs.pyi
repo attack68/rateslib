@@ -122,6 +122,8 @@ class Schedule:
 class Convention:
     Act365F: Convention
     Act360: Convention
+    Act364: Convention
+    Act365_25: Convention
     Thirty360: Convention
     ThirtyU360: Convention
     ThirtyE360: Convention
