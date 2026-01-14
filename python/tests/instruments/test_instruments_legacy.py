@@ -2149,6 +2149,28 @@ class TestFRA:
         expected = 4.0590821964144
         assert abs(result - expected) < 1e-7
 
+    def test_fra_rate_with_spec(self):
+        curve = Curve(
+            {dt(2026, 1, 14): 1.0, dt(2027, 1, 14): 0.98},
+            calendar="stk",
+            convention="act360",
+        )
+        fra = FRA(get_imm(code="H26"), get_imm(code="M26"), spec="sek_fra3", curves="sek_3m")
+        result = fra.rate(curves=curve)
+        expected = 1.9976777500828364
+
+        assert fra.leg1.settlement_params.notional == 1e6
+        assert fra.leg2.settlement_params.notional == -1e6
+
+        assert abs(result - expected) < 1e-5
+
+    def test_negated_notional(self):
+        fra = FRA(
+            get_imm(code="H26"), get_imm(code="M26"), spec="sek_fra3", curves="sek_3m", notional=7.0
+        )
+        assert fra.leg1.settlement_params.notional == 7.0
+        assert fra.leg2.settlement_params.notional == -7.0
+
     def test_fra_npv(self, curve) -> None:
         fra = FRA(
             effective=dt(2022, 1, 1),
@@ -6095,7 +6117,7 @@ class TestSpec:
                 fixed_rate=4.0,
             ),
             DataFrame(
-                [-16091.56434],
+                [-3785.37376],
                 index=Index([dt(2022, 1, 15)], name="payment"),
                 columns=MultiIndex.from_tuples(
                     [("EUR", "eur")],
