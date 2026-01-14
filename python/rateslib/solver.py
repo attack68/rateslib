@@ -273,11 +273,11 @@ class Gradients:
             J2, grad_s_vT = self.J2, self.grad_s_vT
 
         # dv/dr_l * d2r_l / dvdv
-        _: NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0))  # type: ignore[assignment]
+        _: NDArray[Nf64] = np.tensordot(J2, grad_s_vT, (2, 0))
         # dv_z /ds * d2v / dv_zdv
-        _ = np.tensordot(grad_s_vT, _, (1, 0))  # type: ignore[assignment]
+        _ = np.tensordot(grad_s_vT, _, (1, 0))
         # dv_h /ds * d2v /dvdv_h
-        _ = -np.tensordot(grad_s_vT, _, (1, 1))  # type: ignore[assignment]
+        _ = -np.tensordot(grad_s_vT, _, (1, 1))
         grad_s_s_vT = _
         return grad_s_s_vT
         # _ = np.matmul(grad_s_vT, np.matmul(J2, grad_s_vT))
@@ -446,7 +446,7 @@ class Gradients:
         # FX sensitivity requires reverting through all pre-solvers rates.
         _ = -np.tensordot(self.grad_f_f_rT_pre(fx_vars), self.grad_s_vT_pre, (2, 0))
         _ -= np.tensordot(self.grad_f_rT_pre(fx_vars), self.grad_f_s_vT_pre(fx_vars), (1, 1))
-        grad_f_f_vT: NDArray[Nf64] = _  # type: ignore[assignment]
+        grad_f_f_vT: NDArray[Nf64] = _
         return grad_f_f_vT
 
     def grad_f_vT_pre(self, fx_vars: Sequence[str]) -> NDArray[Nf64]:
@@ -540,7 +540,7 @@ class Gradients:
         """
         grad_s_f: NDArray[Nf64] = np.tensordot(
             self.grad_s_vT_pre, gradient(f, self.pre_variables), (1, 0)
-        )  # type: ignore[assignment]
+        )
         return grad_s_f
 
     def grad_s_sT_f_pre(self, f: Dual | Dual2 | Variable) -> NDArray[Nf64]:
@@ -560,8 +560,8 @@ class Gradients:
         grad_s_vT = self.grad_s_vT_pre
         grad_v_vT_f = gradient(f, self.pre_variables, order=2)
 
-        _: NDArray[Nf64] = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))  # type: ignore[assignment]
-        _ = np.tensordot(_, grad_s_vT, (1, 1))  # type: ignore[assignment]
+        _: NDArray[Nf64] = np.tensordot(grad_s_vT, grad_v_vT_f, (1, 0))
+        _ = np.tensordot(_, grad_s_vT, (1, 1))
 
         grad_s_sT_f = _
         return grad_s_sT_f

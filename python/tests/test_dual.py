@@ -771,13 +771,15 @@ def test_perturbation_confusion() -> None:
     # Utilised tagged variables
     x = Dual(1.0, ["x"], [])
     y = Dual(1.0, ["y"], [])
-    result = gradient(x * gradient(x + y, ["y"]), ["x"])
+    z = gradient(x + y, ["y"])[0]
+    result = gradient(x * z, ["x"])
     assert result == 1.0
 
     # Replicates untagged variables
     x = Dual(1.0, ["x"], [])
     y = Dual(1.0, ["x"], [])
-    result = gradient(x * gradient(x + y, ["x"]), ["x"])
+    z = gradient(x + y, ["x"])[0]
+    result = gradient(x * z, ["x"])
     assert result == 2.0
 
 
