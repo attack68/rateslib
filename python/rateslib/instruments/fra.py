@@ -377,7 +377,7 @@ class FRA(_BaseInstrument):
             vol=_Vol(),
         )
         default_args = dict(
-            nominal=defaults.notional,
+            notional=defaults.notional,
             metric="rate",
         )
         self._kwargs = _KWArgs(
