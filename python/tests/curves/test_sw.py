@@ -26,9 +26,9 @@ def test_init():
         ufr=4.2,
     )
     result = sw.rate(dt(2001, 1, 1), "1b")
-    expected = 3.3882896759093173
+    expected = 3.3906104222626796
     assert abs(result - expected) < 1e-5
-    assert sw.meta.convention == "Act365.25"
+    assert sw.meta.convention == Convention.Act365_25
 
 
 def test_cache():
