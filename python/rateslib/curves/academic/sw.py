@@ -92,7 +92,7 @@ class SmithWilsonCurve(_WithMutability, _BaseCurve):
         simultaneously with :math:`\mathbf{\hat{b}}`.
     id : str, :green:`optional (set randomly)`
         The unique identifier to distinguish between curves in a multicurve framework.
-    convention : Convention, str, :green:`optional (set as ActActISDA)`
+    convention : Convention, str, :green:`optional (set as Act365_25)`
         The convention of the curve for determining rates. Please see
         :meth:`dcf()<rateslib.scheduling.dcf>` for all available options.
     modifier : str, :green:`optional (set by 'defaults')`
@@ -342,7 +342,7 @@ class SmithWilsonCurve(_WithMutability, _BaseCurve):
 
         self._meta = _CurveMeta(
             _calendar=get_calendar(calendar),
-            _convention=_get_convention(_drb(Convention.ActActISDA, convention)),
+            _convention=_get_convention(_drb(Convention.Act365_25, convention)),
             _modifier=_drb(defaults.modifier, modifier).upper(),
             _index_base=index_base,
             _index_lag=_drb(defaults.index_lag_curve, index_lag),
