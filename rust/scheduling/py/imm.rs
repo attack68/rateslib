@@ -84,6 +84,7 @@ impl Imm {
             _ if item == Imm::Wed1_Post9_HMUZ as usize => Imm::Wed1_Post9_HMUZ,
             _ if item == Imm::Eom as usize => Imm::Eom,
             _ if item == Imm::Leap as usize => Imm::Leap,
+            _ if item == Imm::Som as usize => Imm::Som,
             _ => panic!("Reportable issue: must map this enum variant for serialization."),
         }
     }
