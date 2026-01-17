@@ -5,7 +5,7 @@ matplotlib>=3.5.1,<4.0
 
 # development
 maturin>=1.8.0,<2.0
-pytest>=8.3.5,<9.0
+pytest>=9.0,<10.0
 coverage>=7.6.1,<8.0  # for test and code monitoring
 
 # doc building
