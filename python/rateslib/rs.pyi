@@ -36,6 +36,7 @@ class Imm:
     Wed1_Post9_HMUZ: Imm
     Eom: Imm
     Leap: Imm
+    Som: Imm
 
     def next(self, date: datetime) -> datetime: ...
     def validate(self, date: datetime) -> bool: ...

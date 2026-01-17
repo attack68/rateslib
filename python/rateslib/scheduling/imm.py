@@ -40,6 +40,7 @@ _Imm: dict[str, Imm] = {
     "wed1_post9_hmuz": Imm.Wed1_Post9_HMUZ,
     "eom": Imm.Eom,
     "leap": Imm.Leap,
+    "som": Imm.Som,
 }
 
 

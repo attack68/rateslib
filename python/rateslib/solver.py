@@ -2332,7 +2332,4 @@ class Solver(Gradients, _WithState):
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
-__all__ = [
-    "Gradients",
-    "Solver"
-]
+__all__ = ["Gradients", "Solver"]
