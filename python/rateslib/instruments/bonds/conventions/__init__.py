@@ -688,6 +688,13 @@ SE_GBB = BillCalcMode(
     ytm_clone_kwargs="se_gb",
 )
 
+NO_GBB = BillCalcMode(
+    # Norwegian T-bills
+    price_type="discount",
+    # price_accrual_type="linear_days",
+    ytm_clone_kwargs="no_gb",
+)
+
 BOND_MODE_MAP = {
     "uk_gb": UK_GB,
     "nz_gb": NZ_GB,
@@ -715,6 +722,7 @@ BILL_MODE_MAP = {
     "uk_gbb": UK_GBB,
     "us_gbb": US_GBB,
     "se_gbb": SE_GBB,
+    "no_gbb": NO_GBB,
     # aliases
     "ustb": US_GBB,
     "uktb": UK_GBB,

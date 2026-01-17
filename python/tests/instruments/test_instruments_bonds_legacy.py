@@ -2877,6 +2877,22 @@ class TestBill:
         ytm = bill.ytm(price=96.520547, settlement=dt(2023, 3, 15))
         assert abs(ytm - 3.5546338) < 1e-5
 
+    # norwegian
+    @pytest.mark.parametrize(
+        ("e", "t", "price", "y"),
+        [
+            (dt(2025, 3, 19), dt(2026, 3, 18), 99.38775, 4.01095),
+            (dt(2025, 6, 18), dt(2026, 6, 17), 98.4218, 4.0012),
+            (dt(2025, 9, 17), dt(2026, 9, 16), 97.4707, 3.99),
+            (dt(2025, 12, 17), dt(2026, 12, 16), 96.5409, 3.9705),
+        ],
+    )
+    def test_nogbb(self, e, t, price, y) -> None:
+        # prices obtained from Norges Bank on Friday 16th Jan 2026, settle 20th Jan
+        bill = Bill(effective=e, termination=t, spec="no_gbb")
+        ytm = bill.ytm(price=price, settlement=dt(2026, 1, 20))
+        assert abs(ytm - y) < 5e-5
+
     def test_text_example(self) -> None:
         bill = Bill(effective=dt(2023, 5, 17), termination=dt(2023, 9, 26), spec="us_gbb")
         result = bill.ytm(99.75, settlement=dt(2023, 9, 7))
