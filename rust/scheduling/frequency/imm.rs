@@ -146,7 +146,7 @@ impl Imm {
                 let date = NaiveDate::from_ymd_opt(year, month, 1);
                 match date {
                     Some(d) => Ok(d.and_hms_opt(0, 0, 0).unwrap()),
-                    None => {return Err(PyValueError::new_err("`year` or `month` out of range."))}
+                    None => return Err(PyValueError::new_err("`year` or `month` out of range.")),
                 }
             }
             Imm::Leap => {
