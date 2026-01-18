@@ -1066,8 +1066,22 @@ class ZeroFixedLeg(_BaseLeg):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        disc_curve_ = _disc_required_maybe_from_curve(rate_curve, disc_curve)
+        # scale target_npv accounting for notional exchanges
+        _ = self.fixed_rate
+        self.fixed_rate = 0.0
+        local_npv = self.local_npv(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            forward=forward,
+            settlement=settlement,
+        )
+        self.fixed_rate = _
+        rate_target_npv = target_npv - local_npv
 
+        # evaluate settlement relative to ex-div
+        disc_curve_ = _disc_required_maybe_from_curve(rate_curve, disc_curve)
         if not isinstance(settlement, NoInput):
             if settlement > self.settlement_params.ex_dividend:
                 raise ZeroDivisionError(
@@ -1082,19 +1096,22 @@ class ZeroFixedLeg(_BaseLeg):
             else:
                 w_fwd = disc_curve_[forward]
 
-        immediate_target_npv = target_npv * w_fwd
+        immediate_target_npv = rate_target_npv * w_fwd
         unindexed_target_npv = immediate_target_npv / self._regular_periods[0].index_up(
             1.0, index_curve=index_curve
         )
         unindexed_reference_target_npv = unindexed_target_npv / self._regular_periods[
             0
         ].convert_deliverable(1.0, fx=fx)
+        target_cashflow = (
+            unindexed_reference_target_npv / disc_curve_[self.settlement_params.payment]
+        )
 
         f = self.schedule.periods_per_annum
         d = self._regular_periods[0].dcf
         N = self.settlement_params.notional
-        w = disc_curve_[self.settlement_params.payment]
-        R = ((-unindexed_reference_target_npv / (N * w) + 1) ** (1 / (d * f)) - 1) * f * 10000.0
+
+        R = ((-target_cashflow / N + 1) ** (1 / (d * f)) - 1) * f * 10000.0
         return R
 
 

@@ -1363,6 +1363,30 @@ class TestZeroFixedLeg:
         )
         assert abs(result / 100 - exp) < 1e-3
 
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_exchanges(self, curve, final_exchange) -> None:
+        zfl = ZeroFixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 5),
+                termination="8m",
+                payment_lag=0,
+                frequency="M",
+            ),
+            notional=-1e8,
+            convention="ActAct",
+            final_exchange=final_exchange,
+            fixed_rate=NoInput(0),
+        )
+        result = zfl.spread(
+            target_npv=50000.0 + 1e8 * curve[dt(2022, 9, 5)] * final_exchange, rate_curve=curve
+        )
+        expected = 7.718420018560934  # bps
+        assert abs(result - expected) < 1e-8
+
+        zfl.fixed_rate = expected / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - (50000.0 + 1e8 * curve[dt(2022, 9, 5)] * final_exchange)) < 1e-7
+
     def test_zero_fixed_spread_raises_settlement(self, curve) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
@@ -1384,7 +1408,8 @@ class TestZeroFixedLeg:
                 forward=NoInput(0),
             )
 
-    def test_zero_fixed_spread_indexed(self, curve) -> None:
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_indexed(self, curve, final_exchange) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1395,17 +1420,24 @@ class TestZeroFixedLeg:
             notional=-1e8,
             convention="ActAct",
             fixed_rate=NoInput(0),
+            final_exchange=final_exchange,
             index_base=100.0,
             index_fixings=110.0,
         )
+        target_npv = (13140821.29 + 1e8 * 1.1 * final_exchange) * curve[dt(2027, 1, 1)]
         result = zfl.spread(
-            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            target_npv=target_npv,
             rate_curve=NoInput(0),
             disc_curve=curve,
         )
         assert abs(result / 100 - 2.2826266057484057) < 1e-3
 
-    def test_zero_fixed_spread_non_deliverable(self, curve) -> None:
+        zfl.fixed_rate = result / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - target_npv) < 1e-7
+
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_non_deliverable(self, curve, final_exchange) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1417,15 +1449,21 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=NoInput(0),
             currency="usd",
+            final_exchange=final_exchange,
             pair="eurusd",
             fx_fixings=2.0,
         )
+        target_npv = (13140821.29 + 1e8 * 2.0 * final_exchange) * curve[dt(2027, 1, 1)]
         result = zfl.spread(
-            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            target_npv=target_npv,
             rate_curve=NoInput(0),
             disc_curve=curve,
         )
         assert abs(result / 100 - 1.2808477472765924) < 1e-3
+
+        zfl.fixed_rate = result / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - target_npv) < 1e-7
 
     def test_amortization_raises(self) -> None:
         with pytest.raises(TypeError, match="unexpected keyword argument 'amortization'"):
