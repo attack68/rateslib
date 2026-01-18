@@ -22,7 +22,6 @@ from rateslib.periods import CreditPremiumPeriod, CreditProtectionPeriod
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover
-        FX_,
         Any,
         CurveOption_,
         DualTypes,
@@ -342,7 +341,7 @@ class CreditProtectionLeg(_BaseLeg):
         self,
         rate_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
     ) -> float:
         """
