@@ -1813,7 +1813,7 @@ class Curve(_WithMutability, _BaseCurve):
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
     ad : int in {0, 1, 2}, optional
@@ -1972,7 +1972,7 @@ class LineCurve(_WithMutability, _BaseCurve):
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
     ad : int in {0, 1, 2}, optional
