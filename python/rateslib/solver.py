@@ -199,7 +199,11 @@ class Gradients:
 
     def _grad_s_vT_final_iteration_analytical(self) -> NDArray[Nf64]:
         """Uses a pseudoinverse algorithm on floats"""
-        grad_s_vT: NDArray[Nf64] = np.linalg.pinv(self.J)  # type: ignore[assignment]
+        if self.n == 0:
+            # then there are no instruments: self is only a Solver container of `pre_solvers`
+            grad_s_vT: NDArray[Nf64] = np.array([[]], dtype=float)
+        else:
+            grad_s_vT = np.linalg.pinv(self.J)  # type: ignore[assignment]
         return grad_s_vT
 
     def _grad_s_vT_fixed_point_iteration(self) -> NDArray[Nf64]:
@@ -335,10 +339,12 @@ class Gradients:
                 ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
-            rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
-            # solver is passed in order to extract curves as string
-            _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
-            J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
+            if self.m > 0:
+                # then self is not only a container for `pre_solvers`
+                rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
+                # solver is passed in order to extract curves as string
+                _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
+                J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
             self._J2_pre = J2
         return self._J2_pre
 
@@ -511,16 +517,21 @@ class Gradients:
                 m, n = pre_solver.pre_m, pre_solver.pre_n
                 grad_s_vT[i : i + m, j : j + n] = pre_solver.grad_s_vT_pre
 
-                # create the right column dependencies
-                grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
-                block = np.matmul(grad_v_r, self.grad_s_vT)
-                block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i : i + m, -self.n :] = block
+                # create the right column dependencies, only if self contains some instruments
+                # and variable of its own and is not only a container of `pre_solvers`
+                if self.n > 0:
+                    grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
+                    block = np.matmul(grad_v_r, self.grad_s_vT)
+                    block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
+                    grad_s_vT[i : i + m, -self.n :] = block
 
                 i, j = i + m, j + n
 
-            # create bottom right block
-            grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
+            if self.n > 0:
+                # create bottom right block, only if self contains some instruments
+                # and variables of its own and is not only a container of `pre_solvers`
+                grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
+
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
@@ -1450,8 +1461,11 @@ class Solver(Gradients, _WithState):
                 r_pre[i : i + m] = pre_solver.r_pre
                 i = i + m
 
-            # create bottom right block
-            r_pre[-self.m :] = self.r
+            if self.m > 0:
+                # create bottom right block if solver contains its own instruments and self
+                # is not just a container of `pre_solvers`
+                r_pre[-self.m :] = self.r
+
             self._r_pre = r_pre
         return self._r_pre
 
@@ -1480,21 +1494,25 @@ class Solver(Gradients, _WithState):
         -------
         Series
         """
-        pre_s: Series[float] | None = None
+        pre_s: Series[float] = Series()
         for pre_solver in self.pre_solvers:
-            if pre_s is None:
-                pre_s = pre_solver.error
+            if not pre_s.empty:
+                pre_s = concat([ser for ser in [pre_solver.error, pre_s] if not ser.empty])
             else:
-                pre_s = concat([pre_solver.error, pre_s])
+                pre_s = pre_solver.error
 
-        _: Series[float] = Series(
-            self.x.astype(float) * 100 / self.rate_scalars,
-            index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
-        )
-        if pre_s is None:
-            s: Series[float] = _
+        if self.m > 0:
+            _: Series[float] = Series(
+                self.x.astype(float) * 100 / self.rate_scalars,
+                index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
+            )
+            if not pre_s.empty:
+                s: Series[float] = concat([pre_s, _])
+            else:
+                s = _
         else:
-            s = concat([pre_s, _])
+            s = pre_s
+
         return s
 
     @property
