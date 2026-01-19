@@ -693,7 +693,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
 
         Returns
         -------
-        dict of values
+        dict[Any]
         """
         d = super().cashflows(
             rate_curve=rate_curve,

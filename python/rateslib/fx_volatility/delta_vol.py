@@ -289,7 +289,12 @@ class FXDeltaVolSmile(_BaseSmile):
 
         Returns
         -------
-        tuple of float, Dual, Dual2 : (delta index, vol, k)
+        delta_index: float, Dual, Dual2, Variable
+            The delta index that can be used as lookup value on the *Smile*
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----
@@ -857,7 +862,12 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
         Returns
         -------
-        tuple of float, Dual, Dual2 : (delta index, vol, k)
+        delta_index: float, Dual, Dual2, Variable
+            The delta index that can be used as lookup value on the *Smile*
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----

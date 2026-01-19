@@ -158,7 +158,7 @@ class _WithCashflows(_WithNPV, Protocol):
 
         Returns
         -------
-        dict of values
+        dict[Any]
         """
         standard_elements = _standard_elements(self=self)
         period_elements = _period_elements(self=self)
@@ -316,7 +316,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
 
         Returns
         -------
-        dict of values
+        dict[Any]
         """
         standard_elements = _standard_elements(self=self)
         period_elements = _period_elements(self=self)

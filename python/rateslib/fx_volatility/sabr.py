@@ -86,7 +86,7 @@ class FXSabrSmile(_BaseSmile):
         The number of business days after expiry that the physical settlement of the FX
         exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
         rates.
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use for FX delivery day determination. If str, looks up
         named calendar from static data.
     pair : str, optional
@@ -221,7 +221,12 @@ class FXSabrSmile(_BaseSmile):
 
         Returns
         -------
-        tuple of DualTypes : (placeholder, vol, k)
+        null: float, Dual, Dual2, Variable
+            A *SabrSmile* has no requirement for a delta index.
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----
@@ -478,7 +483,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         The number of business days after expiry that the physical settlement of the FX
         exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
         rates for different expiries.
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use for FX delivery day determination. If str, looks up
         named calendar from static data.
     pair : str, optional
@@ -662,7 +667,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
         Returns
         -------
-        tuple of DualTypes : (placeholder, vol, k)
+        null: float, Dual, Dual2, Variable
+            A *SabrSurface* has no requirement for a delta index.
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----

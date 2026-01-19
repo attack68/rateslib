@@ -1903,7 +1903,7 @@ class Solver(Gradients, _WithState):
         .. ipython:: python
            :suppress:
 
-           from rateslib import Solver, Curve
+           from rateslib import Solver, Curve, SBS, IRS
 
         .. ipython:: python
 
