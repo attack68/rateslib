@@ -18,7 +18,7 @@ import pandas as pd
 from packaging import version
 from pandas import DataFrame
 
-DEVELOPMENT = False
+DEVELOPMENT = True
 if DEVELOPMENT:
     # DEVELOPMENT mode is used to load and create instrument specs from a CSV file.
     # This is loaded by default and slower to parse than directly creating a dict
