@@ -698,6 +698,30 @@ class TestFixedRateBond:
         bond = FixedRateBond(dt(2025, 7, 4), dt(2035, 8, 15), spec="de_gb", fixed_rate=2.60)
         assert bond.leg1.schedule.aschedule[0:2] == [dt(2025, 7, 4), dt(2026, 8, 15)]
 
+    def test_de_long_front_split_accrued_no_leap(self):
+        # this bond was not issued around a leap year so there is no difference between
+        # linear_days_long_front_split and linear_days
+        bond = FixedRateBond(dt(2025, 3, 12), dt(2056, 8, 15), spec="de_gb", fixed_rate=2.90)
+        result1 = bond.accrued(settlement=dt(2026, 1, 16))
+        result2 = bond.accrued(settlement=dt(2026, 7, 14))
+        expected1 = (dt(2026, 1, 16) - dt(2025, 3, 12)).days / 365 * 2.9
+        expected2 = (dt(2026, 7, 14) - dt(2025, 3, 12)).days / 365 * 2.9
+        assert abs(result1 - expected1) < 1e-6
+        assert abs(result2 - expected2) < 1e-6
+
+    def test_de_long_front_split_accrued_leap(self):
+        # this bond was issued in 2024 so there is a difference between linear_days and
+        # linear_days_long_front_split: ISIN DE000BU2D004
+        bond = FixedRateBond(dt(2024, 2, 6), dt(2054, 8, 15), spec="de_gb", fixed_rate=2.50)
+        result1 = bond.accrued(settlement=dt(2024, 7, 15))
+        result2 = bond.accrued(settlement=dt(2025, 7, 15))
+        expected1 = (dt(2024, 7, 15) - dt(2024, 2, 6)).days / 366 * 2.5
+        expected2 = (dt(2024, 8, 15) - dt(2024, 2, 6)).days / 366 * 2.5 + (
+            dt(2025, 7, 15) - dt(2024, 8, 15)
+        ).days / 365 * 2.5
+        assert abs(result1 - expected1) < 1e-8
+        assert abs(result2 - expected2) < 1e-8
+
     ## French OAT
 
     @pytest.mark.parametrize(

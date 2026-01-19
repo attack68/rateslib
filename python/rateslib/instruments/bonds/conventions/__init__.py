@@ -597,8 +597,8 @@ CA_GB = BondCalcMode(
 
 DE_GB = BondCalcMode(
     # German government bonds
-    settle_accrual="linear_days",
-    ytm_accrual="linear_days",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
     v1="compounding_final_simple",
     v2="regular",
     v3="compounding",
