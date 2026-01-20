@@ -43,6 +43,7 @@ from rateslib.periods import (
     CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
+    ZeroFloatPeriod,
 )
 from rateslib.scheduling import Frequency, Schedule, get_calendar
 
@@ -885,6 +886,111 @@ class TestFloatLeg:
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         fixings.pop("AXDE_EURUSD")
+
+    def test_sub_zero(self):
+        # test that a Leg with a zero flag can be composed of multiple ZeroFloatPeriods
+        # e.g. quarterly payments on 7d
+        # this tests specifically a 1Y CNY IRS with Quarterly payments to CNRR007 7d rate.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 21),
+                termination=dt(2027, 1, 21),
+                frequency="Q",
+                calendar="all",
+            ),
+            fixing_frequency="7d",
+            fixing_method="ibor",
+            method_param=1,
+            zero_periods=True,
+        )
+        curve = Curve({dt(2026, 1, 20): 1.0, dt(2027, 10, 1): 0.95})
+
+        # ensure all periods have rates
+        for zero_period in fl._regular_periods:
+            for float_period in zero_period.float_periods:
+                _ = float_period.rate(rate_curve=curve)
+
+        result = fl.local_analytic_rate_fixings(rate_curve=curve)
+        # first 4 fixings are regular: back stubs.
+        assert [
+            dt(2026, 1, 20),
+            dt(2026, 1, 27),
+            dt(2026, 2, 3),
+            dt(2026, 2, 10),
+        ] == result.index.to_list()[:4]
+        # around the July Payment date
+        assert dt(2026, 7, 13) in result.index
+        assert dt(2026, 7, 20) in result.index
+        assert dt(2026, 7, 27) in result.index
+
+        # around the October Payment date with stubs
+        assert dt(2026, 10, 12) in result.index
+        assert dt(2026, 10, 19) in result.index
+        assert dt(2026, 10, 20) in result.index
+        assert dt(2026, 10, 27) in result.index
+
+        # final fixings
+        assert dt(2027, 1, 12) in result.index
+        assert dt(2027, 1, 19) in result.index
+        assert isinstance(fl._regular_periods[0], ZeroFloatPeriod)
+
+    def test_sub_zero_equivalence_with_rfr_type_rate(self):
+        # test the two representations of an object yield the same data.
+        curve = Curve(
+            nodes={dt(2026, 1, 20): 1.0, dt(2026, 3, 20): 0.99, dt(2026, 5, 20): 0.984},
+            calendar="nyc",
+            convention="act360",
+        )
+        regular = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+        )
+        zero_type = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+            zero_periods=True,
+        )
+
+        rates = [
+            curve.rate(dt(2026, 1, 20), dt(2026, 1, 21)),
+            curve.rate(dt(2026, 1, 21), dt(2026, 1, 22)),
+            curve.rate(dt(2026, 1, 22), dt(2026, 1, 23)),
+            curve.rate(dt(2026, 1, 23), dt(2026, 1, 26)),
+            curve.rate(dt(2026, 1, 26), dt(2026, 1, 27)),
+        ]
+        from math import prod
+
+        rate = prod(
+            [
+                1 + r / 100 * d
+                for (r, d) in zip(rates, [1 / 360, 1 / 360, 1 / 360, 3 / 360, 1 / 360])
+            ]
+        )
+        rate = (rate - 1) * 36000 / 7
+
+        rate1 = regular.periods[0].rate(rate_curve=curve)
+        rate2 = zero_type.periods[0].rate(rate_curve=curve)
+        assert abs(rate1 - rate) < 1e-8
+        assert abs(rate2 - rate) < 1e-8
+
+        rates2 = [_.rate(rate_curve=curve) for _ in zero_type.periods[0].float_periods]
+        assert all([abs(x - y) < 1e-10 for (x, y) in zip(rates, rates2)])
 
 
 class TestZeroFloatLeg:

@@ -43,6 +43,7 @@ from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention, _get_convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
+from rateslib.scheduling.schedule import _get_stub_inference
 from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
@@ -68,6 +69,7 @@ if TYPE_CHECKING:
         datetime_,
         int_,
         str_,
+        StubInference,
     )
 
 
@@ -2434,6 +2436,10 @@ class FloatRateSeries:
         The day count :class:`~rateslib.scheduling.Convention` associated with the floating rate.
     eom: bool, :red:`required`
         Whether the interest rate index natively adopts EoM roll preference or not.
+    zero_float_period_stub: StubInference, str, :green:`optional (set as 'ShortBack')`
+        The stub inference parameter that is used to steer schedule construction when this
+        series is used as part of a :class:`~rateslib.legs.FloatLeg` composed of
+        :class:`~rateslib.periods.ZeroFloatPeriod`.
 
     """
 
@@ -2442,6 +2448,7 @@ class FloatRateSeries:
     _modifier: Adjuster
     _convention: Convention
     _eom: bool
+    _zero_float_period_stub: StubInference
 
     def __init__(
         self,
@@ -2450,32 +2457,49 @@ class FloatRateSeries:
         modifier: Adjuster | str,
         convention: Convention | str,
         eom: bool,
+        zero_float_period_stub: StubInference | str_ = NoInput(0),
     ) -> None:
         self._lag = lag
         self._calendar = get_calendar(calendar)
         self._modifier = _get_adjuster(modifier)
         self._convention = _get_convention(convention)
         self._eom = eom
+        self._zero_float_period_stub = _get_stub_inference(
+            _drb("ShortBack", zero_float_period_stub), NoInput(0), NoInput(0)
+        )
 
     @property
     def lag(self) -> int:
+        """The number of business days before accrual start that the fixing is published according
+        to ``calendar``."""
         return self._lag
 
     @property
     def calendar(self) -> CalTypes:
+        """The fixing calendar for the rate series."""
         return self._calendar
 
     @property
     def convention(self) -> Convention:
+        """The day count :class:`~rateslib.scheduling.Convention` associated with the fixing."""
         return self._convention
 
     @property
     def modifier(self) -> Adjuster:
+        """The date :class:`~rateslib.scheduling.Adjuster` used for date adjustment of the tenor."""
         return self._modifier
 
     @property
     def eom(self) -> bool:
+        """Whether end of month date rolling is applied to date calculations for the fixing
+        series."""
         return self._eom
+
+    @property
+    def zero_float_period_stub(self) -> StubInference:
+        """:class:`~rateslib.scheduling.StubInference` used when a fixing tenor does not divide
+        into the frequency of a compounded :class:`~rateslib.periods.ZeroFloatPeriod`."""
+        return self._zero_float_period_stub
 
 
 class _IBORRate:

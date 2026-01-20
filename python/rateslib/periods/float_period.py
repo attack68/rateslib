@@ -582,20 +582,22 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     .
        .. note::
 
+          The following parameters are scheduling **period** parameters
+
+    schedule: Schedule, :red:`required`
+       The :class:`~rateslib.scheduling.Schedule` defining the individual *Periods*, including
+       the *payment* and *ex-dividend* dates.
+    convention: Convention, str, :green:`optional (set by 'defaults')`
+       The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
+
+       .. note::
+
           The following define generalised **settlement** parameters.
 
     currency: str, :green:`optional (set by 'defaults')`
        The physical *settlement currency* of the *Period*.
     notional: float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
        The notional amount of the *Period* expressed in ``notional currency``.
-
-       .. note::
-
-          The following parameters are scheduling **period** parameters
-
-    schedule: Schedule, :red:`required`
-       The :class:`~rateslib.scheduling.Schedule` defining the individual *Periods*, including
-       the *payment* and *ex-dividend* dates.
 
        .. note::
 
@@ -657,8 +659,21 @@ class ZeroFloatPeriod(_BasePeriodStatic):
        The index value for the reference date.
        If a scalar value this is used directly. If a string identifier will link to the
        central ``fixings`` object and data loader.
+    index_base_date: datetime, :green:`optional (set as aschedule[0])`
+        The reference date for determining the base index value. Not used if ``_index_base``
+        value is given directly.
+    index_reference_date: datetime, :green:`optional (set as aschedule[1])`
+        The reference date for determining the index value. Not used if ``_index_fixings``
+        is given as a scalar value.
     index_only: bool, :green:`optional (set as False)`
        A flag which determines non-payment of notional on supported *Periods*.
+
+       .. note::
+
+          The following are meta parameters
+
+    metric: str, :green:`optional (set as 'compounding')`
+       The type of calculation to use in the :meth:`~rateslib.periods.ZeroFloatPeriod.rate` method.
 
     """  # noqa: E501
 
@@ -666,6 +681,11 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     def rate_params(self) -> _FloatRateParams:
         """The :class:`~rateslib.periods.parameters._FixedRateParams` of the *Period*."""
         return self.float_periods[0].rate_params
+
+    @property
+    def rate_metric(self) -> str:
+        """The type of calculation to perform in :meth:`~rateslib.periods.ZeroFloatPeriod.rate`."""
+        return self._rate_metric
 
     @property
     def period_params(self) -> _PeriodParams:
@@ -715,6 +735,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
 
     def __init__(
         self,
+        schedule: Schedule,
         *,
         float_spread: DualTypes_ = NoInput(0),
         rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
@@ -723,7 +744,6 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        schedule: Schedule,
         # currency args:
         notional: DualTypes_ = NoInput(0),
         currency: str_ = NoInput(0),
@@ -738,8 +758,13 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
+        index_base_date: datetime_ = NoInput(0),
+        index_reference_date: datetime_ = NoInput(0),
         index_only: bool_ = NoInput(0),
+        # meta-args:
+        metric: str_ = NoInput(0),
     ) -> None:
+        self._rate_metric = _drb("compounding", metric).lower()
         self._schedule = schedule
         self._settlement_params = _init_SettlementParams_with_fx_pair(
             _currency=_drb(defaults.base_currency, currency).lower(),
@@ -770,8 +795,8 @@ class ZeroFloatPeriod(_BasePeriodStatic):
             _index_method=index_method,
             _index_fixings=index_fixings,
             _index_only=index_only,
-            _index_base_date=self.schedule.aschedule[0],
-            _index_reference_date=self.schedule.aschedule[-1],
+            _index_base_date=_drb(self.schedule.aschedule[0], index_base_date),
+            _index_reference_date=_drb(self.schedule.aschedule[-1], index_reference_date),
         )
         rate_fixings_ = _leg_fixings_to_list(rate_fixings, self.schedule.n_periods)
         self._float_periods: list[FloatPeriod] = [
@@ -816,10 +841,16 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         except Exception as e:
             return Err(e)
 
-        f = self.schedule.periods_per_annum
-        r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
-        r = r ** (1.0 / (self.dcf * f))
-        r = (r - 1) * f * 100.0
+        if self.rate_metric == "compounding":
+            f = self.schedule.periods_per_annum
+            r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
+            r = r ** (1.0 / (self.dcf * f))
+            r = (r - 1) * f * 100.0
+        elif self.rate_metric == "simple":
+            r = np.prod(1.0 + np.array(r_i) * np.array(d_i) / 100.0)
+            r = (r - 1.0) * 100.0 / self.dcf
+        else:
+            return Err(ValueError("`rate_metric` must be 'simple' or 'compounding'."))
         return Ok(r)
 
     def rate(self, *, rate_curve: CurveOption_ = NoInput(0)) -> DualTypes:
@@ -1032,7 +1063,7 @@ class _UnindexedReferenceCashflowFixingsSensitivity:
             rate_curve=rate_curve_1,
             frequency_str=tenors[0],
         )
-        if tenors[0] == tenors[1]:
+        if len(tenors) == 1 or tenors[0] == tenors[1]:
             return df1_res  # then no multiple curves for the stub
         else:
             rate_curve_2: _BaseCurve = _get_ibor_curve_from_dict2(tenors[1], rate_curve)
