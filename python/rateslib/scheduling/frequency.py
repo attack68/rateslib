@@ -100,7 +100,7 @@ def _get_tenor_from_frequency(frequency: Frequency) -> str:
         return f"{frequency.number}M"
     elif isinstance(frequency, Frequency.CalDays):
         if frequency.number % 7 == 0:
-            return f"{frequency.number / 7}W"
+            return f"{int(frequency.number / 7)}W"
         else:
             return f"{frequency.number}D"
     elif isinstance(frequency, Frequency.BusDays):

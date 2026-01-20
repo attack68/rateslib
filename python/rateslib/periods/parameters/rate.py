@@ -38,7 +38,7 @@ from rateslib.enums.parameters import (
     _get_float_fixing_method,
     _get_spread_compound_method,
 )
-from rateslib.scheduling import Convention, Frequency
+from rateslib.scheduling import Convention, Frequency, StubInference
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency
 
@@ -83,21 +83,14 @@ def _init_FloatRateParams(
     else:
         method_param = _method_param
 
-    if isinstance(_fixing_series, NoInput):
-        # modifier is defaulted to days only type if RFR based
-        fixing_series = FloatRateSeries(
-            lag=method_param,
-            calendar=_period_calendar,
-            convention=_period_convention,
-            modifier=_convert_to_adjuster(
-                modifier=_drb(defaults.modifier, _period_adjuster),
-                settlement=False,
-                mod_days=fixing_method != FloatFixingMethod.IBOR,
-            ),
-            eom=defaults.eom,
-        )
-    else:
-        fixing_series = _get_float_rate_series(_fixing_series)
+    fixing_series: FloatRateSeries = _init_float_rate_series(
+        fixing_series=_fixing_series,
+        method_param=method_param,
+        calendar=_period_calendar,
+        convention=_period_convention,
+        adjuster=_period_adjuster,
+        fixing_method=fixing_method,
+    )
 
     float_spread = _drb(0.0, _float_spread)
     if isinstance(_fixing_frequency, NoInput):
@@ -229,6 +222,32 @@ def _init_FloatRateParams(
         _method_param=method_param,
         _rate_fixing=rate_fixing,
     )
+
+
+def _init_float_rate_series(
+    fixing_series: FloatRateSeries | str_,
+    method_param: int,
+    calendar: CalTypes,
+    convention: Convention,
+    fixing_method: FloatFixingMethod,
+    adjuster: Adjuster,
+) -> FloatRateSeries:
+    if not isinstance(fixing_series, NoInput):
+        return _get_float_rate_series(fixing_series)
+    else:
+        # modifier is defaulted to days only type if RFR based
+        return FloatRateSeries(
+            lag=method_param,
+            calendar=calendar,
+            convention=convention,
+            modifier=_convert_to_adjuster(
+                modifier=_drb(defaults.modifier, adjuster),
+                settlement=False,
+                mod_days=fixing_method != FloatFixingMethod.IBOR,
+            ),
+            eom=defaults.eom,
+            zero_float_period_stub=StubInference.ShortBack,  # TODO:  hard coded default replaced?
+        )
 
 
 class _CreditParams:

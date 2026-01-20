@@ -21,7 +21,7 @@ from rateslib.curves._parsers import (
 )
 from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import LegMtm, _get_let_mtm
+from rateslib.enums.parameters import LegMtm, _get_leg_mtm
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.protocols import (
     _BaseLeg,
@@ -594,7 +594,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         del currency
         self._convention: str = _drb(defaults.convention, convention)
         del convention
-        self._mtm = _get_let_mtm(mtm)
+        self._mtm = _get_leg_mtm(mtm)
         del mtm
 
         index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)

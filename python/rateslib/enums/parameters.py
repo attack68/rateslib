@@ -53,7 +53,7 @@ _LEG_MTM_MAP = {
 }
 
 
-def _get_let_mtm(leg_mtm: str | LegMtm) -> LegMtm:
+def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
     if isinstance(leg_mtm, LegMtm):
         return leg_mtm
     else:
