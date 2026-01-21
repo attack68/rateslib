@@ -40,7 +40,31 @@ if TYPE_CHECKING:
 
 class CreditPremiumLeg(_BaseLeg, _WithExDiv):
     """
-    Define a *Leg* containing :class:`~rateslib.periods.CreditPremiumPeriod`.
+    A *Leg* containing :class:`~rateslib.periods.CreditPremiumPeriod`.
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Schedule
+       from rateslib.legs import CreditPremiumLeg
+       from datetime import datetime as dt
+
+    .. ipython:: python
+
+       cpl = CreditPremiumLeg(
+           schedule=Schedule(
+                effective=dt(2000, 3, 20),
+                termination=dt(2001, 3, 20),
+                frequency="Q",
+                modifier="FEX",
+           ),
+           convention="Act360",
+           fixed_rate=1.0,
+           notional=10e6,
+       )
+       cpl.cashflows()
 
     .. role:: red
 
@@ -87,15 +111,6 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
     premium_accrued: bool, :green:`optional (set by 'defaults')`
         Whether an accrued premium is paid on the event of mid-period credit default.
 
-
-    Notes
-    -----
-    TODO
-
-    Examples
-    --------
-    See :ref:`Leg Examples<legs-doc>`
-
     """
 
     @property
@@ -111,6 +126,8 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
     @property
     def fixed_rate(self) -> DualTypes_:
+        """The fixed rate parameter of each composited
+        :class:`~rateslib.periods.CreditPremiumPeriod`."""
         return self._fixed_rate
 
     @fixed_rate.setter
@@ -121,10 +138,14 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
     @property
     def schedule(self) -> Schedule:
+        """The :class:`~rateslib.scheduling.Schedule` object of *Leg*."""
         return self._schedule
 
     @property
     def amortization(self) -> Amortization:
+        """
+        The :class:`~rateslib.legs.Amortization` object associated with the schedule.
+        """
         return self._amortization
 
     def accrued(self, settlement: datetime) -> DualTypes:
@@ -225,50 +246,51 @@ class CreditPremiumLeg(_BaseLeg, _WithExDiv):
 
 class CreditProtectionLeg(_BaseLeg):
     """
-    Create a credit protection leg composed of :class:`~rateslib.periods.CreditProtectionPeriod` s.
+    A *Leg* containing :class:`~rateslib.periods.CreditProtectionPeriod`.
 
-    Parameters
-    ----------
-    args : tuple
-        Required positional args to :class:`BaseLeg`.
-    kwargs : dict
-        Required keyword arguments to :class:`BaseLeg`.
-
-    Notes
-    -----
-    The NPV of a credit protection leg is the sum of the period NPVs.
-
-    .. math::
-
-       P = \\sum_{i=1}^n P_i
-
-    The analytic delta is the sum of the period analytic deltas.
-
-    .. math::
-
-       A = -\\frac{\\partial P}{\\partial S} = \\sum_{i=1}^n -\\frac{\\partial P_i}{\\partial S}
-
-    Examples
-    --------
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib.curves import Curve
-       from rateslib.scheduling import Schedule
-       from rateslib.legs import CreditProtectionLeg
-       from datetime import datetime as dt
+       from rateslib import dt, CreditProtectionLeg, Schedule
 
     .. ipython:: python
 
-       disc_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.98})
-       hazard_curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 0.995})
-       protection_leg = CreditProtectionLeg(
-           schedule=Schedule(dt(2022, 1, 1), "9M", "Z"),
-           notional=1000000,
+       cpl = CreditProtectionLeg(
+           schedule=Schedule(
+               effective=dt(2000, 3, 20),
+               termination=dt(2001, 3, 30),
+               frequency="Z",
+           ),
+           notional=10e6,
        )
-       protection_leg.cashflows(rate_curve=hazard_curve, disc_curve=disc_curve)
-       protection_leg.npv(rate_curve=hazard_curve, disc_curve=disc_curve)
+       cpl.cashflows()
+
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    schedule: Schedule, :red:`required`
+        The :class:`~rateslib.scheduling.Schedule` object which structures contiguous *Periods*.
+        The schedule object also contains data for payment dates, payment dates for notional
+        exchanges and ex-dividend dates for each period.
+
+        .. note::
+
+           The following define generalised **settlement** parameters.
+
+    currency : str, :green:`optional (set by 'defaults')`
+        The local settlement currency of the leg (3-digit code).
+    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
+        The initial leg notional, defined in units of *reference currency*.
+    amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
+        Set a non-constant notional per *Period*. If a scalar value, adjusts the ``notional`` of
+        each successive period by that same value. Should have
+        sign equal to that of notional if the notional is to reduce towards zero.
+
     """  # noqa: E501
 
     @property
@@ -284,10 +306,14 @@ class CreditProtectionLeg(_BaseLeg):
 
     @property
     def schedule(self) -> Schedule:
+        """The :class:`~rateslib.scheduling.Schedule` object of *Leg*."""
         return self._schedule
 
     @property
     def amortization(self) -> Amortization:
+        """
+        The :class:`~rateslib.legs.Amortization` object associated with the schedule.
+        """
         return self._amortization
 
     def __init__(
@@ -299,7 +325,7 @@ class CreditProtectionLeg(_BaseLeg):
         amortization: DualTypes_ | list[DualTypes] | Amortization | str = NoInput(0),
         currency: str_ = NoInput(0),
         # period
-        convention: str_ = NoInput(0),
+        # convention: str_ = NoInput(0),
     ) -> None:
         self._schedule = schedule
         self._notional: DualTypes = _drb(defaults.notional, notional)
@@ -307,7 +333,7 @@ class CreditProtectionLeg(_BaseLeg):
             amortization, self._notional, self.schedule.n_periods
         )
         self._currency: str = _drb(defaults.base_currency, currency).lower()
-        self._convention: str = _drb(defaults.convention, convention)
+        # self._convention: str = _drb(defaults.convention, convention)
 
         self._regular_periods = tuple(
             [
@@ -321,7 +347,7 @@ class CreditProtectionLeg(_BaseLeg):
                     start=self.schedule.aschedule[i],
                     end=self.schedule.aschedule[i + 1],
                     frequency=self.schedule.frequency_obj,
-                    convention=self._convention,
+                    # convention=self._convention,
                     termination=self.schedule.aschedule[-1],
                     stub=self.schedule._stubs[i],
                     roll=NoInput(0),  #  defined by Frequency

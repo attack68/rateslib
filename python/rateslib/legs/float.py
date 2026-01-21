@@ -18,7 +18,7 @@ from pandas import Series
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.data.fixings import _leg_fixings_to_list, _get_float_fixing_method
+from rateslib.data.fixings import _get_float_fixing_method, _leg_fixings_to_list
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod, LegMtm, SpreadCompoundMethod, _get_leg_mtm
@@ -30,7 +30,6 @@ from rateslib.periods import Cashflow, FloatPeriod, MtmCashflow, ZeroFloatPeriod
 from rateslib.periods.parameters import _FloatRateParams, _SettlementParams
 from rateslib.periods.parameters.rate import _init_float_rate_series
 from rateslib.scheduling.schedule import Schedule
-
 
 if TYPE_CHECKING:
     from rateslib.typing import (  # pragma: no cover

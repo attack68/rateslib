@@ -990,7 +990,7 @@ class TestFloatLeg:
         assert abs(rate2 - rate) < 1e-8
 
         rates2 = [_.rate(rate_curve=curve) for _ in zero_type.periods[0].float_periods]
-        assert all([abs(x - y) < 1e-10 for (x, y) in zip(rates, rates2)])
+        assert all(abs(x - y) < 1e-10 for (x, y) in zip(rates, rates2))
 
 
 class TestZeroFloatLeg:
@@ -2825,7 +2825,7 @@ class TestCreditProtectionLeg:
                 frequency="Q",
             ),
             notional=-1e9,
-            convention="Act360",
+            # convention="Act360",
         )
         result = leg.cashflows(rate_curve=hazard_curve, disc_curve=curve)
         # test a couple of return elements
@@ -2841,7 +2841,7 @@ class TestCreditProtectionLeg:
                 frequency="Z",
             ),
             notional=-1e9,
-            convention="Act360",
+            # convention="Act360",
         )
         assert len(leg.periods) == 1
         assert leg.periods[0].period_params.end == dt(2024, 6, 1)
@@ -3579,7 +3579,7 @@ class TestCustomLeg:
                 end=dt(2022, 4, 1),
                 payment=dt(2022, 4, 3),
                 notional=1e9,
-                convention="Act360",
+                # convention="Act360",
                 termination=dt(2022, 4, 1),
                 frequency=Frequency.Months(3, None),
                 currency="usd",

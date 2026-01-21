@@ -131,6 +131,9 @@ class FixedPeriod(_BasePeriodStatic):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.

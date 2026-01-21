@@ -27,7 +27,7 @@ from rateslib.periods.parameters import (
 from rateslib.periods.protocols import _BasePeriod
 from rateslib.periods.protocols.npv import _screen_ex_div_and_forward
 from rateslib.periods.utils import _maybe_local, _try_validate_base_curve, _validate_credit_curves
-from rateslib.scheduling import Frequency, get_calendar
+from rateslib.scheduling import Convention, Frequency, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
@@ -129,6 +129,9 @@ class CreditPremiumPeriod(_BasePeriod):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
@@ -431,8 +434,6 @@ class CreditProtectionPeriod(_BasePeriod):
         The identified end date of the *Period*.
     frequency: Frequency, str, :red:`required`
         The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
-    convention: Convention, str, :green:`optional` (set by 'defaults')
-        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
     termination: datetime, :green:`optional`
         The termination date of an external :class:`~rateslib.scheduling.Schedule`.
     calendar: Calendar, :green:`optional`
@@ -440,6 +441,9 @@ class CreditProtectionPeriod(_BasePeriod):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
@@ -468,7 +472,7 @@ class CreditProtectionPeriod(_BasePeriod):
         start: datetime,
         end: datetime,
         frequency: Frequency | str,
-        convention: str_ = NoInput(0),
+        # convention: str_ = NoInput(0),
         termination: datetime_ = NoInput(0),
         stub: bool = False,
         roll: RollDay | int | str_ = NoInput(0),
@@ -492,7 +496,7 @@ class CreditProtectionPeriod(_BasePeriod):
             _calendar=get_calendar(calendar),
             _adjuster=NoInput(0) if isinstance(adjuster, NoInput) else _get_adjuster(adjuster),
             _stub=stub,
-            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _convention=Convention.One,  # _get_convention(_drb(defaults.convention, convention)),
             _termination=termination,
         )
 
