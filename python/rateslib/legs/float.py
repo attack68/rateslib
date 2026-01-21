@@ -18,10 +18,16 @@ from pandas import Series
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.data.fixings import _get_float_fixing_method, _leg_fixings_to_list
+from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import FloatFixingMethod, LegMtm, SpreadCompoundMethod, _get_leg_mtm
+from rateslib.enums.parameters import (
+    FloatFixingMethod,
+    LegMtm,
+    SpreadCompoundMethod,
+    _get_float_fixing_method,
+    _get_leg_mtm,
+)
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.custom import CustomLeg
 from rateslib.legs.fixed import _fx_delivery
@@ -46,6 +52,7 @@ if TYPE_CHECKING:
         _BaseCurve_,
         _BasePeriod,
         _FXVolOption_,
+        bool_,
         datetime_,
         int_,
         str_,
@@ -288,7 +295,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
-        zero_periods: bool = NoInput(0),
+        zero_periods: bool_ = NoInput(0),
         # index params
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
@@ -374,7 +381,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
 
         if not zero_periods_:
             rate_fixings_list = _leg_fixings_to_list(rate_fixings, self._schedule.n_periods)
-            self._regular_periods = tuple(
+            self._regular_periods: tuple[FloatPeriod | ZeroFloatPeriod, ...] = tuple(
                 [
                     FloatPeriod(
                         float_spread=float_spread,
@@ -446,7 +453,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                             frequency=fixing_frequency,
                             payment_lag=self.schedule.payment_adjuster,
                             payment_lag_exchange=self.schedule.payment_adjuster2,
-                            extra_lag=self.schedule.payment_adjuster3,
+                            extra_lag=self.schedule.payment_adjuster3 if self.schedule.payment_adjuster3 is not None else NoInput(0),
                             calendar=self.schedule.calendar,
                             stub=fixing_series_.zero_float_period_stub,
                         ),

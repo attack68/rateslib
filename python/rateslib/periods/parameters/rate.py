@@ -230,7 +230,7 @@ def _init_float_rate_series(
     calendar: CalTypes,
     convention: Convention,
     fixing_method: FloatFixingMethod,
-    adjuster: Adjuster,
+    adjuster: Adjuster | NoInput,
 ) -> FloatRateSeries:
     if not isinstance(fixing_series, NoInput):
         return _get_float_rate_series(fixing_series)
