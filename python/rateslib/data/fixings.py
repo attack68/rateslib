@@ -2428,11 +2428,12 @@ class FloatRateSeries:
     ----------
     lag: int, :red:`required`
         The number of business days by which the fixing date is lagged to the accrual start date.
-    calendar: Calendar, str :green:`required`
+    calendar: Calendar, str :red:`required`
         The calendar associated with the floating rate's date determination.
     modifier: Adjuster, str, :red:`required`
-        The :class:`Adjuster` associated with the end accrual day of the floating rate's date.
-    convention: Convention, str, :green:`required`
+        The :class:`~rateslib.scheduling.Adjuster` associated with the end accrual day of the
+        floating rate's date.
+    convention: Convention, str, :red:`required`
         The day count :class:`~rateslib.scheduling.Convention` associated with the floating rate.
     eom: bool, :red:`required`
         Whether the interest rate index natively adopts EoM roll preference or not.
@@ -2464,7 +2465,7 @@ class FloatRateSeries:
         self._modifier = _get_adjuster(modifier)
         self._convention = _get_convention(convention)
         self._eom = eom
-        self._zero_float_period_stub = _get_stub_inference(
+        self._zero_float_period_stub = _get_stub_inference(  # type: ignore[assignment]
             _drb("ShortBack", zero_float_period_stub), NoInput(0), NoInput(0)
         )
 

@@ -450,7 +450,7 @@ class FloatRateNote(_BaseBondInstrument):
             frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
-            rate = self.leg1._regular_periods[acc_idx].rate(rate_curve)
+            rate = self.leg1._regular_periods[acc_idx].rate(rate_curve=rate_curve)
             cashflow = (
                 -self.leg1._regular_periods[acc_idx].settlement_params.notional
                 * self.leg1._regular_periods[acc_idx].period_params.dcf
