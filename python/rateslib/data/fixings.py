@@ -64,12 +64,12 @@ if TYPE_CHECKING:
         LegFixings,
         PeriodFixings,
         Result,
+        StubInference,
         _BaseCurve_,
         bool_,
         datetime_,
         int_,
         str_,
-        StubInference,
     )
 
 

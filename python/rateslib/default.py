@@ -22,7 +22,7 @@ import numpy as np
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod
-from rateslib.rs import Adjuster, Convention, NamedCal, StubInference
+from rateslib.rs import Adjuster, Convention, NamedCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
 

@@ -102,7 +102,6 @@ from rateslib.periods.parameters import _PeriodParams as _PeriodParams
 from rateslib.periods.parameters import _SettlementParams as _SettlementParams
 from rateslib.periods.protocols import _BasePeriod as _BasePeriod
 from rateslib.rs import Adjuster as Adjuster
-from rateslib.rs import StubInference as StubInference
 from rateslib.rs import (
     Cal,
     FlatBackwardInterpolator,
@@ -114,6 +113,7 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+from rateslib.rs import StubInference as StubInference
 
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
 
