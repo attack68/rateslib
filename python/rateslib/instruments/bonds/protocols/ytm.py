@@ -38,11 +38,11 @@ if TYPE_CHECKING:
         FloatLeg,
         FloatPeriod,
         Number,
+        ZeroFloatPeriod,
         _BaseCurve_,
         _KWArgs,
         datetime,
         str_,
-        ZeroFloatPeriod,
     )
 
 
@@ -402,7 +402,9 @@ class _WithYTM(_WithAccrued, Protocol):
         )
 
     def _period_cashflow(
-        self, period: Cashflow | FixedPeriod | FloatPeriod | ZeroFloatPeriod, rate_curve: CurveOption_
+        self,
+        period: Cashflow | FixedPeriod | FloatPeriod | ZeroFloatPeriod,
+        rate_curve: CurveOption_,
     ) -> DualTypes:
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.unindexed_cashflow(rate_curve=rate_curve)

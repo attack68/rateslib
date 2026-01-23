@@ -453,7 +453,9 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                             frequency=fixing_frequency,
                             payment_lag=self.schedule.payment_adjuster,
                             payment_lag_exchange=self.schedule.payment_adjuster2,
-                            extra_lag=self.schedule.payment_adjuster3 if self.schedule.payment_adjuster3 is not None else NoInput(0),
+                            extra_lag=self.schedule.payment_adjuster3
+                            if self.schedule.payment_adjuster3 is not None
+                            else NoInput(0),
                             calendar=self.schedule.calendar,
                             stub=fixing_series_.zero_float_period_stub,
                         ),

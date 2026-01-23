@@ -2,6 +2,7 @@
 //!
 
 pub mod all;
+pub mod bjs;
 pub mod bus;
 pub mod fed;
 pub mod ldn;
@@ -27,6 +28,7 @@ pub(crate) fn get_weekmask_by_name(name: &str) -> Result<Vec<u8>, PyErr> {
     let hmap: HashMap<&str, &[u8]> = HashMap::from([
         ("all", all::WEEKMASK),
         ("bus", bus::WEEKMASK),
+        ("bjs", bjs::WEEKMASK),
         ("nyc", nyc::WEEKMASK),
         ("fed", fed::WEEKMASK),
         ("tgt", tgt::WEEKMASK),
@@ -55,6 +57,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
     let hmap: HashMap<&str, &[&str]> = HashMap::from([
         ("all", all::HOLIDAYS),
         ("bus", bus::HOLIDAYS),
+        ("bjs", bjs::HOLIDAYS),
         ("nyc", nyc::HOLIDAYS),
         ("fed", fed::HOLIDAYS),
         ("tgt", tgt::HOLIDAYS),
@@ -86,6 +89,7 @@ pub(crate) fn get_holidays_by_name(name: &str) -> Result<Vec<NaiveDateTime>, PyE
 //     let hmap: HashMap<&str, &[&str]> = HashMap::from([
 //         ("all", all::RULES),
 //         ("bus", bus::RULES),
+//         ("bjs", bjs::RULES),
 //         ("nyc", nyc::RULES),
 //         ("fed", fed::RULES),
 //         ("tgt", tgt::RULES),

@@ -29,7 +29,13 @@ from rateslib.scheduling import (
     get_imm,
     next_imm,
 )
-from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
+from rateslib.scheduling.calendars import (
+    _adjust_date,
+    _get_years_and_months,
+    _is_day_type_tenor,
+    _print_month,
+    print_calendar,
+)
 from rateslib.scheduling.frequency import _get_frequency, _get_fx_expiry_and_delivery_and_payment
 
 
@@ -720,7 +726,66 @@ def test_mex_loads():
     assert cal.is_bus_day(dt(2026, 3, 17))
 
 
+def test_bjs_loads():
+    cal = get_calendar("bjs")
+    assert not cal.is_bus_day(dt(2026, 9, 19))
+    assert cal.is_bus_day(dt(2026, 9, 20))
+
+
 def test_replace_whitespace():
     cal1 = get_calendar("nyc, tgt")
     cal2 = get_calendar("nyc,tgt")
     assert cal1 == cal2
+
+
+def test_print_month():
+    cal = get_calendar("nyc,tgt")
+    output = _print_month(cal, 2026, 1)
+    assert (
+        output
+        == r"""January 2026
+Su Mo Tu We Th Fr Sa 
+             *  2  .
+ .  5  6  7  8  9  .
+ . 12 13 14 15 16  .
+ .  * 20 21 22 23  .
+ . 26 27 28 29 30  .
+                    
+"""  # noqa: W291, W293
+    )
+
+
+def test_print_calendar():
+    cal = get_calendar("bjs")
+    output = print_calendar(cal, 2026)
+    expected = """
+NamedCal(bjs)
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa 
+             *  *  .             1  2  3  .             1  2  3  .                *  *  .
+ 4  5  6  7  8  9  .    .  *  7  8  9 10  .    .  6  7  8  9 10  .    .  *  *  *  8  9 10
+ . 12 13 14 15 16  .    . 13 14 15 16 17  .    . 13 14 15 16 17  .    . 12 13 14 15 16  .
+ . 19 20 21 22 23  .    . 20 21 22 23 24  .    . 20 21 22 23 24  .    . 19 20 21 22 23  .
+ . 26 27 28 29 30  .    . 27 28 29 30          . 27 28 29 30 31       . 26 27 28 29 30  .
+                                                                                         
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa 
+ .  2  3  4  5  6  .                   *  .                      .    .  2  3  4  5  6  .
+ .  9 10 11 12 13 14    .  *  *  6  7  8  9    .  3  4  5  6  7  .    .  9 10 11 12 13  .
+ .  *  *  *  *  *  .    . 11 12 13 14 15  .    . 10 11 12 13 14  .    . 16 17 18 19 20  .
+ .  * 24 25 26 27 28    . 18 19 20 21 22  .    . 17 18 19 20 21  .    . 23 24 25 26 27  .
+                        . 25 26 27 28 29  .    . 24 25 26 27 28  .    . 30               
+                        .                      . 31                                      
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa 
+ .  2  3  4  5  6  .       1  2  3  4  5  .          1  2  3  4  .          1  2  3  4  .
+ .  9 10 11 12 13  .    .  8  9 10 11 12  .    .  7  8  9 10 11  .    .  7  8  9 10 11  .
+ . 16 17 18 19 20  .    . 15 16 17 18  *  .    . 14 15 16 17 18  .    . 14 15 16 17 18  .
+ . 23 24 25 26 27  .    . 22 23 24 25 26  .   20 21 22 23 24  *  .    . 21 22 23 24 25  .
+ . 30 31                . 29 30                . 28 29 30             . 28 29 30 31      
+                                                                                         
+Legend:
+'1-31': Settleable business day         'X': Non-settleable business day 
+   '.': Non-business weekend            '*': Non-business day
+"""  # noqa: W291, W293
+    assert output == expected

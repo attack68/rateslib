@@ -92,9 +92,9 @@ from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod
 from rateslib.periods import CreditProtectionPeriod as CreditProtectionPeriod
 from rateslib.periods import FixedPeriod as FixedPeriod
 from rateslib.periods import FloatPeriod as FloatPeriod
-from rateslib.periods import ZeroFloatPeriod as ZeroFloatPeriod
 from rateslib.periods import FXCallPeriod as FXCallPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
+from rateslib.periods import ZeroFloatPeriod as ZeroFloatPeriod
 from rateslib.periods import _BaseFXOptionPeriod as _BaseFXOptionPeriod
 from rateslib.periods.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.periods.parameters import _IndexParams as _IndexParams

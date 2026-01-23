@@ -58,6 +58,7 @@ DEFAULTS = dict(
         "wlg": NamedCal("wlg"),
         "mum": NamedCal("mum"),
         "mex": NamedCal("mex"),
+        "bjs": NamedCal("bjs"),
     },
     eom=False,
     eom_fx=True,
