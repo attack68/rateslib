@@ -11,7 +11,11 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
+from datetime import datetime as dt
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from rateslib import defaults
 from rateslib.enums.generics import NoInput
@@ -48,24 +52,8 @@ def get_calendar(
     Notes
     -----
 
-    The following named calendars are available and have been back tested against the
-    publication of RFR indexes in the relevant geography.
-
-    - *"all"*: Every day is defined as business day including weekends.
-    - *"bus"*: Regular weekdays are defined as business days. Saturdays and Sunday are
-      non-business days.
-    - *"tgt"*: Target for Europe's ESTR.
-    - *"osl"*: Oslo for Norway's NOWA.
-    - *"zur"*: Zurich for Switzerland's SARON.
-    - *"nyc"*: New York City for US's SOFR.
-    - *"fed"*: Similar to *"nyc"* but omitting Good Friday.
-    - *"ldn"*: London for UK's SONIA.
-    - *"stk"*: Stockholm for Sweden's SWESTR.
-    - *"tro"*: Toronto for Canada's CORRA.
-    - *"tyo"*: Tokyo for Japan's TONA.
-    - *"syd"*: Sydney for Australia's AONIA.
-    - *"wlg"*: Wellington for New Zealand's OCR and BKBM.
-    - *"mum"*: Mumbai for India's FBIL o/n rate.
+    Please see the :ref:`defaults <defaults-doc>` section of the documentation to discover
+    which named calendars are preloaded to *rateslib*.
 
     Combined calendars can be created with comma separated input, e.g. *"tgt,nyc"*. This would
     be the typical calendar assigned to a cross-currency derivative such as a EUR/USD
@@ -110,6 +98,115 @@ def get_calendar(
         return defaults.calendars["all"]
     else:  # calendar is a Calendar object type
         return calendar
+
+
+def print_calendar(calendar: CalInput, year: int) -> str:
+    """
+    A string representation of a given year in a calendar.
+
+    Parameters
+    ----------
+    calendar: Cal, UnionCal, NamedCal, str
+        The calendar to return the representation for.
+    year: int
+        The year to display.
+
+    Returns
+    -------
+    str
+
+    Examples
+    --------
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib.scheduling import print_calendar
+
+    .. ipython:: python
+
+       print(print_calendar("bjs|fed", 2026))
+
+    """
+    calendar_ = get_calendar(calendar)
+    del calendar
+    data = [_print_month(calendar_, year, i + 1).split("\n") for i in range(12)]
+    if isinstance(calendar_, Cal):
+        cal_name = "Cal:"
+    elif isinstance(calendar_, UnionCal):
+        cal_name = "UnionCal:"
+    else:
+        cal_name = f"NamedCal({calendar_.name})"
+    output = (
+        f"\n"
+        f"{cal_name}\n"
+        f"{data[0][0]:>20}   {data[3][0]:>20}   {data[6][0]:>20}   {data[9][0]:>20}\n"
+        f"{data[0][1]}  {data[3][1]}  {data[6][1]}  {data[9][1]}\n"
+        f"{data[0][2]}   {data[3][2]}   {data[6][2]}   {data[9][2]}\n"
+        f"{data[0][3]}   {data[3][3]}   {data[6][3]}   {data[9][3]}\n"
+        f"{data[0][4]}   {data[3][4]}   {data[6][4]}   {data[9][4]}\n"
+        f"{data[0][5]}   {data[3][5]}   {data[6][5]}   {data[9][5]}\n"
+        f"{data[0][6]}   {data[3][6]}   {data[6][6]}   {data[9][6]}\n"
+        f"{data[0][7]}   {data[3][7]}   {data[6][7]}   {data[9][7]}\n"
+        f"{data[1][0]:>20}   {data[4][0]:>20}   {data[7][0]:>20}   {data[10][0]:>20}\n"
+        f"{data[1][1]}  {data[4][1]}  {data[7][1]}  {data[10][1]}\n"
+        f"{data[1][2]}   {data[4][2]}   {data[7][2]}   {data[10][2]}\n"
+        f"{data[1][3]}   {data[4][3]}   {data[7][3]}   {data[10][3]}\n"
+        f"{data[1][4]}   {data[4][4]}   {data[7][4]}   {data[10][4]}\n"
+        f"{data[1][5]}   {data[4][5]}   {data[7][5]}   {data[10][5]}\n"
+        f"{data[1][6]}   {data[4][6]}   {data[7][6]}   {data[10][6]}\n"
+        f"{data[1][7]}   {data[4][7]}   {data[7][7]}   {data[10][7]}\n"
+        f"{data[2][0]:>20}   {data[5][0]:>20}   {data[8][0]:>20}   {data[11][0]:>20}\n"
+        f"{data[2][1]}  {data[5][1]}  {data[8][1]}  {data[11][1]}\n"
+        f"{data[2][2]}   {data[5][2]}   {data[8][2]}   {data[11][2]}\n"
+        f"{data[2][3]}   {data[5][3]}   {data[8][3]}   {data[11][3]}\n"
+        f"{data[2][4]}   {data[5][4]}   {data[8][4]}   {data[11][4]}\n"
+        f"{data[2][5]}   {data[5][5]}   {data[8][5]}   {data[11][5]}\n"
+        f"{data[2][6]}   {data[5][6]}   {data[8][6]}   {data[11][6]}\n"
+        f"{data[2][7]}   {data[5][7]}   {data[8][7]}   {data[11][7]}\n"
+        f"Legend:\n"
+        f"'1-31': Settleable business day         'X': Non-settleable business day \n"
+        f"   '.': Non-business weekend            '*': Non-business day\n"
+    )
+    return output
+
+
+def _print_month(calendar: CalTypes, year: int, month: int) -> str:
+    """
+    Legend:
+
+    * non-business day / specific holiday
+    # non-working Saturday or Sunday
+    X business day but not a settleable day.
+    """
+    output = f"{dt(year, month, 1).strftime('%B')} {year}\n"
+    output += "Su Mo Tu We Th Fr Sa \n"
+
+    weekday, days = monthrange(year, month)
+    idx_start = (weekday + 1) % 7
+
+    arr = np.array(["  "] * 42)
+    for i in range(days):
+        date = dt(year, month, i + 1)
+        if calendar.is_bus_day(date) and calendar.is_settlement(date):
+            _: str = f"{i + 1:>2}"
+        elif calendar.is_bus_day(date) and not calendar.is_settlement(date):
+            _ = " X"
+        elif not calendar.is_bus_day(date) and dt.weekday(date) in [5, 6]:
+            _ = " ."
+        else:
+            _ = " *"
+        arr[i + idx_start] = _
+
+    for row in range(6):
+        output += (
+            f"{arr[row * 7]} {arr[row * 7 + 1]} {arr[row * 7 + 2]} {arr[row * 7 + 3]} "
+            f"{arr[row * 7 + 4]} {arr[row * 7 + 5]} {arr[row * 7 + 6]}\n"
+        )
+
+    return output
+
+    output += "Sunday\n"
 
 
 def _parse_str_calendar(calendar: str, named: bool) -> CalTypes:

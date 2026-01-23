@@ -37,7 +37,9 @@ class _WithAccrued(Protocol):
     """
 
     def _period_cashflow(
-        self, period: Cashflow | FixedPeriod | FloatPeriod | ZeroFloatPeriod, rate_curve: _BaseCurveOrDict_
+        self,
+        period: Cashflow | FixedPeriod | FloatPeriod | ZeroFloatPeriod,
+        rate_curve: _BaseCurveOrDict_,
     ) -> DualTypes: ...
 
     @property
