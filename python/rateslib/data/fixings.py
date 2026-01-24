@@ -1714,10 +1714,12 @@ class IBORStubFixing(_BaseFixing):
 
     Notes
     -----
-    An interpolated tenor-IBOR type calculation depends upon two tenors being available from
-    the *Fixings* object. Appropriate tenors will be automatically selected based on the
-    ``accrual_end`` date. If only one tenor is available, this will be used as the single
-    ``fixing1`` value.
+    An interpolated tenor-IBOR type calculation depends upon two tenors being determinable from
+    which a rate can be linearly interpolated.
+
+    The ``rate_series`` has a ``tenors`` attribute which will be used in a first instance. If this
+    is empty, i.e. unspecified, then the default tenors of ['1W', '1M', '3M', '6M', '12M']
+    are used in place.
 
     Examples
     --------
@@ -1749,21 +1751,15 @@ class IBORStubFixing(_BaseFixing):
                calendar="tgt",
                convention="act360",
                eom=False,
+               tenors=["1M", "2M", "3M", "6M", "12M"],
            )
        )
        ibor_fix.date
        ibor_fix.value
 
-    .. ipython:: python
-       :suppress:
-
-       fixings.pop("Euribor_1m")
-       fixings.pop("Euribor_2m")
-       fixings.pop("Euribor_3m")
-       fixings.pop("Euribor_6m")
 
     This fixing can only be determined from a single tenor, which is quite distinct from the
-    stub tenor in this case.
+    12 day period length in this case. In practice this should be avoided.
 
     .. ipython:: python
 
@@ -1778,34 +1774,21 @@ class IBORStubFixing(_BaseFixing):
                calendar="osl",
                convention="act360",
                eom=True,
+               tenors=["6M"],
            )
        )
        ibor_fix.date
        ibor_fix.value
        ibor_fix.fixing2
-
-    The following fixing cannot identify any tenor indices in the *Fixings* object, and will
-    log a *UserWarning* before proceeding to yield *NoInput* for all values.
 
     .. ipython:: python
-       :okwarning:
+       :suppress:
 
-       ibor_fix = IBORStubFixing(
-           accrual_start=dt(2000, 1, 5),
-           accrual_end=dt(2000, 1, 17),
-           identifier="Unavailable_Identifier",
-           rate_series=FloatRateSeries(
-               lag=2,
-               modifier="MF",
-               calendar="nyc",
-               convention="act360",
-               eom=True,
-           )
-       )
-       ibor_fix.date
-       ibor_fix.value
-       ibor_fix.fixing1
-       ibor_fix.fixing2
+       fixings.pop("Euribor_1m")
+       fixings.pop("Euribor_2m")
+       fixings.pop("Euribor_3m")
+       fixings.pop("Euribor_6m")
+       fixings.pop("NIBOR_6M")
 
     """  # noqa: E501
 
@@ -1834,43 +1817,38 @@ class IBORStubFixing(_BaseFixing):
             date,
         )
 
-        if isinstance(value, NoInput):
-            if isinstance(identifier, NoInput):
-                self._fixing2 = NoInput(0)
-                self._fixing1 = NoInput(0)
-            else:
-                # then populate additional required information
-                tenors = self._stub_tenors()
-                if len(tenors[0]) in [1, 2]:
-                    self._fixing1 = IBORFixing(
-                        rate_index=FloatRateIndex(
-                            series=self.series,
-                            frequency=_get_frequency(tenors[0][0], NoInput(0), NoInput(0)),
-                        ),
-                        accrual_start=self.accrual_start,
-                        date=date,
-                        value=NoInput(0),
-                        identifier=identifier + "_" + tenors[0][0],
-                    )
-                    if len(tenors[0]) == 2:
-                        self._fixing2 = IBORFixing(
-                            rate_index=FloatRateIndex(
-                                series=self._series,
-                                frequency=_get_frequency(tenors[0][1], NoInput(0), NoInput(0)),
-                            ),
-                            date=date,
-                            accrual_start=self.accrual_start,
-                            value=NoInput(0),
-                            identifier=identifier + "_" + tenors[0][1],
-                        )
-                    else:
-                        self._fixing2 = NoInput(0)
-                else:
-                    warnings.warn(err.UW_NO_TENORS.format(identifier))
-                    self._fixing2 = NoInput(0)
-                    self._fixing1 = NoInput(0)
+        tenors = self._stub_tenors_from_list(
+            tenors=_drb(["1W", "1M", "3M", "6M", "12M"], self.series.tenors)
+        )
+        self._fixing1 = IBORFixing(
+            rate_index=FloatRateIndex(
+                series=self.series,
+                frequency=_get_frequency(tenors[0][0], NoInput(0), NoInput(0)),
+            ),
+            accrual_start=self.accrual_start,
+            date=date,
+            value=value,
+            identifier=NoInput(0)
+            if isinstance(identifier, NoInput)
+            else identifier + "_" + tenors[0][0],
+        )
+        if len(tenors[0]) == 2:
+            self._fixing2 = IBORFixing(
+                rate_index=FloatRateIndex(
+                    series=self._series,
+                    frequency=_get_frequency(tenors[0][1], NoInput(0), NoInput(0)),
+                ),
+                date=date,
+                accrual_start=self.accrual_start,
+                value=value,
+                identifier=NoInput(0)
+                if isinstance(identifier, NoInput)
+                else identifier + "_" + tenors[0][1],
+            )
         else:
-            self._value = value
+            self._fixing2 = NoInput(0)
+
+        self._value = value
 
     @property
     def date(self) -> datetime:
@@ -1949,58 +1927,22 @@ class IBORStubFixing(_BaseFixing):
     ) -> DualTypes_:
         raise RuntimeError("This method should be unused due to overloaded properties")
 
-    def _stub_tenors(self) -> tuple[list[str], list[datetime]]:
-        """
-        Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
-        determining an IBOR type stub period.
-
-        Returns
-        -------
-        tuple of list[string tenors] and list[evaluated end dates]
-        """
-        from rateslib.scheduling import add_tenor
-
+    def _stub_tenors_from_list(self, tenors: list[str]) -> tuple[list[str], list[datetime]]:
         left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
         right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
 
-        for tenor in [
-            "1D",
-            "1B",
-            "2B",
-            "1W",
-            "2W",
-            "3W",
-            "4W",
-            "1M",
-            "2M",
-            "3M",
-            "4M",
-            "5M",
-            "6M",
-            "7M",
-            "8M",
-            "9M",
-            "10M",
-            "11M",
-            "12M",
-            "1Y",
-        ]:
-            try:
-                _ = fixings.__getitem__(f"{self.identifier}_{tenor}")
-            except Exception:  # noqa: S112
-                continue
-            else:
-                sample_end = add_tenor(
-                    start=self.accrual_start,
-                    tenor=tenor,
-                    modifier=self.series.modifier,
-                    calendar=self.series.calendar,
-                )
-                if sample_end <= self.accrual_end and sample_end > left[1]:
-                    left = (tenor, sample_end)
-                if sample_end > self.accrual_end and sample_end < right[1]:
-                    right = (tenor, sample_end)
-                    break
+        for tenor in tenors:
+            sample_end = add_tenor(
+                start=self.accrual_start,
+                tenor=tenor,
+                modifier=self.series.modifier,
+                calendar=self.series.calendar,
+            )
+            if sample_end <= self.accrual_end and sample_end > left[1]:
+                left = (tenor, sample_end)
+            if sample_end > self.accrual_end and sample_end < right[1]:
+                right = (tenor, sample_end)
+                break
 
         ret: tuple[list[str], list[datetime]] = ([], [])
         if left[0] is not None:
@@ -2010,6 +1952,68 @@ class IBORStubFixing(_BaseFixing):
             ret[0].append(right[0])
             ret[1].append(right[1])
         return ret
+
+    # def _stub_tenors_from_fixings(self) -> tuple[list[str], list[datetime]]:
+    #     """
+    #     Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
+    #     determining an IBOR type stub period.
+    #
+    #     Returns
+    #     -------
+    #     tuple of list[string tenors] and list[evaluated end dates]
+    #     """
+    #     from rateslib.scheduling import add_tenor
+    #
+    #     left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
+    #     right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
+    #
+    #     for tenor in [
+    #         "1D",
+    #         "1B",
+    #         "2B",
+    #         "1W",
+    #         "2W",
+    #         "3W",
+    #         "4W",
+    #         "1M",
+    #         "2M",
+    #         "3M",
+    #         "4M",
+    #         "5M",
+    #         "6M",
+    #         "7M",
+    #         "8M",
+    #         "9M",
+    #         "10M",
+    #         "11M",
+    #         "12M",
+    #         "1Y",
+    #     ]:
+    #         try:
+    #             _ = fixings.__getitem__(f"{self.identifier}_{tenor}")
+    #         except Exception:  # noqa: S112
+    #             continue
+    #         else:
+    #             sample_end = add_tenor(
+    #                 start=self.accrual_start,
+    #                 tenor=tenor,
+    #                 modifier=self.series.modifier,
+    #                 calendar=self.series.calendar,
+    #             )
+    #             if sample_end <= self.accrual_end and sample_end > left[1]:
+    #                 left = (tenor, sample_end)
+    #             if sample_end > self.accrual_end and sample_end < right[1]:
+    #                 right = (tenor, sample_end)
+    #                 break
+    #
+    #     ret: tuple[list[str], list[datetime]] = ([], [])
+    #     if left[0] is not None:
+    #         ret[0].append(left[0])
+    #         ret[1].append(left[1])
+    #     if right[0] is not None:
+    #         ret[0].append(right[0])
+    #         ret[1].append(right[1])
+    #     return ret
 
 
 class RFRFixing(_BaseFixing):
@@ -2437,6 +2441,8 @@ class FloatRateSeries:
         The day count :class:`~rateslib.scheduling.Convention` associated with the floating rate.
     eom: bool, :red:`required`
         Whether the interest rate index natively adopts EoM roll preference or not.
+    tenors: list[str], :green:`optional`
+        The official list of tenor indexes published by this series.
     zero_float_period_stub: StubInference, str, :green:`optional (set as 'ShortBack')`
         The stub inference parameter that is used to steer schedule construction when this
         series is used as part of a :class:`~rateslib.legs.FloatLeg` composed of
@@ -2450,6 +2456,7 @@ class FloatRateSeries:
     _convention: Convention
     _eom: bool
     _zero_float_period_stub: StubInference
+    _tenors: list[str] | NoInput
 
     def __init__(
         self,
@@ -2459,12 +2466,16 @@ class FloatRateSeries:
         convention: Convention | str,
         eom: bool,
         zero_float_period_stub: StubInference | str_ = NoInput(0),
+        tenors: list[str] | NoInput = NoInput(0),
     ) -> None:
         self._lag = lag
         self._calendar = get_calendar(calendar)
         self._modifier = _get_adjuster(modifier)
         self._convention = _get_convention(convention)
         self._eom = eom
+        self._tenors: list[str] = tenors
+        if not isinstance(self.tenors, NoInput) and len(self.tenors) == 0:
+            raise ValueError("`tenors` cannot be given as an empty list.")
         self._zero_float_period_stub = _get_stub_inference(  # type: ignore[assignment]
             _drb("ShortBack", zero_float_period_stub), NoInput(0), NoInput(0)
         )
@@ -2501,6 +2512,13 @@ class FloatRateSeries:
         """:class:`~rateslib.scheduling.StubInference` used when a fixing tenor does not divide
         into the frequency of a compounded :class:`~rateslib.periods.ZeroFloatPeriod`."""
         return self._zero_float_period_stub
+
+    @property
+    def tenors(self) -> list[str] | NoInput:
+        """
+        A list of tenors that are published by this interest rate series.
+        """
+        return self._tenors
 
 
 class _IBORRate:

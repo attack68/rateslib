@@ -930,6 +930,7 @@ class FXCallPeriod(_BaseFXOptionPeriod):
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     ex_dividend: datetime, :green:`optional (set as 'delivery')`
         The ex-dividend date of the settled cashflow.
 
@@ -1031,6 +1032,7 @@ class FXPutPeriod(_BaseFXOptionPeriod):
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     ex_dividend: datetime, :green:`optional (set as 'delivery')`
         The ex-dividend date of the settled cashflow.
 

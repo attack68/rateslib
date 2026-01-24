@@ -151,6 +151,28 @@ impl Frequency {
         self.try_uregular(&ueffective, &utermination)
     }
 
+    /// Check whether two unadjusted dates define a regular unadjusted schedule.
+    ///
+    /// Parameters
+    /// ----------
+    /// ueffective: datetime
+    ///     The unadjusted effective date of the schedule. If this is not a valid unadjusted
+    ///     date aligned with the Frequency then it will raise.
+    /// utermination: datetime
+    ///     The unadjusted termination date of the frequency period. If this is not a valid
+    ///     unadjusted date aligned with the Frequency then it will raise.
+    ///
+    /// Returns
+    /// -------
+    /// bool
+    #[pyo3(name = "is_uregular")]
+    fn is_uregular_py(&self, ueffective: NaiveDateTime, utermination: NaiveDateTime) -> bool {
+        match self.try_uregular(&ueffective, &utermination) {
+            Err(_) => false,
+            Ok(_) => true,
+        }
+    }
+
     /// Infer an unadjusted stub date from given schedule endpoints.
     ///
     /// Parameters

@@ -68,7 +68,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     .. ipython:: python
        :suppress:
 
-       from rateslib import fixings, Schedule
+       from rateslib import fixings, Schedule, Curve, FloatRateSeries
        from pandas import Series
        from rateslib.legs import FloatLeg
        from datetime import datetime as dt
@@ -128,8 +128,10 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability. This should only
-        ever be entered as either:
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`, and
+        see also :ref:`fixings <fixings-doc>`.
+        This should only ever be entered as either:
 
         - scalar value: 1.15,
         - fixings series: "Reuters_ZBS",
@@ -167,18 +169,15 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         The amount (in bps) added to the rate in each period rate determination.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
-        of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``.
+        of the period rate when combining a ``float_spread``. Used **only** with (non-averaged)
+        RFR type ``fixing_method``, and when ``zero_periods`` is False.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
     zero_periods: bool, :green:`optional (set as False)`
-        If the fixing index represents a frequency lower than that of the *Leg* frequency,
-        multiple fixings may comprise a single *Period*. If *True* a
-        :class:`~rateslib.periods.ZeroFloatPeriod` is used as the regular period instead of
-        a :class:`~rateslib.periods.FloatPeriod`, with its parameters aligned with the others
-        given here.
+        If *True* a :class:`~rateslib.periods.ZeroFloatPeriod` is used as the regular period
+        instead of a :class:`~rateslib.periods.FloatPeriod`. See notes.
 
         .. note::
 
@@ -208,7 +207,222 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     and **notional exchanges** are identical to, and demonstrated in the documentation for, a
     :class:`~rateslib.legs.FixedLeg` object.
 
-    """
+    **Classifications**
+
+    There are generally five types of index classification that can be constructed with this *Leg*.
+
+    .. ipython:: python
+       :suppress:
+
+       curve = Curve({dt(2026, 1, 1): 1.0, dt(2029, 1, 1): 0.86070797}, calendar="nyc", convention="act360")
+
+    .. tabs::
+
+       .. tab:: RFR
+
+          To construct a standard **RFR** (otherwise known as OIS) type leg, use
+          any of the non-averaging *'RFR'* variants of the
+          :class:`~rateslib.enums.FloatFixingMethod` for the ``fixing_method`` parameter.
+
+          Using this ``fixing_method`` the ``fixing_frequency`` is always assumed to be *'1B'* for
+          overnight (o/n) rates.
+
+          Any ``spread_compound_method`` can be used in combination with these ``fixing_method``.
+
+          Each :class:`~rateslib.periods.FloatPeriod` has an **RFR** classification.
+
+          Below is an example of the conventional float leg on a USD-SOFR IRS.
+
+          .. ipython:: python
+
+             rfr_standard = FloatLeg(
+                 schedule=Schedule(
+                     effective=dt(2026, 1, 22),
+                     termination="2Y",
+                     frequency="A",
+                     calendar="nyc",
+                     payment_lag=2
+                 ),
+                 convention="Act360",
+                 fixing_method="rfr_payment_delay",
+             )
+             rfr_standard.cashflows(rate_curve=curve)
+
+          .. warning::
+
+             Do **not** use ``zero_periods`` in the construction of RFR type legs.
+             Although it is, technically, possible to construct this type of *Leg* using
+             ``zero_periods``. Doing so creates an individual :class:`~rateslib.periods.FloatPeriod`
+             for every single overnight RFR fixing making up each
+             :class:`~rateslib.periods.ZeroFloatPeriod`. This is inefficient and removes
+             other features.
+
+       .. tab:: RFR Average
+
+          To construct an **RFR averaged** type use an *'average'* type variant of the
+          :class:`~rateslib.enums.FloatFixingMethod` for the ``fixing_method`` parameter.
+
+          Each :class:`~rateslib.periods.FloatPeriod` has an **average RFR** classification.
+
+          Below is an example of the conventional float leg on an averaged USD-SOFR IRS.
+
+          .. ipython:: python
+
+             rfr_averaged = FloatLeg(
+                 schedule=Schedule(
+                     effective=dt(2026, 1, 22),
+                     termination="2Y",
+                     frequency="A",
+                     calendar="nyc",
+                     payment_lag=2
+                 ),
+                 convention="Act360",
+                 fixing_method="rfr_payment_delay_avg",
+             )
+             rfr_averaged.cashflows(rate_curve=curve)
+
+          .. warning::
+
+             Rates are calculated directly from the provided ``rate_curve``. There are *no
+             convexity adjustments* applied to account for the difference between compounded
+             numéraire and averaged result.
+
+       .. tab:: IBOR
+
+          To construct a standard **IBOR** type leg use the *'ibor'* variant of
+          the :class:`~rateslib.enums.FloatFixingMethod` for the ``fixing_method`` parameter.
+          The ``fixing_frequency`` defining tenor of the index will default to that of the schedule.
+
+          Each :class:`~rateslib.periods.FloatPeriod` has an **IBOR** or **IBOR Stub**
+          classification. Stubs can only appear at the front or back of the *Leg* and depend upon
+          the ``schedule`` directly identifying those periods as *stubs*.
+
+          Below is an example of a standard EURIBOR 3M float leg.
+
+          .. ipython:: python
+
+             ibor_standard = FloatLeg(
+                 schedule=Schedule(
+                     effective=dt(2026, 1, 22),
+                     termination="1Y",
+                     frequency="Q",
+                     calendar="tgt",
+                     payment_lag=0
+                 ),
+                 currency="eur",
+                 convention="Act360",
+                 fixing_method="ibor",
+                 fixing_series="eur_ibor",
+             )
+             ibor_standard.cashflows(rate_curve=curve)
+
+       .. tab:: Misaligned IBOR
+
+          To construct a *Leg* with a different tenor **IBOR** index to that of the schedule,
+          specify the ``fixing_frequency`` directly.
+
+          Each :class:`~rateslib.periods.FloatPeriod` has an **Misaligned IBOR** or **IBOR Stub**
+          classification. Stubs can only appear at the front or back of the *Leg* and depend upon
+          the ``schedule`` directly identifying those periods as *stubs*. Stub *Periods* will have
+          the usual tenor interpolation applied, as with regular IBOR *Legs*, and does not factor
+          the misalignment into the calculation.
+
+          Below is an example of a 1Y float leg with quarterly payments with each fixing to
+          four distinct EURIBOR 6M rates.
+
+          .. ipython:: python
+
+             ibor_misaligned = FloatLeg(
+                 schedule=Schedule(
+                     effective=dt(2026, 1, 22),
+                     termination="1Y",
+                     frequency="Q",
+                     calendar="tgt",
+                     payment_lag=0,
+                 ),
+                 convention="Act360",
+                 fixing_method="ibor",
+                 fixing_series="eur_ibor",
+                 fixing_frequency="S",  # <- frequency of fixing does not match schedule.
+             )
+             ibor_misaligned.cashflows(rate_curve=curve)
+
+       .. tab:: Multi-Period IBOR
+
+          To construct a *Leg* with multiple IBOR tenor indexes compounded over a single
+          *Period* set ``zero_periods`` to True. Each *Period* will then be a
+          :class:`~rateslib.periods.ZeroFloatPeriod`.
+
+          The sub- :class:`~rateslib.scheduling.Schedule` of each *ZeroPeriod* is defined by the
+          start and end unadjusted accrual dates from the main ``schedule`` whose *frequency* is
+          set by ``fixing_frequency``.
+
+          Note the ``float_spread`` is added to each individual
+          :class:`~rateslib.periods.FloatPeriod` and then all resultant rates are compounded to
+          yield the final rate for the :class:`~rateslib.periods.ZeroFloatPeriod`.
+
+          Two use cases of this have been identified;
+
+          - Legacy US-LIBOR single currency basis swaps where the 3M-LIBOR was compounded over
+            a 6M period to net cashflows with the 6M *Leg*. An example is below:
+
+            .. ipython:: python
+
+               float_leg = FloatLeg(
+                   schedule=Schedule(
+                       effective=dt(2026, 1, 22),
+                       termination="1Y",
+                       frequency="S",
+                       calendar="nyc",
+                       payment_lag=0
+                   ),
+                   convention="Act360",
+                   fixing_series="usd_ibor",
+                   fixing_method="ibor",
+                   zero_periods=True,
+                   fixing_frequency="Q",
+                   float_spread=75.0,
+               )
+               float_leg.cashflows(rate_curve=curve)
+
+          - CNY *IRS* with quarterly payments setting to 7D tenor rate. Note that these periods
+            are often not perfectly divisible, resulting in stub periods within each
+            :class:`~rateslib.periods.ZeroFloatPeriod`. The position and treatment of these
+            stubs can be controlled under the :class:`~rateslib.data.fixings.FloatRateSeries`.
+
+            .. ipython:: python
+
+               float_leg = FloatLeg(
+                   schedule=Schedule(
+                       effective=dt(2026, 1, 21),
+                       termination=dt(2027, 1, 21),
+                       frequency="Q",
+                       calendar="bjs",
+                   ),
+                   currency="CNY",
+                   fixing_frequency="7d",
+                   fixing_method="ibor",
+                   fixing_series=FloatRateSeries(
+                       lag=1,
+                       convention="Act365F",
+                       calendar="bjs",
+                       tenors=["7D"],
+                       zero_float_period_stub="shortback",
+                       modifier="F",
+                       eom=False,
+                   ),
+                   zero_periods=True,
+               )
+
+            The individual fixing dates of each of these 7D periods are stored on each
+            *rate fixing* of each :class:`~rateslib.periods.FloatPeriod`.
+
+            .. ipython:: python
+
+               for float_period in float_leg.periods[0].float_periods:
+                   print(float_period.rate_params.rate_fixing.date)
+
+    """  # noqa: E501
 
     @property
     def rate_params(self) -> _FloatRateParams:
@@ -448,8 +662,8 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 [
                     ZeroFloatPeriod(
                         schedule=Schedule(
-                            effective=self.schedule.aschedule[i],
-                            termination=self.schedule.aschedule[i + 1],
+                            effective=self.schedule.uschedule[i],
+                            termination=self.schedule.uschedule[i + 1],
                             frequency=fixing_frequency,
                             payment_lag=self.schedule.payment_adjuster,
                             payment_lag_exchange=self.schedule.payment_adjuster2,
@@ -723,7 +937,7 @@ class ZeroFloatLeg(_BaseLeg):
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
-        to the central ``fixings`` object and data loader.
+        to the central ``fixings`` object and data loader. See also :ref:`fixings <fixings-doc>`.
 
         .. note::
 
@@ -736,11 +950,12 @@ class ZeroFloatLeg(_BaseLeg):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
+        to non-deliverability. Review the **notes** section non-deliverability
+        on a :class:`~rateslib.legs.FixedLeg` and see also :ref:`fixings <fixings-doc>`.
     mtm: bool, :green:`optional (set to False)`
         Define whether the non-deliverability depends on a single
         :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
 
@@ -759,7 +974,7 @@ class ZeroFloatLeg(_BaseLeg):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See also :ref:`fixings <fixings-doc>`.
     """
 
     @property

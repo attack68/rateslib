@@ -143,8 +143,8 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability. This should only
-        ever be entered as either:
+        to non-deliverability. Review the **notes** section non-deliverability, and
+        :ref:`fixings <fixings-doc>`. This should only ever be entered as either:
 
         - scalar value: 1.15,
         - fixings series: "Reuters_ZBS",
@@ -170,7 +170,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See :ref:`fixings <fixings-doc>`.
     index_only: bool, :green:`optional (set as False)`
         A flag which indicates that the nominal amount is deducted from the cashflow leaving only
         the indexed up quantity.
@@ -874,11 +874,13 @@ class ZeroFixedLeg(_BaseLeg):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
+        See also :ref:`fixings <fixings-doc>`.
     mtm: bool, :green:`optional (set to False)`
         Define whether the non-deliverability depends on a single
         :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
 
@@ -897,7 +899,7 @@ class ZeroFixedLeg(_BaseLeg):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See :ref:`fixings <fixings-doc>`.
     """
 
     @property
@@ -1196,11 +1198,13 @@ class ZeroIndexLeg(_BaseLeg):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`,
+        and see also :ref:`fiixngs <fixings-doc>`.
     mtm: bool, :green:`optional (set to False)`
         Define whether the non-deliverability depends on a single
         :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
 
@@ -1219,7 +1223,7 @@ class ZeroIndexLeg(_BaseLeg):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See also :ref:`fixings <fixings-doc>`.
 
     Notes
     -----

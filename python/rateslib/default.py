@@ -373,6 +373,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "usd_rfr": dict(
             lag=0,
@@ -380,6 +381,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "gbp_ibor": dict(
             lag=0,
@@ -387,6 +389,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "gbp_rfr": dict(
             lag=0,
@@ -394,6 +397,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "sek_ibor": dict(
             lag=2,
@@ -401,6 +405,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=True,
+            tenors=["2B", "1W", "1M", "2M", "3M", "6M"],
         ),
         "sek_rfr": dict(
             lag=0,
@@ -408,6 +413,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "eur_ibor": dict(
             lag=2,
@@ -415,6 +421,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1W", "1M", "3M", "6M", "12M"],
         ),
         "eur_rfr": dict(
             lag=0,
@@ -422,6 +429,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "nok_ibor": dict(
             lag=2,
@@ -429,6 +437,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1W", "1M", "2M", "3M", "6M"],
         ),
         "nok_rfr": dict(
             lag=0,
@@ -436,6 +445,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "chf_ibor": dict(
             lag=2,
@@ -443,6 +453,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "chf_rfr": dict(
             lag=0,
@@ -450,6 +461,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "cad_ibor": dict(
             lag=2,
@@ -457,6 +469,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1M", "2M", "3M", "6M", "12M"],
         ),
         "cad_rfr": dict(
             lag=0,
@@ -464,6 +477,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "jpy_ibor": dict(
             lag=2,
@@ -471,6 +485,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1M", "3M", "6M"],
         ),
         "jpy_rfr": dict(
             lag=0,
@@ -478,6 +493,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "aud_ibor": dict(
             lag=0,
@@ -485,6 +501,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1M", "2M", "3M", "4M", "5M", "6M"],
         ),
         "aud_rfr": dict(
             lag=0,
@@ -492,6 +509,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "nzd_ibor": dict(
             lag=0,
@@ -499,6 +517,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1M", "3M", "6M"],
         ),
         "nzd_rfr": dict(
             lag=0,
@@ -506,6 +525,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
     },
 )

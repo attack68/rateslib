@@ -28,7 +28,7 @@ from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
 from rateslib.enums import FloatFixingMethod
-from rateslib.enums.parameters import FXDeltaMethod, IndexMethod
+from rateslib.enums.parameters import FXDeltaMethod, IndexMethod, SpreadCompoundMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
 from rateslib.fx_volatility.utils import _d_plus_min_u
@@ -315,6 +315,35 @@ class TestFloatPeriod:
                 float_spread=1,
             )
 
+    @pytest.mark.parametrize(
+        "scm",
+        [
+            SpreadCompoundMethod.ISDACompounding,
+            SpreadCompoundMethod.ISDAFlatCompounding,
+            SpreadCompoundMethod.NoneSimple,
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("meth", "param"),
+        [
+            (FloatFixingMethod.RFRObservationShift, 2),
+            (FloatFixingMethod.RFRPaymentDelay, 0),
+            (FloatFixingMethod.RFRLockout, 2),
+            (FloatFixingMethod.RFRLookback, 2),
+        ],
+    )
+    def test_spread_compound_with_fixing_method_allowed(self, scm, meth, param):
+        FloatPeriod(
+            start=dt(2022, 1, 1),
+            end=dt(2022, 4, 1),
+            payment=dt(2022, 4, 1),
+            frequency="Q",
+            float_spread=1.0,
+            spread_compound_method=scm,
+            fixing_method=meth,
+            method_param=param,
+        )
+
     def test_rfr_lockout_too_few_dates(self, curve) -> None:
         period = FloatPeriod(
             start=dt(2022, 1, 10),
@@ -350,18 +379,30 @@ class TestFloatPeriod:
         result = float_period.npv(rate_curve=curve)
         assert abs(result + 9997768.95848275) < 1e-7
 
-    def test_rfr_avg_method_raises(self, curve) -> None:
-        period = FloatPeriod(
-            start=dt(2022, 1, 1),
-            end=dt(2022, 1, 4),
-            payment=dt(2022, 1, 4),
-            frequency=Frequency.Months(3, None),
-            fixing_method="rfr_payment_delay_avg",
-            spread_compound_method="isda_compounding",
-        )
-        msg = "The `spread_compound_method` must be the 'NoneSimple' variant when using a `fixin"
+    @pytest.mark.parametrize(
+        "scm", [SpreadCompoundMethod.ISDACompounding, SpreadCompoundMethod.ISDAFlatCompounding]
+    )
+    @pytest.mark.parametrize(
+        "fm",
+        [
+            FloatFixingMethod.RFRObservationShiftAverage,
+            FloatFixingMethod.RFRPaymentDelayAverage,
+            FloatFixingMethod.RFRLockoutAverage,
+            FloatFixingMethod.RFRLookbackAverage,
+            FloatFixingMethod.IBOR,
+        ],
+    )
+    def test_rfr_avg_method_raises(self, scm, fm, curve) -> None:
+        msg = "is not compatible"
         with pytest.raises(ValueError, match=msg):
-            period.rate(curve)
+            FloatPeriod(
+                start=dt(2022, 1, 1),
+                end=dt(2022, 1, 4),
+                payment=dt(2022, 1, 4),
+                frequency=Frequency.Months(3, None),
+                fixing_method=fm,
+                spread_compound_method=scm,
+            )
 
     @pytest.mark.parametrize("curve_type", ["curve", "line_curve"])
     def test_rfr_payment_delay_method(self, curve_type, rfr_curve, line_curve) -> None:

@@ -98,8 +98,8 @@ class FloatPeriod(_BasePeriodStatic):
     .. ipython:: python
        :suppress:
 
-       from rateslib.periods import FloatPeriod
-       from rateslib import fixings
+       from rateslib import FloatPeriod, Frequency, fixings, FloatRateSeries
+       from rateslib.enums import SpreadCompoundMethod, FloatFixingMethod
        from datetime import datetime as dt
        from pandas import Series
 
@@ -189,11 +189,11 @@ class FloatPeriod(_BasePeriodStatic):
         set to zero.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
-        of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``.
+        of the period rate when combining a ``float_spread``. Used **only** with (non-averaging)
+        RFR type ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
-        to the central ``fixings`` object and data loader.
+        to the central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
 
         .. note::
 
@@ -206,6 +206,7 @@ class FloatPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
         The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -226,7 +227,7 @@ class FloatPeriod(_BasePeriodStatic):
     index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The index value for the reference date.
         If a scalar value this is used directly. If a string identifier will link to the
-        central ``fixings`` object and data loader.
+        central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
     index_base_date: datetime, :green:`optional`
         The reference date for determining the base index value. Not required if ``_index_base``
         value is given directly.
@@ -236,43 +237,141 @@ class FloatPeriod(_BasePeriodStatic):
     index_only: bool, :green:`optional (set as False)`
         A flag which determines non-payment of notional on supported *Periods*.
 
+    Notes
+    -----
 
-    ..  Examples
-        --------
+    **Five** different classifications of *FloatPeriod* are possible to construct.
 
-        A typical RFR type :class:`~rateslib.periods.FloatPeriod`.
+    .. tabs::
 
-        .. ipython:: python
-           :supress:
+       .. tab:: RFR
 
-           from rateslib.periods import FloatPeriod
-           from rateslib.data.fixings import FloatRateIndex
-           from datetime import datetime as dt
+          A standard *RFR* period consists of multiple *'1B'* overnight fixings compounded
+          over the *Period* to determine the *rate*. It is specified by using any non-averaging
+          *RFR* ``fixing_method``. This variant constructs an
+          :class:`~rateslib.data.fixings.RFRFixing` as the object to coordinate *rate*
+          calculation. It will depend on ``spread_compound_method`` to incorporate a
+          ``float_spread`` into the calculation. The ``fixing_frequency`` is *'1B'* under this
+          method.
 
-        .. ipython:: python
+          .. ipython:: python
 
-           period = FloatPeriod(
-               start=dt(2025, 9, 22),
-               end=dt(2025, 10, 20),
-               payment=dt(2025, 10, 22),
-               frequency="1M",
-           )
+             fp = FloatPeriod(
+                 start=dt(2026, 1, 22),
+                 end=dt(2027, 1, 22),
+                 payment=dt(2027, 1, 25),
+                 frequency=Frequency.Months(12, None),  # <- or "A"
+                 fixing_method=FloatFixingMethod.RFRPaymentDelay,  # <- or "rfr_payment_delay"
+                 float_spread=5.0,
+                 spread_compound_method=SpreadCompoundMethod.NoneSimple,  # <- or "NoneSimple"
+             )
+             fp.rate_params.rate_fixing
 
-        A typical IBOR tenor type :class:`~rateslib.periods.FloatPeriod`.
+       .. tab:: Average RFR
 
-        .. ipython:: python
+          This type is the same as **RFR** but uses an averaging ``fixing_method`` variant.
+          ``spread_compound_method`` cannot be used and can only be *'NoneSimple'*.
 
-           period = FloatPeriod(
-               start=dt(2025, 9, 22),
-               end=dt(2025, 10, 22),
-               payment=dt(2025, 10, 22),
-               frequency="1M",
-               currency="eur",
-               fixing_method="IBOR",
-               fixing_series="eur_IBOR",
-           )
+          .. ipython:: python
 
-    """
+             fp = FloatPeriod(
+                 start=dt(2026, 1, 22),
+                 end=dt(2027, 1, 22),
+                 payment=dt(2027, 1, 25),
+                 frequency=Frequency.Months(12, None),  # <- or "A"
+                 fixing_method=FloatFixingMethod.RFRPaymentDelayAverage,  # <- or "rfr_payment_delay_avg"
+                 float_spread=5.0,
+             )
+             fp.rate_params.rate_fixing
+
+          .. warning::
+
+             The :meth:`~rateslib.periods.FloatPeriod.rate` method does **not** make any
+             *convexity adjustments* for an averaging type versus the numéraire compounding type
+             and determines a *rate* under the direct calculations from a provided *rate Curve*.
+
+       .. tab:: IBOR
+
+          This type, for legacy tenor **IBOR** rates, such as US-LIBOR, GBP-LIBOR, and existing
+          tenor rates such as EURIBOR, STIBOR, NIBOR, BB3M etc. uses a single fixing period. It is
+          specified by an *'ibor'* ``fixing_method``.
+
+          When the period is regular it will create an :class:`~rateslib.data.fixings.IBORFixing`
+          with a ``fixing_frequency`` that aligns with that of the *Period*.
+
+          .. ipython:: python
+
+             fp = FloatPeriod(
+                 start=dt(2026, 1, 22),
+                 end=dt(2026, 4, 22),
+                 payment=dt(2026, 4, 22),
+                 frequency=Frequency.Months(3, None),  # <- or "Q"
+                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 float_spread=5.0,
+             )
+             fp.rate_params.rate_fixing
+
+       .. tab:: Misaligned IBOR
+
+          The ``fixing_frequency`` and ``fixing_series`` allow custom definitions of an IBOR
+          *FloatPeriod* to be created, such as using a 6M tenor with a 3M period, or using
+          mixed accrual calendars that do not align with the IBOR definition.
+
+          .. ipython:: python
+
+             fp = FloatPeriod(
+                 start=dt(2026, 2, 4),
+                 end=dt(2026, 5, 7),  # <- Tokyo holidays on 4th, 5th, 6th May
+                 payment=dt(2026, 5, 7),
+                 frequency=Frequency.Months(3, None),  # <- or "Q"
+                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 calendar="tyo,nyc",
+                 float_spread=5.0,
+                 fixing_series="usd_ibor",  # <- or define your own FloatRateSeries
+                 fixing_frequency=Frequency.Months(6, None),  # <- or "S"
+             )
+             fp.rate_params.rate_fixing
+
+       .. tab:: IBOR Stubs
+
+          IBOR stub periods can also be created which utilise an
+          :class:`~rateslib.data.fixings.IBORStubFixing`, for *rate* determination. These
+          must be identified by the ``stub`` flag.
+          *IBOR* stubs depend upon the ``tenors`` definition with the ``fixing_series``
+          (or by ['1W', '1M', '3M', '6M', '12M'] when omitted)
+
+          When using these in combinations with ``fixings`` all necessary date timeseries must
+          be available under the appropriate ``identifier``, e.g. *'STIBOR_1M'* and *'STIBOR_2M'*.
+
+          .. ipython:: python
+
+             fixings.add("STIBOR_1M", Series(data=[1.0], index=[dt(2026, 2, 2)]))
+             fixings.add("STIBOR_2M", Series(data=[2.0], index=[dt(2026, 2, 2)]))
+             fp = FloatPeriod(
+                 start=dt(2026, 2, 4),
+                 end=dt(2026, 3, 12),
+                 payment=dt(2026, 3, 12),
+                 frequency=Frequency.Months(6, None),  # <- or "S"
+                 stub=True,
+                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 calendar="stk",
+                 float_spread=5.0,
+                 fixing_series=FloatRateSeries(
+                     lag=2, calendar="stk", modifier="MF", convention="act360",
+                     eom=False, tenors=["2D", "1W", "1M", "2M", "3M", "6M"],
+                 ),
+                 rate_fixings="STIBOR",
+             )
+             fp.rate_params.rate_fixing
+             fp.rate_params.rate_fixing.value
+
+    .. ipython:: python
+       :suppress:
+
+       fixings.pop("STIBOR_1M")
+       fixings.pop("STIBOR_2M")
+
+    """  # noqa: E501
 
     @property
     def rate_params(self) -> _FloatRateParams:
@@ -369,6 +468,21 @@ class FloatPeriod(_BasePeriodStatic):
             _period_frequency=self.period_params.frequency,
             _period_stub=self.period_params.stub,
         )
+        if self.rate_params.spread_compound_method in [
+            SpreadCompoundMethod.ISDACompounding,
+            SpreadCompoundMethod.ISDAFlatCompounding,
+        ] and self.rate_params.fixing_method in [
+            FloatFixingMethod.IBOR,
+            FloatFixingMethod.RFRPaymentDelayAverage,
+            FloatFixingMethod.RFRLookbackAverage,
+            FloatFixingMethod.RFRLockoutAverage,
+            FloatFixingMethod.RFRObservationShiftAverage,
+        ]:
+            raise ValueError(
+                f"The input for `spread_compound_method`: "
+                f"{self.rate_params.spread_compound_method} is not compatible with the "
+                f"`fixing_method`: {self.rate_params.fixing_method}."
+            )
 
     def unindexed_reference_cashflow(
         self,
@@ -628,7 +742,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
         ``fixing_method``.
     rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
-        to the central ``fixings`` object and data loader.
+        to the central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
 
         .. note::
 
@@ -641,6 +755,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
        The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
        If a string identifier will link to the central ``fixings`` object and data loader.
+       See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
        The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -661,7 +776,7 @@ class ZeroFloatPeriod(_BasePeriodStatic):
     index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
        The index value for the reference date.
        If a scalar value this is used directly. If a string identifier will link to the
-       central ``fixings`` object and data loader.
+       central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
     index_base_date: datetime, :green:`optional (set as aschedule[0])`
         The reference date for determining the base index value. Not used if ``_index_base``
         value is given directly.
@@ -788,7 +903,9 @@ class ZeroFloatPeriod(_BasePeriodStatic):
             _frequency=self.schedule.frequency_obj,
             _calendar=self.schedule.calendar,
             _adjuster=self.schedule.modifier,
-            _stub=True,
+            _stub=not self.schedule.frequency_obj.is_uregular(
+                self.schedule.uschedule[0], self.schedule.uschedule[-1]
+            ),
             _convention=_get_convention(_drb(defaults.convention, convention)),
             _termination=self.schedule.aschedule[-1],
         )
