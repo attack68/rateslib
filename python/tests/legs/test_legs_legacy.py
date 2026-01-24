@@ -22,6 +22,7 @@ from rateslib.curves import Curve
 from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual
+from rateslib.enums import SpreadCompoundMethod
 from rateslib.enums.generics import _drb
 from rateslib.enums.parameters import LegMtm
 from rateslib.fx import FXForwards, FXRates
@@ -934,6 +935,64 @@ class TestFloatLeg:
         assert dt(2027, 1, 19) in result.index
         assert isinstance(fl._regular_periods[0], ZeroFloatPeriod)
 
+    def test_sub_zero_bjs_calendar(self):
+        # test that a Leg with a zero flag can be composed of multiple ZeroFloatPeriods
+        # e.g. quarterly payments on 7d
+        # this tests specifically a 1Y CNY IRS with Quarterly payments to CNRR007 7d rate.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 21),
+                termination=dt(2027, 1, 21),
+                frequency="Q",
+                calendar="bjs",
+            ),
+            fixing_frequency="7d",
+            fixing_method="ibor",
+            fixing_series=FloatRateSeries(
+                lag=1,
+                convention="Act365F",
+                calendar="bjs",
+                tenors=["7D"],
+                zero_float_period_stub="shortback",
+                modifier="F",
+                eom=False,
+            ),
+            zero_periods=True,
+        )
+        curve = Curve(
+            nodes={dt(2026, 1, 20): 1.0, dt(2027, 10, 1): 0.95},
+            convention="act365f",
+        )
+
+        # ensure all periods have rates
+        for zero_period in fl._regular_periods:
+            for float_period in zero_period.float_periods:
+                _ = float_period.rate(rate_curve=curve)
+
+        result = fl.local_analytic_rate_fixings(rate_curve=curve)
+        # first 4 fixings are regular: back stubs.
+        assert [
+            dt(2026, 1, 20),
+            dt(2026, 1, 27),
+            dt(2026, 2, 3),
+            dt(2026, 2, 10),
+        ] == result.index.to_list()[:4]
+        # around the July Payment date
+        assert dt(2026, 7, 13) in result.index
+        assert dt(2026, 7, 20) in result.index
+        assert dt(2026, 7, 27) in result.index
+
+        # around the October Payment date with stubs
+        assert dt(2026, 10, 12) in result.index
+        assert dt(2026, 10, 19) in result.index
+        assert dt(2026, 10, 20) in result.index
+        assert dt(2026, 10, 27) in result.index
+
+        # final fixings
+        assert dt(2027, 1, 12) in result.index
+        assert dt(2027, 1, 19) in result.index
+        assert isinstance(fl._regular_periods[0], ZeroFloatPeriod)
+
     def test_sub_zero_equivalence_with_rfr_type_rate(self):
         # test the two representations of an object yield the same data.
         curve = Curve(
@@ -1079,6 +1138,32 @@ class TestFloatLeg:
         assert fl.periods[1].index_params.index_fixing.date == dt(2026, 2, 3)
         assert fl.periods[0].index_params.index_base.date == dt(2026, 1, 20)
         assert fl.periods[1].index_params.index_base.date == dt(2026, 1, 20)
+
+    def test_sub_zero_spread_compounding(self):
+        # test that a spread under `zero_periods` is added to eahc rate individually prior to
+        # compounding. The spread compound method only operates at the Period level which
+        # is specific for a ZeroFloatPeriod.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2027, 1, 20),
+                frequency="A",
+                calendar="all",
+                modifier="F",
+            ),
+            fixing_frequency="S",
+            fixing_method="ibor",
+            rate_fixings=[[5.0, 5.5]],
+            method_param=0,
+            float_spread=50.0,
+            zero_periods=True,
+            spread_compound_method=SpreadCompoundMethod.NoneSimple,
+        )
+        result = fl.periods[0].rate()
+        expected = (
+            ((1 + 181 / 36000 * (5.0 + 0.5)) * (1 + 184 / 36000 * (5.5 + 0.5)) - 1) * 36000 / 365
+        )
+        assert abs(result - expected) < 1e-10
 
 
 class TestZeroFloatLeg:

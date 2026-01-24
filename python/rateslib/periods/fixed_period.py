@@ -156,6 +156,7 @@ class FixedPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
         The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -176,7 +177,7 @@ class FixedPeriod(_BasePeriodStatic):
     index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The index value for the reference date.
         If a scalar value this is used directly. If a string identifier will link to the
-        central ``fixings`` object and data loader.
+        central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
     index_base_date: datetime, :green:`optional`
         The reference date for determining the base index value. Not required if ``_index_base``
         value is given directly.
@@ -461,6 +462,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
         The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -482,6 +484,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         The index value for the reference date.
         If a scalar value this is used directly. If a string identifier will link to the
         central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     index_only: bool, :green:`optional (set as False)`
         A flag which determines non-payment of notional on supported *Periods*.
 
