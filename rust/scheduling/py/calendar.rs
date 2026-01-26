@@ -348,6 +348,26 @@ impl Cal {
         self.cal_date_range(&start, &end)
     }
 
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
@@ -566,6 +586,26 @@ impl UnionCal {
         self.cal_date_range(&start, &end)
     }
 
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
@@ -767,6 +807,26 @@ impl NamedCal {
         end: NaiveDateTime,
     ) -> PyResult<Vec<NaiveDateTime>> {
         self.cal_date_range(&start, &end)
+    }
+
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
     }
 
     // Pickling

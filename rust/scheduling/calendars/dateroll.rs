@@ -231,6 +231,107 @@ pub trait DateRoll {
         }
         Ok(vec)
     }
+
+    /// Print a representation of the month of the object.
+    fn print_month(&self, year: i32, month: u8) -> String {
+        let _map: Vec<String> = vec![
+            format!("        January {}\n", year),
+            format!("       February {}\n", year),
+            format!("          March {}\n", year),
+            format!("          April {}\n", year),
+            format!("            May {}\n", year),
+            format!("           June {}\n", year),
+            format!("           July {}\n", year),
+            format!("         August {}\n", year),
+            format!("      September {}\n", year),
+            format!("        October {}\n", year),
+            format!("       November {}\n", year),
+            format!("       December {}\n", year),
+        ];
+        let mut output = _map[(month - 1) as usize].clone();
+        output += "Su Mo Tu We Th Fr Sa\n";
+
+        let month_obj = Month::try_from(month).unwrap();
+        let days: u8 = month_obj.num_days(year).unwrap();
+        let weekday = NaiveDate::from_ymd_opt(year, month.into(), 1)
+            .unwrap()
+            .weekday()
+            .num_days_from_monday();
+        let idx_start: u32 = (weekday + 1) % 7;
+
+        let mut arr: [String; 42] = std::array::from_fn(|_| String::from("  "));
+        for i in 0..days {
+            let date = NaiveDate::from_ymd_opt(year, month.into(), (i + 1).into())
+                .expect("`year`, `month` `day` are invalid.")
+                .and_hms_opt(0, 0, 0)
+                .unwrap();
+            let s: String = {
+                if self.is_bus_day(&date) && self.is_settlement(&date) {
+                    format!("{:>2}", i + 1)
+                } else if self.is_bus_day(&date) && !self.is_settlement(&date) {
+                    " X".to_string()
+                } else if !self.is_bus_day(&date)
+                    && matches!(date.weekday(), Weekday::Sat | Weekday::Sun)
+                {
+                    " .".to_string()
+                } else {
+                    " *".to_string()
+                }
+            };
+            let index: u32 = i as u32 + idx_start;
+            arr[index as usize] = s;
+        }
+
+        for row in 0..6 {
+            output += &format!(
+                "{} {} {} {} {} {} {}\n",
+                &arr[row * 7],
+                &arr[row * 7 + 1],
+                &arr[row * 7 + 2],
+                &arr[row * 7 + 3],
+                &arr[row * 7 + 4],
+                &arr[row * 7 + 5],
+                &arr[row * 7 + 6]
+            );
+        }
+        output
+    }
+
+    /// Print a representation of a year of the object.
+    fn print_year(&self, year: i32) -> String {
+        let mut data: Vec<Vec<String>> = vec![];
+        for i in 1..13 {
+            data.push(
+                self.print_month(year, i)
+                    .lines()
+                    .map(|s| s.to_string())
+                    .collect(),
+            );
+        }
+        let mut output = "\n".to_string();
+        for i in 0..8 {
+            output += &format!(
+                "{}   {}   {}   {}\n",
+                data[0][i], data[3][i], data[6][i], data[9][i]
+            );
+        }
+        for i in 0..8 {
+            output += &format!(
+                "{}   {}   {}   {}\n",
+                data[1][i], data[4][i], data[7][i], data[10][i]
+            );
+        }
+        for i in 0..8 {
+            output += &format!(
+                "{}   {}   {}   {}\n",
+                data[2][i], data[5][i], data[8][i], data[11][i]
+            );
+        }
+        output += "Legend:\n";
+        output += "'1-31': Settleable business day         'X': Non-settleable business day\n";
+        output += "   '.': Non-business weekend            '*': Non-business day\n";
+        output
+    }
 }
 
 #[cfg(test)]
@@ -488,5 +589,65 @@ mod tests {
             ndt(2000, 6, 29),
             uni.lag_bus_days(&ndt(2000, 6, 28), 0, true)
         );
+    }
+
+    #[test]
+    fn test_print_month() {
+        let cal = Cal::new(vec![ndt(2026, 1, 1), ndt(2026, 1, 19)], vec![5, 6]);
+        let result = cal.print_month(2026, 1);
+        let raw_output = r#"        January 2026
+Su Mo Tu We Th Fr Sa
+             *  2  .
+ .  5  6  7  8  9  .
+ . 12 13 14 15 16  .
+ .  * 20 21 22 23  .
+ . 26 27 28 29 30  .
+$$$$$$$$$$$$$$$$$$$$
+"#;
+        let expected = raw_output.replace("$", " ");
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_print_year() {
+        let cal = Cal::new(vec![ndt(2026, 1, 1), ndt(2026, 1, 19)], vec![5, 6]);
+        let result = cal.print_year(2026);
+        println!("{}", result);
+        let raw_output = r#"
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+             *  2  .             1  2  3  .             1  2  3  .                1  2  .
+ .  5  6  7  8  9  .    .  6  7  8  9 10  .    .  6  7  8  9 10  .    .  5  6  7  8  9  .
+ . 12 13 14 15 16  .    . 13 14 15 16 17  .    . 13 14 15 16 17  .    . 12 13 14 15 16  .
+ .  * 20 21 22 23  .    . 20 21 22 23 24  .    . 20 21 22 23 24  .    . 19 20 21 22 23  .
+ . 26 27 28 29 30  .    . 27 28 29 30          . 27 28 29 30 31       . 26 27 28 29 30  .
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ .  2  3  4  5  6  .                   1  .                      .    .  2  3  4  5  6  .
+ .  9 10 11 12 13  .    .  4  5  6  7  8  .    .  3  4  5  6  7  .    .  9 10 11 12 13  .
+ . 16 17 18 19 20  .    . 11 12 13 14 15  .    . 10 11 12 13 14  .    . 16 17 18 19 20  .
+ . 23 24 25 26 27  .    . 18 19 20 21 22  .    . 17 18 19 20 21  .    . 23 24 25 26 27  .
+                        . 25 26 27 28 29  .    . 24 25 26 27 28  .    . 30$$$$$$$$$$$$$$$
+                        .                      . 31$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ .  2  3  4  5  6  .       1  2  3  4  5  .          1  2  3  4  .          1  2  3  4  .
+ .  9 10 11 12 13  .    .  8  9 10 11 12  .    .  7  8  9 10 11  .    .  7  8  9 10 11  .
+ . 16 17 18 19 20  .    . 15 16 17 18 19  .    . 14 15 16 17 18  .    . 14 15 16 17 18  .
+ . 23 24 25 26 27  .    . 22 23 24 25 26  .    . 21 22 23 24 25  .    . 21 22 23 24 25  .
+ . 30 31                . 29 30                . 28 29 30             . 28 29 30 31$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+Legend:
+'1-31': Settleable business day         'X': Non-settleable business day
+   '.': Non-business weekend            '*': Non-business day
+"#;
+        let expected = raw_output.replace("$", " ");
+
+        let result_lines: Vec<&str> = result.lines().collect();
+        let expected_lines: Vec<&str> = expected.lines().collect();
+        for i in 0..result_lines.len() {
+            assert_eq!(expected_lines[i], result_lines[i]);
+        }
     }
 }

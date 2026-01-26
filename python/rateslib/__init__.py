@@ -161,7 +161,6 @@ from rateslib.scheduling import (
     get_calendar,
     get_imm,
     next_imm,
-    print_calendar,
 )
 from rateslib.serialization import from_json
 from rateslib.solver import Solver
@@ -208,7 +207,6 @@ __all__ = [
     "PPSplineDual2",
     # scheduling.py
     "get_calendar",
-    "print_calendar",
     "get_imm",
     "next_imm",
     "add_tenor",
