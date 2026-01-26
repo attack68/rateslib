@@ -579,6 +579,34 @@ def test_add_and_get_custom_calendar() -> None:
     defaults.calendars["custom"] = cal
     result = get_calendar("custom")
     assert result == cal
+    defaults.reset_defaults()
+
+
+def test_add_and_get_custom_calendar_combination() -> None:
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
+    defaults.calendars["custom"] = cal
+    defaults.calendars["custom2"] = cal2
+    result = get_calendar("custom,custom2")
+    assert result == UnionCal([cal, cal2], [])
+    defaults.reset_defaults()
+
+
+def test_doc_union_cal() -> None:
+    defaults.calendars["mondays-off"] = Cal([], [0, 5, 6])
+    defaults.calendars["fridays-off"] = Cal([], [4, 5, 6])
+    result = get_calendar("mondays-off, fridays-off").print(2026, 1)
+    expected = """        January 2026
+Su Mo Tu We Th Fr Sa
+             1  *  .
+ .  *  6  7  8  *  .
+ .  * 13 14 15  *  .
+ .  * 20 21 22  *  .
+ .  * 27 28 29  *  .
+                    
+"""  # noqa: W293
+    assert result == expected
+    defaults.reset_defaults()
 
 
 @pytest.mark.parametrize(
