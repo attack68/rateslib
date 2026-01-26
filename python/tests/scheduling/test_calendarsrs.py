@@ -221,7 +221,7 @@ class TestCal:
         assert (right == left) is expected
 
     def test_attributes(self) -> None:
-        ncal = get_calendar("tgt,LDN|Fed")
+        ncal = get_calendar("tgt,LDN|Fed", named=True)
         assert ncal.name == "tgt,ldn|fed"
         assert isinstance(ncal.union_cal, UnionCal)
         assert len(ncal.union_cal.calendars) == 2
