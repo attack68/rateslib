@@ -49,6 +49,8 @@ jobs:
       run: |
         mypy --config-file pyproject.toml
     - name: Test with pytest and display Coverage
+      env:
+        RATESLIB_LICENCE: ${{ secrets.RATESLIB_LICENCE }}
       run: |
         coverage run -m --source=rateslib pytest
         coverage report -m

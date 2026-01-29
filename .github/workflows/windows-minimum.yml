@@ -34,5 +34,7 @@ jobs:
         pip install -r requirements-minimum.txt
         pip install . -v
     - name: Test with pytest
+      env:
+        RATESLIB_LICENCE: ${{ secrets.RATESLIB_LICENCE }}
       run: |
         pytest
