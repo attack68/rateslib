@@ -21,6 +21,11 @@ for _dependency in _hard_dependencies:
     except ImportError as _e:  # pragma: no cover
         raise ImportError(f"`rateslib` requires installation of {_dependency}: {_e}")
 
+from rateslib.verify import VERSION, Licence
+
+__version__ = VERSION
+licence = Licence()
+
 from datetime import datetime as dt
 
 from rateslib.data.loader import Fixings
@@ -188,6 +193,7 @@ __all__ = [
     "dt",
     "defaults",
     "fixings",
+    "licence",
     "from_json",
     # enums.py
     "NoInput",
@@ -307,5 +313,3 @@ __all__ = [
     "FXStrangle",
     "FXBrokerFly",
 ]
-
-__version__ = "2.5.1"
