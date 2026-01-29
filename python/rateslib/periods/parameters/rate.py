@@ -307,8 +307,6 @@ class _FloatRateParams:
     _fixing_method: FloatFixingMethod
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
         of the floating rate for the period.
-    _method_param: int
-        A specific parameter that is used by the specific ``fixing_method``.
     _fixing_series: FloatRateSeries,
         The :class:`~rateslib.enums.parameters.FloatRateSeries` of the
         :class:`~rateslib.enums.parameters.FloatRateIndex` defining the specific interest
@@ -420,7 +418,7 @@ class _FloatRateParams:
         The accrual start date for the *Period*.
 
         Fixing dates will be measured relative to this date under appropriate calendars and
-        ``method_param``
+        ``fixing_method``
         """
         return self.rate_fixing.accrual_start
 
@@ -429,7 +427,7 @@ class _FloatRateParams:
         """The accrual end date for the *Period*.
 
         Final fixing dates (or IBOR stub weights) will be measured relative to this date under
-        appropriate calendars and ``method_param``.
+        appropriate calendars and ``fixing_method``.
         """
         return self.rate_fixing.accrual_end
 

@@ -2066,7 +2066,7 @@ class RFRFixing(_BaseFixing):
            accrual_end=dt(2025, 1, 15),
            identifier="SOFR_1B",
            spread_compound_method=SpreadCompoundMethod.NoneSimple,
-           fixing_method=FloatFixingMethod.RFRPaymentDelay,
+           fixing_method=FloatFixingMethod.RFRPaymentDelay(),
            float_spread=0.0,
            rate_index=FloatRateIndex(frequency="1B", series="usd_rfr")
        )

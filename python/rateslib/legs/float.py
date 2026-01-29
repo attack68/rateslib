@@ -162,7 +162,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
+        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in each period rate determination.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
@@ -309,7 +309,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                  ),
                  currency="eur",
                  convention="Act360",
-                 fixing_method="ibor",
+                 fixing_method="ibor(2)",
                  fixing_series="eur_ibor",
              )
              ibor_standard.cashflows(rate_curve=curve)
@@ -339,7 +339,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                      payment_lag=0,
                  ),
                  convention="Act360",
-                 fixing_method="ibor",
+                 fixing_method="ibor(2)",
                  fixing_series="eur_ibor",
                  fixing_frequency="S",  # <- frequency of fixing does not match schedule.
              )
@@ -376,7 +376,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                    ),
                    convention="Act360",
                    fixing_series="usd_ibor",
-                   fixing_method="ibor",
+                   fixing_method="ibor(2)",
                    zero_periods=True,
                    fixing_frequency="Q",
                    float_spread=75.0,
@@ -399,7 +399,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                    ),
                    currency="CNY",
                    fixing_frequency="7d",
-                   fixing_method="ibor",
+                   fixing_method="ibor(1)",
                    fixing_series=FloatRateSeries(
                        lag=1,
                        convention="Act365F",
@@ -921,7 +921,7 @@ class ZeroFloatLeg(_BaseLeg):
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
+        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in each period rate determination.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
