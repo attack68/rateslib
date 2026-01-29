@@ -9,6 +9,8 @@
 # and/or contact info (at) rateslib (dot) com
 ####################################################################################################
 
+from __future__ import annotations
+
 import hashlib
 import json
 import logging
