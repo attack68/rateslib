@@ -1940,7 +1940,7 @@ class Solver(Gradients, _WithState):
                },
                id="s"
            )
-           args = dict(termination="1Y", frequency="A", fixing_method="ibor", leg2_fixing_method="ibor")
+           args = dict(termination="1Y", frequency="A", fixing_method="ibor(0)", leg2_fixing_method="ibor(0)")
            instruments = [
                SBS(dt(2022, 1, 1), curves=["r", "s", "s", "s"], **args),
                SBS(dt(2023, 1, 1), curves=["r", "s", "s", "s"], **args),
@@ -1952,11 +1952,11 @@ class Solver(Gradients, _WithState):
                SBS(dt(2024, 1, 1), curves=["r", "s", "z", "s"], **args),
                SBS(dt(2025, 1, 1), curves=["r", "s", "z", "s"], **args),
                SBS(dt(2026, 1, 1), curves=["r", "s", "z", "s"], **args),
-               IRS(dt(2022, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2023, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2024, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2025, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2026, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2022, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2023, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2024, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2025, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2026, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
            ]
            solver = Solver(
                curves=[curve_r, curve_s, curve_z],
@@ -1969,7 +1969,7 @@ class Solver(Gradients, _WithState):
                    "r1", "r2", "r3", "r4", "r5",
                ],
            )
-           irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor", fixed_rate=25.0)
+           irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor(0)", fixed_rate=25.0)
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
         """  # noqa: E501

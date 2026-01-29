@@ -542,7 +542,6 @@ class Defaults:
     payment_lag_exchange: int
     payment_lag_specific: dict[str, int]
     fixing_method: str
-    fixing_method_param: dict[str | FloatFixingMethod, int]
     spread_compound_method: str
     base_currency: str
     fx_delivery_lag: int
@@ -652,7 +651,6 @@ Instruments:\n
                         "payment_lag_specific",
                         "notional",
                         "fixing_method",
-                        "fixing_method_param",
                         "spread_compound_method",
                         "base_currency",
                         "fx_delivery_lag",

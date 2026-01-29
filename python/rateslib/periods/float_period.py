@@ -258,7 +258,7 @@ class FloatPeriod(_BasePeriodStatic):
                  end=dt(2027, 1, 22),
                  payment=dt(2027, 1, 25),
                  frequency=Frequency.Months(12, None),  # <- or "A"
-                 fixing_method=FloatFixingMethod.RFRPaymentDelay,  # <- or "rfr_payment_delay"
+                 fixing_method=FloatFixingMethod.RFRPaymentDelay(),  # <- or "rfr_payment_delay"
                  float_spread=5.0,
                  spread_compound_method=SpreadCompoundMethod.NoneSimple,  # <- or "NoneSimple"
              )
@@ -276,7 +276,7 @@ class FloatPeriod(_BasePeriodStatic):
                  end=dt(2027, 1, 22),
                  payment=dt(2027, 1, 25),
                  frequency=Frequency.Months(12, None),  # <- or "A"
-                 fixing_method=FloatFixingMethod.RFRPaymentDelayAverage,  # <- or "rfr_payment_delay_avg"
+                 fixing_method=FloatFixingMethod.RFRPaymentDelayAverage(),  # <- or "rfr_payment_delay_avg"
                  float_spread=5.0,
              )
              fp.rate_params.rate_fixing
@@ -303,7 +303,7 @@ class FloatPeriod(_BasePeriodStatic):
                  end=dt(2026, 4, 22),
                  payment=dt(2026, 4, 22),
                  frequency=Frequency.Months(3, None),  # <- or "Q"
-                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 fixing_method=FloatFixingMethod.IBOR(2),  # <- or "ibor(2)"
                  float_spread=5.0,
              )
              fp.rate_params.rate_fixing
@@ -321,7 +321,7 @@ class FloatPeriod(_BasePeriodStatic):
                  end=dt(2026, 5, 7),  # <- Tokyo holidays on 4th, 5th, 6th May
                  payment=dt(2026, 5, 7),
                  frequency=Frequency.Months(3, None),  # <- or "Q"
-                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 fixing_method=FloatFixingMethod.IBOR(2),  # <- or "ibor(2)"
                  calendar="tyo,nyc",
                  float_spread=5.0,
                  fixing_series="usd_ibor",  # <- or define your own FloatRateSeries
@@ -350,7 +350,7 @@ class FloatPeriod(_BasePeriodStatic):
                  payment=dt(2026, 3, 12),
                  frequency=Frequency.Months(6, None),  # <- or "S"
                  stub=True,
-                 fixing_method=FloatFixingMethod.IBOR,  # <- or "ibor"
+                 fixing_method=FloatFixingMethod.IBOR(2),  # <- or "ibor(2)"
                  calendar="stk",
                  float_spread=5.0,
                  fixing_series=FloatRateSeries(
