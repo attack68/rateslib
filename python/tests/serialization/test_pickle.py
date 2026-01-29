@@ -31,6 +31,7 @@ from rateslib.curves import (
     MultiCsaCurve,
     ProxyCurve,
 )
+from rateslib.enums import FloatFixingMethod
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import (
     Adjuster,
@@ -157,11 +158,29 @@ def test_pickle_round_trip_obj_via_equality(obj):
             Frequency.Months(4, None),
         ),
         (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.RFRLookback(2)),
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(5)),
     ],
 )
 def test_enum_equality(a1, a2, b1):
     assert a1 == a2
     assert a2 != b1
+
+
+@pytest.mark.parametrize(
+    ("enum", "klass"),
+    [
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR),
+    ],
+)
+def test_complex_enum_isinstance(enum, klass):
+    assert isinstance(enum, klass)
+    type_enum = type(enum)
+    assert type_enum is klass
+    assert type_enum in [klass]
+    assert not isinstance(enum, FloatFixingMethod.RFRLookback)
+    assert type(enum) is not FloatFixingMethod.RFRLookback
+    assert enum != FloatFixingMethod.RFRLookback(2)
 
 
 @pytest.mark.parametrize(
@@ -206,6 +225,15 @@ def test_simple_enum_pickle(enum, method_filter):
         Frequency.BusDays(2, NamedCal("tgt")),
         Frequency.Zero(),
         Frequency.CalDays(3),
+        FloatFixingMethod.RFRPaymentDelay(),
+        FloatFixingMethod.RFRPaymentDelayAverage(),
+        FloatFixingMethod.RFRObservationShift(2),
+        FloatFixingMethod.RFRObservationShiftAverage(2),
+        FloatFixingMethod.RFRLookback(3),
+        FloatFixingMethod.RFRLookbackAverage(3),
+        FloatFixingMethod.RFRLockout(4),
+        FloatFixingMethod.RFRLockoutAverage(4),
+        FloatFixingMethod.IBOR(2),
     ],
 )
 def test_complex_enum_pickle(enum):

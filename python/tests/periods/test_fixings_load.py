@@ -277,8 +277,7 @@ class TestRateParams:
             notional=2.0,
             frequency="M",
             fixing_series="usd_ibor",
-            fixing_method="IBOR",
-            method_param=2,
+            fixing_method="IBOR(2)",
             rate_fixings="IBOR123dfgs",
         )
         assert c.rate_params.rate_fixing.value == NoInput(0)
@@ -296,9 +295,8 @@ class TestRateParams:
             payment=dt(2000, 2, 1),
             notional=2.0,
             frequency="M",
-            fixing_method="IBOR",
+            fixing_method=FloatFixingMethod.IBOR(2),
             fixing_series="usd_ibor",
-            method_param=2,
             rate_fixings=NoInput(0),
         )
         assert c.rate_params.rate_fixing.value == NoInput(0)
@@ -314,9 +312,8 @@ class TestRateParams:
             payment=dt(2000, 2, 1),
             notional=2.0,
             frequency="M",
-            fixing_method="IBOR",
+            fixing_method="IBOR(2)",
             fixing_series="usd_ibor",
-            method_param=2,
             rate_fixings=2.5,
         )
         assert c.rate_params.rate_fixing.value == 2.5
@@ -372,8 +369,7 @@ class TestRateParams:
             accrual_start=dt(2023, 2, 8),
             accrual_end=dt(2023, 2, 13),
             rate_index=rate_index,
-            fixing_method=FloatFixingMethod.RFRPaymentDelay,
-            method_param=0,
+            fixing_method=FloatFixingMethod.RFRPaymentDelay(),
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             identifier=f"{name}_1B",
             float_spread=0.0,
@@ -386,8 +382,7 @@ class TestRateParams:
             accrual_start=dt(2023, 2, 8),
             accrual_end=dt(2023, 2, 17),
             rate_index=rate_index,
-            fixing_method=FloatFixingMethod.RFRPaymentDelay,
-            method_param=0,
+            fixing_method=FloatFixingMethod.RFRPaymentDelay(),
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             identifier=f"{name}_1B",
             float_spread=0.0,
@@ -419,7 +414,7 @@ class TestRateParams:
             end=dt(2000, 4, 1),
             frequency=Frequency.Months(3, None),
             payment=dt(2000, 1, 4),
-            fixing_method=FloatFixingMethod.RFRPaymentDelay,
+            fixing_method=FloatFixingMethod.RFRPaymentDelay(),
             rate_fixings="TEST",
         )
         assert p.rate_params.fixing_identifier == "TEST"
@@ -431,7 +426,7 @@ class TestRateParams:
             end=dt(2000, 4, 1),
             frequency=Frequency.Months(3, None),
             payment=dt(2000, 1, 4),
-            fixing_method=FloatFixingMethod.IBOR,
+            fixing_method=FloatFixingMethod.IBOR(2),
             rate_fixings="TEST",
         )
         assert p.rate_params.fixing_identifier == "TEST"
@@ -443,7 +438,7 @@ class TestRateParams:
             end=dt(2001, 1, 1),
             frequency=Frequency.Months(12, None),
             payment=dt(2000, 1, 4),
-            fixing_method=FloatFixingMethod.IBOR,
+            fixing_method=FloatFixingMethod.IBOR(2),
             rate_fixings="TEST",
         )
         assert p.rate_params.fixing_identifier == "TEST"
@@ -456,7 +451,7 @@ class TestRateParams:
             end=dt(2000, 3, 1),
             frequency=Frequency.Months(3, None),
             payment=dt(2000, 1, 4),
-            fixing_method=FloatFixingMethod.IBOR,
+            fixing_method=FloatFixingMethod.IBOR(2),
             stub=True,
             rate_fixings="TEST",
         )

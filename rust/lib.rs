@@ -47,6 +47,9 @@ use scheduling::{
     UnionCal,
 };
 
+pub mod enums;
+use enums::PyFloatFixingMethod;
+
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // JSON
@@ -102,6 +105,9 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_sabr_x0, m)?)?;
     m.add_function(wrap_pyfunction!(_sabr_x1, m)?)?;
     m.add_function(wrap_pyfunction!(_sabr_x2, m)?)?;
+
+    // Rates and Indexes
+    m.add_class::<PyFloatFixingMethod>()?;
 
     Ok(())
 }

@@ -87,7 +87,7 @@ from rateslib.data.fixings import (
     RFRFixing,
 )
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
-from rateslib.enums.generics import NoInput
+from rateslib.enums import FloatFixingMethod, NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -188,8 +188,10 @@ __all__ = [
     "dt",
     "defaults",
     "fixings",
-    "NoInput",
     "from_json",
+    # enums.py
+    "NoInput",
+    "FloatFixingMethod",
     # dual.py
     "ADOrder",
     "Dual",

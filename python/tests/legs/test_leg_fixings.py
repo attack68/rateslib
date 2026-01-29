@@ -16,6 +16,7 @@ from pandas import Series
 from rateslib import fixings
 from rateslib.curves import Curve
 from rateslib.enums.generics import NoInput
+from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.legs import FixedLeg, FloatLeg
 from rateslib.scheduling import Schedule
 
@@ -164,8 +165,7 @@ class TestFloatLeg:
             index_method="monthly",
             pair="eurusd",
             fx_fixings="fx",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
             rate_fixings="ibor",
         )
         assert fl.periods[0].rate_params.rate_fixing.value == 1.0483333333333333
@@ -234,8 +234,7 @@ class TestFloatLeg:
             index_method="monthly",
             pair="eurusd",
             fx_fixings="fx",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method=FloatFixingMethod.IBOR(0),
             rate_fixings="ibor",
         )
         assert fl.periods[0].rate_params.rate_fixing.value == 1.0483333333333333
