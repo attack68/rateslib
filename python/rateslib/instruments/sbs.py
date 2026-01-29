@@ -194,8 +194,6 @@ class SBS(_BaseInstrument):
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
         of the floating rate for each period.
-    method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
@@ -203,7 +201,7 @@ class SBS(_BaseInstrument):
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
+        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in each period rate determination.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
@@ -215,7 +213,6 @@ class SBS(_BaseInstrument):
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
     leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
-    leg2_method_param: int, :green:`optional (set by 'defaults')`
     leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
     leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
     leg2_float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
@@ -319,14 +316,12 @@ class SBS(_BaseInstrument):
         spread_compound_method: str_ = NoInput(0),
         rate_fixings: LegFixings = NoInput(0),
         fixing_method: str_ = NoInput(0),
-        method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
         leg2_float_spread: DualTypes_ = NoInput(0),
         leg2_spread_compound_method: str_ = NoInput(0),
         leg2_rate_fixings: LegFixings = NoInput(0),
         leg2_fixing_method: str_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
@@ -342,7 +337,6 @@ class SBS(_BaseInstrument):
             spread_compound_method=spread_compound_method,
             rate_fixings=rate_fixings,
             fixing_method=fixing_method,
-            method_param=method_param,
             stub=stub,
             front_stub=front_stub,
             back_stub=back_stub,
@@ -365,7 +359,6 @@ class SBS(_BaseInstrument):
             leg2_spread_compound_method=leg2_spread_compound_method,
             leg2_rate_fixings=leg2_rate_fixings,
             leg2_fixing_method=leg2_fixing_method,
-            leg2_method_param=leg2_method_param,
             leg2_effective=leg2_effective,
             leg2_termination=leg2_termination,
             leg2_frequency=leg2_frequency,

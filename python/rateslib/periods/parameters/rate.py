@@ -51,7 +51,6 @@ if TYPE_CHECKING:
         DualTypes_,
         PeriodFixings,
         datetime,
-        int_,
         str_,
     )
 
@@ -60,7 +59,6 @@ def _init_FloatRateParams(
     _float_spread: DualTypes_,
     _rate_fixings: PeriodFixings,
     _fixing_method: FloatFixingMethod | str_,
-    _method_param: int_,
     _spread_compound_method: SpreadCompoundMethod | str_,
     _fixing_frequency: Frequency | str_,
     _fixing_series: FloatRateSeries | str_,
@@ -78,14 +76,9 @@ def _init_FloatRateParams(
     spread_compound_method = _get_spread_compound_method(
         _drb(defaults.spread_compound_method, _spread_compound_method)
     )
-    if isinstance(_method_param, NoInput):
-        method_param = defaults.fixing_method_param[fixing_method]
-    else:
-        method_param = _method_param
 
     fixing_series: FloatRateSeries = _init_float_rate_series(
         fixing_series=_fixing_series,
-        method_param=method_param,
         calendar=_period_calendar,
         convention=_period_convention,
         adjuster=_period_adjuster,
@@ -94,7 +87,7 @@ def _init_FloatRateParams(
 
     float_spread = _drb(0.0, _float_spread)
     if isinstance(_fixing_frequency, NoInput):
-        if fixing_method == FloatFixingMethod.IBOR:
+        if type(fixing_method) is FloatFixingMethod.IBOR:
             fixing_frequency = _period_frequency
         else:
             fixing_frequency = Frequency.BusDays(1, fixing_series.calendar)
@@ -108,7 +101,7 @@ def _init_FloatRateParams(
         series=fixing_series,
     )
 
-    if fixing_method == FloatFixingMethod.IBOR and not _period_stub:
+    if type(fixing_method) is FloatFixingMethod.IBOR and not _period_stub:
         if isinstance(_rate_fixings, Series):
             result = IBORFixing._lookup(
                 timeseries=_rate_fixings,
@@ -134,7 +127,7 @@ def _init_FloatRateParams(
                 value=_rate_fixings if not isinstance(_rate_fixings, str) else NoInput(0),
                 identifier=identifier,
             )
-    elif fixing_method == FloatFixingMethod.IBOR and _period_stub:
+    elif type(fixing_method) is FloatFixingMethod.IBOR and _period_stub:
         if isinstance(_rate_fixings, Series):
             result = IBORFixing._lookup(
                 timeseries=_rate_fixings,
@@ -164,7 +157,6 @@ def _init_FloatRateParams(
                 accrual_start=_accrual_start,
                 accrual_end=_accrual_end,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 fixing_calendar=fixing_index.calendar,
             )
             dcfs_dcf = _RFRRate._get_dcf_values(
@@ -177,7 +169,6 @@ def _init_FloatRateParams(
             result = RFRFixing._lookup(
                 timeseries=_rate_fixings,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 spread_compound_method=spread_compound_method,
                 float_spread=float_spread,
                 dates_obs=np.array(
@@ -192,7 +183,6 @@ def _init_FloatRateParams(
                 accrual_start=_accrual_start,
                 accrual_end=_accrual_end,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 value=result,
                 identifier=NoInput(0),
             )
@@ -206,7 +196,6 @@ def _init_FloatRateParams(
                 accrual_start=_accrual_start,
                 accrual_end=_accrual_end,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 float_spread=float_spread,
                 spread_compound_method=spread_compound_method,
                 value=_rate_fixings if not isinstance(_rate_fixings, str) else NoInput(0),
@@ -219,31 +208,46 @@ def _init_FloatRateParams(
         _fixing_series=fixing_series,
         _fixing_frequency=fixing_frequency,
         _fixing_method=fixing_method,
-        _method_param=method_param,
         _rate_fixing=rate_fixing,
     )
 
 
 def _init_float_rate_series(
     fixing_series: FloatRateSeries | str_,
-    method_param: int,
     calendar: CalTypes,
     convention: Convention,
     fixing_method: FloatFixingMethod,
     adjuster: Adjuster | NoInput,
 ) -> FloatRateSeries:
     if not isinstance(fixing_series, NoInput):
-        return _get_float_rate_series(fixing_series)
+        fixing_series_ = _get_float_rate_series(fixing_series)
+        del fixing_series
+
+        if (
+            isinstance(fixing_method, FloatFixingMethod.IBOR)
+            and fixing_method.method_param() != fixing_series_.lag
+        ):
+            raise ValueError(
+                "A `fixing_series` has been provided with a publication `lag` that does not "
+                f"match the `param` of the `fixing_method`.\nGot {fixing_series_.lag} and "
+                f"{fixing_method.method_param()} respectively."
+            )
+        return fixing_series_
+
     else:
         # modifier is defaulted to days only type if RFR based
+        if type(fixing_method) is FloatFixingMethod.IBOR:
+            lag = fixing_method.method_param()
+        else:
+            lag = 0
         return FloatRateSeries(
-            lag=method_param,
+            lag=lag,
             calendar=calendar,
             convention=convention,
             modifier=_convert_to_adjuster(
                 modifier=_drb(defaults.modifier, adjuster),
                 settlement=False,
-                mod_days=fixing_method != FloatFixingMethod.IBOR,
+                mod_days=not isinstance(fixing_method, FloatFixingMethod.IBOR),
             ),
             eom=defaults.eom,
             zero_float_period_stub=StubInference.ShortBack,  # TODO:  hard coded default replaced?
@@ -327,7 +331,6 @@ class _FloatRateParams:
         self,
         *,
         _fixing_method: FloatFixingMethod,
-        _method_param: int,
         _fixing_series: FloatRateSeries,
         _fixing_frequency: Frequency,
         _float_spread: DualTypes,
@@ -342,7 +345,6 @@ class _FloatRateParams:
             series=_fixing_series,
         )
         self._float_spread: DualTypes = _float_spread
-        self._method_param: int = _method_param
         self._rate_fixing: IBORFixing | IBORStubFixing | RFRFixing = _rate_fixing
 
         self._validate_combinations_args()
@@ -362,7 +364,7 @@ class _FloatRateParams:
     @cached_property
     def fixing_date(self) -> datetime:
         """The relevant date of the (first) rate fixing for the *Period*."""
-        if self.fixing_method in [
+        if type(self.fixing_method) in [
             FloatFixingMethod.RFRPaymentDelay,
             FloatFixingMethod.RFRPaymentDelayAverage,
             FloatFixingMethod.RFRLockout,
@@ -443,11 +445,6 @@ class _FloatRateParams:
         return self._fixing_method
 
     @property
-    def method_param(self) -> int:
-        """A parameter used by the ``fixing_method``."""
-        return self._method_param
-
-    @property
     def float_spread(self) -> DualTypes:
         """The amount (in bps) added to the rate in the period rate determination."""
         return self._float_spread
@@ -477,21 +474,15 @@ class _FloatRateParams:
         -------
         tuple
         """
-        if self.method_param != 0 and self.fixing_method in [
-            FloatFixingMethod.RFRPaymentDelay,
-            FloatFixingMethod.RFRPaymentDelayAverage,
-        ]:
-            raise ValueError(
-                "`method_param` should not be used (or a value other than 0) when "
-                f"using a `fixing_method` of 'RFRPaymentDelay' type, got {self.method_param}. "
-                f"Configure the `payment_lag` option instead to have the "
-                f"appropriate effect.",
-            )
-        elif self.method_param < 1 and self.fixing_method in [
-            FloatFixingMethod.RFRLockout,
-            FloatFixingMethod.RFRLockoutAverage,
-        ]:
+        if (
+            type(self.fixing_method)
+            in [
+                FloatFixingMethod.RFRLockout,
+                FloatFixingMethod.RFRLockoutAverage,
+            ]
+            and self.fixing_method.method_param() < 1
+        ):
             raise ValueError(
                 f'`method_param` must be >0 for "RFRLockout" type `fixing_method`, '
-                f"got {self.method_param}",
+                f"got {self.fixing_method.method_param()}",
             )

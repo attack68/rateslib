@@ -21,6 +21,7 @@ from rateslib import defaults, fixings
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.enums import FloatFixingMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
     IRS,
@@ -3143,9 +3144,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=100,
-            fixing_method="rfr_observation_shift",
+            fixing_method=FloatFixingMethod.RFRObservationShift(5),
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(dt(2010, 3, 3))
@@ -3172,9 +3172,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3202,9 +3201,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
             metric=metric,
@@ -3233,9 +3231,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=100,
-            fixing_method="ibor",
+            fixing_method=FloatFixingMethod.IBOR(2),
             rate_fixings=name,
-            method_param=2,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(settlement)
@@ -3251,9 +3248,8 @@ class TestFloatRateNote:
                 convention="Act365f",
                 ex_div=3,
                 float_spread=100,
-                fixing_method="rfr_observation_shift",
+                fixing_method="rfr_observation_shift(5)",
                 rate_fixings=NoInput(0),
-                method_param=5,
                 spread_compound_method="none_simple",
             )
 
@@ -3267,9 +3263,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=6,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3299,9 +3294,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=5,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=rate_fixings,
-            method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3321,8 +3315,7 @@ class TestFloatRateNote:
                 termination=dt(2017, 3, 16),
                 frequency="Q",
                 ex_div=5,
-                fixing_method="rfr_observation_shift",
-                method_param=3,
+                fixing_method="rfr_observation_shift(3)",
             )
 
     def test_accrued_no_fixings_in_period(self) -> None:
@@ -3333,9 +3326,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=0,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(0)",
             rate_fixings=NoInput(0),
-            method_param=0,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3354,7 +3346,7 @@ class TestFloatRateNote:
             float_spread=100,
             notional=-1000000,
             settle=0,
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=2.0,
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 1.0})
@@ -3392,10 +3384,9 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             calendar="bus",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3422,8 +3413,7 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
-            method_param=5,
+            fixing_method="rfr_observation_shift(5)",
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3441,8 +3431,7 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=0.0,
-            fixing_method="rfr_observation_shift",
-            method_param=5,
+            fixing_method="rfr_observation_shift(5)",
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3456,8 +3445,7 @@ class TestFloatRateNote:
             effective=dt(2022, 2, 1),
             termination="3m",
             frequency="Q",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = frn.accrued(dt(2022, 2, 5), rate_curve=f_curve)
         expected = 0.044444444
@@ -3503,8 +3491,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=2,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(2)",
             rate_fixings=name,
             convention="Act365F",
             ex_div=1,
@@ -3551,8 +3538,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=2,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(2)",
             convention="Act365F",
             ex_div=1,
         )
@@ -3568,8 +3554,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(0)",
             convention="Act365F",
             ex_div=1,
         )
@@ -3590,7 +3575,7 @@ class TestFloatRateNote:
             effective=dt(2001, 11, 7),
             termination=dt(2002, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=[4.0],
             curves=[curve],
         )
@@ -3603,7 +3588,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=[4.0],
             curves=[curve],
         )
@@ -3621,7 +3606,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             convention="actacticma",
             calendar="nyc",
             modifier="none",
@@ -3654,7 +3639,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             convention="actacticma",
             calendar="nyc",
             modifier="none",
@@ -3690,8 +3675,7 @@ class TestFloatRateNote:
             convention="Act365F",
             ex_div=3,
             rate_fixings=name,
-            fixing_method="rfr_observation_shift_avg",
-            method_param=5,
+            fixing_method="rfr_observation_shift_avg(5)",
         )
         result = frn.cashflows()
         fixings.pop(name + "_1B")

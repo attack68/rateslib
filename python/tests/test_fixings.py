@@ -25,6 +25,7 @@ from rateslib.data.fixings import (
     _UnitFixing,
 )
 from rateslib.enums.generics import NoInput
+from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
 
@@ -214,8 +215,7 @@ class TestRFRFixing:
             accrual_end=dt(2025, 9, 19),
             identifier=name,
             spread_compound_method="NoneSimple",
-            fixing_method="RFRLockout",
-            method_param=2,
+            fixing_method=FloatFixingMethod.RFRLockout(2),
             float_spread=100.0,
             rate_index=FloatRateIndex(frequency="1B", series="eur_rfr"),
         )

@@ -155,8 +155,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
         of the floating rate for each period.
-    method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
@@ -505,7 +503,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         float_spread: DualTypes_ = NoInput(0),
         rate_fixings: LegFixings = NoInput(0),
         fixing_method: FloatFixingMethod | str_ = NoInput(0),
-        method_param: int_ = NoInput(0),
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
@@ -518,7 +515,9 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     ) -> None:
         zero_periods_ = _drb(False, zero_periods)
         del zero_periods
-        fixing_method_ = _get_float_fixing_method(_drb(defaults.fixing_method, fixing_method))
+        fixing_method_ = _get_float_fixing_method(
+            method=_drb(defaults.fixing_method, fixing_method)
+        )
         del fixing_method
 
         self._schedule = schedule
@@ -601,7 +600,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         float_spread=float_spread,
                         rate_fixings=rate_fixings_list[i],
                         fixing_method=fixing_method_,
-                        method_param=method_param,
                         spread_compound_method=spread_compound_method,
                         fixing_frequency=fixing_frequency,
                         fixing_series=fixing_series,
@@ -649,7 +647,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 )
             fixing_series_ = _init_float_rate_series(
                 fixing_series=fixing_series,
-                method_param=method_param,
                 calendar=self._schedule.calendar,
                 convention=self._convention,
                 fixing_method=fixing_method_,
@@ -676,7 +673,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         float_spread=float_spread,
                         rate_fixings=rate_fixings_list[i],
                         fixing_method=fixing_method_,
-                        method_param=method_param,
                         spread_compound_method=spread_compound_method,
                         fixing_frequency=fixing_frequency,
                         fixing_series=fixing_series_,
@@ -781,7 +777,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         """
         # ruff: noqa: SIM103
         if (
-            self.rate_params.fixing_method != FloatFixingMethod.IBOR
+            not isinstance(self.rate_params.fixing_method, FloatFixingMethod.IBOR)
             and self.rate_params.spread_compound_method != SpreadCompoundMethod.NoneSimple
         ):
             return False
@@ -918,8 +914,6 @@ class ZeroFloatLeg(_BaseLeg):
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
         of the floating rate for each period.
-    method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
@@ -1038,7 +1032,6 @@ class ZeroFloatLeg(_BaseLeg):
         float_spread: DualTypes_ = NoInput(0),
         rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         fixing_method: FloatFixingMethod | str_ = NoInput(0),
-        method_param: int_ = NoInput(0),
         spread_compound_method: SpreadCompoundMethod | str_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
@@ -1123,7 +1116,6 @@ class ZeroFloatLeg(_BaseLeg):
                 float_spread=float_spread,
                 rate_fixings=rate_fixings,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 spread_compound_method=spread_compound_method,
                 fixing_frequency=fixing_frequency,
                 fixing_series=fixing_series,

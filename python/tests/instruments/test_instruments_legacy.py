@@ -22,7 +22,7 @@ from rateslib.curves._parsers import _map_curve_from_solver
 from rateslib.data.fixings import FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
-from rateslib.enums.parameters import LegMtm
+from rateslib.enums.parameters import FloatFixingMethod, LegMtm
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -1440,7 +1440,7 @@ class TestIRS:
             frequency="Q",
             convention="act360",
             curves=[{"3m": curve3, "1m": curve1, "6M": curve6}, curve],
-            leg2_fixing_method="ibor",
+            leg2_fixing_method="ibor(2)",
         )
         cashflows = irs.cashflows()
         assert (cashflows.loc[("leg2", 0), "Rate"] - 1.23729) < 1e-4
@@ -1465,7 +1465,7 @@ class TestIRS:
             frequency="Q",
             convention="act360",
             curves=[{"3m": "3m", "6m": "6m"}, "3m"],
-            leg2_fixing_method="ibor",
+            leg2_fixing_method="ibor(2)",
         )
         cashflows = irs.cashflows(solver=solver)
         assert (cashflows.loc[("leg2", 0), "Rate"] - 3.93693) < 1e-4
@@ -2120,10 +2120,8 @@ class TestSBS:
         inst = SBS(
             dt(2022, 1, 15),
             "6m",
-            fixing_method="ibor",
-            method_param=0,
-            leg2_fixing_method="ibor",
-            leg2_method_param=1,
+            fixing_method="ibor(0)",
+            leg2_fixing_method="ibor(1)",
             frequency="Q",
             leg2_frequency="m",
             curves=[curve, curve, curve2, curve],
@@ -2370,8 +2368,7 @@ class TestZCS:
             effective=dt(2022, 1, 15),
             termination="2y",
             frequency="Q",
-            leg2_fixing_method="ibor",
-            leg2_method_param=0,
+            leg2_fixing_method="ibor(2)",
             calendar="all",
             convention="30e360",
             leg2_convention="30e360",
@@ -3897,8 +3894,7 @@ class TestCDS:
                 IRS(
                     spot,
                     _,
-                    leg2_fixing_method="ibor",
-                    leg2_method_param=2,
+                    leg2_fixing_method="ibor(2)",
                     calendar="nyc",
                     payment_lag=0,
                     convention="30e360",
@@ -4499,8 +4495,8 @@ class TestXCS:
             fixed=fixed1,
             leg2_fixed=fixed2,
             leg2_mtm=mtm,
-            fixing_method="ibor",
-            leg2_fixing_method="ibor",
+            fixing_method="ibor(2)",
+            leg2_fixing_method=FloatFixingMethod.IBOR(2),
         )
         result = xcs.local_analytic_rate_fixings(curves=[curve, curve, curve2, curve2], fx=fxf)
         assert isinstance(result, DataFrame)
@@ -4512,8 +4508,7 @@ class TestXCS:
             spec="eurusd_xcs",
             leg2_fixed=True,
             leg2_mtm=False,
-            fixing_method="ibor",
-            method_param=2,
+            fixing_method="ibor(2)",
             leg2_fixed_rate=2.4,
         )
 
@@ -5813,7 +5808,6 @@ class TestSpec:
             termination=dt(2024, 2, 26),
             calendar="tgt",
             frequency="Q",
-            leg2_method_param=0,
             notional=250.0,
             spec="test",
             curves="test",
@@ -5867,7 +5861,6 @@ class TestSpec:
             leg2_amortization=NoInput(0),
             fixed_rate=NoInput(0),
             leg2_fixing_method=NoInput(0),
-            leg2_method_param=0,
             leg2_spread_compound_method=NoInput(0),
             leg2_rate_fixings=NoInput(0),
             leg2_float_spread=NoInput(0),
@@ -5921,7 +5914,7 @@ class TestSpec:
         assert inst.kwargs.leg1["convention"] == "30e360"
         assert inst.kwargs.leg2["convention"] == "30e360"
         assert inst.kwargs.leg1["currency"] == "eur"
-        assert inst.kwargs.leg2["fixing_method"] == "ibor"
+        assert inst.kwargs.leg2["fixing_method"] == "ibor(2)"
         assert inst.kwargs.leg1["schedule"].frequency == "A"
         assert inst.kwargs.leg2["schedule"].frequency == "S"
 
@@ -6029,7 +6022,7 @@ class TestSpec:
             modifier="F",
             fixed_rate=2.0,
         )
-        assert fra.kwargs.leg2["fixing_method"] == FloatFixingMethod.IBOR
+        assert fra.kwargs.leg2["fixing_method"] == "ibor(2)"
         assert fra.kwargs.leg1["convention"] == "act360"
         assert fra.kwargs.leg1["currency"] == "eur"
         assert fra.kwargs.leg2["currency"] == "eur"
@@ -6044,8 +6037,7 @@ class TestSpec:
             spec="usd_frn5",
             payment_lag=5,
         )
-        assert frn.kwargs.leg1["fixing_method"] == "rfr_observation_shift"
-        assert frn.kwargs.leg1["method_param"] == 5
+        assert frn.kwargs.leg1["fixing_method"] == "rfr_observation_shift(5)"
         assert frn.kwargs.leg1["convention"] == "act360"
         assert frn.kwargs.leg1["currency"] == "usd"
         assert frn.kwargs.leg1["schedule"].payment_adjuster == Adjuster.BusDaysLagSettle(5)
@@ -8656,8 +8648,7 @@ class TestFixings:
             currency="usd",
             pair="eurusd",
             fx_fixings="wmr",
-            leg2_fixing_method="ibor",
-            leg2_method_param=0,
+            leg2_fixing_method="ibor(0)",
             leg2_rate_fixings="ibor",
             payment_lag=0,
             curves=[curve],

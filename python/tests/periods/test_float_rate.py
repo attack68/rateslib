@@ -118,8 +118,7 @@ class TestIBORRate:
                 end=dt(2000, 4, 3),
                 stub=False,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             assert abs(result - 2.18) < 1e-12
@@ -135,8 +134,7 @@ class TestIBORRate:
                     end=dt(1980, 4, 3),
                     stub=False,
                     frequency="3M",
-                    fixing_method="IBOR",
-                    method_param=2,
+                    fixing_method="IBOR(2)",
                     float_spread=18.0,
                 )
 
@@ -150,8 +148,7 @@ class TestIBORRate:
                 end=dt(2000, 4, 3),
                 stub=False,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             assert abs(result - 2.18) < 1e-12
@@ -171,8 +168,7 @@ class TestIBORRate:
                 end=dt(2000, 4, 3),
                 stub=False,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             assert abs(result - 1.68) < 1e-12
@@ -193,8 +189,7 @@ class TestIBORRate:
                 end=dt(2000, 4, 3),
                 stub=False,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             assert abs(result - 1.38) < 1e-12
@@ -218,8 +213,7 @@ class TestIBORRate:
                     end=dt(2000, 4, 3),
                     stub=False,
                     frequency="3M",
-                    fixing_method="IBOR",
-                    method_param=2,
+                    fixing_method="IBOR(2)",
                     float_spread=18.0,
                 )
             assert abs(result - 2.18) < 1e-12
@@ -242,8 +236,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 1.2 + 1.0 * 45 / 91 + 0.18
@@ -268,8 +261,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             # expected = 1.2 + 1.0 * 45 / 91 + 0.18
@@ -293,8 +285,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 4.1 + 0.18
@@ -316,8 +307,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 9.9 + 0.18
@@ -333,8 +323,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 2.0 * 46 / 91 + 3.0 * 45 / 91 + 0.18
@@ -351,8 +340,7 @@ class TestIBORRate:
                     end=dt(2000, 5, 18),
                     stub=True,
                     frequency="3M",
-                    fixing_method="IBOR",
-                    method_param=2,
+                    fixing_method="IBOR(2)",
                     float_spread=18.0,
                 )
             expected = 3.0 + 0.18  # just the 6m curve
@@ -369,8 +357,7 @@ class TestIBORRate:
                     end=dt(2000, 5, 18),
                     stub=True,
                     frequency="3M",
-                    fixing_method="IBOR",
-                    method_param=2,
+                    fixing_method="IBOR(2)",
                     float_spread=18.0,
                 )
             expected = 2.0 + 0.18  # just the 3m curve
@@ -386,8 +373,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 2.0 + 0.18
@@ -403,8 +389,7 @@ class TestIBORRate:
                 end=dt(2000, 5, 18),
                 stub=True,
                 frequency="3M",
-                fixing_method="IBOR",
-                method_param=2,
+                fixing_method="IBOR(2)",
                 float_spread=18.0,
             )
             expected = 2.0 * 46 / 91 + 3.0 * 45 / 91 + 0.18
@@ -429,7 +414,7 @@ class TestRFRRate:
             Series(index=[dt(1999, 1, 1), dt(2000, 1, 1), dt(2000, 1, 2)], data=[1.0, 2.0, 3.0]),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay()
         )
         assert_series_equal(
             result,
@@ -456,7 +441,7 @@ class TestRFRRate:
             ),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay()
         )
         assert_series_equal(
             result,
@@ -475,7 +460,7 @@ class TestRFRRate:
             Series(index=[dt(1999, 1, 1)], data=[1.0]),
         )
         result, _, _ = _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+            fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay()
         )
         assert_series_equal(
             result,
@@ -490,7 +475,7 @@ class TestRFRRate:
         fixings.add("USD_SOFR_1B", Series(index=[dt(1999, 1, 1), dt(2000, 1, 2)], data=[1.0, 3.0]))
         with pytest.raises(ValueError, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay()
             )
         fixings.pop("USD_SOFR_1B")
 
@@ -525,13 +510,13 @@ class TestRFRRate:
         )
         with pytest.warns(UserWarning, match="The fixings series 'USD_SOFR_1B' for the RFR 1B rat"):
             _RFRRate._push_rate_fixings_as_series_to_fixing_rates(
-                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay, 0
+                fixing_rates, "USD_SOFR_1B", FloatFixingMethod.RFRPaymentDelay()
             )
         fixings.pop("USD_SOFR_1B")
 
     @pytest.mark.parametrize(
         ("fixing_method"),
-        [FloatFixingMethod.RFRPaymentDelay, FloatFixingMethod.RFRObservationShift],
+        [FloatFixingMethod.RFRPaymentDelay(), FloatFixingMethod.RFRObservationShift(1)],
     )
     @pytest.mark.parametrize(
         ("spread_compound_method", "float_spread"),
@@ -554,10 +539,9 @@ class TestRFRRate:
             rate_curve=curve,
             spread_compound_method=spread_compound_method,
             float_spread=float_spread,
-            method_param=1,
         )
 
-        if fixing_method == FloatFixingMethod.RFRObservationShift:
+        if isinstance(fixing_method, FloatFixingMethod.RFRObservationShift):
             expected = (
                 (1 + r0 / 36000) * (1 + r1 / 36000) * (1 + r2 / 36000) - 1
             ) * 36000 / 3.0 + float_spread / 100.0
@@ -579,7 +563,6 @@ class TestRFRRate:
             rate_curve=curve,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             float_spread=10.0,
-            method_param=0,
             rate_fixings="USD_SOFR_1B",
         )
         expected = (
@@ -599,7 +582,6 @@ class TestRFRRate:
                 rate_curve=NoInput(0),
                 spread_compound_method=SpreadCompoundMethod.ISDACompounding,
                 float_spread=10.0,
-                method_param=0,
                 rate_fixings="USD_SOFR_1B",
                 rate_series="usd_rfr",
             )
@@ -614,8 +596,7 @@ class TestRFRRate:
                 rate_curve=curve,
                 spread_compound_method=SpreadCompoundMethod.ISDACompounding,
                 float_spread=10.0,
-                method_param=9,
-                fixing_method=FloatFixingMethod.RFRLockout,
+                fixing_method=FloatFixingMethod.RFRLockout(9),
             )
 
     @pytest.mark.parametrize("curve_type", ["values", "dfs"])
@@ -631,8 +612,7 @@ class TestRFRRate:
             rate_curve=rate_curve,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             float_spread=10.0,
-            method_param=0,
-            fixing_method=FloatFixingMethod.RFRLookback,
+            fixing_method=FloatFixingMethod.RFRLookback(0),
             rate_fixings="USD_SOFR_1B",
         )
         expected = (
@@ -650,7 +630,6 @@ class TestRFRRate:
             rate_curve=curve,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             float_spread=0.0,
-            method_param=0,
             rate_fixings="USD_SOFR_1B",
         )
         fixings.pop("USD_SOFR_1B")
@@ -659,43 +638,43 @@ class TestRFRRate:
         ("fixing_method", "expected"),
         [
             (
-                FloatFixingMethod.RFRPaymentDelay,
+                FloatFixingMethod.RFRPaymentDelay(),
                 ((1 + 0.04 * D) * (1 + 0.05 * D) * (1 + 0.06 * D) * (1 + 0.07 * D) - 1)
                 * 100
                 / (4 * D),
             ),
             (
-                FloatFixingMethod.RFRObservationShift,
+                FloatFixingMethod.RFRObservationShift(2),
                 ((1 + 0.02 * D) * (1 + 0.03 * D) * (1 + 0.04 * D) * (1 + 0.05 * D) - 1)
                 * 100
                 / (4 * D),
             ),
             (
-                FloatFixingMethod.RFRLockout,
+                FloatFixingMethod.RFRLockout(2),
                 ((1 + 0.04 * D) * (1 + 0.05 * D) * (1 + 0.05 * D) * (1 + 0.05 * D) - 1)
                 * 100
                 / (4 * D),
             ),
             (
-                FloatFixingMethod.RFRLookback,
+                FloatFixingMethod.RFRLookback(2),
                 ((1 + 0.02 * D) * (1 + 0.03 * D) * (1 + 0.04 * D) * (1 + 0.05 * D) - 1)
                 * 100
                 / (4 * D),
             ),
             (
-                FloatFixingMethod.RFRPaymentDelayAverage,
+                FloatFixingMethod.RFRPaymentDelayAverage(),
                 (4 + 5 + 6 + 7) / 4,
             ),
             (
-                FloatFixingMethod.RFRObservationShiftAverage,
+                FloatFixingMethod.RFRObservationShiftAverage(2),
                 (2 + 3 + 4 + 5) / 4,
             ),
             (
-                FloatFixingMethod.RFRLockoutAverage,
+                FloatFixingMethod.RFRLockoutAverage(2),
                 (4 + 5 + 5 + 5) / 4,
             ),
             (
-                FloatFixingMethod.RFRLookbackAverage,
+                FloatFixingMethod.RFRLookbackAverage(2),
                 (2 + 3 + 4 + 5) / 4,
             ),
         ],
@@ -720,13 +699,12 @@ class TestRFRRate:
             rate_curve=rate_curve,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             float_spread=0.0,
-            method_param=2,
             fixing_method=fixing_method,
         )
         assert abs(result - expected) < 1e-10
 
     @pytest.mark.parametrize(
-        "fixing_method", [FloatFixingMethod.RFRPaymentDelay, FloatFixingMethod.RFRLockout]
+        "fixing_method", [FloatFixingMethod.RFRPaymentDelay(), FloatFixingMethod.RFRLockout(0)]
     )
     def test_bus252_convention(self, fixing_method):
         rate_curve = Curve(
@@ -743,7 +721,6 @@ class TestRFRRate:
             rate_curve=rate_curve,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
             float_spread=0.0,
-            method_param=0,
             fixing_method=fixing_method,
         )
 

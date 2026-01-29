@@ -261,8 +261,7 @@ class TestFloatLeg:
                 payment_lag=0,
             ),
             rate_fixings=name,
-            fixing_method="IBOR",
-            method_param=0,
+            fixing_method="IBOR(0)",
         )
         assert float_leg.periods[0].rate_params.rate_fixing.value == 10
         assert float_leg.periods[1].rate_params.rate_fixing.value == 20
@@ -287,14 +286,14 @@ class TestFloatLeg:
         assert float_leg.periods[2].rate_params.rate_fixing.value is NoInput(0)
 
     @pytest.mark.parametrize(
-        ("method", "param"),
+        ("method"),
         [
-            ("rfr_payment_delay", NoInput(0)),
-            ("rfr_lockout", 1),
-            ("rfr_observation_shift", 0),
+            "rfr_payment_delay",
+            "rfr_lockout(1)",
+            "rfr_observation_shift(0)",
         ],
     )
-    def test_float_leg_rfr_fixings_table(self, method, param, curve) -> None:
+    def test_float_leg_rfr_fixings_table(self, method, curve) -> None:
         name = str(hash(os.urandom(8)))
         fixings.add(
             f"{name}_1B",
@@ -315,7 +314,6 @@ class TestFloatLeg:
             rate_fixings=name,
             currency="SEK",
             fixing_method=method,
-            method_param=param,
         )
         result = float_leg.local_analytic_rate_fixings(rate_curve=curve)
         result = result[dt(2022, 12, 28) : dt(2023, 1, 1)]
@@ -428,7 +426,7 @@ class TestFloatLeg:
     @pytest.mark.parametrize(
         ("method", "spread_method", "expected"),
         [
-            ("ibor", NoInput(0), True),
+            ("ibor(2)", NoInput(0), True),
             ("rfr_payment_delay", "none_simple", True),
             ("rfr_payment_delay", "isda_compounding", False),
             ("rfr_payment_delay", "isda_flat_compounding", False),
@@ -652,8 +650,7 @@ class TestFloatLeg:
             ),
             rate_fixings=(1.5, name),
             currency="SEK",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         assert float_leg.periods[0].rate_params.rate_fixing.value == 1.5
         assert float_leg.periods[1].rate_params.rate_fixing.value == 2.0
@@ -900,8 +897,7 @@ class TestFloatLeg:
                 calendar="all",
             ),
             fixing_frequency="7d",
-            fixing_method="ibor",
-            method_param=1,
+            fixing_method="ibor(1)",
             zero_periods=True,
         )
         curve = Curve({dt(2026, 1, 20): 1.0, dt(2027, 10, 1): 0.95})
@@ -947,7 +943,7 @@ class TestFloatLeg:
                 calendar="bjs",
             ),
             fixing_frequency="7d",
-            fixing_method="ibor",
+            fixing_method="ibor(1)",
             fixing_series=FloatRateSeries(
                 lag=1,
                 convention="Act365F",
@@ -1152,9 +1148,8 @@ class TestFloatLeg:
                 modifier="F",
             ),
             fixing_frequency="S",
-            fixing_method="ibor",
+            fixing_method="ibor(0)",
             rate_fixings=[[5.0, 5.5]],
-            method_param=0,
             float_spread=50.0,
             zero_periods=True,
             spread_compound_method=SpreadCompoundMethod.NoneSimple,
@@ -1209,8 +1204,7 @@ class TestZeroFloatLeg:
                 frequency="Q",
                 calendar="all",
             ),
-            method_param=0,
-            fixing_method="ibor",
+            fixing_method="ibor(0)",
             rate_fixings=name,
         )
         expected = [5.0, 2.0, 3.0]
@@ -1370,8 +1364,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = zfl.local_analytic_rate_fixings(rate_curve=curve)
         assert abs(result.iloc[0, 0] - 24750) < 1e-3
@@ -1391,8 +1384,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = zfl.local_analytic_rate_fixings(
             rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve
@@ -1419,8 +1411,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
             rate_fixings=fixings,
         )
         result = zfl.local_analytic_rate_fixings(
@@ -1488,7 +1479,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e8,
             convention="Act360",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
         )
         tgt_npv = 25000000 * curve[dt(2027, 1, 1)]
         result = zfl.spread(
@@ -3552,8 +3543,7 @@ class TestFloatLegExchangeMtm:
             currency="usd",
             pair="eurusd",
             notional=10e6,
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
             mtm="xcs",
             initial_exchange=True,
         )
