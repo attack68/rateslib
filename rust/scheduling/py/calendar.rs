@@ -380,6 +380,37 @@ impl Cal {
         }
     }
 
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
@@ -618,6 +649,37 @@ impl UnionCal {
         }
     }
 
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
@@ -839,6 +901,37 @@ impl NamedCal {
             Some(m) => Ok(self.print_month(year, m)),
             None => Ok(self.print_year(year)),
         }
+    }
+
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
     }
 
     // Pickling

@@ -814,3 +814,36 @@ Legend:
    '.': Non-business weekend            '*': Non-business day
 """  # noqa: W291, W293
     assert output == expected
+
+
+def test_print_compare_calendar():
+    cal = get_calendar("nyc")
+    cal2 = get_calendar("fed")
+    output = cal.print_compare(cal2, 2026)
+    expected = """
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+             _  _  _             _  _ []  _             _  _ []  _                _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _          _  _  _  _  _  _       _  _  _  _  _  _  _ 
+                                                                                          
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _  _  _  _  _  _  _                   _  _                      _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+                        _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _                
+                        _                      _  _                                       
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _  _  _  _  _  _  _       _  _  _  _  _  _          _  _  _  _  _          _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _                _  _  _                _  _  _  _             _  _  _  _  _       
+                                                                                          
+"""  # noqa: W291, W293
+    assert output == expected

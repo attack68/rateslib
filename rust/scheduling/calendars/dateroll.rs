@@ -344,6 +344,55 @@ pub trait DateRoll {
         output += "   '.': Non-business weekend            '*': Non-business day\n";
         output
     }
+
+    /// Compare two calendars and highlight differences.
+    fn print_compare<T: DateRoll>(&self, comparator: &T, year: i32) -> String {
+        let str1: Vec<String> = self
+            .print_year(year)
+            .lines()
+            .map(|s| s.to_string())
+            .collect();
+        let str2: Vec<String> = comparator
+            .print_year(year)
+            .lines()
+            .map(|s| s.to_string())
+            .collect();
+
+        let header_row: Vec<usize> = vec![0, 1, 2, 9, 10, 17, 18];
+        let mut output = "\n".to_string();
+        for i in 1..25 {
+            if header_row.contains(&i) {
+                output += &str1[i];
+            } else {
+                let row_data: Vec<(char, char)> = str1[i].chars().zip(str2[i].chars()).collect();
+                for m in 0..4 {
+                    let m_ = m * 23;
+                    if m > 0 {
+                        output += "  ";
+                    }
+                    for c in 0..7 {
+                        let c_ = c * 3 + m_;
+                        if c_ > 89 {
+                            continue;
+                        }
+                        if row_data[c_].0 == row_data[c_].1
+                            && row_data[c_ + 1].0 == row_data[c_ + 1].1
+                        {
+                            if row_data[c_].0 == ' ' && row_data[c_ + 1].0 == ' ' {
+                                output += "   ";
+                            } else {
+                                output += " _ ";
+                            }
+                        } else {
+                            output += "[] ";
+                        }
+                    }
+                }
+            }
+            output += &"\n";
+        }
+        return output;
+    }
 }
 
 #[cfg(test)]
@@ -653,6 +702,46 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 Legend:
 '1-31': Settleable business day         'X': Non-settleable business day
    '.': Non-business weekend            '*': Non-business day
+"#;
+        let expected = raw_output.replace("$", " ");
+
+        let result_lines: Vec<&str> = result.lines().collect();
+        let expected_lines: Vec<&str> = expected.lines().collect();
+        for i in 0..result_lines.len() {
+            assert_eq!(expected_lines[i], result_lines[i]);
+        }
+    }
+
+    #[test]
+    fn test_print_compare() {
+        let cal1 = Cal::new(vec![], vec![0, 5]);
+        let cal2 = Cal::new(vec![], vec![3, 5]);
+        let result = cal1.print_compare(&cal2, 2026);
+        let raw_output = r#"
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+            []  _  _             _ []  _  _             _ []  _  _               []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []          _ []  _  _ []  _       _ []  _  _ []  _  _$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _ []  _  _ []  _  _                   _  _                      _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+                        _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []$$$$$$$$$$$$$$$$
+                        _                      _ []$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _ []  _  _ []  _  _      []  _  _ []  _  _          _  _ []  _  _          _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _    _ []  _  _ []  _  _$
+ _ []  _                _ []  _                _ []  _  _             _ []  _  _ []$$$$$$$
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 "#;
         let expected = raw_output.replace("$", " ");
 
