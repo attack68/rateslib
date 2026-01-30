@@ -134,7 +134,7 @@ class TestLicence:
     def test_licence_no_licence_warning(self):
         # test just the
         env_licence, file_licence = collect_and_remove_licence()
-        with pytest.warns(LicenceNotice, match="No licence is detected"):
+        with pytest.warns(LicenceNotice, match="No commercial licence is registered"):
             Licence()
         replace_collected_licence(env_licence, file_licence)
 

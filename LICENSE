@@ -28,7 +28,7 @@ You may use this software only if you comply with the terms of one of these lice
 1. Non-Commercial Source-Available Licence
 ------------------------------------------
 
-(Personal, Educational, and Evaluation Use Only)
+(Personal and Educational Use Only)
 
   1.1 Grant of Rights
 
@@ -37,7 +37,6 @@ You may use this software only if you comply with the terms of one of these lice
 
     - personal use
     - academic or educational use
-    - internal evaluation or testing
 
     This licence does not grant any right to distribute, modify, or commercially exploit the software.
 
@@ -45,7 +44,7 @@ You may use this software only if you comply with the terms of one of these lice
 
     You may not, directly or indirectly:
 
-    - Use the software for any commercial purpose
+    - Install or use the software for any purpose in a commercial environment
     - Sell, license, sublicense, rent, lease, or monetize the software
     - Distribute or redistribute the software, in source or binary form
     - Modify, adapt, translate, or create derivative works
@@ -86,7 +85,7 @@ You may use this software only if you comply with the terms of one of these lice
   Commercial licences are offered under separate written terms and are typically provided on
   a subscription basis.
 
-To obtain a Commercial Subscription Licence, visit https://rateslib.com/py/en/latest/i_licence.html
+To obtain a Commercial Subscription Licence, visit https://rateslib.com/licence
 
 3. No Implied Rights
 --------------------
@@ -135,7 +134,7 @@ To obtain a Commercial Subscription Licence, visit https://rateslib.com/py/en/la
 9. Language
 -----------
 
-This licence is written in English. Any translations are provided for convenience only.
-In the event of any inconsistency or dispute, the English version shall prevail.
+  This licence is written in English. Any translations are provided for convenience only.
+  In the event of any inconsistency or dispute, the English version shall prevail.
 
 END OF TERMS
