@@ -18,7 +18,7 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.rs import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number
+    from rateslib.local_types import DualTypes, Number
 
 
 def evaluate(

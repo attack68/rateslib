@@ -19,7 +19,7 @@ from rateslib.rs import Cal, NamedCal, UnionCal
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, CalTypes, datetime
+    from rateslib.local_types import CalInput, CalTypes, datetime
 
 
 def get_calendar(

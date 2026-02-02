@@ -33,7 +33,7 @@ from rateslib.legs import FixedLeg
 from rateslib.periods.parameters import _IndexParams
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurveOption_,
         CurvesT_,

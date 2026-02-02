@@ -26,7 +26,7 @@ from rateslib.periods.parameters.settlement import _SettlementParams
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         DualTypes,
         DualTypes_,

@@ -69,7 +69,7 @@ from rateslib.periods.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         Arr1dF64,
         DualTypes,

@@ -21,7 +21,7 @@ from rateslib.legs.protocols import _BaseLeg, _WithExDiv
 from rateslib.periods import CreditPremiumPeriod, CreditProtectionPeriod
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CurveOption_,
         DualTypes,

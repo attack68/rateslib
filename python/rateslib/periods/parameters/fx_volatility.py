@@ -19,7 +19,7 @@ from rateslib.data.fixings import FXFixing
 from rateslib.enums.parameters import FXOptionMetric, _get_fx_option_metric
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         DualTypes,
         DualTypes_,
         FXDeltaMethod,

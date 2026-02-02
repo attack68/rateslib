@@ -33,7 +33,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Adjuster,
         CalInput,
         CurveOption_,

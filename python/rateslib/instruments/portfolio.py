@@ -25,7 +25,7 @@ from rateslib.instruments.protocols.pricing import (
 from rateslib.periods.utils import _maybe_fx_converted
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         CurvesT_,
         DualTypes,

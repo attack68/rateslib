@@ -25,7 +25,7 @@ from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.rs import ADOrder, Dual, Dual2, _dsolve1, _dsolve2, _fdsolve1, _fdsolve2
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         Arr1dF64,
         Arr1dObj,

@@ -12,11 +12,15 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
 from packaging import version
-from pandas import DataFrame
+
+if TYPE_CHECKING:
+    from rateslib.local_types import (  # pragma: no cover
+        Any,
+    )
 
 DEVELOPMENT = True
 if DEVELOPMENT:
@@ -25,85 +29,47 @@ if DEVELOPMENT:
     # So when packaging output the INSTRUMENT_SPEC dict and paste into the non-development
     # section.
 
-    def _append_kwargs_name(df: DataFrame) -> DataFrame:
-        """combine the columns leg and kwargs to produce library consistent kwargs for dicts"""
-        prefix = df["leg"]
-        prefix = prefix.where(prefix == "leg2", "")
-        prefix = prefix.replace("leg2", "leg2_")
-        df["kwargs_name"] = prefix + df["kwarg"]
-        return df.set_index("kwargs_name")
+    if version.parse(pd.__version__) < version.parse("3.0.0"):
+        raise RuntimeError(
+            "Development of instrument `spec` laoding from CSV should be handled by pandas >= 3.0"
+        )
 
-    def _parse_bool(df: DataFrame) -> DataFrame:
-        """parse data input as bools to return True and False dtypes."""
-
-        def _map_true_false(v: str) -> bool | None:
-            try:
-                if v.upper() == "TRUE":
-                    return True
-                elif v.upper() == "FALSE":
-                    return False
-            except AttributeError:
-                return None
-            else:
-                return None
-
-        if version.parse(pd.__version__) >= version.parse("2.1.0"):
-            # applymap issues a deprecation warning with version <2.1.0
-            # TODO (low): clean this up when setting a minimum pandas version at 2.1.0
-            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].map(_map_true_false)
-        else:
-            df[df["dtype"] == "bool"] = df[df["dtype"] == "bool"].applymap(_map_true_false)  # type: ignore[operator, index]
-        return df
-
-    path = "data/__instrument_spec.csv"
+    path = "data/__instrument_spec2.csv"
     abspath = os.path.dirname(os.path.abspath(__file__))
     target = os.path.join(abspath, path)
-    df = pd.read_csv(target)
-    df = _append_kwargs_name(df)
-    df = _parse_bool(df)
-    df_legs = df[~(df["leg"] == "meta")]
+    df2 = pd.read_csv(target, header=[0, 1, 2, 3], index_col=[0])
 
-    DTYPE_MAP = {
-        "str": str,
-        "float": float,
-        "bool": bool,
-        "int": int,
+    for column in df2.columns:
+        df2[column] = df2[column].astype(column[3])  # type: ignore[call-overload]
+    df2_legs = df2.loc[:, (slice(None), ["leg1", "leg2"])]
+
+    INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {}
+    for spec in df2_legs.index:
+        leg1 = df2_legs.loc[spec].dropna().droplevel([0, 3]).loc["leg1"].to_dict()
+        try:
+            leg2 = df2_legs.loc[spec].dropna().droplevel([0, 3]).loc["leg2"].to_dict()
+        except KeyError:
+            leg2 = {}
+        INSTRUMENT_SPECS.update({spec: {**leg1, **{f"leg2_{k}": v for k, v in leg2.items()}}})
+
+    # extra dtype conversion mappings for keys
+    def _map_str_float_int(v: Any) -> Any:
+        try:
+            return int(float(v))
+        except (ValueError, TypeError):
+            return v
+
+    _maps = {
+        "roll": _map_str_float_int,
+        "leg2_roll": _map_str_float_int,
     }
 
-    def _map_dtype(v: str) -> Any:
-        try:
-            return DTYPE_MAP[v]
-        except KeyError:
-            return v
+    for _, v in INSTRUMENT_SPECS.items():
+        for k2, v2 in v.items():
+            if k2 in _maps:
+                v[k2] = _maps[k2](v2)
 
-    def _map_str_int(v: Any) -> Any:
-        try:
-            return int(v)
-        except ValueError:
-            return v
-
-    def _get_kwargs(spec: str) -> dict[str, Any]:
-        """From the legs DataFrame extract the relevant column and ensure dtypes are suitable."""
-        # get values that are not null
-        s = df_legs[spec]
-        s = s[pd.notna(s)]
-        # assign the correct dtypes for the values
-        dfs = s.to_frame().transpose()
-        dtypes = df.loc[s.index, "dtype"]
-        dtypes = dtypes.map(_map_dtype)
-        dfs = dfs.astype(dtype=dtypes.to_dict(), errors="raise")
-        # rotate and return values in a dict
-        s = dfs.transpose()[spec]
-        d = s.to_dict()
-
-        # roll dtype is str or int causes object issues
-        if "roll" in d:
-            d["roll"] = _map_str_int(d["roll"])
-        if "leg2_roll" in d:
-            d["leg2_roll"] = _map_str_int(d["leg2_roll"])
-        return d  # type: ignore[return-value]
-
-    INSTRUMENT_SPECS = {k: _get_kwargs(k) for k in df.columns[4:]}
+    pass
 
 else:
     # This is output from a development version and hard coded before a release for performance.
@@ -154,10 +120,9 @@ else:
             "payment_lag": 0,
             "currency": "usd",
             "convention": "act365f",
+            "pair": "usdinr",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
-            "pair": "usdinr",
         },
         "inrusd_ndxcs": {
             "frequency": "s",
@@ -168,12 +133,23 @@ else:
             "payment_lag": 2,
             "currency": "usd",
             "convention": "act365f",
+            "fixed": True,
+            "pair": "usdinr",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
-            "fixed": True,
-            "pair": "usdinr",
+        },
+        "mxn_irs": {
+            "frequency": "28d",
+            "stub": "shortfront",
+            "eom": False,
+            "modifier": "f",
+            "calendar": "mex",
+            "payment_lag": 2,
+            "currency": "mxn",
+            "convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
         },
         "usd_irs": {
             "frequency": "a",
@@ -186,7 +162,6 @@ else:
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "usd_irs_lt_2y": {
             "frequency": "a",
@@ -199,7 +174,6 @@ else:
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "gbp_irs": {
             "frequency": "a",
@@ -212,7 +186,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "eur_irs": {
             "frequency": "a",
@@ -225,7 +198,6 @@ else:
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "sek_irs": {
             "frequency": "a",
@@ -238,7 +210,6 @@ else:
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "nok_irs": {
             "frequency": "a",
@@ -251,7 +222,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "chf_irs": {
             "frequency": "a",
@@ -264,7 +234,6 @@ else:
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "cad_irs": {
             "frequency": "s",
@@ -277,7 +246,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "cad_irs_le_1y": {
             "frequency": "a",
@@ -290,7 +258,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "jpy_irs": {
             "frequency": "a",
@@ -303,7 +270,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "nzd_irs3": {
             "frequency": "s",
@@ -316,8 +282,7 @@ else:
             "convention": "act365f",
             "leg2_frequency": "q",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "nzd_irs6": {
             "frequency": "s",
@@ -329,8 +294,7 @@ else:
             "currency": "nzd",
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "nzd_irs": {
             "frequency": "a",
@@ -354,8 +318,7 @@ else:
             "currency": "aud",
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "aud_irs3": {
             "frequency": "q",
@@ -367,8 +330,7 @@ else:
             "currency": "aud",
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "aud_irs3_gt_3y": {
             "frequency": "s",
@@ -381,8 +343,7 @@ else:
             "convention": "act365f",
             "leg2_frequency": "q",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "aud_irs": {
             "frequency": "a",
@@ -395,7 +356,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "eur_irs6": {
             "frequency": "a",
@@ -409,8 +369,7 @@ else:
             "leg2_frequency": "s",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_irs3": {
             "frequency": "a",
@@ -424,8 +383,7 @@ else:
             "leg2_frequency": "q",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_irs1": {
             "frequency": "a",
@@ -439,8 +397,7 @@ else:
             "leg2_frequency": "m",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "sek_irs3": {
             "frequency": "a",
@@ -454,8 +411,7 @@ else:
             "leg2_frequency": "q",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "nok_irs3": {
             "frequency": "a",
@@ -469,8 +425,7 @@ else:
             "leg2_frequency": "q",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "nok_irs6": {
             "frequency": "a",
@@ -484,8 +439,7 @@ else:
             "leg2_frequency": "s",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eurusd_xcs": {
             "frequency": "q",
@@ -498,15 +452,13 @@ else:
             "convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "eurusd",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "eurusd",
         },
         "gbpusd_xcs": {
             "frequency": "q",
@@ -517,18 +469,16 @@ else:
             "payment_lag": 2,
             "currency": "gbp",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "gbpusd",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "gbpusd",
         },
         "eurgbp_xcs": {
             "frequency": "q",
@@ -539,18 +489,16 @@ else:
             "payment_lag": 2,
             "currency": "eur",
             "convention": "act360",
-            "leg2_convention": "act365f",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "eurgbp",
+            "leg2_convention": "act365f",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "eurgbp",
         },
         "gbpeur_xcs": {
             "frequency": "q",
@@ -561,18 +509,16 @@ else:
             "payment_lag": 2,
             "currency": "gbp",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "eurgbp",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "eurgbp",
         },
         "jpyusd_xcs": {
             "frequency": "q",
@@ -583,18 +529,16 @@ else:
             "payment_lag": 2,
             "currency": "jpy",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "usdjpy",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "usdjpy",
         },
         "audusd_xcs3": {
             "frequency": "q",
@@ -605,18 +549,16 @@ else:
             "payment_lag": 2,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
+            "fixing_method": "ibor(0)",
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "audusd",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "audusd",
         },
         "audusd_xcs": {
             "frequency": "q",
@@ -627,18 +569,16 @@ else:
             "payment_lag": 2,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
             "fixing_method": "rfr_payment_delay",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "audusd",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "audusd",
         },
         "nzdusd_xcs3": {
             "frequency": "q",
@@ -649,18 +589,16 @@ else:
             "payment_lag": 2,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_convention": "act360",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
+            "fixing_method": "ibor(0)",
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "nzdusd",
+            "leg2_convention": "act360",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "rfr_payment_delay",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "nzdusd",
         },
         "nzdaud_xcs3": {
             "frequency": "q",
@@ -671,18 +609,16 @@ else:
             "payment_lag": 2,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_convention": "act365f",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "fixing_method": "ibor(0)",
             "payment_lag_exchange": 0,
             "fixed": False,
+            "pair": "audnzd",
+            "leg2_convention": "act365f",
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "ibor(0)",
             "leg2_fixed": False,
             "leg2_mtm": True,
-            "pair": "audnzd",
         },
         "eur_zcis": {
             "frequency": "a",
@@ -731,7 +667,6 @@ else:
             "convention": "act365f",
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
         },
         "sek_iirs": {
             "frequency": "a",
@@ -742,13 +677,12 @@ else:
             "payment_lag": 0,
             "currency": "sek",
             "convention": "actacticma",
+            "index_method": "daily",
+            "index_lag": 3,
             "leg2_frequency": "q",
             "leg2_convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
-            "index_method": "daily",
-            "index_lag": 3,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_sbs36": {
             "frequency": "q",
@@ -759,13 +693,11 @@ else:
             "payment_lag": 0,
             "currency": "eur",
             "convention": "act360",
-            "leg2_frequency": "s",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 2,
+            "fixing_method": "ibor(2)",
+            "leg2_frequency": "s",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "nok_sbs36": {
             "frequency": "q",
@@ -776,13 +708,11 @@ else:
             "payment_lag": 0,
             "currency": "nok",
             "convention": "act360",
-            "leg2_frequency": "s",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 2,
+            "fixing_method": "ibor(2)",
+            "leg2_frequency": "s",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "aud_sbs36": {
             "frequency": "q",
@@ -793,13 +723,11 @@ else:
             "payment_lag": 0,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_frequency": "s",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
+            "fixing_method": "ibor(0)",
+            "leg2_frequency": "s",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "aud_sbs31": {
             "frequency": "q",
@@ -810,13 +738,11 @@ else:
             "payment_lag": 0,
             "currency": "aud",
             "convention": "act365f",
-            "leg2_frequency": "m",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
+            "fixing_method": "ibor(0)",
+            "leg2_frequency": "m",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "nzd_sbs36": {
             "frequency": "q",
@@ -827,13 +753,11 @@ else:
             "payment_lag": 0,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_frequency": "s",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
+            "fixing_method": "ibor(0)",
+            "leg2_frequency": "s",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "nzd_sbs31": {
             "frequency": "q",
@@ -844,13 +768,11 @@ else:
             "payment_lag": 0,
             "currency": "nzd",
             "convention": "act365f",
-            "leg2_frequency": "m",
             "spread_compound_method": "none_simple",
-            "fixing_method": "ibor",
-            "method_param": 0,
+            "fixing_method": "ibor(0)",
+            "leg2_frequency": "m",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 0,
+            "leg2_fixing_method": "ibor(0)",
         },
         "us_gb": {
             "frequency": "s",
@@ -1088,6 +1010,18 @@ else:
             "ex_div": 0,
             "calc_mode": "se_gbb",
         },
+        "no_gbb": {
+            "eom": False,
+            "modifier": "none",
+            "calendar": "osl",
+            "payment_lag": 0,
+            "currency": "nok",
+            "convention": "act365f",
+            "payment_lag_exchange": 0,
+            "settle": 2,
+            "ex_div": 0,
+            "calc_mode": "no_gbb",
+        },
         "uk_gbb": {
             "eom": True,
             "modifier": "none",
@@ -1126,8 +1060,7 @@ else:
             "currency": "sek",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_fra3": {
             "termination": "3m",
@@ -1139,8 +1072,7 @@ else:
             "currency": "eur",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_fra6": {
             "termination": "6m",
@@ -1152,8 +1084,7 @@ else:
             "currency": "eur",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "eur_fra1": {
             "termination": "1m",
@@ -1165,8 +1096,7 @@ else:
             "currency": "eur",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "nok_fra3": {
             "termination": "3m",
@@ -1178,8 +1108,7 @@ else:
             "currency": "nok",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "nok_fra6": {
             "termination": "6m",
@@ -1191,8 +1120,7 @@ else:
             "currency": "nok",
             "convention": "act360",
             "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
+            "leg2_fixing_method": "ibor(2)",
         },
         "usd_frn5": {
             "frequency": "q",
@@ -1203,8 +1131,7 @@ else:
             "currency": "usd",
             "convention": "act360",
             "spread_compound_method": "none_simple",
-            "fixing_method": "rfr_observation_shift",
-            "method_param": 5,
+            "fixing_method": "rfr_observation_shift(5)",
             "settle": 1,
             "ex_div": 1,
         },
@@ -1217,11 +1144,10 @@ else:
             "payment_lag": 0,
             "currency": "usd",
             "convention": "actacticma",
+            "nominal": 1000000.0,
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "leg2_fixing_series": "usd_rfr",
-            "nominal": 1000000.0,
         },
         "usd_stir1": {
             "frequency": "m",
@@ -1232,11 +1158,10 @@ else:
             "payment_lag": 0,
             "currency": "usd",
             "convention": "actacticma",
+            "nominal": 5000400.0,
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay_avg",
-            "leg2_method_param": 0,
             "leg2_fixing_series": "usd_rfr",
-            "nominal": 5000400.0,
         },
         "eur_stir": {
             "frequency": "q",
@@ -1247,11 +1172,10 @@ else:
             "payment_lag": 0,
             "currency": "eur",
             "convention": "actacticma",
+            "nominal": 1000000.0,
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "leg2_fixing_series": "eur_rfr",
-            "nominal": 1000000.0,
         },
         "eur_stir1": {
             "frequency": "m",
@@ -1262,11 +1186,10 @@ else:
             "payment_lag": 0,
             "currency": "eur",
             "convention": "actacticma",
+            "nominal": 3000000.0,
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay_avg",
-            "leg2_method_param": 0,
             "leg2_fixing_series": "eur_rfr",
-            "nominal": 3000000.0,
         },
         "eur_stir3": {
             "frequency": "q",
@@ -1277,11 +1200,10 @@ else:
             "payment_lag": 0,
             "currency": "eur",
             "convention": "actacticma",
-            "leg2_spread_compound_method": "none_simple",
-            "leg2_fixing_method": "ibor",
-            "leg2_method_param": 2,
-            "leg2_fixing_series": "eur_ibor",
             "nominal": 1000000.0,
+            "leg2_spread_compound_method": "none_simple",
+            "leg2_fixing_method": "ibor(2)",
+            "leg2_fixing_series": "eur_ibor",
         },
         "gbp_stir": {
             "frequency": "q",
@@ -1292,11 +1214,10 @@ else:
             "payment_lag": 0,
             "currency": "gbp",
             "convention": "actacticma",
+            "nominal": 1000000.0,
             "leg2_spread_compound_method": "none_simple",
             "leg2_fixing_method": "rfr_payment_delay",
-            "leg2_method_param": 0,
             "leg2_fixing_series": "gbp_rfr",
-            "nominal": 1000000.0,
         },
         "uk_gb_2y": {
             "calendar": "ldn",

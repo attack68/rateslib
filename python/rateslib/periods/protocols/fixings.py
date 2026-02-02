@@ -31,7 +31,7 @@ from rateslib.periods.parameters import (
 from rateslib.periods.protocols.npv import _WithNPV
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         FXForwards_,

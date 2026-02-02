@@ -17,7 +17,7 @@ from rateslib.enums.generics import NoInput
 from rateslib.rs import Adjuster
 
 if TYPE_CHECKING:
-    from rateslib.typing import str_
+    from rateslib.local_types import str_
 
 _A = {  # Provides the map of all available string to Adjuster conversions.
     "NONESETTLE": Adjuster.Actual(),

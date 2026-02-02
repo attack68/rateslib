@@ -55,7 +55,7 @@ from rateslib.mutability import (
 from rateslib.scheduling import get_calendar
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         DualTypes,
         DualTypes_,

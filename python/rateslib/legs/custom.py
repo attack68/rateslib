@@ -17,7 +17,7 @@ from rateslib.legs.protocols import _BaseLeg
 from rateslib.periods.protocols import _BasePeriod
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         DualTypes,
         Sequence,

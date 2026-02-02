@@ -16,7 +16,14 @@ from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr2dF64, CalTypes, CurveInterpolator, DualTypes, Number
+    from rateslib.local_types import (
+        Arr1dF64,
+        Arr2dF64,
+        CalTypes,
+        CurveInterpolator,
+        DualTypes,
+        Number,
+    )
 
 class ADOrder:
     Zero: ADOrder

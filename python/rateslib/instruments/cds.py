@@ -28,7 +28,7 @@ from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
 from rateslib.scheduling import Frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DataFrame,

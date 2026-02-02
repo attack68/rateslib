@@ -37,7 +37,7 @@ from rateslib.rs import Ccy, FXRate
 from rateslib.rs import FXRates as FXRatesObj
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64, Arr1dObj, Arr2dObj, DualTypes, Number
+    from rateslib.local_types import Arr1dF64, Arr1dObj, Arr2dObj, DualTypes, Number
 
 """
 .. ipython:: python

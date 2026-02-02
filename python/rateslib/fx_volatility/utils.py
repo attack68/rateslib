@@ -44,7 +44,7 @@ from rateslib.scheduling import get_calendar
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalTypes, Number
+    from rateslib.local_types import Any, CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, TypeVar
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurveOption_,
     )
 

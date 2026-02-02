@@ -21,7 +21,7 @@ from rateslib.instruments.fx_options.straddle import FXStraddle
 from rateslib.instruments.fx_options.strangle import FXStrangle
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurvesT_,

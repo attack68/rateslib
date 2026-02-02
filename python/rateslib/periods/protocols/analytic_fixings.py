@@ -24,7 +24,7 @@ from rateslib.periods.protocols import _WithIndexingStatic, _WithNonDeliverableS
 from rateslib.periods.protocols.npv import _screen_ex_div_and_forward
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurveOption_,
         FXForwards_,
         Result,

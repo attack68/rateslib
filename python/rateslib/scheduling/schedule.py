@@ -28,7 +28,7 @@ from rateslib.scheduling.frequency import _get_frequency, add_tenor
 from rateslib.scheduling.rollday import _is_eom_cal
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Adjuster_,
         Any,
         CalInput,

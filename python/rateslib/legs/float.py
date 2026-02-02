@@ -38,7 +38,7 @@ from rateslib.periods.parameters.rate import _init_float_rate_series
 from rateslib.scheduling.schedule import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         DualTypes_,

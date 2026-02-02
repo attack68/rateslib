@@ -50,7 +50,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         Arr1dObj,
         CalInput,

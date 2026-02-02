@@ -24,7 +24,7 @@ from rateslib.enums.generics import NoInput
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
-    from rateslib.typing import Arr1dF64
+    from rateslib.local_types import Arr1dF64
 
 PRECISION = 1e-14
 FLOATS = float | np.float16 | np.float32 | np.float64 | np.longdouble

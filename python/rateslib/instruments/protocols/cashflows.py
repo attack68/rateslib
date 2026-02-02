@@ -28,7 +28,7 @@ from rateslib.instruments.protocols.pricing import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         CurvesT_,
         FXForwards_,
@@ -199,7 +199,9 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         with warnings.catch_warnings():
             # TODO: pandas 2.1.0 has a FutureWarning for concatenating DataFrames with Null entries
             warnings.filterwarnings("ignore", category=FutureWarning)
-            _: DataFrame = concat(dfs_filtered, keys=["leg1", "leg2"])
+            _: DataFrame = concat(
+                dfs_filtered, keys=[f"leg{i + 1}" for i in range(len(dfs_filtered))]
+            )
         return _
 
     def _cashflows_from_instruments(self, *args: Any, **kwargs: Any) -> DataFrame:

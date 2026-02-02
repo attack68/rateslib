@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from numpy import object_ as Nobject  # noqa: N812
     from numpy.typing import NDArray
 
-    from rateslib.typing import (
+    from rateslib.local_types import (
         FX_,
         Any,
         Callable,

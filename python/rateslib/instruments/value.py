@@ -27,7 +27,7 @@ from rateslib.periods.utils import _validate_base_curve
 from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CurvesT_,
         DualTypes,

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from numpy import object_ as Nobject  # noqa: N812
     from numpy.typing import NDArray
 
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         DualTypes,
         Variable,

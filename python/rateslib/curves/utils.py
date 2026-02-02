@@ -31,7 +31,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         CalTypes,
         DualTypes,
