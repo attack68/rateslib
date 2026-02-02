@@ -20,7 +20,7 @@ from rateslib.dual.utils import _to_number
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, Number  # pragma: no cover
+    from rateslib.local_types import Any, DualTypes, Number  # pragma: no cover
 
 
 # Dualtypes handles case of rust wrapped Dual/Dual2 datatype intermixed with float.

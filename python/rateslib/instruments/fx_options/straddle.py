@@ -19,7 +19,7 @@ from rateslib.instruments.fx_options.call_put import FXCall, FXPut
 from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DualTypes,

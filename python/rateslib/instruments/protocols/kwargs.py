@@ -18,7 +18,7 @@ from rateslib.enums.generics import NoInput
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         str_,
     )

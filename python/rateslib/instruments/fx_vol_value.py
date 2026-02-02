@@ -26,7 +26,7 @@ from rateslib.instruments.protocols.pricing import (
 from rateslib.periods.utils import _validate_fx_as_forwards
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CurvesT_,
         DualTypes,

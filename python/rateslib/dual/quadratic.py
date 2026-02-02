@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from rateslib.dual.newton import _solver_result
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes
+    from rateslib.local_types import DualTypes
 
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.

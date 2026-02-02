@@ -26,7 +26,7 @@ from rateslib.scheduling import Convention, dcf, get_calendar
 from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         DualTypes,

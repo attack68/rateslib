@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         YtmDiscountFunction,
         YtmStubDiscountFunction,
     )
-    from rateslib.typing import Any  # pragma: no cover
+    from rateslib.local_types import Any  # pragma: no cover
 
 
 class BondCalcMode:

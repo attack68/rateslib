@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         CashflowFunction,
         YtmDiscountFunction,
     )
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Cashflow,
         CurveOption_,
         DualTypes,

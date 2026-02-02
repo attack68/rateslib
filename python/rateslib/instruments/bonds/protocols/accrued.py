@@ -17,7 +17,7 @@ from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction  # pragma: no cover
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Cashflow,
         DualTypes,
         FixedLeg,

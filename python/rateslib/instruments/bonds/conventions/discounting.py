@@ -18,7 +18,7 @@ from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
     from rateslib.instruments.bonds.conventions.accrued import AccrualFunction
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurveOption_,
         DualTypes,
         _SupportsFixedFloatLeg1,

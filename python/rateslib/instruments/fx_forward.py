@@ -30,7 +30,7 @@ from rateslib.periods import Cashflow
 from rateslib.periods.utils import _validate_base_curve
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurvesT_,
         DataFrame,
         DualTypes,

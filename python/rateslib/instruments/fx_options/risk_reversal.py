@@ -21,7 +21,7 @@ from rateslib.instruments.fx_options.call_put import FXCall, FXPut, _BaseFXOptio
 from rateslib.instruments.protocols import _KWArgs
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurvesT_,

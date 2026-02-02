@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, DualTypes_, NoInput  # pragma: no cover
+    from rateslib.local_types import DualTypes, DualTypes_, NoInput  # pragma: no cover
 
 
 class _AmortizationType(Enum):

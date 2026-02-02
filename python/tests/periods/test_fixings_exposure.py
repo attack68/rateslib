@@ -164,7 +164,7 @@ class TestFloatPeriod:
         )
 
         risk_compare = fixings_[("curve", "usd", "usd", "1B")].astype(float).fillna(0.0).to_numpy()
-        risk_array = risk.to_numpy()[:, 0]
+        risk_array = risk.to_numpy()[:, 0].copy()
 
         _diff = np.max(np.abs(risk_compare - risk_array))
         if scm == SpreadCompoundMethod.ISDAFlatCompounding and spread > 100.0:

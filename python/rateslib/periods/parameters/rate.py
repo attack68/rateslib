@@ -43,7 +43,7 @@ from rateslib.scheduling.adjuster import _convert_to_adjuster
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Adjuster,
         Adjuster_,
         CalTypes,

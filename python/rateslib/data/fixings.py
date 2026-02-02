@@ -47,7 +47,7 @@ from rateslib.scheduling.schedule import _get_stub_inference
 from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         Arr1dF64,
         Arr1dObj,

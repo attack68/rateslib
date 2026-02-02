@@ -30,7 +30,7 @@ from rateslib.legs import FixedLeg, FloatLeg
 from rateslib.scheduling import Adjuster
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DataFrame,

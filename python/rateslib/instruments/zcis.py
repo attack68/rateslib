@@ -26,7 +26,7 @@ from rateslib.instruments.protocols.pricing import (
 from rateslib.legs import ZeroFixedLeg, ZeroIndexLeg
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DataFrame,

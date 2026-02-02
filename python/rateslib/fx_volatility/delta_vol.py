@@ -65,7 +65,7 @@ from rateslib.scheduling import get_calendar
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, DualTypes_, Sequence  # pragma: no cover
+    from rateslib.local_types import DualTypes, DualTypes_, Sequence  # pragma: no cover
 
 
 class FXDeltaVolSmile(_BaseSmile):

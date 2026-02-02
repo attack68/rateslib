@@ -23,7 +23,7 @@ from rateslib.scheduling.rollday import _get_rollday
 from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_, str_
+    from rateslib.local_types import CalInput, datetime_, int_, str_
 
 
 def _get_frequency(

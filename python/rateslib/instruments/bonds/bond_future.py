@@ -32,7 +32,7 @@ from rateslib.scheduling.calendars import _get_years_and_months
 from rateslib.solver import Solver
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         CurvesT_,
         DualTypes,

@@ -32,7 +32,7 @@ from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurvesT_,

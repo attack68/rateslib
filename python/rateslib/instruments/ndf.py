@@ -31,7 +31,7 @@ from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Adjuster,
         CurvesT_,
         DataFrame,

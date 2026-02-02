@@ -24,7 +24,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency_none
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalInput, Callable, bool_, datetime_, int_, str_
+    from rateslib.local_types import Any, CalInput, Callable, bool_, datetime_, int_, str_
 
 
 def dcf(

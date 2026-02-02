@@ -20,7 +20,7 @@ from rateslib.enums import Err, Ok
 from rateslib.periods.parameters.settlement import _init_fx_fixing
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         DualTypes,
         FXFixing,
         FXForwards_,

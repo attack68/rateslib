@@ -32,7 +32,7 @@ from rateslib.enums.parameters import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         DualTypes,
         DualTypes_,

@@ -22,7 +22,7 @@ from rateslib.rs import index_left_f64
 from rateslib.scheduling import Convention, dcf
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
+    from rateslib.local_types import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
 
 
 class InterpolationFunction(Protocol):

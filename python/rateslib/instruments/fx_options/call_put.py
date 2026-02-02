@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
     import numpy as np  # pragma: no cover
 
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         FX_,
         Any,
         CalInput,

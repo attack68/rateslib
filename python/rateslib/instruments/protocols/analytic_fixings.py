@@ -25,7 +25,7 @@ from rateslib.instruments.protocols.pricing import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurvesT_,
         FXForwards_,
         Solver_,

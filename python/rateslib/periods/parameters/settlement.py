@@ -25,7 +25,7 @@ from rateslib.enums.generics import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         DualTypes,
         DualTypes_,

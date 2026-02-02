@@ -20,7 +20,7 @@ from rateslib.enums.generics import (
 from rateslib.scheduling import Convention, Frequency, dcf
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Adjuster_,
         CalTypes,
         datetime,

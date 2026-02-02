@@ -57,7 +57,7 @@ from rateslib.scheduling import Adjuster, Convention, add_tenor, dcf, get_calend
 from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurveOption_,
