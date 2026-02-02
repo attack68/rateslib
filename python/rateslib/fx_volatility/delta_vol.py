@@ -19,7 +19,7 @@ from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
+from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.default import (
@@ -737,7 +737,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if defaults.curve_caching and expiry in self._cache:
             return self._cache[expiry]
 
-        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
+        expiry_posix = expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
         e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:
