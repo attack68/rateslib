@@ -13,13 +13,12 @@
 from __future__ import annotations  # type hinting
 
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.default import (
@@ -66,6 +65,9 @@ from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
     from rateslib.local_types import DualTypes, DualTypes_, Sequence  # pragma: no cover
+
+
+UTC = timezone.utc
 
 
 class FXDeltaVolSmile(_BaseSmile):
@@ -737,7 +739,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
         if defaults.curve_caching and expiry in self._cache:
             return self._cache[expiry]
 
-        expiry_posix = expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:

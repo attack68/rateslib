@@ -8,12 +8,12 @@
 
 from __future__ import annotations
 
+from datetime import timezone
 from functools import cached_property
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
-from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.curves import (
@@ -43,6 +43,9 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+
+UTC = timezone.utc
 
 
 class _NullInterpolator:
@@ -414,7 +417,7 @@ class SmithWilsonCurve(_WithMutability, _BaseCurve):
             return 1.0
 
         # 31557600 = 365.25 days * 86400 seconds per day
-        t = (date.replace(tzinfo=ZoneInfo("UTC")).timestamp() - self.nodes.posix_keys[0]) / 31557600.0
+        t = (date.replace(tzinfo=UTC).timestamp() - self.nodes.posix_keys[0]) / 31557600.0
         a = self.alpha
         w = self.w
 

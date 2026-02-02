@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 # This is output from a development version and hard coded before a release for performance.
-INSTRUMENT_SPECS = {
+INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
     "test": {
         "frequency": "m",
         "stub": "longfront",
@@ -1313,7 +1313,7 @@ if DEVELOPMENT == "True":
         df2[column] = df2[column].astype(column[3])  # type: ignore[call-overload]
     df2_legs = df2.loc[:, (slice(None), ["leg1", "leg2"])]
 
-    INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {}
+    INSTRUMENT_SPECS = {}
     for spec in df2_legs.index:
         leg1 = df2_legs.loc[spec].dropna().droplevel([0, 3]).loc["leg1"].to_dict()
         try:

@@ -12,10 +12,9 @@
 
 from __future__ import annotations
 
+from datetime import timezone
 from math import floor
 from typing import TYPE_CHECKING, Protocol
-
-from zoneinfo import ZoneInfo
 
 from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
@@ -23,6 +22,9 @@ from rateslib.scheduling import Convention, dcf
 
 if TYPE_CHECKING:
     from rateslib.local_types import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
+
+
+UTC = timezone.utc
 
 
 class InterpolationFunction(Protocol):
@@ -137,7 +139,7 @@ def _get_posix(date: datetime, curve: _BaseCurve) -> tuple[float, float, float, 
     """
     Convert a datetime and curve_nodes to posix timestamps and return the index_left.
     """
-    date_posix: float = date.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+    date_posix: float = date.replace(tzinfo=UTC).timestamp()
     l_index = index_left_f64(curve.nodes.posix_keys, date_posix, None)
     node_left_posix, node_right_posix = (
         curve.nodes.posix_keys[l_index],

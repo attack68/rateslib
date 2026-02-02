@@ -18,14 +18,13 @@ import warnings
 from abc import ABC, abstractmethod
 from calendar import monthrange
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from math import comb, prod
 from typing import TYPE_CHECKING, TypeAlias
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from zoneinfo import ZoneInfo
 
 import rateslib.errors as err
 from rateslib import defaults, fixings
@@ -69,6 +68,8 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+UTC = timezone.utc
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -269,7 +270,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         if self.interpolator.spline is None or date < self.interpolator.spline.t[0]:
             val = self.interpolator.local_func(date, self)
         else:
-            date_posix = date.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+            date_posix = date.replace(tzinfo=UTC).timestamp()
             if date > self.interpolator.spline.t[-1]:
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "

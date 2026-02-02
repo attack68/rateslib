@@ -14,12 +14,11 @@ from __future__ import annotations  # type hinting
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
-from zoneinfo import ZoneInfo
 
 from rateslib.dual import (
     Dual,
@@ -47,6 +46,8 @@ if TYPE_CHECKING:
     from rateslib.local_types import Any, CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
+
+UTC = timezone.utc
 
 TERMINAL_DATE = datetime(2100, 1, 1)
 
@@ -353,7 +354,7 @@ class _FXDeltaVolSurfaceMeta:
     @cached_property
     def expiries_posix(self) -> list[float]:
         """A list of the unix timestamps of each date in ``expiries``."""
-        return [_.replace(tzinfo=ZoneInfo("UTC")).timestamp() for _ in self.expiries]
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
 
     @property
     def weights(self) -> Series[float] | None:
@@ -377,7 +378,7 @@ class _FXDeltaVolSurfaceMeta:
     @property
     def eval_posix(self) -> float:
         """The unix timestamp of the ``eval_date``."""
-        return self.eval_date.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
 
     @property
     def delta_type(self) -> FXDeltaMethod:
@@ -471,12 +472,12 @@ class _FXSabrSurfaceMeta:
     @cached_property
     def expiries_posix(self) -> list[float]:
         """A list of the unix timestamps of each date in ``expiries``."""
-        return [_.replace(tzinfo=ZoneInfo("UTC")).timestamp() for _ in self.expiries]
+        return [_.replace(tzinfo=UTC).timestamp() for _ in self.expiries]
 
     @cached_property
     def eval_posix(self) -> float:
         """The unix timestamp of the ``eval_date``."""
-        return self.eval_date.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+        return self.eval_date.replace(tzinfo=UTC).timestamp()
 
     @property
     def delivery_lag(self) -> int:
@@ -621,7 +622,7 @@ def _t_var_interp_d_sabr_d_k_or_f(
         else:  # bounds_flag == 1:
             # right side extrapolation
             t1 = expiries_posix[expiry_next_index] - eval_posix
-            t2 = TERMINAL_DATE.replace(tzinfo=ZoneInfo("UTC")).timestamp() - eval_posix
+            t2 = TERMINAL_DATE.replace(tzinfo=UTC).timestamp() - eval_posix
 
         t_hat = expiry_posix - eval_posix
         t = expiry_posix - eval_posix
