@@ -18,7 +18,7 @@ from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
+from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.dual import (
@@ -693,7 +693,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         as_float: bool,
         derivative: int,
     ) -> tuple[DualTypes, DualTypes | None]:
-        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
+        expiry_posix = expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
         e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:

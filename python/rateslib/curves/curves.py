@@ -25,7 +25,7 @@ from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
+from zoneinfo import ZoneInfo
 
 import rateslib.errors as err
 from rateslib import defaults, fixings
@@ -269,7 +269,7 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
         if self.interpolator.spline is None or date < self.interpolator.spline.t[0]:
             val = self.interpolator.local_func(date, self)
         else:
-            date_posix = date.replace(tzinfo=UTC).timestamp()
+            date_posix = date.replace(tzinfo=ZoneInfo("UTC")).timestamp()
             if date > self.interpolator.spline.t[-1]:
                 warnings.warn(
                     "Evaluating points on a curve beyond the endpoint of the basic "

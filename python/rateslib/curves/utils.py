@@ -19,7 +19,7 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from pytz import UTC
+from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
@@ -192,7 +192,7 @@ class _CurveSpline:
     @cached_property
     def t_posix(self) -> list[float]:
         """The knot sequence of the PPSpline converted to float unix timestamps."""
-        return [_.replace(tzinfo=UTC).timestamp() for _ in self.t]
+        return [_.replace(tzinfo=ZoneInfo("UTC")).timestamp() for _ in self.t]
 
     @property
     def spline(self) -> PPSplineF64 | PPSplineDual | PPSplineDual2 | None:
@@ -209,7 +209,7 @@ class _CurveSpline:
     # All calling methods should clear the cache and/or set new state after `_csolve`
     def _csolve(self, curve_type: _CurveType, nodes: _CurveNodes, ad: int) -> None:
         t_posix = self.t_posix.copy()
-        tau_posix = [k.replace(tzinfo=UTC).timestamp() for k in nodes.keys if k >= self.t[0]]
+        tau_posix = [k.replace(tzinfo=ZoneInfo("UTC")).timestamp() for k in nodes.keys if k >= self.t[0]]
         if curve_type == _CurveType.dfs:
             # then use log
             y = [dual_log(v) for k, v in nodes.nodes.items() if k >= self.t[0]]
@@ -530,7 +530,7 @@ class _CurveNodes:
     @cached_property
     def posix_keys(self) -> list[float]:
         """A list of the ``keys`` converted to unix timestamps."""
-        return [_.replace(tzinfo=UTC).timestamp() for _ in self.keys]
+        return [_.replace(tzinfo=ZoneInfo("UTC")).timestamp() for _ in self.keys]
 
     @property
     def initial(self) -> datetime:
