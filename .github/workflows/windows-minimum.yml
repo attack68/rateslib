@@ -36,5 +36,6 @@ jobs:
     - name: Test with pytest
       env:
         RATESLIB_LICENCE: ${{ secrets.RATESLIB_LICENCE }}
+        RATESLIB_DEVELOPMENT: False
       run: |
         pytest
