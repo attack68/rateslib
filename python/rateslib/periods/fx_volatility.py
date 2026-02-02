@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from datetime import timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
-from zoneinfo import ZoneInfo
 
 import rateslib.errors as err
 from rateslib import defaults
@@ -86,6 +86,8 @@ if TYPE_CHECKING:
         datetime_,
         str_,
     )
+
+UTC = timezone.utc
 
 
 class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
@@ -566,7 +568,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
-            expiry_posix = self.fx_option_params.expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+            expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 
@@ -821,7 +823,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
             vol_: FXSabrSurface = vol  # type: ignore[assignment]
-            expiry_posix = self.fx_option_params.expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+            expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
 

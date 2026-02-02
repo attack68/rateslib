@@ -12,13 +12,12 @@
 
 from __future__ import annotations  # type hinting
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from zoneinfo import ZoneInfo
 
 from rateslib import defaults
 from rateslib.dual import (
@@ -65,6 +64,9 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+
+UTC = timezone.utc
 
 
 class FXSabrSmile(_BaseSmile):
@@ -693,7 +695,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         as_float: bool,
         derivative: int,
     ) -> tuple[DualTypes, DualTypes | None]:
-        expiry_posix = expiry.replace(tzinfo=ZoneInfo("UTC")).timestamp()
+        expiry_posix = expiry.replace(tzinfo=UTC).timestamp()
         e_idx, e_next_idx = _surface_index_left(self.meta.expiries_posix, expiry_posix)
 
         if expiry == self.meta.expiries[0]:
