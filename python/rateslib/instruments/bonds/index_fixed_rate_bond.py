@@ -934,7 +934,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         settlement: datetime, :red:`required`
             The settlement date on which to determine the price.
         dirty: bool, :green:`optional (set as False)`
-            If `True` will assume the
+            If `True` will assume the (settlement)
             :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
         rate_curve: _BaseCurve or dict of such, :green:`optional`
             Used to forecast floating rates if required.

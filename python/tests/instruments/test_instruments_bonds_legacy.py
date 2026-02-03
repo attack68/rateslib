@@ -631,6 +631,59 @@ class TestFixedRateBond:
         assert abs(result - 100.00) < 1e-5
         assert abs(stub_cash + 7828.77) < 1e-2
 
+    def test_cadgb_ytm_dirty_calc(self) -> None:
+        # Cad GB has different Accrual function for a YTM and physical settlement.
+        # If a price is supplied dirty it is expected to be a physical settlement dirty price
+        bond = FixedRateBond(
+            effective=dt(2018, 7, 27),
+            termination=dt(2029, 6, 1),
+            fixed_rate=2.25,
+            spec="ca_gb",
+        )
+
+        physical_accrued = bond._accrued(
+            dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._settle_accrual
+        )
+        ytm_accrued = bond._accrued(dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._ytm_accrual)
+        assert abs(physical_accrued - ytm_accrued) > 1e-4
+
+        clean_price = 101.00
+        clean_ytm = bond.ytm(clean_price, dt(2019, 6, 10))
+        dirty_ytm = bond.ytm(clean_price + physical_accrued, dt(2019, 6, 10), dirty=True)
+        assert abs(clean_ytm - dirty_ytm) < 1e-8
+
+    def test_cadgb_ytm_indexed_dirty_calc(self) -> None:
+        # Cad GB has different Accrual function for a YTM and physical settlement.
+        # If a price is supplied dirty it is expected to be a physical settlement dirty price
+        bond = IndexFixedRateBond(
+            effective=dt(2018, 7, 27),
+            termination=dt(2029, 6, 1),
+            fixed_rate=2.25,
+            spec="ca_gbi",
+            index_base=90.0,
+        )
+        curve = Curve({dt(2019, 1, 1): 1.0, dt(2030, 1, 1): 1.0}, index_base=99.0).shift(100.0)
+
+        physical_indexed_accrued = bond.accrued(dt(2019, 6, 10), indexed=True, index_curve=curve)
+        ytm_indexed_accrued = bond._accrued(
+            dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._ytm_accrual
+        ) * bond.index_ratio(settlement=dt(2019, 6, 18), index_curve=curve)
+        assert abs(physical_indexed_accrued - ytm_indexed_accrued) > 1e-4
+
+        clean_price = 111.00
+        clean_ytm = bond.ytm(
+            clean_price, dt(2019, 6, 10), indexed_price=True, indexed_ytm=False, index_curve=curve
+        )
+        dirty_ytm = bond.ytm(
+            clean_price + physical_indexed_accrued,
+            dt(2019, 6, 10),
+            dirty=True,
+            indexed_price=True,
+            indexed_ytm=False,
+            index_curve=curve,
+        )
+        assert abs(clean_ytm - dirty_ytm) < 1e-8
+
     ## German gov bonds comparison with official bundesbank publications.
 
     @pytest.mark.parametrize(
