@@ -42,11 +42,12 @@ if TYPE_CHECKING:
 
 def _get_stub_inference(
     stub: str | StubInference, front_stub: datetime_, back_stub: datetime_
-) -> StubInference | None:
+) -> StubInference:
     """
-    Convert `stub` as string to a `StubInference` enum based on what stubs are intended to be
-    inferred and what stab dates are already provided. In a stub is provided as a date it
-    will never be inferred.
+    Perform two tasks:
+    - Convert `stub` as string to a `StubInference` enum.
+    - Convert a StubInference to NeitherSide if a specific stud date has been provided that
+      cannot be inferred.
 
     Parameters
     ----------
@@ -59,35 +60,62 @@ def _get_stub_inference(
 
     Returns
     -------
-    StubInference or None
+    StubInference
     """
-    if isinstance(stub, StubInference) or stub is None:
-        return stub
+    if isinstance(stub, StubInference):
+        if stub is StubInference.NeitherSide:
+            stub_: str = "NEITHER_SIDE"
+        elif stub is StubInference.ShortFront:
+            stub_ = "SHORT_FRONT"
+        elif stub is StubInference.LongFront:
+            stub_ = "LONG_FRONT"
+        elif stub is StubInference.ShortBack:
+            stub_ = "SHORT_BACK"
+        else:  #  StubInference.LongBack:
+            stub_ = "LONG_BACK"
+    elif stub is None:
+        stub_ = "NONE"
+    else:
+        stub_ = stub.upper()
+    del stub
 
     _map: dict[str, StubInference] = {
         "SHORTFRONT": StubInference.ShortFront,
         "LONGFRONT": StubInference.LongFront,
         "SHORTBACK": StubInference.ShortBack,
         "LONGBACK": StubInference.LongBack,
+        "NONE": StubInference.NeitherSide,
+        "NEITHERSIDE": StubInference.NeitherSide,
+        "SHORT_FRONT": StubInference.ShortFront,
+        "LONG_FRONT": StubInference.LongFront,
+        "SHORT_BACK": StubInference.ShortBack,
+        "LONG_BACK": StubInference.LongBack,
+        "NEITHER_SIDE": StubInference.NeitherSide,
     }
-    stub = stub.upper()
-    _ = {v: v in stub for v in _map}
+
+    possibles: dict[str, StubInference] = {v: _map[v] for v in _map if v in stub_}
     if not isinstance(front_stub, NoInput):
         # cannot infer front stubs, since it is explicitly provided
-        _["SHORTFRONT"] = False
-        _["LONGFRONT"] = False
+        possibles.pop("SHORTFRONT", None)
+        possibles.pop("SHORT_FRONT", None)
+        possibles.pop("LONGFRONT", None)
+        possibles.pop("LONG_FRONT", None)
     if not isinstance(back_stub, NoInput):
         # cannot infer back stubs, since it is explicitly provided
-        _["SHORTBACK"] = False
-        _["LONGBACK"] = False
-    ret: StubInference | None = None
-    if sum(list(_.values())) > 1:
-        raise ValueError("Must supply at least one stub date for dual sided inference.")
-    for k, v in _.items():
-        if v:
-            ret = _map[k]
-            break
-    return ret
+        possibles.pop("SHORTBACK", None)
+        possibles.pop("SHORT_BACK", None)
+        possibles.pop("LONGBACK", None)
+        possibles.pop("LONG_BACK", None)
+
+    if len(possibles) == 0:
+        return StubInference.NeitherSide  # the stub inference is negated by a provided value
+    elif len(possibles) > 1:
+        raise ValueError(
+            "Must supply at least one stub date for dual sided inference.\n"
+            f"You have likely supplied to many sides to be inferred for `stub`. Got '{stub_}'."
+        )
+    else:
+        return list(possibles.values())[0]
 
 
 def _get_adjuster_from_modifier(modifier: Adjuster | str_, mod_days: bool) -> Adjuster:
@@ -357,21 +385,35 @@ class Schedule:
             roll,
             eom_,
         )
+        stub_inference_ = _get_stub_inference(stub_, front_stub, back_stub)
 
-        self._obj = Schedule_rs(
-            effective=effective_,
-            termination=termination_,
-            frequency=frequency_,
-            calendar=calendar_,
-            accrual_adjuster=accrual_adjuster,
-            payment_adjuster=payment_adjuster,
-            payment_adjuster2=payment_adjuster2,
-            payment_adjuster3=payment_adjuster3,
-            front_stub=_drb(None, front_stub),
-            back_stub=_drb(None, back_stub),
-            eom=eom_,
-            stub_inference=_get_stub_inference(stub_, front_stub, back_stub),
-        )
+        try:
+            self._obj = Schedule_rs(
+                effective=effective_,
+                termination=termination_,
+                frequency=frequency_,
+                calendar=calendar_,
+                accrual_adjuster=accrual_adjuster,
+                payment_adjuster=payment_adjuster,
+                payment_adjuster2=payment_adjuster2,
+                payment_adjuster3=payment_adjuster3,
+                front_stub=_drb(None, front_stub),
+                back_stub=_drb(None, back_stub),
+                eom=eom_,
+                stub_inference=stub_inference_,
+            )
+        except ValueError:
+            raise ValueError(
+                "A Schedule could not be generated from the parameter combinations:\n"
+                f"effective: {effective}\n"
+                f"front stub: {front_stub}\n"
+                f"back stub: {back_stub}\n"
+                f"termination: {termination}\n"
+                f"frequency: {frequency_}\n"
+                f"stub inference: {stub_inference_}\n"
+                f"accrual adjuster: {accrual_adjuster}\n"
+                f"calendar: {calendar_}\n"
+            )
 
     @classmethod
     def __init_from_obj__(cls, obj: Schedule_rs) -> Schedule:
@@ -387,7 +429,7 @@ class Schedule:
         datetime,
         datetime,
         Frequency,
-        NoInput,
+        StubInference,
         datetime_,
         datetime_,
         NoInput,
@@ -404,7 +446,7 @@ class Schedule:
             self.ueffective,
             self.utermination,
             self.frequency_obj,
-            NoInput(0),
+            StubInference.NeitherSide,
             NoInput(0) if self.ufront_stub is None else self.ufront_stub,
             NoInput(0) if self.uback_stub is None else self.uback_stub,
             NoInput(0),

@@ -297,16 +297,88 @@ def test_schedule_raises(cal_) -> None:
 @pytest.mark.parametrize(
     ("eff", "term", "f", "roll"),
     [
-        (dt(2022, 3, 16), dt(2024, 9, 10), "Q", "imm"),  # non-imm term
-        (dt(2022, 3, 31), dt(2023, 3, 30), "A", "eom"),  # non-eom term
-        (dt(2022, 3, 1), dt(2023, 3, 2), "A", "som"),  # non-som term
-        (dt(2022, 2, 20), dt(2025, 8, 21), "S", 20),  # roll
-        (dt(2022, 2, 28), dt(2024, 2, 28), "S", 30),  # is leap
+        (
+            dt(2022, 3, 16),
+            dt(2024, 9, 10),
+            "Q",
+            "imm",
+        ),  # cannot build because termination does not align with IMM and no back stub specified.
+        (
+            dt(2022, 3, 1),
+            dt(2023, 3, 2),
+            "A",
+            "som",
+        ),  # fails because roll is explicit and a short stub to 1st march 2022 this does not align.
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+        ),  # fails because a short stub cannot be generated aligned with specified roll.
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+        ),  # is leap year 2024 and front stub is specified so 28th Feb '24 does not align with roll
     ],
 )
 def test_unadjusted_regular_swap_dead_stubs(eff, term, f, roll) -> None:
+    # this test isn't really about dead stubs more about misalignment with rolls.
     with pytest.raises(ValueError, match="A Schedule could not be generated from the parameter c"):
+        # the default `stub` is SHORTFRONT
         Schedule(eff, term, f, eom=False, roll=roll)
+
+
+@pytest.mark.parametrize(
+    ("eff", "term", "f", "roll", "stub"),
+    [
+        (
+            dt(2022, 3, 31),
+            dt(2023, 3, 30),
+            "A",
+            "eom",
+            "shortfront",
+        ),  # this builds because it is a single period short stub.
+        (
+            dt(2022, 3, 1),
+            dt(2023, 3, 2),
+            "A",
+            "som",
+            "shortback",
+        ),  # corrects the above test issue by specifying a back stub.
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+            "longback",
+        ),  # corrects to provide a single period stub
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+            "shortback",
+        ),  # corrects to provide a shoprt back stub with regular rolling on 20th
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+            "shortback",
+        ),  # corrects the above to specify a back stub
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+            "longback",
+        ),  # or alternatively with a long back stub
+    ],
+)
+def test_unadjusted_regular_swap_dead_stubs_corrections(eff, term, f, roll, stub) -> None:
+    Schedule(eff, term, f, eom=False, roll=roll, stub=stub)
 
 
 @pytest.mark.parametrize(
