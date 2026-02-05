@@ -90,6 +90,7 @@ class StubInference:
     LongFront: StubInference
     ShortBack: StubInference
     LongBack: StubInference
+    NeitherSide: StubInference
 
     def to_json(self) -> str: ...
 

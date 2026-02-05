@@ -90,7 +90,7 @@ class _WithYTM(_WithAccrued, Protocol):
                     index_curve=index_curve,
                 )
                 if dirty:
-                    return q + self.accrued(settlement, indexed=True, index_curve=index_curve) # type: ignore[call-arg]
+                    return q + self.accrued(settlement, indexed=True, index_curve=index_curve)  # type: ignore[call-arg]
                 else:
                     return q
             else:

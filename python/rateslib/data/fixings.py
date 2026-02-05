@@ -2466,7 +2466,7 @@ class FloatRateSeries:
         self._tenors: list[str] = tenors
         if not isinstance(self.tenors, NoInput) and len(self.tenors) == 0:
             raise ValueError("`tenors` cannot be given as an empty list.")
-        self._zero_float_period_stub = _get_stub_inference(  # type: ignore[assignment]
+        self._zero_float_period_stub = _get_stub_inference(
             _drb("ShortBack", zero_float_period_stub), NoInput(0), NoInput(0)
         )
 

@@ -56,7 +56,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             front_stub=None,
             back_stub=None,
             eom=False,
-            stub_inference=None,
+            stub_inference=StubInference.NeitherSide,
         ),
         Schedule(
             effective=dt(2000, 1, 1),

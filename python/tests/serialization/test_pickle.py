@@ -121,6 +121,15 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             payment_lag=Adjuster.BusDaysLagSettle(2),
             stub=StubInference.ShortBack,
         ),
+        Schedule(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 1),
+            frequency=Frequency.Months(6, RollDay.Day(1)),
+            calendar=NamedCal("tgt"),
+            modifier=Adjuster.ModifiedFollowing(),
+            payment_lag=Adjuster.BusDaysLagSettle(2),
+            stub=StubInference.NeitherSide,
+        ),
         PPSplineF64(3, [0, 0, 0, 1, 1, 1], [0.1, 0.2, 0.3]),
         PPSplineDual(
             3, [0, 0, 0, 1, 1, 1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]
