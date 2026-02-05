@@ -406,31 +406,45 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp) -> None:
 
 # 12th and 13th of Feb and March are Saturday and Sunday
 @pytest.mark.parametrize(
-    ("eff", "term", "roll", "e_bool", "e_ueff", "e_uterm", "e_roll"),
+    ("eff", "term", "roll", "e_ueff", "e_uterm", "e_roll"),
     [
-        (dt(2022, 2, 11), dt(2022, 3, 11), 11, True, dt(2022, 2, 11), dt(2022, 3, 11), 11),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 14, True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 14), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 13), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 13), dt(2022, 3, 13), 13),
-        (dt(2022, 2, 12), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 12), dt(2022, 3, 13), NoInput(0), False, None, None, None),
-        (dt(2022, 2, 14), dt(2022, 3, 12), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 12, True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 11, False, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), NoInput(0), True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
-        (dt(2022, 2, 28), dt(2022, 3, 31), 28, False, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), "eom", True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (dt(2022, 2, 11), dt(2022, 3, 11), 11, dt(2022, 2, 11), dt(2022, 3, 11), 11),
+        (dt(2022, 2, 14), dt(2022, 3, 14), 14, dt(2022, 2, 14), dt(2022, 3, 14), 14),
+        (dt(2022, 2, 14), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 14), dt(2022, 3, 14), 14),
+        (dt(2022, 2, 13), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 13), dt(2022, 3, 13), 13),
+        (dt(2022, 2, 12), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 14), dt(2022, 3, 12), NoInput(0), dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 14), dt(2022, 3, 14), 12, dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 28), dt(2022, 3, 31), NoInput(0), dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (dt(2022, 2, 28), dt(2022, 3, 31), "eom", dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (
+            dt(2022, 2, 12),
+            dt(2022, 3, 13),
+            NoInput(0),
+            dt(2022, 2, 12),
+            dt(2022, 3, 13),
+            13,
+        ),  # dead stub converts to long stub
     ],
 )
-def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll, cal_) -> None:
-    try:
-        result = Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
-    except ValueError:
-        assert not e_bool
-    else:
-        assert result.ueffective == e_ueff
-        assert result.utermination == e_uterm
-        assert result.roll == e_roll
+def test_check_regular_swap_mf(eff, term, roll, e_ueff, e_uterm, e_roll, cal_) -> None:
+    result = Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
+    assert result.ueffective == e_ueff
+    assert result.utermination == e_uterm
+    assert result.roll == e_roll
+
+
+# 12th and 13th of Feb and March are Saturday and Sunday
+@pytest.mark.parametrize(
+    ("eff", "term", "roll"),
+    [
+        (dt(2022, 2, 14), dt(2022, 3, 14), 11),  # fails due to roll misalignment
+        (dt(2022, 2, 28), dt(2022, 3, 31), 28),  # fails due to wrong stub side
+    ],
+)
+def test_check_regular_swap_mf_failures(eff, term, roll, cal_) -> None:
+    with pytest.raises(ValueError):
+        Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
 
 
 @pytest.mark.parametrize(
@@ -1042,3 +1056,19 @@ def test_single_period_from_str_matching_frequency(tenor):
     # When the frequency matches the tenor it should generate only a single period.
     s = Schedule(effective=dt(2025, 1, 15), termination=tenor, frequency=tenor)
     assert s.n_periods == 1
+
+
+@pytest.mark.parametrize("stub", ["shortfront", "shortback"])
+def test_dead_stub_failures(stub) -> None:
+    # this test attempts to build a schedule from unadjusted saturday to unadjusted sunday
+    # using a 7d frequency. This converts the dead short stub to a long stub and thereby
+    # defines only one period.
+    s = Schedule(
+        effective=dt(2026, 1, 3),  # saturday
+        termination=dt(2026, 1, 11),  # sunday
+        frequency="7d",
+        calendar="bus",
+        modifier="f",
+        stub=stub,
+    )
+    assert s.uschedule == [dt(2026, 1, 3), dt(2026, 1, 11)]

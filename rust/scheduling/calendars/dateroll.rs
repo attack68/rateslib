@@ -673,7 +673,6 @@ $$$$$$$$$$$$$$$$$$$$
     fn test_print_year() {
         let cal = Cal::new(vec![ndt(2026, 1, 1), ndt(2026, 1, 19)], vec![5, 6]);
         let result = cal.print_year(2026);
-        println!("{}", result);
         let raw_output = r#"
         January 2026             April 2026              July 2026           October 2026
 Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa

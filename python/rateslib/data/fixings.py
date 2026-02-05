@@ -2445,7 +2445,7 @@ class FloatRateSeries:
     _modifier: Adjuster
     _convention: Convention
     _eom: bool
-    _zero_float_period_stub: StubInference
+    _zero_period_stub: StubInference
     _tenors: list[str] | NoInput
 
     def __init__(
@@ -2455,7 +2455,7 @@ class FloatRateSeries:
         modifier: Adjuster | str,
         convention: Convention | str,
         eom: bool,
-        zero_float_period_stub: StubInference | str_ = NoInput(0),
+        zero_period_stub: StubInference | str_ = NoInput(0),
         tenors: list[str] | NoInput = NoInput(0),
     ) -> None:
         self._lag = lag
@@ -2466,8 +2466,8 @@ class FloatRateSeries:
         self._tenors: list[str] = tenors
         if not isinstance(self.tenors, NoInput) and len(self.tenors) == 0:
             raise ValueError("`tenors` cannot be given as an empty list.")
-        self._zero_float_period_stub = _get_stub_inference(
-            _drb("ShortBack", zero_float_period_stub), NoInput(0), NoInput(0)
+        self._zero_period_stub = _get_stub_inference(
+            _drb("ShortBack", zero_period_stub), NoInput(0), NoInput(0)
         )
 
     @property
@@ -2498,10 +2498,10 @@ class FloatRateSeries:
         return self._eom
 
     @property
-    def zero_float_period_stub(self) -> StubInference:
+    def zero_period_stub(self) -> StubInference:
         """:class:`~rateslib.scheduling.StubInference` used when a fixing tenor does not divide
         into the frequency of a compounded :class:`~rateslib.periods.ZeroFloatPeriod`."""
-        return self._zero_float_period_stub
+        return self._zero_period_stub
 
     @property
     def tenors(self) -> list[str] | NoInput:
