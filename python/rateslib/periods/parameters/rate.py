@@ -250,7 +250,7 @@ def _init_float_rate_series(
                 mod_days=not isinstance(fixing_method, FloatFixingMethod.IBOR),
             ),
             eom=defaults.eom,
-            zero_float_period_stub=StubInference.ShortBack,  # TODO:  hard coded default replaced?
+            zero_period_stub=StubInference.ShortBack,  # TODO:  hard coded default replaced?
         )
 
 

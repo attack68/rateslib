@@ -949,7 +949,7 @@ class TestFloatLeg:
                 convention="Act365F",
                 calendar="bjs",
                 tenors=["7D"],
-                zero_float_period_stub="shortback",
+                zero_period_stub="shortback",
                 modifier="F",
                 eom=False,
             ),

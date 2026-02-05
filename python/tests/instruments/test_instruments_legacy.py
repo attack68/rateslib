@@ -19,7 +19,7 @@ from pandas.testing import assert_frame_equal
 from rateslib import default_context, defaults, fixings
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.curves._parsers import _map_curve_from_solver
-from rateslib.data.fixings import FXIndex
+from rateslib.data.fixings import FloatRateSeries, FXIndex, IBORStubFixing
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.enums.parameters import FloatFixingMethod, LegMtm
@@ -68,6 +68,7 @@ from rateslib.instruments.protocols.pricing import (
 #     _get_curves_fx_and_base_maybe_from_solver,
 # )
 from rateslib.legs import Amortization
+from rateslib.periods import ZeroFloatPeriod
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
 
@@ -1570,6 +1571,104 @@ class TestIRS:
         r1 = irs.npv(curves=[curve])
         r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
         assert r1 == r2
+
+    def test_cny_zero_periods(self):
+        irs = IRS(
+            effective=dt(2026, 2, 4),
+            termination=dt(2031, 2, 4),
+            frequency="Q",
+            calendar="bjs",
+            modifier="F",
+            payment_lag=0,
+            leg2_fixing_method="ibor(1)",
+            convention="act365F",
+            leg2_fixing_frequency="7D",
+            leg2_fixing_series=FloatRateSeries(
+                lag=1,
+                convention="act365f",
+                calendar="bjs",
+                modifier="f",
+                tenors=["7D"],
+                zero_period_stub="shortback",
+                eom=False,
+            ),
+            leg2_zero_periods=True,
+        )
+
+        assert isinstance(irs.leg2.periods[0], ZeroFloatPeriod)
+        fixing_dates = [
+            dt(2026, 2, 3),
+            dt(2026, 2, 10),
+            dt(2026, 2, 14),
+            dt(2026, 2, 24),
+            dt(2026, 3, 3),
+            dt(2026, 3, 10),
+            dt(2026, 3, 17),
+            dt(2026, 3, 24),
+            dt(2026, 3, 31),
+            dt(2026, 4, 7),
+            dt(2026, 4, 14),
+            dt(2026, 4, 21),
+            dt(2026, 4, 28),
+        ]
+        for i, float_period in enumerate(irs.leg2.periods[0].float_periods):
+            assert float_period.rate_params.rate_fixing.date == fixing_dates[i]
+
+        # test even stub sub-periods are fixed veruss "7D"
+        assert isinstance(
+            irs.leg2.periods[1].float_periods[-1].rate_params.rate_fixing, IBORStubFixing
+        )
+        assert isinstance(
+            irs.leg2.periods[1].float_periods[-1].rate_params.rate_fixing.fixing2, NoInput
+        )
+
+    def test_cny_golden_week_npv(self):
+        fixings.add(
+            "CNR7_1W",
+            Series(
+                index=[dt(2025, 9, 23), dt(2025, 9, 30), dt(2025, 10, 14)],
+                data=[1.53, 1.65, 1.48],
+            ),
+        )
+        irs = IRS(
+            effective=dt(2025, 9, 24),
+            termination=dt(2025, 10, 22),
+            frequency="Q",
+            payment_lag=0,
+            leg2_fixing_method="ibor(1)",
+            leg2_fixing_frequency="7D",
+            leg2_zero_periods=True,
+            leg2_rate_fixings="CNR7",
+            leg2_fixing_series=FloatRateSeries(
+                lag=1,
+                calendar="bjs",
+                convention="act365f",
+                tenors=["7D"],
+                zero_period_stub="shortback",
+                modifier="F",
+                eom=False,
+            ),
+            fixed_rate=3.0,
+            calendar="bjs",
+            convention="act365F",
+            notional=-100e6,
+        )
+        curve = Curve(
+            {dt(2025, 10, 21): 1.0, dt(2026, 10, 21): 0.99}, calendar="bjs", convention="act365f"
+        )
+        npv = irs.npv(curves=curve)
+        cf = irs.cashflows(curves=curve)
+
+        assert abs(cf.loc[("leg1", 0), "Cashflow"] - 230136.99) < 1e-2
+        assert abs(cf.loc[("leg2", 0), "Cashflow"] + 118426.165) < 1e-2
+
+        expected_rate = (
+            ((1 + 1.53 * 15 / 36500) * (1 + 1.65 * 6 / 36500) * (1 + 1.48 * 7 / 36500) - 1)
+            * 36500
+            / 28
+        )
+        assert abs(cf.loc[("leg2", 0), "Rate"] - expected_rate) < 1e-4
+        fixings.pop("CNR7_1W")
 
 
 class TestNDIRS:
@@ -5821,6 +5920,7 @@ class TestSpec:
             leg2_pair=NoInput(1),
             fx_fixings=NoInput(0),
             leg2_fx_fixings=NoInput(1),
+            leg2_zero_periods=NoInput(0),
             mtm=LegMtm.Payment,
             leg2_mtm=LegMtm.Payment,
             schedule=Schedule(

@@ -61,7 +61,8 @@ if TYPE_CHECKING:
 
 class FloatLeg(_BaseLeg, _WithExDiv):
     """
-    A *Leg* containing :class:`~rateslib.periods.FloatPeriod`.
+    A *Leg* containing :class:`~rateslib.periods.FloatPeriod`
+    (or optionally multiple :class:`~rateslib.periods.ZeroFloatPeriod`).
 
     .. rubric:: Examples
 
@@ -70,7 +71,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
 
        from rateslib import fixings, Schedule, Curve, FloatRateSeries
        from pandas import Series
-       from rateslib.legs import FloatLeg
+       from rateslib.legs import FloatLeg, CustomLeg
        from datetime import datetime as dt
 
     .. ipython:: python
@@ -255,7 +256,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
              :class:`~rateslib.periods.ZeroFloatPeriod`. This is inefficient and removes
              other features.
 
-       .. tab:: RFR Average
+       .. tab:: RFR Avg.
 
           To construct an **RFR averaged** type use an *'average'* type variant of the
           :class:`~rateslib.enums.FloatFixingMethod` for the ``fixing_method`` parameter.
@@ -310,11 +311,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                  currency="eur",
                  convention="Act360",
                  fixing_method="ibor(2)",
-                 fixing_series="eur_ibor",
+                 calendar="tgt",
              )
              ibor_standard.cashflows(rate_curve=curve)
 
-       .. tab:: Misaligned IBOR
+       .. tab:: Unaligned IBOR
 
           To construct a *Leg* with a different tenor **IBOR** index to that of the schedule,
           specify the ``fixing_frequency`` directly.
@@ -345,19 +346,24 @@ class FloatLeg(_BaseLeg, _WithExDiv):
              )
              ibor_misaligned.cashflows(rate_curve=curve)
 
-       .. tab:: Multi-Period IBOR
+       .. tab:: Multi-IBOR
 
           To construct a *Leg* with multiple IBOR tenor indexes compounded over a single
           *Period* set ``zero_periods`` to True. Each *Period* will then be a
           :class:`~rateslib.periods.ZeroFloatPeriod`.
 
-          The sub- :class:`~rateslib.scheduling.Schedule` of each *ZeroPeriod* is defined by the
-          start and end unadjusted accrual dates from the main ``schedule`` whose *frequency* is
-          set by ``fixing_frequency``.
+          This means that each :class:`~rateslib.periods.ZeroFloatPeriod` will need to construct
+          a sub- :class:`~rateslib.scheduling.Schedule` to define its IBOR publications. Each
+          sub- :class:`~rateslib.scheduling.Schedule` has a *frequency* equal to
+          ``fixing_frequency`` and each *effective* and *termination* dates match the
+          *start* and *end* unadjusted accrual dates for each *Period* of the main
+          ``schedule``. When a stub is required, these sub-schedules take steer directly from the
+          :class:`~rateslib.data.fixings.FloatRateSeries` parameters.
 
           Note the ``float_spread`` is added to each individual
           :class:`~rateslib.periods.FloatPeriod` and then all resultant rates are compounded to
-          yield the final rate for the :class:`~rateslib.periods.ZeroFloatPeriod`.
+          yield the final rate for the :class:`~rateslib.periods.ZeroFloatPeriod` (this an
+          ISDA compounded type calculation).
 
           Two use cases of this have been identified;
 
@@ -382,6 +388,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                    float_spread=75.0,
                )
                float_leg.cashflows(rate_curve=curve)
+               CustomLeg(float_leg.periods[0].float_periods).cashflows(rate_curve=curve)
 
           - CNY *IRS* with quarterly payments setting to 7D tenor rate. Note that these periods
             are often not perfectly divisible, resulting in stub periods within each
@@ -659,6 +666,13 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 [
                     ZeroFloatPeriod(
                         schedule=Schedule(
+                            # BBG appears to use the `aschedule` for defining these periods.
+                            # rateslib uses the `uschedule` because it is more consistent from
+                            # outer period to outer period, but more real life example are
+                            # required to fully qualify what should be used here.
+                            # Additionally if adjusted dates were used, rateslib inference means it
+                            # might assert unadjusted start dates which may not align with the
+                            # outer schedule. Matching unadjusted dates mitigates inconsistency.
                             effective=self.schedule.uschedule[i],
                             termination=self.schedule.uschedule[i + 1],
                             frequency=fixing_frequency,
@@ -668,7 +682,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                             if self.schedule.payment_adjuster3 is not None
                             else NoInput(0),
                             calendar=self.schedule.calendar,
-                            stub=fixing_series_.zero_float_period_stub,
+                            stub=fixing_series_.zero_period_stub,
                         ),
                         float_spread=float_spread,
                         rate_fixings=rate_fixings_list[i],

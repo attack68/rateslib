@@ -212,6 +212,9 @@ class IRS(_BaseInstrument):
         See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
         to the central ``fixings`` object and data loader.
+    leg2_zero_periods: bool, :green:`optional (set as False)`
+        Used to define whether to use a multi-period IBOR classification. See
+        :class:`~rateslib.legs.FloatLeg` for examples.
 
         .. note::
 
@@ -374,6 +377,7 @@ class IRS(_BaseInstrument):
         leg2_fixing_method: str_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
+        leg2_zero_periods: bool_ = NoInput(0),
         # meta parameters
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -426,6 +430,7 @@ class IRS(_BaseInstrument):
             leg2_fixing_method=leg2_fixing_method,
             leg2_fixing_series=leg2_fixing_series,
             leg2_fixing_frequency=leg2_fixing_frequency,
+            leg2_zero_periods=leg2_zero_periods,
             # meta
             curves=self._parse_curves(curves),
         )
