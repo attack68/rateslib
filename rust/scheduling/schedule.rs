@@ -427,12 +427,10 @@ impl Schedule {
                     &accrual_adjuster,
                     &calendar,
                 );
-                if valid_stub.is_err() {  // an error indicates a dead stub so convert to Long
-                    ufront_stub = frequency.try_infer_ufront_stub(
-                        &interior_start,
-                        &interior_end,
-                        false,
-                    )?;
+                if valid_stub.is_err() {
+                    // an error indicates a dead stub so convert to Long
+                    ufront_stub =
+                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?;
                 }
                 (ufront_stub, uback_stub)
             }
@@ -479,12 +477,10 @@ impl Schedule {
                     &accrual_adjuster,
                     &calendar,
                 );
-                if valid_stub.is_err() {  // error indicates a dead stub so convert to Long
-                    uback_stub = frequency.try_infer_uback_stub(
-                        &interior_start,
-                        &interior_end,
-                        false,
-                    )?;
+                if valid_stub.is_err() {
+                    // error indicates a dead stub so convert to Long
+                    uback_stub =
+                        frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?;
                 }
                 (ufront_stub, uback_stub)
             }
