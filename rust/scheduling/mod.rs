@@ -100,7 +100,7 @@
 //!    Adjuster::Actual{},                      // payment_adjuster2
 //!    None,                                    // payment_adjuster3
 //!    false,                                   // eom
-//!    Some(StubInference::ShortFront),         // stub_inference
+//!    StubInference::ShortFront,               // stub_inference
 //! );
 //! # let schedule = schedule.unwrap();
 //! assert_eq!(schedule.frequency, Frequency::Months{number:3, roll: Some(RollDay::IMM())});
@@ -125,7 +125,7 @@
 //!    Adjuster::Actual{},                      // payment_adjuster2
 //!    None,                                    // payment_adjuster3
 //!    true,                                    // eom
-//!    Some(StubInference::ShortFront),         // stub_inference
+//!    StubInference::ShortFront,               // stub_inference
 //! );
 //! # let schedule = schedule.unwrap();
 //! assert_eq!(schedule.frequency, Frequency::Months{number:3, roll: Some(RollDay::Day(31))});
