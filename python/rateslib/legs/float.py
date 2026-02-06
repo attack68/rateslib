@@ -311,7 +311,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                  currency="eur",
                  convention="Act360",
                  fixing_method="ibor(2)",
-                 calendar="tgt",
              )
              ibor_standard.cashflows(rate_curve=curve)
 
@@ -412,7 +411,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                        convention="Act365F",
                        calendar="bjs",
                        tenors=["7D"],
-                       zero_float_period_stub="shortback",
+                       zero_period_stub="shortback",
                        modifier="F",
                        eom=False,
                    ),
