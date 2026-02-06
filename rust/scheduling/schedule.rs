@@ -1672,7 +1672,6 @@ mod tests {
             // frequency
             number: 7,
         };
-        let bs = f.try_infer_uback_stub(&ndt(2028, 11, 4), &ndt(2029, 2, 4), true);
         let s = Schedule::try_new_infer_stub(
             ndt(2028, 11, 4),                                      // ueffective
             ndt(2029, 2, 4),                                       // utermination
