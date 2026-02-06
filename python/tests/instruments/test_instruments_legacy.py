@@ -1656,7 +1656,7 @@ class TestIRS:
         curve = Curve(
             {dt(2025, 10, 21): 1.0, dt(2026, 10, 21): 0.99}, calendar="bjs", convention="act365f"
         )
-        npv = irs.npv(curves=curve)
+        _npv = irs.npv(curves=curve)
         cf = irs.cashflows(curves=curve)
 
         assert abs(cf.loc[("leg1", 0), "Cashflow"] - 230136.99) < 1e-2
