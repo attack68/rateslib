@@ -245,13 +245,13 @@ class YoYIS(_BaseInstrument):
 
     .. math::
 
-       \mathbb{E^Q} [\bar{C}_t] = -N d
+       \mathbb{E^Q} [\bar{C}_t] = -N_i d_i
 
     and the indexed reference cashflow, accounting for indexation only, is:
 
     .. math::
 
-       -N d ( \frac{I_v(m_i)}{I_v(m_{i-1})} - 1 )
+       -N_i d_i ( \frac{I_v(m_i)}{I_v(m_{i-1})} - 1 )
 
     which matches the definition of the indexed *Leg* of a *YoYIS*.
 
