@@ -16,15 +16,15 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import LegIndexBase
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
     _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
     _Vol,
 )
-from rateslib.legs import FixedLeg, FloatLeg
+from rateslib.legs import FixedLeg
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -33,12 +33,12 @@ if TYPE_CHECKING:
         DataFrame,
         DualTypes,
         DualTypes_,
-        FloatRateSeries,
         Frequency,
         FXForwards_,
         IndexMethod,
         LegFixings,
         RollDay,
+        Sequence,
         Solver_,
         VolT_,
         _BaseLeg,
@@ -51,34 +51,35 @@ if TYPE_CHECKING:
     )
 
 
-class IIRS(_BaseInstrument):
-    """
-    An *indexed interest rate swap (IIRS)* composing a :class:`~rateslib.legs.FixedLeg`
-    and a :class:`~rateslib.legs.FloatLeg`.
+class YoYIS(_BaseInstrument):
+    r"""
+    A *year-on-year indexed swap (YoYIS)* composing two :class:`~rateslib.legs.FixedLeg` with the
+    second having ``index_params``.
 
     .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import IIRS
+       from rateslib.instruments import YoYIS
        from rateslib import fixings
        from datetime import datetime as dt
        from pandas import Series
 
     .. ipython:: python
 
-       fixings.add("CPI_UK", Series(index=[dt(1999, 10, 1), dt(1999, 11, 1)], data=[110.0, 112.0]))
-       iirs = IIRS(
+       fixings.add("CPI_UK", Series(index=[dt(1999, 10, 1), dt(2000, 10, 1), dt(2001, 10, 1), dt(2002, 10, 1)], data=[110.0, 120.0, 125.0, 127.0]))
+       yoyis = YoYIS(
            effective=dt(2000, 1, 1),
-           termination="2y",
+           termination="3y",
            frequency="A",
-           leg2_frequency="S",
-           index_fixings="CPI_UK",
-           index_lag=3,
            fixed_rate=2.0,
+           convention="One",
+           leg2_index_fixings="CPI_UK",
+           leg2_index_lag=3,
+           leg2_index_method="monthly",
        )
-       iirs.cashflows()
+       yoyis.cashflows()
 
     .. ipython:: python
        :suppress:
@@ -87,19 +88,16 @@ class IIRS(_BaseInstrument):
 
     .. rubric:: Pricing
 
-    An *IIRS* requires a *disc curve* on both legs (which should be the same *Curve*), an
-    *index curve* for index forecasting on the *FixedLeg*, and a
-    *leg2 rate curve* to forecast rates on the *FloatLeg*. The following input formats are
-    allowed:
+    An *YoYIS* requires a *disc curve* on both legs (which should be the same *Curve*), and a
+    *leg2 index curve* for index forecasting on the second *FixedLeg*.
+    The following input formats are allowed:
 
     .. code-block:: python
 
-       curves = [index_curve, disc_curve, leg2_rate_curve]  #  three curves are applied in order
-       curves = [index_curve, disc_curve, leg2_rate_curve, disc_curve]  # four curves applied to each leg
+       curves = [index_curve, disc_curve]  #  two curves are applied in order
        curves = {  # dict form is explicit
-           "leg2_rate_curve": leg2_rate_curve,
            "disc_curve": disc_curve,
-           "index_curve": index_curve,
+           "leg2_index_curve": index_curve,
        }
 
     .. role:: red
@@ -187,9 +185,6 @@ class IIRS(_BaseInstrument):
 
     currency : str, :green:`optional (set by 'defaults')`
         The local settlement currency of the *Instrument* (3-digit code).
-    notional_exchange: bool, :green:`optional (set as False)`
-        Whether to include a final notional exchange on both legs, which affects the PV since
-        the *FixedLeg* has an *indexed* cashflow.
     notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
         The initial leg notional, defined in units of *reference currency*.
     amortization: float, Dual, Dual2, Variable, str, Amortization, :green:`optional (set as zero)`
@@ -206,41 +201,16 @@ class IIRS(_BaseInstrument):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
-        of the floating rate for each period.
-    leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
-        The :class:`~rateslib.scheduling.Frequency` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
-        frequency of the schedule for an IBOR type ``fixing_method`` or '1B' if RFR type.
-    leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
-        The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
-        :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
-    leg2_float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
-        The amount (in bps) added to the rate in each period rate determination.
-    leg2_spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.SpreadCompoundMethod` used in the calculation
-        of the period rate when combining a ``float_spread``. Used **only** with RFR type
-        ``fixing_method``.
-    leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
-        See :ref:`Fixings <fixings-doc>`.
-        The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
-        to the central ``fixings`` object and data loader.
 
         .. note::
 
            The following parameters define **indexation**.
 
-    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
+    leg2_index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
         The interpolation method, or otherwise, to determine index values from reference dates.
-    index_lag: int, :green:`optional (set by 'defaults')`
+    leg2_index_lag: int, :green:`optional (set by 'defaults')`
         The indexation lag, in months, applied to the determination of index values.
-    index_base: float, Dual, Dual2, Variable, :green:`optional`
-        The specific value applied as the base index value for all *Periods*.
-        If not given and ``index_fixings`` is a string fixings identifier that will be
-        used to determine the base index value.
-    index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+    leg2_index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
         ``fixings`` object.
@@ -256,12 +226,42 @@ class IIRS(_BaseInstrument):
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
 
+    Notes
+    -------
+
+    A *YoYIS* has a nominal :class:`~rateslib.legs.FixedLeg` with a specific ``fixed_rate``, and
+    a second *Leg*  whose cash flows are defined by some index values. *Rateslib* constructs this
+    object as a second :class:`~rateslib.legs.FixedLeg` which inherits specific properties,
+    namely:
+
+    - The ``leg2_index_base_type`` is *LegIndexBase.PeriodOnPeriod*, to ensure that indexing is not
+      calculated from one single ``leg2_index_base`` value, but by consecutive dates.
+    - The ``leg2_fixed_rate`` is 100% to provide a coupon amount that matches the notional.
+    - The ``leg2_index_only`` parameter is *True* to ensure that the cashflow paid only accounts for
+      indexation and does not pay that 100% of notional.
+
+    Under this definition the unindexed reference cashflow of each period of *Leg2* is the notional
+    adjusted by the DCF:
+
+    .. math::
+
+       \mathbb{E^Q} [\bar{C}_t] = -N_i d_i
+
+    and the indexed reference cashflow, accounting for indexation only, is:
+
+    .. math::
+
+       -N_i d_i ( \frac{I_v(m_i)}{I_v(m_{i-1})} - 1 )
+
+    which matches the definition of the indexed *Leg* of a *YoYIS*.
+
     """  # noqa: E501
 
     _rate_scalar = 1.0
 
     @property
     def fixed_rate(self) -> DualTypes_:
+        """The fixed rate of *Leg1*."""
         return self.leg1.fixed_rate
 
     @fixed_rate.setter
@@ -270,26 +270,17 @@ class IIRS(_BaseInstrument):
         self.leg1.fixed_rate = value
 
     @property
-    def leg2_float_spread(self) -> DualTypes_:
-        return self.leg2.float_spread
-
-    @leg2_float_spread.setter
-    def leg2_float_spread(self, value: DualTypes) -> None:
-        self.kwargs.leg2["float_spread"] = value
-        self.leg2.float_spread = value
-
-    @property
     def leg1(self) -> FixedLeg:
         """The :class:`~rateslib.legs.FixedLeg` of the *Instrument*."""
         return self._leg1
 
     @property
-    def leg2(self) -> FloatLeg:
-        """The :class:`~rateslib.legs.FloatLeg` of the *Instrument*."""
+    def leg2(self) -> FixedLeg:
+        """The second :class:`~rateslib.legs.FixedLeg` of the *Instrument* with indexation."""
         return self._leg2
 
     @property
-    def legs(self) -> list[_BaseLeg]:
+    def legs(self) -> Sequence[_BaseLeg]:
         """A list of the *Legs* of the *Instrument*."""
         return self._legs
 
@@ -326,24 +317,16 @@ class IIRS(_BaseInstrument):
         leg2_ex_div: int_ = NoInput(1),
         # settlement params
         currency: str_ = NoInput(0),
-        notional_exchange: bool = False,
         notional: float_ = NoInput(0),
         amortization: float_ = NoInput(0),
         leg2_notional: float_ = NoInput(-1),
         leg2_amortization: float_ = NoInput(-1),
         # index params
-        index_base: DualTypes_ = NoInput(0),
-        index_lag: int_ = NoInput(0),
-        index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: LegFixings = NoInput(0),
+        leg2_index_lag: int_ = NoInput(0),
+        leg2_index_method: IndexMethod | str_ = NoInput(0),
+        leg2_index_fixings: LegFixings = NoInput(0),
         # rate params
         fixed_rate: DualTypes_ = NoInput(0),
-        leg2_float_spread: DualTypes_ = NoInput(0),
-        leg2_spread_compound_method: str_ = NoInput(0),
-        leg2_rate_fixings: LegFixings = NoInput(0),
-        leg2_fixing_method: str_ = NoInput(0),
-        leg2_fixing_frequency: Frequency | str_ = NoInput(0),
-        leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta params
         curves: CurvesT_ = NoInput(0),
         spec: str_ = NoInput(0),
@@ -353,10 +336,9 @@ class IIRS(_BaseInstrument):
             termination=termination,
             frequency=frequency,
             fixed_rate=fixed_rate,
-            index_base=index_base,
-            index_lag=index_lag,
-            index_method=index_method,
-            index_fixings=index_fixings,
+            leg2_index_lag=leg2_index_lag,
+            leg2_index_method=leg2_index_method,
+            leg2_index_fixings=leg2_index_fixings,
             stub=stub,
             front_stub=front_stub,
             back_stub=back_stub,
@@ -371,12 +353,6 @@ class IIRS(_BaseInstrument):
             currency=currency,
             amortization=amortization,
             convention=convention,
-            leg2_float_spread=leg2_float_spread,
-            leg2_spread_compound_method=leg2_spread_compound_method,
-            leg2_rate_fixings=leg2_rate_fixings,
-            leg2_fixing_method=leg2_fixing_method,
-            leg2_fixing_series=leg2_fixing_series,
-            leg2_fixing_frequency=leg2_fixing_frequency,
             leg2_effective=leg2_effective,
             leg2_termination=leg2_termination,
             leg2_frequency=leg2_frequency,
@@ -394,13 +370,16 @@ class IIRS(_BaseInstrument):
             leg2_amortization=leg2_amortization,
             leg2_convention=leg2_convention,
             curves=self._parse_curves(curves),
-            final_exchange=notional_exchange,
-            leg2_final_exchange=notional_exchange,
         )
         instrument_args = dict(  # these are hard coded arguments specific to this instrument
             leg2_currency=NoInput(1),
             initial_exchange=False,
             leg2_initial_exchange=False,
+            final_exchange=False,
+            leg2_final_exchange=False,
+            leg2_index_base_type=LegIndexBase.PeriodOnPeriod,
+            leg2_fixed_rate=100.0,  # combined with index_only this acts similarly to a cashflow
+            leg2_index_only=True,  # but it is impacted by the DCF of the period.
             vol=_Vol(),
         )
 
@@ -419,7 +398,7 @@ class IIRS(_BaseInstrument):
         )
 
         self._leg1 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self._leg2 = FloatLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._leg2 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self._leg1, self._leg2]
 
     def rate(
@@ -437,30 +416,16 @@ class IIRS(_BaseInstrument):
         _curves = self._parse_curves(curves)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
+            rate_curve=NoInput(0),
             disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
-            index_curve=NoInput(0),
+            index_curve=_maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_index_curve", solver
+            ),
             settlement=settlement,
             forward=forward,
         )
-
-        # self.leg1.fixed_rate = 0.0
-        # leg1_npv: DualTypes = self.leg1.local_npv(
-        #     rate_curve=NoInput(0),
-        #     disc_curve=_get_maybe_curve_maybe_from_solver(
-        #         self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        #     ),
-        #     index_curve=_get_maybe_curve_maybe_from_solver(
-        #         self.kwargs.meta["curves"], _curves, "index_curve", solver
-        #     ),
-        #     settlement=settlement,
-        #     forward=forward,
-        # )
-        # self.leg1.fixed_rate = self.kwargs.leg1["fixed_rate"]
 
         return (
             self.leg1.spread(
@@ -469,9 +434,7 @@ class IIRS(_BaseInstrument):
                 disc_curve=_maybe_get_curve_maybe_from_solver(
                     self.kwargs.meta["curves"], _curves, "disc_curve", solver
                 ),
-                index_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "index_curve", solver
-                ),
+                index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
             )
@@ -496,21 +459,19 @@ class IIRS(_BaseInstrument):
             disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "disc_curve", solver
             ),
-            index_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "index_curve", solver
-            ),
+            index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
         )
         return self.leg2.spread(
             target_npv=-leg1_npv,
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
+            rate_curve=NoInput(0),
             disc_curve=_maybe_get_curve_maybe_from_solver(
                 self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
             ),
-            index_curve=NoInput(0),
+            index_curve=_maybe_get_curve_maybe_from_solver(
+                self.kwargs.meta["curves"], _curves, "leg2_index_curve", solver
+            ),
             settlement=settlement,
             forward=forward,
         )
@@ -573,9 +534,9 @@ class IIRS(_BaseInstrument):
             return _Curves(
                 disc_curve=curves.get("disc_curve", NoInput(0)),
                 index_curve=curves.get("index_curve", NoInput(0)),
-                leg2_rate_curve=_drb(
-                    curves.get("rate_curve", NoInput(0)),
-                    curves.get("leg2_rate_curve", NoInput(0)),
+                leg2_index_curve=_drb(
+                    curves.get("index_curve", NoInput(0)),
+                    curves.get("leg2_index_curve", NoInput(0)),
                 ),
                 leg2_disc_curve=_drb(
                     curves.get("disc_curve", NoInput(0)),
@@ -583,28 +544,20 @@ class IIRS(_BaseInstrument):
                 ),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) == 3:
+            if len(curves) == 2:
                 return _Curves(
                     disc_curve=curves[1],
-                    index_curve=curves[0],
-                    leg2_rate_curve=curves[2],
+                    leg2_index_curve=curves[0],
                     leg2_disc_curve=curves[1],
-                )
-            elif len(curves) == 4:
-                return _Curves(
-                    disc_curve=curves[1],
-                    index_curve=curves[0],
-                    leg2_rate_curve=curves[2],
-                    leg2_disc_curve=curves[3],
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires 3 curve types. Got {len(curves)}."
+                    f"{type(self).__name__} requires 2 curve types. Got {len(curves)}."
                 )
         elif isinstance(curves, _Curves):
             return curves
         else:  # `curves` is just a single input which is copied across all curves
-            raise ValueError(f"{type(self).__name__} requires 3 curve types. Got 1.")
+            raise ValueError(f"{type(self).__name__} requires 2 curve types. Got 1.")
 
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()

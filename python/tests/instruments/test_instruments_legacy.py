@@ -54,6 +54,7 @@ from rateslib.instruments import (
     Spread,
     STIRFuture,
     Value,
+    YoYIS,
 )
 from rateslib.instruments.bonds.conventions import US_GB
 from rateslib.instruments.protocols.kwargs import (
@@ -2160,6 +2161,131 @@ class TestIIRS:
         )
         result = iirs.rate()
         assert abs(result - 1.9775254614497422) < 1e-8
+
+
+class TestYoYIS:
+    def test_index_fixings(self, curve) -> None:
+        name = str(hash(os.urandom(2)))
+        fixings.add(
+            name,
+            Series(
+                index=[
+                    dt(2025, 11, 1),
+                    dt(2026, 11, 1),
+                    dt(2027, 11, 1),
+                    dt(2028, 11, 1),
+                    dt(2029, 11, 1),
+                    dt(2030, 11, 1),
+                ],
+                data=[324.09771, 332.32169, 340.43872, 348.73351, 357.21860, 366.05583],
+            ),
+        )
+        yoyis = YoYIS(
+            effective=dt(2026, 2, 11),
+            termination="5y",
+            frequency="A",
+            fixed_rate=2.473874,
+            convention="ActActIsda",
+            leg2_index_lag=3,
+            leg2_index_method="monthly",
+            leg2_index_fixings=name,
+            notional=10e6,
+            calendar="nyc",
+        )
+        expected_cashflows = [253750.018, 244177.225, 244392.329, 242644.969, 247389.973]
+        cashflows = yoyis.cashflows(curves=[NoInput(0), curve])
+        for i in range(5):
+            value = cashflows.loc["leg2", "Cashflow"].iloc[i]
+            assert abs(value - expected_cashflows[i]) < 1e-2
+
+        expected_cashflows = [
+            -247387.40,
+            -247311.47,
+            -248141.10,
+            -246709.63,
+            -247387.40,
+        ]
+        cashflows = yoyis.cashflows(curves=[NoInput(0), curve])
+        for i in range(5):
+            value = cashflows.loc["leg1", "Cashflow"].iloc[i]
+            assert abs(value - expected_cashflows[i]) < 1e-2
+
+        npv = yoyis.npv(curves=[NoInput(0), curve])
+        assert abs(npv + 3002.4397) < 1e-3
+
+        rate = yoyis.rate(curves=[NoInput(0), curve])
+        analytic_delta = yoyis.analytic_delta(curves=[NoInput(0), curve])
+
+        assert abs((2.473874 - rate) * analytic_delta * 100.0 - 3002.4397) < 1e-3
+
+    def test_cashflows_no_index_base(self, curve) -> None:
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+            interpolation="linear_index",
+        )
+        yoyis = YoYIS(
+            effective=dt(2022, 2, 1),
+            termination="3y",
+            frequency="A",
+            fixed_rate=2.0,
+            convention="One",
+            leg2_index_lag=3,
+        )
+        result = yoyis.cashflows(curves=[i_curve, curve])
+        expected = [200.0, 204.193474, 208.386949]
+        for i in range(3):
+            assert abs(result.loc["leg2", "Index Base"].iloc[i] - expected[i]) < 1e-6
+
+        expected_cashflows = [204.193474 / 200.0, 208.386949 / 204.193474]
+        for i in range(2):
+            expected = 1e6 * (expected_cashflows[i] - 1)
+            assert abs(result.loc["leg2", "Cashflow"].iloc[i] - expected) < 1e-2
+
+    def test_yoyis_npv_mid_mkt_zero(self, curve) -> None:
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+            interpolation="linear_index",
+        )
+        name = str(hash(os.urandom(8)))
+        fixings.add(name=name, series=Series(index=[dt(2000, 1, 1)], data=[1.00]))
+        yoyis = YoYIS(
+            effective=dt(2022, 2, 1),
+            termination="3y",
+            frequency="A",
+            convention="One",
+            leg2_index_lag=3,
+            leg2_index_fixings=name,
+            leg2_index_method="monthly",
+        )
+
+        initial_mid = yoyis.rate(curves=[i_curve, curve])
+        result = yoyis.npv(curves=[i_curve, curve])
+        assert abs(result) < 1e-8
+
+        yoyis.fixed_rate = initial_mid
+        fixings.pop(name)
+        fixings.add(name=name, series=Series(index=[dt(2021, 11, 1)], data=[500.0]))
+        result2 = yoyis.npv(curves=[i_curve, curve])
+        assert result2 < 500000
+        assert yoyis.leg2._regular_periods[0].index_params.index_base.value == 500.0
+
+        new_mid = yoyis.rate(curves=[i_curve, curve])
+        assert new_mid - initial_mid < -20.0
+
+    def test_fixings_table(self, curve):
+        i_curve = Curve(
+            {dt(2022, 1, 1): 1.0, dt(2022, 2, 1): 0.5, dt(2034, 1, 1): 0.4},
+            index_lag=3,
+            index_base=100.0,
+            interpolation="linear_index",
+        )
+        yoyis = YoYIS(dt(2022, 1, 15), "6m", "Q", curves=[i_curve, curve])
+        result = yoyis.local_analytic_rate_fixings()
+        assert result.empty
 
 
 class TestSBS:

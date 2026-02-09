@@ -30,6 +30,10 @@ class ADOrder:
     One: ADOrder
     Two: ADOrder
 
+class LegIndexBase:
+    Initial: LegIndexBase
+    PeriodOnPeriod: LegIndexBase
+
 class Imm:
     Wed3_HMUZ: Imm
     Wed3: Imm

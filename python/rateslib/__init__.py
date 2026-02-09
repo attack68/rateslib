@@ -127,6 +127,7 @@ from rateslib.instruments import (
     Spread,
     STIRFuture,
     Value,
+    YoYIS,
 )
 from rateslib.legs import (
     Amortization,
@@ -298,6 +299,7 @@ __all__ = [
     "IIRS",
     "ZCS",
     "ZCIS",
+    "YoYIS",
     "SBS",
     "FXSwap",
     "FXForward",

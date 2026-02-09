@@ -11,7 +11,7 @@
 
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
-from rateslib.enums import FloatFixingMethod
+from rateslib.enums import FloatFixingMethod, LegIndexBase
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import (
     Adjuster,
@@ -82,6 +82,8 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         FloatFixingMethod.RFRLockout(4),
         FloatFixingMethod.RFRLockoutAverage(4),
         FloatFixingMethod.IBOR(2),
+        LegIndexBase.Initial,
+        LegIndexBase.PeriodOnPeriod,
     ],
 )
 def test_json_round_trip(obj) -> None:

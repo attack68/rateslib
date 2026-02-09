@@ -10,6 +10,7 @@
 // and/or contact info (at) rateslib (dot) com
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Specifier for date adjustment rules.
@@ -50,4 +51,15 @@ impl FloatFixingMethod {
             | FloatFixingMethod::IBOR(param) => *param,
         }
     }
+}
+
+/// Enumerable type for index base determination on each Period in a Leg.
+#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen, from_py_object)]
+#[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
+pub enum LegIndexBase {
+    /// Set the index base on every period as the initial base date of the Leg.
+    Initial = 0,
+    /// Set the index base date of each period successively as the reference value for the
+    // previous period.
+    PeriodOnPeriod = 1,
 }

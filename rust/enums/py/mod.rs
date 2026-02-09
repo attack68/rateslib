@@ -11,5 +11,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub(crate) mod float_fixing_method;
+pub(crate) mod leg_index_base;
 
 pub(crate) use crate::enums::py::float_fixing_method::PyFloatFixingMethod;
