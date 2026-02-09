@@ -12,7 +12,7 @@
 import pytest
 from rateslib import dt
 from rateslib.dual import Dual, Dual2
-from rateslib.enums import FloatFixingMethod
+from rateslib.enums import FloatFixingMethod, LegIndexBase
 from rateslib.scheduling import (
     Adjuster,
     Cal,
@@ -62,6 +62,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         (NamedCal("tgt,ldn|fed"), "NamedCal:'tgt,ldn|fed'"),
         (FloatFixingMethod.IBOR(2), "FloatFixingMethod.IBOR(2)"),
         (FloatFixingMethod.RFRPaymentDelay(), "FloatFixingMethod.RFRPaymentDelay"),
+        (LegIndexBase.Initial, "LegIndexBase.Initial"),
     ],
 )
 def test_repr_strings(obj, expected) -> None:

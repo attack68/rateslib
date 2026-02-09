@@ -16,7 +16,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 import rateslib.rs
-from rateslib.rs import FloatFixingMethod
+from rateslib.rs import FloatFixingMethod, LegIndexBase
 
 if TYPE_CHECKING:
     pass
@@ -274,6 +274,7 @@ __all__ = [
     "FXDeltaMethod",
     "FXOptionMetric",
     "LegMtm",
+    "LegIndexBase",
     "OptionType",
     "IndexMethod",
 ]

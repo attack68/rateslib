@@ -36,6 +36,7 @@ from rateslib.periods import (
 from rateslib.periods.protocols import (
     _BasePeriod,
 )
+from rateslib.rs import LegIndexBase
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -174,6 +175,8 @@ class FixedLeg(_BaseLeg, _WithExDiv):
     index_only: bool, :green:`optional (set as False)`
         A flag which indicates that the nominal amount is deducted from the cashflow leaving only
         the indexed up quantity.
+    index_base_type: LegIndexBase, :green:`optional` (set as 'Initial')`
+        A parameter to define how the ``index_base_date`` is set on each period.
 
     Notes
     -----
@@ -579,6 +582,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: LegFixings = NoInput(0),
         index_only: bool = False,
+        index_base_type: LegIndexBase = LegIndexBase.Initial,
     ) -> None:
         self._fixed_rate = fixed_rate
         del fixed_rate
@@ -650,7 +654,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                 index_lag=index_lag,
                 index_method=index_method,
                 index_fixings=index_fixings_[-1],
-                index_base_date=self.schedule.aschedule[0],
+                index_base_date=self.schedule.aschedule[0]
+                if index_base_type is LegIndexBase.Initial
+                else self.schedule.aschedule[-2],
                 index_reference_date=self.schedule.aschedule[-1],
                 index_only=index_only,
             )
@@ -686,7 +692,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                     index_lag=index_lag,
                     index_method=index_method,
                     index_fixings=index_fixings_[i],
-                    index_base_date=self.schedule.aschedule[0],
+                    index_base_date=self.schedule.aschedule[0]
+                    if index_base_type is LegIndexBase.Initial
+                    else self.schedule.aschedule[i],
                     index_reference_date=self.schedule.aschedule[i + 1],
                     index_only=index_only,
                 )
@@ -719,7 +727,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self.schedule.aschedule[i + 1],
                         index_only=index_only,
                     )
@@ -748,7 +758,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self.schedule.aschedule[i + 1],
                         index_only=index_only,
                     )

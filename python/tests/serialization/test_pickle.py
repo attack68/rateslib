@@ -31,7 +31,7 @@ from rateslib.curves import (
     MultiCsaCurve,
     ProxyCurve,
 )
-from rateslib.enums import FloatFixingMethod
+from rateslib.enums import FloatFixingMethod, LegIndexBase
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import (
     Adjuster,
@@ -169,6 +169,7 @@ def test_pickle_round_trip_obj_via_equality(obj):
         (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
         (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.RFRLookback(2)),
         (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(5)),
+        (LegIndexBase.Initial, LegIndexBase.Initial, LegIndexBase.PeriodOnPeriod),
     ],
 )
 def test_enum_equality(a1, a2, b1):
@@ -199,6 +200,7 @@ def test_complex_enum_isinstance(enum, klass):
         (StubInference, ["to_json"]),
         (ADOrder, []),
         (Convention, ["dcf", "to_json"]),
+        (LegIndexBase, ["to_json"]),
     ],
 )
 def test_simple_enum_pickle(enum, method_filter):

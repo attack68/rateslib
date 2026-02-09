@@ -46,6 +46,7 @@ from rateslib.periods import (
     FloatPeriod,
     ZeroFloatPeriod,
 )
+from rateslib.rs import LegIndexBase
 from rateslib.scheduling import Frequency, Schedule, get_calendar
 
 
@@ -2779,6 +2780,21 @@ class TestFixedLeg:
         assert fl.periods[2].non_deliverable_params.fx_fixing.value == expected[2]
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         fixings.pop("AXDE_EURUSD")
+
+    def test_leg_index_base(self):
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
+                frequency="M",
+                calendar="all",
+            ),
+            index_fixings="some",
+            index_lag=0,
+            index_base_type=LegIndexBase.PeriodOnPeriod,
+        )
+        assert fl.periods[0].index_params.index_base.date == dt(2000, 1, 7)
+        assert fl.periods[1].index_params.index_base.date == dt(2000, 2, 7)
 
 
 class TestCreditPremiumLeg:

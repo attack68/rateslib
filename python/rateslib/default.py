@@ -76,6 +76,7 @@ DEFAULTS = dict(
         "IRS": 2,
         "STIRFuture": 0,
         "IIRS": 2,
+        "YoYIS": 2,
         "ZCS": 2,
         "ZCIS": 0,
         "FXSwap": 0,

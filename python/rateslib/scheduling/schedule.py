@@ -263,7 +263,7 @@ class Schedule:
     -----
     Detailed information is provided within :ref:`the scheduling user guide <schedule-doc>`.
 
-    """
+    """  # noqa: E501
 
     _obj: Schedule_rs
 

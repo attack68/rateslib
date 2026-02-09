@@ -46,6 +46,7 @@ from rateslib.instruments.spread import Spread
 from rateslib.instruments.stir_future import STIRFuture
 from rateslib.instruments.value import Value
 from rateslib.instruments.xcs import XCS
+from rateslib.instruments.yoyis import YoYIS
 from rateslib.instruments.zcis import ZCIS
 from rateslib.instruments.zcs import ZCS
 
@@ -65,6 +66,7 @@ __all__ = [
     # inflation
     "ZCIS",
     "IIRS",
+    "YoYIS",
     # credit
     "CDS",
     # securities
