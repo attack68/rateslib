@@ -153,65 +153,7 @@ class Schedule:
     """
     Generate a schedule of dates according to a regular pattern and calendar inference.
 
-    Parameters
-    ----------
-    effective : datetime, str
-        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
-        inferred. If given as string tenor will be calculated from ``eval_date`` and ``eval_mode``.
-    termination : datetime, str
-        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
-        inferred. If given as string tenor will be calculated from ``effective``.
-    frequency : Frequency, str in {"M", "Q", "S", "A", "Z", "_D", "_B", "_W", "_M", "_Y"}
-        The frequency of the schedule.
-        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
-        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
-        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
-        years ("_Y").
-        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
-        and business day calendar as per ``calendar``.
-    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, optional
-        The stub type used if stub inference is required. If given as string will derive a
-        :class:`~rateslib.scheduling.StubInference`.
-    front_stub : datetime, optional
-        The unadjusted date for the start stub period. If given as adjusted, unadjusted
-        alternatives may be inferred.
-    back_stub : datetime, optional
-        The unadjusted date for the back stub period. If given as adjusted, unadjusted
-        alternatives may be inferred.
-        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
-        and any automatic stub inference.
-    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, optional
-        The roll day of the schedule. If not given or not available in ``frequency`` will be
-        inferred for monthly frequency variants.
-    eom : bool, optional
-        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
-        default. Not required if ``roll`` is defined.
-    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, optional
-        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
-        into adjusted dates. If given as string must define simple date rolling rules.
-    calendar : calendar, str, optional
-        The business day calendar object to use. If string will call
-        :meth:`~rateslib.scheduling.get_calendar`.
-    payment_lag: Adjuster, int, optional
-        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
-        a payment date. If given as integer will define the number of business days to
-        lag payments by.
-    payment_lag_exchange: Adjuster, int, optional
-        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
-        additional payment date. If given as integer will define the number of business days to
-        lag payments by.
-    extra_lag: Adjuster, int, optional
-        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
-        additional dates, which may be used, for example by fixings schedules. If given as integer
-        will define the number of business days to lag dates by.
-    eval_date: datetime, optional
-        Only required if ``effective`` is given as a string tenor, to provide a point of reference.
-    eval_mode: str in {"swaps_align", "swaptions_align"}
-        The method for determining the ``effective`` and ``termination`` dates if both are provided
-        as string tenors. See notes.
-
-    Examples
-    --------
+    .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
@@ -256,80 +198,70 @@ class Schedule:
              )
              print(s)
 
+    .. role:: red
+
+    .. role:: green
+
+    Parameters
+    ----------
+    effective : datetime, str, :red:`required`
+        The unadjusted effective date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``eval_date`` and ``eval_mode``.
+    termination : datetime, str, :red:`required`
+        The unadjusted termination date. If given as adjusted, unadjusted alternatives may be
+        inferred. If given as string tenor will be calculated from ``effective``.
+    frequency : Frequency, str in {"M", "Q", "S", "A", "Z", "_D", "_B", "_W", "_M", "_Y"}, :red:`required`
+        The frequency of the schedule.
+        If given as string will derive a :class:`~rateslib.scheduling.Frequency` aligning with:
+        monthly ("M"), quarterly ("Q"), semi-annually ("S"), annually("A") or zero-coupon ("Z"), or
+        a set number of calendar or business days ("_D", "_B"), weeks ("_W"), months ("_M") or
+        years ("_Y").
+        Where required, the :class:`~rateslib.scheduling.RollDay` is derived as per ``roll``
+        and business day calendar as per ``calendar``.
+    stub : StubInference, str in {"ShortFront", "LongFront", "ShortBack", "LongBack"}, :green:`optional (set by defaults)`
+        The stub type used if stub inference is required. If given as string will derive a
+        :class:`~rateslib.scheduling.StubInference`.
+    front_stub : datetime, :green:`optional`
+        The unadjusted date for the start stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+    back_stub : datetime, :green:`optional`
+        The unadjusted date for the back stub period. If given as adjusted, unadjusted
+        alternatives may be inferred.
+        See notes for combining ``stub``, ``front_stub`` and ``back_stub``
+        and any automatic stub inference.
+    roll : RollDay, int in [1, 31], str in {"eom", "imm", "som"}, :green:`optional`
+        The roll day of the schedule. If not given or not available in ``frequency`` will be
+        inferred for monthly frequency variants.
+    eom : bool, :green:`optional (set by defaults)`
+        Use an end of month preference rather than regular rolls for ``roll`` inference. Set by
+        default. Not required if ``roll`` is defined.
+    modifier : Adjuster, str in {"NONE", "F", "MF", "P", "MP"}, :green:`optional (set by defaults)`
+        The :class:`~rateslib.scheduling.Adjuster` used for adjusting unadjusted schedule dates
+        into adjusted dates. If given as string must define simple date rolling rules.
+    calendar : calendar, str, :green:`optional (set as 'all')`
+        The business day calendar object to use. If string will call
+        :meth:`~rateslib.scheduling.get_calendar`.
+    payment_lag: Adjuster, int, :green:`optional (set by defaults)`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        a payment date. If given as integer will define the number of business days to
+        lag payments by.
+    payment_lag_exchange: Adjuster, int, :green:`optional (set by defaults)`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional payment date. If given as integer will define the number of business days to
+        lag payments by.
+    extra_lag: Adjuster, int, :green:`optional`
+        The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
+        additional dates, which may be used, for example by fixings schedules. If given as integer
+        will define the number of business days to lag dates by.
+    eval_date: datetime, :green:`optional`
+        Only required if ``effective`` is given as a string tenor, to provide a point of reference.
+    eval_mode: str in {"swaps_align", "swaptions_align"}, :green:`optional (set by defaults)`
+        The method for determining the ``effective`` and ``termination`` dates if both are provided
+        as string tenors. See notes.
+
     Notes
     -----
-    **Inference**
-
-    It is not necessary to rely on inference if inputs are defined directly. However three types
-    of inference will be performed otherwise:
-
-    - **Unadjusted date inference** if any dates including stubs are given as adjusted.
-    - **Frequency inference** if the ``frequency`` is missing properties, such as ``roll``.
-    - **Stub date inference** if a regular schedule cannot be defined without stubs one can be
-      unambiguously implied.
-
-    *Rateslib* always tries to infer *regular* schedules ahead of *irregular* schedules. Failing
-    that, it always tries to infer dates and rolls as close as possible to those given by a user.
-
-    **Dates given as string tenor - The 1Y1Y problem**
-
-    When generating schedules implied from tenor ``effective`` and ``termination`` dates there
-    exist different theoretical ways of deriving these dates. *Rateslib* offers two practical
-    methods for doing this, configurable by setting the ``eval_mode`` argument to either
-    *"swaps_align"* or *"swaptions_align"*.
-
-    .. tabs::
-
-       .. tab:: 'swaps_align'
-
-          This method aligns dates with those implied by a sub-component of a par tenor swap.
-          E.g. a 1Y1Y schedule is expected to align with the second half of a 2Y par swap.
-          To achieve this, an *unadjusted* ``effective`` date is determined from ``eval_date`` and
-          an *unadjusted* ``termination`` date is derived from that ``effective`` date.
-
-          For example, today is Tue 15th Aug '23 and spot is Thu 17th Aug '23:
-
-          - A 1Y has effective, termination and roll of: Tue 17th Aug '23, Mon 19th Aug '24, 17.
-          - A 2Y has effective, termination and roll of: Tue 17th Aug '23, Mon 18th Aug '25, 17.
-          - A 1Y1Y has effective, termination and roll of: Mon 19th Aug '24, Mon 18th Aug '25, 17.
-
-          .. ipython:: python
-
-             s = Schedule(
-                 effective="1Y",
-                 termination="1Y",
-                 frequency="S",
-                 calendar="tgt",
-                 eval_date=dt(2023, 8, 17),
-                 eval_mode="swaps_align",
-             )
-             print(s)
-
-       .. tab:: 'swaptions_align'
-
-          A 1Y1Y swaption at expiry is evaluated against the 1Y swap as measured per that expiry
-          date. To define this exactly requires more parameters, but this method replicates
-          the true swaption expiry instrument about 95% of the time. To achieve this, an
-          *adjusted* ``effective`` date is determined from the ``eval_date`` and ``modifier``, and
-          an *unadjusted* ``termination`` date is derived from the ``effective`` date.
-
-          For example, today is Tue 15th Aug '23:
-
-          - A 1Y expiring swaption has an expiry on Thu 15th Aug '24.
-          - At expiry a spot starting 1Y swap has effective, termination, and roll of:
-            Mon 19th Aug '24, Tue 19th Aug '25, 19.
-
-          .. ipython:: python
-
-             s = Schedule(
-                 effective="1Y",
-                 termination="1Y",
-                 frequency="S",
-                 calendar="tgt",
-                 eval_date=dt(2023, 8, 17),
-                 eval_mode="swaptions_align",
-             )
-             print(s)
+    Detailed information is provided within :ref:`the scheduling user guide <schedule-doc>`.
 
     """
 
