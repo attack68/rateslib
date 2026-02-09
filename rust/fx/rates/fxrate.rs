@@ -17,7 +17,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// An FX rate containing `FXPair`, `rate` and `settlement` info.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FXRate {
     pub(crate) pair: FXPair,

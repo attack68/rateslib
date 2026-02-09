@@ -287,7 +287,7 @@ def test_dual_float_raises() -> None:
     _0 = Dual(0.0, [], [])
     y0, y1 = Dual(0.0, ["y0"], []), Dual(0.0, ["y1"], [])
     y2, y3 = Dual(2.0, ["y2"], []), Dual(2.0, ["y3"], [])
-    with pytest.raises(TypeError, match="argument 'y': 'float' object cannot be"):
+    with pytest.raises(TypeError, match="argument 'y': 'float' object is not an instance of 'Dua"):
         sp.csolve([0, 0, 1, 3, 4, 4], [0.0, y0, y1, y2, y3, _0], 2, 2, False)
 
 

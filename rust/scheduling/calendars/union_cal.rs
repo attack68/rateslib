@@ -24,7 +24,7 @@ use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
 /// - A **settleable day** is such if it is a *business day* in each one of the
 ///   `settlement_calendars`, otherwise every calendar day is a *settleable day*.
 /// - A **settleable business day** is both a *business day* and a *settleable day*.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
     /// A vector of [Cal] used to determine **business** days.

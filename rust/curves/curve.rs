@@ -34,7 +34,7 @@ pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
 }
 
 /// A rule to adjust a non-business day to a business day.
-#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, from_py_object)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.

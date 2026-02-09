@@ -22,7 +22,7 @@ use std::cmp::{Eq, PartialEq};
 use crate::scheduling::ndt;
 
 /// Specifier for IMM date definitions.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Imm {
     /// 3rd Wednesday of March, June, September and December.

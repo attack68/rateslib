@@ -36,7 +36,7 @@ pub(crate) mod fxrate;
 pub use crate::fx::rates::fxrate::FXRate;
 
 /// A multi-currency FX market deriving all crosses from a vector of `FXRate`s.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(from = "FXRatesDataModel")]
 pub struct FXRates {

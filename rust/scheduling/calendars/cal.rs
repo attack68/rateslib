@@ -21,7 +21,7 @@ use crate::scheduling::calendars::named::{get_holidays_by_name, get_weekmask_by_
 use crate::scheduling::{ndt, CalendarAdjustment, DateRoll, NamedCal, UnionCal};
 
 /// A basic business day calendar containing holidays.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
     /// A vector of specific dates that are defined as **non-business** days.

@@ -75,7 +75,7 @@ impl CurveInterpolation for CurveInterpolator {
     }
 }
 
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct Curve {
     inner: CurveDF<CurveInterpolator, Calendar>,

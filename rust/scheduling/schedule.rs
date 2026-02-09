@@ -20,7 +20,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Specifier used by [`Schedule::try_new_inferred`] to instruct its inference logic.
-#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, from_py_object)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StubInference {
     /// Short front stub inference.
@@ -43,7 +43,7 @@ pub enum StubInference {
 /// - An **irregular** schedule has a ``ufront_stub`` and/or ``uback_stub`` dates defining periods
 ///   at the boundary of the schedule which are not a standard length of time defined by the
 ///   [`Frequency`]. However, a regular schedule must exist between those interior dates.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(from = "ScheduleDataModel")]
 pub struct Schedule {

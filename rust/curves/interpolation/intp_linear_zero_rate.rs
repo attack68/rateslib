@@ -26,7 +26,7 @@ use std::cmp::PartialEq;
 /// Define linear zero rate interpolation of nodes.
 ///
 /// This interpolation can only be used with discount factors node values.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LinearZeroRateInterpolator {}
 

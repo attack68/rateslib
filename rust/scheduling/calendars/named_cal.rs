@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, UnionCal};
 
 /// A wrapper for a UnionCal struct specified by a string representation.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(from = "NamedCalDataModel")]
 pub struct NamedCal {

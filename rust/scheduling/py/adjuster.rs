@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Python wrapper for Adjuster to facilitate complex enum pickling.
-#[pyclass(module = "rateslib.rs", name = "Adjuster", eq)]
+#[pyclass(module = "rateslib.rs", name = "Adjuster", eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyAdjuster {
     #[pyo3(constructor = (_u8=0))]
