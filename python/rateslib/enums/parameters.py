@@ -21,23 +21,23 @@ from rateslib.rs import FloatFixingMethod
 if TYPE_CHECKING:
     pass
 
-rateslib.rs.PyFloatFixingMethod_RFRPaymentDelay = rateslib.rs.FloatFixingMethod.RFRPaymentDelay  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod_RFRObservationShift = (  # type: ignore[attr-defined]
+rateslib.rs.RFRPaymentDelay = rateslib.rs.FloatFixingMethod.RFRPaymentDelay  # type: ignore[attr-defined]
+rateslib.rs.RFRObservationShift = (  # type: ignore[attr-defined]
     rateslib.rs.FloatFixingMethod.RFRObservationShift
 )
-rateslib.rs.PyFloatFixingMethod_RFRLockout = rateslib.rs.FloatFixingMethod.RFRLockout  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod_RFRLookback = rateslib.rs.FloatFixingMethod.RFRLookback  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod_RFRPaymentDelayAverage = (  # type: ignore[attr-defined]
+rateslib.rs.RFRLockout = rateslib.rs.FloatFixingMethod.RFRLockout  # type: ignore[attr-defined]
+rateslib.rs.RFRLookback = rateslib.rs.FloatFixingMethod.RFRLookback  # type: ignore[attr-defined]
+rateslib.rs.RFRPaymentDelayAverage = (  # type: ignore[attr-defined]
     rateslib.rs.FloatFixingMethod.RFRPaymentDelayAverage
 )
-rateslib.rs.PyFloatFixingMethod_RFRObservationShiftAverage = (  # type: ignore[attr-defined]
+rateslib.rs.RFRObservationShiftAverage = (  # type: ignore[attr-defined]
     rateslib.rs.FloatFixingMethod.RFRObservationShiftAverage
 )
-rateslib.rs.PyFloatFixingMethod_RFRLockoutAverage = rateslib.rs.FloatFixingMethod.RFRLockoutAverage  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod_RFRLookbackAverage = (  # type: ignore[attr-defined]
+rateslib.rs.RFRLockoutAverage = rateslib.rs.FloatFixingMethod.RFRLockoutAverage  # type: ignore[attr-defined]
+rateslib.rs.RFRLookbackAverage = (  # type: ignore[attr-defined]
     rateslib.rs.FloatFixingMethod.RFRLookbackAverage
 )
-rateslib.rs.PyFloatFixingMethod_IBOR = rateslib.rs.FloatFixingMethod.IBOR  # type: ignore[attr-defined]
+rateslib.rs.IBOR = rateslib.rs.FloatFixingMethod.IBOR  # type: ignore[attr-defined]
 
 
 class OptionType(float, Enum):

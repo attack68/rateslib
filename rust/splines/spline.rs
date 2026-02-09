@@ -412,21 +412,21 @@ where
 }
 
 /// Definitive [f64] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineF64 {
     pub(crate) inner: PPSpline<f64>,
 }
 
 /// Definitive [Dual] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineDual {
     pub(crate) inner: PPSpline<Dual>,
 }
 
 /// Definitive [Dual2] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineDual2 {
     pub(crate) inner: PPSpline<Dual2>,

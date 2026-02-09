@@ -18,7 +18,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Specifier for generating unadjusted scheduling periods.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frequency {
     /// A set number of business days, defined by a [`Calendar`], which can only align with a

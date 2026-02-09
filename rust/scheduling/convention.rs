@@ -22,7 +22,7 @@ use crate::scheduling::{
 };
 
 /// Specifier for day count conventions
-#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen, from_py_object)]
 #[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Convention {
     /// Actual days in period divided by 365.

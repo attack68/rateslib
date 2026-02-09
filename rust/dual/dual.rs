@@ -22,7 +22,7 @@ use std::cmp::PartialEq;
 use std::sync::Arc;
 
 /// A dual number data type supporting first order derivatives.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
     pub(crate) real: f64,
@@ -31,7 +31,7 @@ pub struct Dual {
 }
 
 /// A dual number data type supporting second order derivatives.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
     pub(crate) real: f64,

@@ -25,7 +25,7 @@ use std::cmp::PartialEq;
 /// Define a null interpolation object.
 ///
 /// This is used by PyO3 binding to indicate interpolation occurs in Python.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct NullInterpolator {}
 

@@ -20,7 +20,7 @@ use std::cmp::{Eq, PartialEq};
 use crate::scheduling::{Adjuster, Adjustment, Calendar, Imm};
 
 /// A roll-day used with a [`Frequency::Months`](crate::scheduling::Frequency) variant.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum RollDay {
     /// A day of the month in [1, 31].

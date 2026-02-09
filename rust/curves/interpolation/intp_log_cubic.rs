@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
 /// Define log-linear interpolation of nodes.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct LogCubicInterpolator<T: NumberMapping> {
     spline: T

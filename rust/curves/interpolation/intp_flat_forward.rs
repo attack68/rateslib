@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use std::cmp::PartialEq;
 
 /// Define flat forward interpolation of nodes.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FlatForwardInterpolator {}
 

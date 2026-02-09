@@ -20,7 +20,7 @@ use pyo3::types::PyTuple;
 use serde::{Deserialize, Serialize};
 
 /// Python wrapper for Adjuster to facilitate complex enum pickling.
-#[pyclass(module = "rateslib.rs", name = "FloatFixingMethod", eq)]
+#[pyclass(module = "rateslib.rs", name = "FloatFixingMethod", eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyFloatFixingMethod {
     #[pyo3(constructor = (_u8=0))]

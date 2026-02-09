@@ -21,28 +21,28 @@ from rateslib.scheduling.imm import get_imm, next_imm
 from rateslib.scheduling.schedule import Schedule
 
 # Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
-rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
-rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
+rateslib.rs.Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
+rateslib.rs.IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
 
-rateslib.rs.PyAdjuster_Actual = rateslib.rs.Adjuster.Actual  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_Following = rateslib.rs.Adjuster.Following  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_Previous = rateslib.rs.Adjuster.Previous  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_ModifiedPrevious = rateslib.rs.Adjuster.ModifiedPrevious  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_FollowingSettle = rateslib.rs.Adjuster.FollowingSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_ModifiedFollowingSettle = rateslib.rs.Adjuster.ModifiedFollowingSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_PreviousSettle = rateslib.rs.Adjuster.PreviousSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_ModifiedPreviousSettle = rateslib.rs.Adjuster.ModifiedPreviousSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_BusDaysLagSettle = rateslib.rs.Adjuster.BusDaysLagSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_CalDaysLagSettle = rateslib.rs.Adjuster.CalDaysLagSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_FollowingExLast = rateslib.rs.Adjuster.FollowingExLast  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_FollowingExLastSettle = rateslib.rs.Adjuster.FollowingExLastSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster_BusDaysLagSettleInAdvance = rateslib.rs.Adjuster.BusDaysLagSettleInAdvance  # type: ignore[attr-defined]
+rateslib.rs.Actual = rateslib.rs.Adjuster.Actual  # type: ignore[attr-defined]
+rateslib.rs.Following = rateslib.rs.Adjuster.Following  # type: ignore[attr-defined]
+rateslib.rs.ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing  # type: ignore[attr-defined]
+rateslib.rs.Previous = rateslib.rs.Adjuster.Previous  # type: ignore[attr-defined]
+rateslib.rs.ModifiedPrevious = rateslib.rs.Adjuster.ModifiedPrevious  # type: ignore[attr-defined]
+rateslib.rs.FollowingSettle = rateslib.rs.Adjuster.FollowingSettle  # type: ignore[attr-defined]
+rateslib.rs.ModifiedFollowingSettle = rateslib.rs.Adjuster.ModifiedFollowingSettle  # type: ignore[attr-defined]
+rateslib.rs.PreviousSettle = rateslib.rs.Adjuster.PreviousSettle  # type: ignore[attr-defined]
+rateslib.rs.ModifiedPreviousSettle = rateslib.rs.Adjuster.ModifiedPreviousSettle  # type: ignore[attr-defined]
+rateslib.rs.BusDaysLagSettle = rateslib.rs.Adjuster.BusDaysLagSettle  # type: ignore[attr-defined]
+rateslib.rs.CalDaysLagSettle = rateslib.rs.Adjuster.CalDaysLagSettle  # type: ignore[attr-defined]
+rateslib.rs.FollowingExLast = rateslib.rs.Adjuster.FollowingExLast  # type: ignore[attr-defined]
+rateslib.rs.FollowingExLastSettle = rateslib.rs.Adjuster.FollowingExLastSettle  # type: ignore[attr-defined]
+rateslib.rs.BusDaysLagSettleInAdvance = rateslib.rs.Adjuster.BusDaysLagSettleInAdvance  # type: ignore[attr-defined]
 
-rateslib.rs.Frequency_CalDays = rateslib.rs.Frequency.CalDays  # type: ignore[attr-defined]
-rateslib.rs.Frequency_BusDays = rateslib.rs.Frequency.BusDays  # type: ignore[attr-defined]
-rateslib.rs.Frequency_Months = rateslib.rs.Frequency.Months  # type: ignore[attr-defined]
-rateslib.rs.Frequency_Zero = rateslib.rs.Frequency.Zero  # type: ignore[attr-defined]
+rateslib.rs.CalDays = rateslib.rs.Frequency.CalDays  # type: ignore[attr-defined]
+rateslib.rs.BusDays = rateslib.rs.Frequency.BusDays  # type: ignore[attr-defined]
+rateslib.rs.Months = rateslib.rs.Frequency.Months  # type: ignore[attr-defined]
+rateslib.rs.Zero = rateslib.rs.Frequency.Zero  # type: ignore[attr-defined]
 
 Imm.__doc__ = """
 Enumerable type for International Money-Market (IMM) date definitions.
