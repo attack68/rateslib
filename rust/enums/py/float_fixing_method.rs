@@ -19,7 +19,23 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 use serde::{Deserialize, Serialize};
 
-/// Python wrapper for Adjuster to facilitate complex enum pickling.
+/// Enumerable type to defined floating period rate methods.
+///
+/// .. rubric:: Variants
+///
+/// .. ipython:: python
+///    :suppress:
+///
+///    from rateslib.rs import FloatFixingMethod
+///    variants = [item for item in FloatFixingMethod.__dict__ if \
+///        "__" != item[:2] and \
+///        item not in ['to_json', 'method_param'] \
+///    ]
+///
+/// .. ipython:: python
+///
+///    variants
+///
 #[pyclass(module = "rateslib.rs", name = "FloatFixingMethod", eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyFloatFixingMethod {
