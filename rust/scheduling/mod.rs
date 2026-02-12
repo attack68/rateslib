@@ -142,12 +142,15 @@ mod serde;
 
 pub(crate) mod py;
 
+pub(crate) use crate::scheduling::{
+    calendars::CalWrapper, frequency::get_unadjusteds, py::PyAdjuster,
+};
 pub use crate::scheduling::{
     calendars::{
-        ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, UnionCal,
+        ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, CalendarManager, DateRoll,
+        NamedCal, UnionCal,
     },
     convention::Convention,
     frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
-pub(crate) use crate::scheduling::{frequency::get_unadjusteds, py::PyAdjuster};

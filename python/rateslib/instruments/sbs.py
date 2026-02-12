@@ -91,7 +91,7 @@ class SBS(_BaseInstrument):
        }
 
     The available pricing ``metric`` are in *{'leg1', 'leg2'}* which will return a *float spread*
-    on the specified leg.
+    on the specified leg. The default is to price the spread on *leg1*.
 
     .. role:: red
 

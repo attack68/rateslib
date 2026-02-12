@@ -14,8 +14,40 @@ use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, UnionCal};
+
+#[derive(Clone, Debug)]
+pub(crate) enum CalWrapper {
+    Cal(Cal),
+    UnionCal(UnionCal),
+}
+
+impl DateRoll for CalWrapper {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_weekday(date),
+            CalWrapper::UnionCal(c) => c.is_weekday(date),
+        }
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_holiday(date),
+            CalWrapper::UnionCal(c) => c.is_holiday(date),
+        }
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_settlement(date),
+            CalWrapper::UnionCal(c) => c.is_settlement(date),
+        }
+    }
+}
+
+impl CalendarAdjustment for CalWrapper {}
 
 /// A wrapper for a UnionCal struct specified by a string representation.
 #[pyclass(module = "rateslib.rs", from_py_object)]
@@ -24,7 +56,7 @@ use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, UnionCal};
 pub struct NamedCal {
     pub name: String,
     #[serde(skip)]
-    pub union_cal: UnionCal,
+    pub(crate) inner: Arc<CalWrapper>,
 }
 
 #[derive(Deserialize)]
@@ -64,20 +96,20 @@ impl NamedCal {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {
+                inner: Arc::new(CalWrapper::UnionCal(UnionCal {
                     calendars: cals,
                     settlement_calendars: None,
-                },
+                })),
             })
         } else {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             let settle_cals: Vec<Cal> = parse_cals(parts[1])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {
+                inner: Arc::new(CalWrapper::UnionCal(UnionCal {
                     calendars: cals,
                     settlement_calendars: Some(settle_cals),
-                },
+                })),
             })
         }
     }
@@ -85,15 +117,15 @@ impl NamedCal {
 
 impl DateRoll for NamedCal {
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_weekday(date)
+        self.inner.is_weekday(date)
     }
 
     fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_holiday(date)
+        self.inner.is_holiday(date)
     }
 
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_settlement(date)
+        self.inner.is_settlement(date)
     }
 }
 
@@ -105,15 +137,6 @@ fn parse_cals(name: &str) -> Result<Vec<Cal>, PyErr> {
         cals.push(Cal::try_from_name(cal)?)
     }
     Ok(cals)
-}
-
-impl<T> PartialEq<T> for NamedCal
-where
-    T: DateRoll,
-{
-    fn eq(&self, other: &T) -> bool {
-        self.union_cal.eq(other)
-    }
 }
 
 // UNIT TESTS
