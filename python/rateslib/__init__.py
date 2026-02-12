@@ -30,9 +30,11 @@ from datetime import datetime as dt
 
 from rateslib.data.loader import Fixings
 from rateslib.default import Defaults
+from rateslib.rs import CalendarManager
 
 defaults = Defaults()
 fixings = Fixings()
+calendars = CalendarManager()
 
 from contextlib import ContextDecorator
 

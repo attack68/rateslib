@@ -12,7 +12,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib import defaults, fixings
+from rateslib import calendars, defaults, fixings
 from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.instruments import IRS
@@ -570,31 +570,53 @@ def test_pipe_vectors() -> None:
 
 
 def test_pipe_raises() -> None:
-    with pytest.raises(ValueError, match="Cannot use more than one pipe"):
+    with pytest.raises(
+        ValueError, match="The calendar cannot be parsed. Is there more than one pipe character?"
+    ):
         get_calendar("tgt|nyc|stk")
 
 
 def test_add_and_get_custom_calendar() -> None:
     cal = Cal([dt(2023, 1, 2)], [5, 6])
-    defaults.calendars["custom"] = cal
+    calendars.add("custom", cal)
     result = get_calendar("custom")
     assert result == cal
-    defaults.reset_defaults()
+    calendars.pop("custom")
 
 
 def test_add_and_get_custom_calendar_combination() -> None:
     cal = Cal([dt(2023, 1, 2)], [5, 6])
     cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
-    defaults.calendars["custom"] = cal
-    defaults.calendars["custom2"] = cal2
+    calendars.add("custom", cal)
+    calendars.add("custom2", cal2)
     result = get_calendar("custom,custom2")
     assert result == UnionCal([cal, cal2], [])
-    defaults.reset_defaults()
+    calendars.pop("custom")
+    calendars.pop("custom2")
+
+
+def test_calendar_pop_all_combinations() -> None:
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
+    cal3 = Cal([dt(2023, 1, 3)], [1, 2, 4, 6])
+    calendars.add("custom1", cal)
+    calendars.add("custom2", cal2)
+    calendars.add("custom3", cal3)
+    _ = get_calendar("custom1,custom2")
+    _ = get_calendar("custom1,custom3")
+    _ = get_calendar("custom2,custom3")
+    calendars.pop("custom1")
+
+    assert "custom1,custom2" not in calendars
+    assert "custom1,custom3" not in calendars
+    assert "custom2,custom3" in calendars
+    calendars.pop("custom2")
+    calendars.pop("custom3")
 
 
 def test_doc_union_cal() -> None:
-    defaults.calendars["mondays-off"] = Cal([], [0, 5, 6])
-    defaults.calendars["fridays-off"] = Cal([], [4, 5, 6])
+    calendars.add("mondays-off", Cal([], [0, 5, 6]))
+    calendars.add("fridays-off", Cal([], [4, 5, 6]))
     result = get_calendar("mondays-off, fridays-off").print(2026, 1)
     expected = """        January 2026
 Su Mo Tu We Th Fr Sa
@@ -606,7 +628,8 @@ Su Mo Tu We Th Fr Sa
                     
 """  # noqa: W293
     assert result == expected
-    defaults.reset_defaults()
+    calendars.pop("mondays-off")
+    calendars.pop("fridays-off")
 
 
 @pytest.mark.parametrize(
@@ -663,12 +686,6 @@ def test_is_day_type_tenor(tenor):
 @pytest.mark.parametrize("tenor", ["1M", "1m", "4Y", "4y"])
 def test_is_not_day_type_tenor(tenor):
     assert not _is_day_type_tenor(tenor)
-
-
-def test_get_calendar_from_defaults() -> None:
-    defaults.calendars["custom"] = "my_object"
-    assert get_calendar("custom") == "my_object"
-    defaults.calendars.pop("custom")
 
 
 @pytest.mark.parametrize(
@@ -847,3 +864,8 @@ Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We
                                                                                           
 """  # noqa: W291, W293
     assert output == expected
+
+
+def test_union_cal_try_from_name():
+    uc = UnionCal.from_name("ldn,tgt|fed")
+    assert isinstance(uc, UnionCal)

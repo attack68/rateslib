@@ -55,8 +55,8 @@ use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1, _sabr_x2};
 
 pub mod scheduling;
 use scheduling::{
-    Cal, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule, StubInference,
-    UnionCal,
+    Cal, CalendarManager, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule,
+    StubInference, UnionCal,
 };
 
 pub mod enums;
@@ -98,6 +98,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
     m.add_class::<NamedCal>()?;
+    m.add_class::<CalendarManager>()?;
     m.add_class::<Convention>()?;
     m.add_class::<PyAdjuster>()?;
     m.add_function(wrap_pyfunction!(_get_modifier_str, m)?)?;

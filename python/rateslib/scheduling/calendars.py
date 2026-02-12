@@ -13,9 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rateslib import defaults
+from rateslib import calendars
 from rateslib.enums.generics import NoInput
-from rateslib.rs import Cal, NamedCal, UnionCal
 from rateslib.scheduling.adjuster import _convert_to_adjuster
 
 if TYPE_CHECKING:
@@ -24,10 +23,10 @@ if TYPE_CHECKING:
 
 def get_calendar(
     calendar: CalInput,
-    named: bool = False,
 ) -> CalTypes:
     """
-    Returns a calendar object from base implementation or user-defined and/or combinations of such.
+    Returns a calendar object, possible constructed by the
+    :class:`~rateslib.scheduling.CalendarManager`.
 
     .. role:: red
 
@@ -38,10 +37,6 @@ def get_calendar(
     calendar : str, Cal, UnionCal, NamedCal, :red:`required`
         If `str`, then the calendar is returned from pre-calculated values.
         If a specific user defined calendar this is returned without modification.
-    named : bool, :green:`optional (set as False)`
-        If *True*, will pass any string input directly to Rust and attempt to return
-        a :class:`~rateslib.scheduling.NamedCal` object. These will always only use the
-        base implementation calendars and ignore any user-implemented calendars.
 
     Returns
     -------
@@ -81,80 +76,17 @@ def get_calendar(
 
     .. ipython:: python
 
-       tgt_and_nyc_cal = get_calendar("tgt,nyc", named=False)
+       tgt_and_nyc_cal = get_calendar("tgt,nyc")
        print(tgt_and_nyc_cal.print(2023, 5))
        type(tgt_and_nyc_cal)
 
     """
     if isinstance(calendar, str):
-        if named:
-            # parse the string directly in Rust
-            return NamedCal(calendar)
-        else:
-            # parse the string in Python and return Rust Cal/UnionCal objects directly
-            calendar = calendar.replace(" ", "")
-            if calendar in defaults.calendars:
-                return defaults.calendars[calendar]
-            return _parse_str_calendar(calendar)
+        return calendars.get(calendar)
     elif isinstance(calendar, NoInput):
-        return defaults.calendars["all"]
+        return calendars.get("all")
     else:  # calendar is a Calendar object type
         return calendar
-
-
-def _parse_str_calendar(calendar: str) -> CalTypes:
-    """Parse the calendar string using Python and construct calendar objects."""
-    vectors = calendar.split("|")
-    if len(vectors) == 1:
-        return _parse_str_calendar_no_associated(vectors[0])
-    elif len(vectors) == 2:
-        return _parse_str_calendar_with_associated(vectors[0], vectors[1])
-    else:
-        raise ValueError("Cannot use more than one pipe ('|') operator in `calendar`.")
-
-
-def _parse_str_calendar_no_associated(calendar: str) -> CalTypes:
-    calendars = calendar.lower().split(",")
-    if len(calendars) == 1:  # only one named calendar is found
-        return defaults.calendars[calendars[0]]  # lookup Hashmap
-    else:
-        # combined calendars are not yet predefined so this does not benefit from hashmap speed
-        cals = [defaults.calendars[_] for _ in calendars]
-        cals_: list[Cal] = []
-        for cal in cals:
-            if isinstance(cal, Cal):
-                cals_.append(cal)
-            elif isinstance(cal, NamedCal):
-                cals_.extend(cal.union_cal.calendars)
-            else:
-                cals_.extend(cal.calendars)
-        return UnionCal(cals_, None)
-
-
-def _parse_str_calendar_with_associated(calendar: str, associated_calendar: str) -> CalTypes:
-    calendars = calendar.lower().split(",")
-    cals = [defaults.calendars[_] for _ in calendars]
-    cals_ = []
-    for cal in cals:
-        if isinstance(cal, Cal):
-            cals_.append(cal)
-        elif isinstance(cal, NamedCal):
-            cals_.extend(cal.union_cal.calendars)
-        else:  # is UnionCal
-            cals_.extend(cal.calendars)
-
-    settlement_calendars = associated_calendar.lower().split(",")
-    sets = [defaults.calendars[_] for _ in settlement_calendars]
-    sets_: list[Cal] = []
-    for cal in sets:
-        if isinstance(cal, Cal):
-            sets_.append(cal)
-        elif isinstance(cal, NamedCal):
-            sets_.extend(cal.union_cal.calendars)
-        else:
-            sets_.extend(cal.calendars)
-
-    return UnionCal(cals_, sets_)
 
 
 def _get_years_and_months(d1: datetime, d2: datetime) -> tuple[int, int]:

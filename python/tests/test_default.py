@@ -39,13 +39,10 @@ def test_reset_defaults() -> None:
     defaults.base_currency = "gbp"
     assert defaults.modifier == "MP"
     assert defaults.base_currency == "gbp"
-    defaults.calendars["TEST"] = 10.0
-    assert defaults.calendars["TEST"] == 10.0
 
     defaults.reset_defaults()
     assert defaults.modifier == "MF"
     assert defaults.base_currency == "usd"
-    assert "TEST" not in defaults.calendars
 
 
 def test_defaults_singleton() -> None:

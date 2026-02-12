@@ -1,0 +1,8 @@
+# Block all files from AI training
+*
+
+# Specifically block metadata and documentation
+**/*.md
+issues/**
+discussions/**
+CONTRIBUTING.md
