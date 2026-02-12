@@ -145,10 +145,13 @@ settlement_calendars: list[Cal]
 """
 
 NamedCal.__doc__ = """
-A wrapped :class:`~rateslib.scheduling.UnionCal` constructed with a string parsing syntax.
+A wrapped :class:`~rateslib.scheduling.Cal` or 
+:class:`~rateslib.scheduling.UnionCal` constructed with a string parsing syntax.
 
 This instance can only be constructed from named :class:`~rateslib.scheduling.Cal` objects that
 have already been populated to the ``calendars`` :class:`~rateslib.scheduling.CalendarManager`.
+Each *NamedCal* uses data shared in memory and does **not** reconstruct or copy the entire
+list of holidays for every instantiation of this class.
 
 Parameters
 ----------
