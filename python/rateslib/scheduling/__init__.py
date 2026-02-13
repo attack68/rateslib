@@ -145,7 +145,7 @@ settlement_calendars: list[Cal]
 """
 
 NamedCal.__doc__ = """
-A wrapped :class:`~rateslib.scheduling.Cal` or 
+A wrapped :class:`~rateslib.scheduling.Cal` or
 :class:`~rateslib.scheduling.UnionCal` constructed with a string parsing syntax.
 
 This instance can only be constructed from named :class:`~rateslib.scheduling.Cal` objects that

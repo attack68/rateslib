@@ -79,11 +79,10 @@ impl NamedCal {
     ///
     /// # Examples
     /// ```rust
-    /// # use rateslib::scheduling::{NamedCal};
+    /// # use rateslib::scheduling::{NamedCal, ndt, DateRoll};
     /// let named_cal = NamedCal::try_new("ldn,tgt|fed");
     /// # let named_cal = named_cal.unwrap();
-    /// assert_eq!(named_cal.union_cal.calendars.len(), 2);
-    /// assert!(named_cal.union_cal.settlement_calendars.is_some());
+    /// assert!(named_cal.is_bus_day(&ndt(2026, 2, 12)));
     /// ```
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let name_ = name.to_lowercase();
