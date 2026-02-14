@@ -11,7 +11,8 @@ exclude = [
     "docs/*",
     "PACKAGING.md",
     "PIP_FREEZE.txt",
-    "requirements-minimum.txt"
+    "requirements-minimum.txt",
+    "robots.txt",
 ]
 
 [lib]

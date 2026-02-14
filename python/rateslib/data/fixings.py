@@ -352,7 +352,7 @@ class FXIndex:
         the given ``calendar``. If int is assumed to be settleable business days.
     isda_mtm_calendar: Calendar, str, :green:`optional`
         The calendar associated with the MTM fixing date determination.
-    isda_mtm_settle: Adjuster, str, int_, :green:`optional`,
+    isda_mtm_settle: Adjuster, str, int, :green:`optional`,
         The adjustment applied to determine the MTM fixing date.
     allow_cross: bool, :green:`optional (set as True)`
         This allows sub-division of the fixing into its *majors* as defined by WMR

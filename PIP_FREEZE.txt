@@ -16,7 +16,7 @@ cffi==2.0.0
 charset-normalizer==3.4.4
 comm==0.2.3
 contourpy==1.3.3
-coverage==7.13.1
+coverage==7.13.4
 cycler==0.12.1
 debugpy==1.8.19
 decorator==5.2.1
@@ -52,7 +52,7 @@ jupyter_client==8.7.0
 jupyter_core==5.9.1
 jupyter_server==2.17.0
 jupyter_server_terminals==0.5.3
-jupyterlab==4.5.2
+jupyterlab==4.5.4
 jupyterlab_pygments==0.3.0
 jupyterlab_server==2.28.0
 keyring==25.7.0
@@ -63,7 +63,7 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 matplotlib==3.10.8
 matplotlib-inline==0.2.1
-maturin==1.11.5
+maturin==1.12.0
 mdurl==0.1.2
 mistune==3.2.0
 more-itertools==10.8.0
@@ -76,10 +76,10 @@ nbsphinx==0.9.8
 nest-asyncio==1.6.0
 nh3==0.3.2
 notebook_shim==0.2.4
-numpy==2.4.1
+numpy==2.4.2
 packaging==25.0
-pandas==2.3.3
-pandas-stubs==2.3.3.260113
+pandas==3.0.0
+pandas-stubs==3.0.0.260204
 pandocfilters==1.5.1
 parso==0.8.5
 pathspec==0.12.1
@@ -97,13 +97,13 @@ pycparser==2.23
 pydata-sphinx-theme==0.16.1
 Pygments==2.19.2
 pyparsing==3.3.1
-pytest==8.4.2
+pytest==9.0.2
 python-dateutil==2.9.0.post0
 python-json-logger==4.0.0
 pytz==2025.2
 PyYAML==6.0.3
 pyzmq==27.1.0
--e git+https://github.com/attack68/rateslib.git@c71e5d718eacf6fe29c670178a1049eae0ccee34#egg=rateslib
+-e git+https://github.com/attack68/rateslib.git@30c261f6eea2a4d097947e566d6c57247de258f7#egg=rateslib
 readme_renderer==44.0
 referencing==0.37.0
 requests==2.32.5
@@ -113,14 +113,16 @@ rfc3986==2.0.0
 rfc3986-validator==0.1.1
 rfc3987-syntax==1.1.0
 rich==14.2.0
+roman-numerals==4.1.0
+roman-numerals-py==4.1.0
 rpds-py==0.30.0
-ruff==0.14.11
+ruff==0.15.1
 Send2Trash==1.8.3
 setuptools==80.9.0
 six==1.17.0
 snowballstemmer==3.0.1
 soupsieve==2.8.1
-Sphinx==8.1.3
+Sphinx==8.2.3
 sphinx-automodapi==0.22.0
 sphinx-tabs==3.4.7
 sphinxcontrib-applehelp==2.0.0
@@ -145,3 +147,4 @@ wcwidth==0.2.14
 webcolors==25.10.0
 webencodings==0.5.1
 websocket-client==1.9.0
+ziglang==0.15.1
