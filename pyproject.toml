@@ -19,7 +19,7 @@ version = "2.6.0"
 description = "A fixed income library for trading interest rates"
 readme = "README.md"
 authors = [{ name = "J H M Darbyshire"}]
-license-files = ["LICEN[CS]E"]
+license-files = ["LICEN[CS]E", "COMMERCIAL_LICENCE", "COMMERCIAL_LICENCE_ADDENDUM1"]
 keywords = ["interest rate", "derivatives", "swaps", "bonds", "fixed income"]
 dependencies = [
     "numpy>=1.21.5,<3.0",
