@@ -160,6 +160,6 @@ strict = true
 
 [tool.coverage.run]
 omit = [
-    "/typing.py",
+    "/local_types.py",
     # "python/tests/*"
 ]
