@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         Any,
     )
 
+DEVELOPMENT = os.environ.get("RATESLIB_DEVELOPMENT", "False")
 
 # This is output from a development version and hard coded before a release for performance.
 INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
@@ -1307,7 +1308,6 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
     },
 }
 
-DEVELOPMENT = os.environ.get("RATESLIB_DEVELOPMENT", "True")
 if DEVELOPMENT == "True":
     # DEVELOPMENT mode is used to load and create instrument specs from a CSV file.
     # This is loaded by default and slower to parse than directly creating a dict
