@@ -16,13 +16,13 @@ from math import exp
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from pandas import DataFrame, MultiIndex
+from pandas import DataFrame, MultiIndex, Series
 from pandas.errors import PerformanceWarning
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
 from rateslib.default import NoInput
-from rateslib.dual import Dual, Dual2, gradient, ift_1dim, newton_1dim, newton_ndim
+from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -2839,3 +2839,133 @@ def test_curves_without_their_own_params(label):
         s=[2.0],
     )
     assert sv.result["status"] == "SUCCESS"
+
+
+class TestContainerSolver:
+    # these tests involve a Solver that has no instruments of its own and is just a
+    # wrapper of 1 or multiple `pre_solvers`
+
+    def test_combine_separate_solvers_for_delta(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="x")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="y")
+        solver = Solver(
+            curves=[curve],
+            instruments=[Value(dt(2000, 9, 12), curves="x", metric="o/n_rate")],
+            s=[2.0],
+            instrument_labels=["X"],
+            id="A1",
+        )
+        solver2 = Solver(
+            curves=[curve2],
+            instruments=[Value(dt(2000, 9, 12), curves="y", metric="o/n_rate")],
+            s=[3.0],
+            instrument_labels=["Y"],
+            id="A2",
+        )
+        solver3 = Solver(pre_solvers=[solver, solver2])
+
+        v = IRS(dt(2000, 9, 12), "1d", "M", curves="x")
+        w = IRS(dt(2000, 9, 12), "1d", "M", curves="y")
+        result = Portfolio([v, w]).delta(solver=solver3)
+
+        m_idx = MultiIndex.from_tuples(
+            [("instruments", "A1", "X"), ("instruments", "A2", "Y")],
+            names=["type", "solver", "label"],
+        )
+        c_idx = MultiIndex.from_tuples([("usd", "usd")], names=["local_ccy", "display_ccy"])
+        expected = DataFrame([0.273825, 0.271870], index=m_idx, columns=c_idx)
+        assert_frame_equal(result, expected)
+
+    def test_combine_separate_solvers_for_exo_delta(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="x")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="y")
+        solver = Solver(
+            curves=[curve],
+            instruments=[Value(dt(2000, 9, 12), curves="x", metric="o/n_rate")],
+            s=[2.0],
+            instrument_labels=["X"],
+            id="A1",
+        )
+        solver2 = Solver(
+            curves=[curve2],
+            instruments=[Value(dt(2000, 9, 12), curves="y", metric="o/n_rate")],
+            s=[3.0],
+            instrument_labels=["Y"],
+            id="A2",
+        )
+        solver3 = Solver(pre_solvers=[solver, solver2])
+
+        v = IRS(
+            dt(2000, 9, 12), "1d", "M", curves="x", notional=Variable(1e8, ["exo"]), fixed_rate=5
+        )
+        w = IRS(
+            dt(2000, 9, 12), "1d", "M", curves="y", notional=Variable(1e8, ["exo"]), fixed_rate=4
+        )
+        result = (
+            Portfolio([v, w]).exo_delta(solver=solver3, vars=["exo"], vars_scalar=[1e8]).to_numpy()
+        )
+        pv = Portfolio([v, w]).npv(solver=solver3)
+        assert abs(result[0, 0] - pv) < 1e-7
+
+    def test_combine_separate_solvers_for_gamma(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="x")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="y")
+        solver = Solver(
+            curves=[curve],
+            instruments=[Value(dt(2000, 9, 12), curves="x", metric="o/n_rate")],
+            s=[2.0],
+            instrument_labels=["X"],
+            id="A1",
+        )
+        solver2 = Solver(
+            curves=[curve2],
+            instruments=[Value(dt(2000, 9, 12), curves="y", metric="o/n_rate")],
+            s=[3.0],
+            instrument_labels=["Y"],
+            id="A2",
+        )
+        solver3 = Solver(pre_solvers=[solver, solver2])
+
+        v = IRS(dt(2000, 9, 12), "1d", "M", curves="x")
+        w = IRS(dt(2000, 9, 12), "1d", "M", curves="y")
+        result = Portfolio([v, w]).gamma(solver=solver3).to_numpy()
+
+        partial_result1 = v.gamma(solver=solver).to_numpy()
+        partial_result2 = w.gamma(solver=solver2).to_numpy()
+
+        assert np.all(
+            result
+            == np.block(
+                [
+                    [partial_result1, np.zeros(shape=(1, 1))],
+                    [np.zeros(shape=(1, 1)), partial_result2],
+                ]
+            )
+        )
+
+    def test_combine_separate_solvers_error(self):
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="x")
+        curve2 = Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0}, id="y")
+        solver = Solver(
+            curves=[curve],
+            instruments=[Value(dt(2000, 9, 12), curves="x", metric="o/n_rate")],
+            s=[2.0],
+            instrument_labels=["X"],
+            id="A1",
+        )
+        solver2 = Solver(
+            curves=[curve2],
+            instruments=[Value(dt(2000, 9, 12), curves="y", metric="o/n_rate")],
+            s=[3.0],
+            instrument_labels=["Y"],
+            id="A2",
+        )
+        solver3 = Solver(pre_solvers=[solver, solver2])
+        result = solver3.error
+        assert isinstance(result, Series)
+
+    def test_error_empty(self):
+        s1 = Solver()
+        s2 = Solver()
+        s3 = Solver(pre_solvers=[s1, s2])
+        assert s3.error.empty

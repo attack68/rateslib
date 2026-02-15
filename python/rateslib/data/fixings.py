@@ -43,10 +43,11 @@ from rateslib.scheduling.calendars import get_calendar
 from rateslib.scheduling.convention import Convention, _get_convention
 from rateslib.scheduling.dcfs import dcf
 from rateslib.scheduling.frequency import _get_frequency, _get_tenor_from_frequency, add_tenor
+from rateslib.scheduling.schedule import _get_stub_inference
 from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         Arr1dF64,
         Arr1dObj,
@@ -63,6 +64,7 @@ if TYPE_CHECKING:
         LegFixings,
         PeriodFixings,
         Result,
+        StubInference,
         _BaseCurve_,
         bool_,
         datetime_,
@@ -350,7 +352,7 @@ class FXIndex:
         the given ``calendar``. If int is assumed to be settleable business days.
     isda_mtm_calendar: Calendar, str, :green:`optional`
         The calendar associated with the MTM fixing date determination.
-    isda_mtm_settle: Adjuster, str, int_, :green:`optional`,
+    isda_mtm_settle: Adjuster, str, int, :green:`optional`,
         The adjustment applied to determine the MTM fixing date.
     allow_cross: bool, :green:`optional (set as True)`
         This allows sub-division of the fixing into its *majors* as defined by WMR
@@ -1712,10 +1714,12 @@ class IBORStubFixing(_BaseFixing):
 
     Notes
     -----
-    An interpolated tenor-IBOR type calculation depends upon two tenors being available from
-    the *Fixings* object. Appropriate tenors will be automatically selected based on the
-    ``accrual_end`` date. If only one tenor is available, this will be used as the single
-    ``fixing1`` value.
+    An interpolated tenor-IBOR type calculation depends upon two tenors being determinable from
+    which a rate can be linearly interpolated.
+
+    The ``rate_series`` has a ``tenors`` attribute which will be used in a first instance. If this
+    is empty, i.e. unspecified, then the default tenors of ['1W', '1M', '3M', '6M', '12M']
+    are used in place.
 
     Examples
     --------
@@ -1747,21 +1751,15 @@ class IBORStubFixing(_BaseFixing):
                calendar="tgt",
                convention="act360",
                eom=False,
+               tenors=["1M", "2M", "3M", "6M", "12M"],
            )
        )
        ibor_fix.date
        ibor_fix.value
 
-    .. ipython:: python
-       :suppress:
-
-       fixings.pop("Euribor_1m")
-       fixings.pop("Euribor_2m")
-       fixings.pop("Euribor_3m")
-       fixings.pop("Euribor_6m")
 
     This fixing can only be determined from a single tenor, which is quite distinct from the
-    stub tenor in this case.
+    12 day period length in this case. In practice this should be avoided.
 
     .. ipython:: python
 
@@ -1776,34 +1774,21 @@ class IBORStubFixing(_BaseFixing):
                calendar="osl",
                convention="act360",
                eom=True,
+               tenors=["6M"],
            )
        )
        ibor_fix.date
        ibor_fix.value
        ibor_fix.fixing2
-
-    The following fixing cannot identify any tenor indices in the *Fixings* object, and will
-    log a *UserWarning* before proceeding to yield *NoInput* for all values.
 
     .. ipython:: python
-       :okwarning:
+       :suppress:
 
-       ibor_fix = IBORStubFixing(
-           accrual_start=dt(2000, 1, 5),
-           accrual_end=dt(2000, 1, 17),
-           identifier="Unavailable_Identifier",
-           rate_series=FloatRateSeries(
-               lag=2,
-               modifier="MF",
-               calendar="nyc",
-               convention="act360",
-               eom=True,
-           )
-       )
-       ibor_fix.date
-       ibor_fix.value
-       ibor_fix.fixing1
-       ibor_fix.fixing2
+       fixings.pop("Euribor_1m")
+       fixings.pop("Euribor_2m")
+       fixings.pop("Euribor_3m")
+       fixings.pop("Euribor_6m")
+       fixings.pop("NIBOR_6M")
 
     """  # noqa: E501
 
@@ -1832,43 +1817,38 @@ class IBORStubFixing(_BaseFixing):
             date,
         )
 
-        if isinstance(value, NoInput):
-            if isinstance(identifier, NoInput):
-                self._fixing2 = NoInput(0)
-                self._fixing1 = NoInput(0)
-            else:
-                # then populate additional required information
-                tenors = self._stub_tenors()
-                if len(tenors[0]) in [1, 2]:
-                    self._fixing1 = IBORFixing(
-                        rate_index=FloatRateIndex(
-                            series=self.series,
-                            frequency=_get_frequency(tenors[0][0], NoInput(0), NoInput(0)),
-                        ),
-                        accrual_start=self.accrual_start,
-                        date=date,
-                        value=NoInput(0),
-                        identifier=identifier + "_" + tenors[0][0],
-                    )
-                    if len(tenors[0]) == 2:
-                        self._fixing2 = IBORFixing(
-                            rate_index=FloatRateIndex(
-                                series=self._series,
-                                frequency=_get_frequency(tenors[0][1], NoInput(0), NoInput(0)),
-                            ),
-                            date=date,
-                            accrual_start=self.accrual_start,
-                            value=NoInput(0),
-                            identifier=identifier + "_" + tenors[0][1],
-                        )
-                    else:
-                        self._fixing2 = NoInput(0)
-                else:
-                    warnings.warn(err.UW_NO_TENORS.format(identifier))
-                    self._fixing2 = NoInput(0)
-                    self._fixing1 = NoInput(0)
+        tenors = self._stub_tenors_from_list(
+            tenors=_drb(["1W", "1M", "3M", "6M", "12M"], self.series.tenors)
+        )
+        self._fixing1 = IBORFixing(
+            rate_index=FloatRateIndex(
+                series=self.series,
+                frequency=_get_frequency(tenors[0][0], NoInput(0), NoInput(0)),
+            ),
+            accrual_start=self.accrual_start,
+            date=date,
+            value=value,
+            identifier=NoInput(0)
+            if isinstance(identifier, NoInput)
+            else identifier + "_" + tenors[0][0],
+        )
+        if len(tenors[0]) == 2:
+            self._fixing2 = IBORFixing(
+                rate_index=FloatRateIndex(
+                    series=self._series,
+                    frequency=_get_frequency(tenors[0][1], NoInput(0), NoInput(0)),
+                ),
+                date=date,
+                accrual_start=self.accrual_start,
+                value=value,
+                identifier=NoInput(0)
+                if isinstance(identifier, NoInput)
+                else identifier + "_" + tenors[0][1],
+            )
         else:
-            self._value = value
+            self._fixing2 = NoInput(0)
+
+        self._value = value
 
     @property
     def date(self) -> datetime:
@@ -1947,58 +1927,22 @@ class IBORStubFixing(_BaseFixing):
     ) -> DualTypes_:
         raise RuntimeError("This method should be unused due to overloaded properties")
 
-    def _stub_tenors(self) -> tuple[list[str], list[datetime]]:
-        """
-        Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
-        determining an IBOR type stub period.
-
-        Returns
-        -------
-        tuple of list[string tenors] and list[evaluated end dates]
-        """
-        from rateslib.scheduling import add_tenor
-
+    def _stub_tenors_from_list(self, tenors: list[str]) -> tuple[list[str], list[datetime]]:
         left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
         right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
 
-        for tenor in [
-            "1D",
-            "1B",
-            "2B",
-            "1W",
-            "2W",
-            "3W",
-            "4W",
-            "1M",
-            "2M",
-            "3M",
-            "4M",
-            "5M",
-            "6M",
-            "7M",
-            "8M",
-            "9M",
-            "10M",
-            "11M",
-            "12M",
-            "1Y",
-        ]:
-            try:
-                _ = fixings.__getitem__(f"{self.identifier}_{tenor}")
-            except Exception:  # noqa: S112
-                continue
-            else:
-                sample_end = add_tenor(
-                    start=self.accrual_start,
-                    tenor=tenor,
-                    modifier=self.series.modifier,
-                    calendar=self.series.calendar,
-                )
-                if sample_end <= self.accrual_end and sample_end > left[1]:
-                    left = (tenor, sample_end)
-                if sample_end > self.accrual_end and sample_end < right[1]:
-                    right = (tenor, sample_end)
-                    break
+        for tenor in tenors:
+            sample_end = add_tenor(
+                start=self.accrual_start,
+                tenor=tenor,
+                modifier=self.series.modifier,
+                calendar=self.series.calendar,
+            )
+            if sample_end <= self.accrual_end and sample_end > left[1]:
+                left = (tenor, sample_end)
+            if sample_end > self.accrual_end and sample_end < right[1]:
+                right = (tenor, sample_end)
+                break
 
         ret: tuple[list[str], list[datetime]] = ([], [])
         if left[0] is not None:
@@ -2008,6 +1952,68 @@ class IBORStubFixing(_BaseFixing):
             ret[0].append(right[0])
             ret[1].append(right[1])
         return ret
+
+    # def _stub_tenors_from_fixings(self) -> tuple[list[str], list[datetime]]:
+    #     """
+    #     Return the tenors available in the :class:`~rateslib.defaults.Fixings` object for
+    #     determining an IBOR type stub period.
+    #
+    #     Returns
+    #     -------
+    #     tuple of list[string tenors] and list[evaluated end dates]
+    #     """
+    #     from rateslib.scheduling import add_tenor
+    #
+    #     left: tuple[str | None, datetime] = (None, datetime(1, 1, 1))
+    #     right: tuple[str | None, datetime] = (None, datetime(9999, 1, 1))
+    #
+    #     for tenor in [
+    #         "1D",
+    #         "1B",
+    #         "2B",
+    #         "1W",
+    #         "2W",
+    #         "3W",
+    #         "4W",
+    #         "1M",
+    #         "2M",
+    #         "3M",
+    #         "4M",
+    #         "5M",
+    #         "6M",
+    #         "7M",
+    #         "8M",
+    #         "9M",
+    #         "10M",
+    #         "11M",
+    #         "12M",
+    #         "1Y",
+    #     ]:
+    #         try:
+    #             _ = fixings.__getitem__(f"{self.identifier}_{tenor}")
+    #         except Exception:  # noqa: S112
+    #             continue
+    #         else:
+    #             sample_end = add_tenor(
+    #                 start=self.accrual_start,
+    #                 tenor=tenor,
+    #                 modifier=self.series.modifier,
+    #                 calendar=self.series.calendar,
+    #             )
+    #             if sample_end <= self.accrual_end and sample_end > left[1]:
+    #                 left = (tenor, sample_end)
+    #             if sample_end > self.accrual_end and sample_end < right[1]:
+    #                 right = (tenor, sample_end)
+    #                 break
+    #
+    #     ret: tuple[list[str], list[datetime]] = ([], [])
+    #     if left[0] is not None:
+    #         ret[0].append(left[0])
+    #         ret[1].append(left[1])
+    #     if right[0] is not None:
+    #         ret[0].append(right[0])
+    #         ret[1].append(right[1])
+    #     return ret
 
 
 class RFRFixing(_BaseFixing):
@@ -2030,8 +2036,6 @@ class RFRFixing(_BaseFixing):
         internal structuring these should have the suffix "_1B", e.g. "ESTR_1B".
     fixing_method: FloatFixingMethod or str
         The :class:`FloatFixingMethod` object used to combine multiple RFR fixings.
-    method_param: int
-        A parameter required by the ``fixing_method``.
     spread_compound_method: SpreadCompoundMethod or str
         A :class:`SpreadCompoundMethod` object used define the calculation of the addition of the
         ``float_spread``.
@@ -2062,8 +2066,7 @@ class RFRFixing(_BaseFixing):
            accrual_end=dt(2025, 1, 15),
            identifier="SOFR_1B",
            spread_compound_method=SpreadCompoundMethod.NoneSimple,
-           fixing_method=FloatFixingMethod.RFRPaymentDelay,
-           method_param=0,
+           fixing_method=FloatFixingMethod.RFRPaymentDelay(),
            float_spread=0.0,
            rate_index=FloatRateIndex(frequency="1B", series="usd_rfr")
        )
@@ -2081,7 +2084,6 @@ class RFRFixing(_BaseFixing):
            identifier="SOFR_1B",
            spread_compound_method="NoneSimple",
            fixing_method="RFRPaymentDelay",
-           method_param=0,
            float_spread=0.0,
            rate_index=FloatRateIndex(frequency="1B", series="usd_rfr")
        )
@@ -2104,7 +2106,6 @@ class RFRFixing(_BaseFixing):
     _accrual_end: datetime
     _fixing_method: FloatFixingMethod
     _spread_compound_method: SpreadCompoundMethod
-    _method_param: int
 
     def __init__(
         self,
@@ -2113,7 +2114,6 @@ class RFRFixing(_BaseFixing):
         accrual_start: datetime,
         accrual_end: datetime,
         fixing_method: FloatFixingMethod | str,
-        method_param: int,
         spread_compound_method: SpreadCompoundMethod | str,
         float_spread: DualTypes,
         value: DualTypes_ = NoInput(0),
@@ -2130,7 +2130,6 @@ class RFRFixing(_BaseFixing):
         self._accrual_start = accrual_start
         self._accrual_end = accrual_end
         self._fixing_method = _get_float_fixing_method(fixing_method)
-        self._method_param = method_param
         self._populated = Series(index=[], data=[], dtype=float)  # type: ignore[assignment]
 
     def reset(self, state: int_ = NoInput(0)) -> None:
@@ -2143,11 +2142,6 @@ class RFRFixing(_BaseFixing):
     def fixing_method(self) -> FloatFixingMethod:
         """The :class:`FloatFixingMethod` object used to combine multiple RFR fixings."""
         return self._fixing_method
-
-    @property
-    def method_param(self) -> int:
-        """A parameter required by the ``fixing_method``."""
-        return self._method_param
 
     @property
     def float_spread(self) -> DualTypes:
@@ -2207,7 +2201,6 @@ class RFRFixing(_BaseFixing):
         value, populated = self._lookup(
             timeseries=timeseries,
             fixing_method=self.fixing_method,
-            method_param=self.method_param,
             dates_obs=self.dates_obs,
             dcfs_dcf=self.dcfs_dcf,
             float_spread=self.float_spread,
@@ -2224,7 +2217,6 @@ class RFRFixing(_BaseFixing):
         # accrual_start: datetime,
         # accrual_end: datetime,
         fixing_method: FloatFixingMethod,
-        method_param: int,
         dates_obs: Arr1dObj,
         # dates_dcf: list[datetime] | None,
         # dcfs_obs: Arr1dF64,
@@ -2239,7 +2231,6 @@ class RFRFixing(_BaseFixing):
                 fixing_rates=fixing_rates,
                 rate_fixings=timeseries,
                 fixing_method=fixing_method,
-                method_param=method_param,
             )
         )
         if len(unpopulated) > 0:
@@ -2249,7 +2240,6 @@ class RFRFixing(_BaseFixing):
                 fixing_rates=fixing_rates,
                 fixing_dcfs=dcfs_dcf,
                 fixing_method=fixing_method,
-                method_param=method_param,
                 spread_compound_method=spread_compound_method,
                 float_spread=float_spread,
             )
@@ -2302,7 +2292,6 @@ class RFRFixing(_BaseFixing):
             accrual_start=self.accrual_start,
             accrual_end=self.accrual_end,
             fixing_method=self.fixing_method,
-            method_param=self.method_param,
             fixing_calendar=self.rate_index.calendar,
         )
 
@@ -2311,7 +2300,6 @@ class RFRFixing(_BaseFixing):
         accrual_start: datetime,
         accrual_end: datetime,
         fixing_method: FloatFixingMethod,
-        method_param: int,
         fixing_calendar: CalTypes,
     ) -> tuple[tuple[datetime, datetime], tuple[datetime, datetime]]:
         """
@@ -2324,7 +2312,7 @@ class RFRFixing(_BaseFixing):
         align.
         """
         # Depending upon method get the observation dates and dcf dates
-        if fixing_method in [
+        if type(fixing_method) in [
             FloatFixingMethod.RFRPaymentDelay,
             FloatFixingMethod.RFRPaymentDelayAverage,
             FloatFixingMethod.RFRLockout,
@@ -2332,20 +2320,28 @@ class RFRFixing(_BaseFixing):
         ]:
             start_obs, end_obs = accrual_start, accrual_end
             start_dcf, end_dcf = accrual_start, accrual_end
-        elif fixing_method in [
+        elif type(fixing_method) in [
             FloatFixingMethod.RFRObservationShift,
             FloatFixingMethod.RFRObservationShiftAverage,
         ]:
-            start_obs = fixing_calendar.lag_bus_days(accrual_start, -method_param, settlement=False)
-            end_obs = fixing_calendar.lag_bus_days(accrual_end, -method_param, settlement=False)
+            start_obs = fixing_calendar.lag_bus_days(
+                accrual_start, -fixing_method.method_param(), settlement=False
+            )
+            end_obs = fixing_calendar.lag_bus_days(
+                accrual_end, -fixing_method.method_param(), settlement=False
+            )
             start_dcf, end_dcf = start_obs, end_obs
         else:
             # fixing_method in [
             #    FloatFixingMethod.RFRLookback,
             #    FloatFixingMethod.RFRLookbackAverage,
             # ]:
-            start_obs = fixing_calendar.lag_bus_days(accrual_start, -method_param, settlement=False)
-            end_obs = fixing_calendar.lag_bus_days(accrual_end, -method_param, settlement=False)
+            start_obs = fixing_calendar.lag_bus_days(
+                accrual_start, -fixing_method.method_param(), settlement=False
+            )
+            end_obs = fixing_calendar.lag_bus_days(
+                accrual_end, -fixing_method.method_param(), settlement=False
+            )
             start_dcf, end_dcf = accrual_start, accrual_end
 
         return (start_obs, end_obs), (start_dcf, end_dcf)
@@ -2426,14 +2422,21 @@ class FloatRateSeries:
     ----------
     lag: int, :red:`required`
         The number of business days by which the fixing date is lagged to the accrual start date.
-    calendar: Calendar, str :green:`required`
+    calendar: Calendar, str :red:`required`
         The calendar associated with the floating rate's date determination.
     modifier: Adjuster, str, :red:`required`
-        The :class:`Adjuster` associated with the end accrual day of the floating rate's date.
-    convention: Convention, str, :green:`required`
+        The :class:`~rateslib.scheduling.Adjuster` associated with the end accrual day of the
+        floating rate's date.
+    convention: Convention, str, :red:`required`
         The day count :class:`~rateslib.scheduling.Convention` associated with the floating rate.
     eom: bool, :red:`required`
         Whether the interest rate index natively adopts EoM roll preference or not.
+    tenors: list[str], :green:`optional`
+        The official list of tenor indexes published by this series.
+    zero_float_period_stub: StubInference, str, :green:`optional (set as 'ShortBack')`
+        The stub inference parameter that is used to steer schedule construction when this
+        series is used as part of a :class:`~rateslib.legs.FloatLeg` composed of
+        :class:`~rateslib.periods.ZeroFloatPeriod`.
 
     """
 
@@ -2442,6 +2445,8 @@ class FloatRateSeries:
     _modifier: Adjuster
     _convention: Convention
     _eom: bool
+    _zero_period_stub: StubInference
+    _tenors: list[str] | NoInput
 
     def __init__(
         self,
@@ -2450,32 +2455,60 @@ class FloatRateSeries:
         modifier: Adjuster | str,
         convention: Convention | str,
         eom: bool,
+        zero_period_stub: StubInference | str_ = NoInput(0),
+        tenors: list[str] | NoInput = NoInput(0),
     ) -> None:
         self._lag = lag
         self._calendar = get_calendar(calendar)
         self._modifier = _get_adjuster(modifier)
         self._convention = _get_convention(convention)
         self._eom = eom
+        self._tenors: list[str] = tenors
+        if not isinstance(self.tenors, NoInput) and len(self.tenors) == 0:
+            raise ValueError("`tenors` cannot be given as an empty list.")
+        self._zero_period_stub = _get_stub_inference(
+            _drb("ShortBack", zero_period_stub), NoInput(0), NoInput(0)
+        )
 
     @property
     def lag(self) -> int:
+        """The number of business days before accrual start that the fixing is published according
+        to ``calendar``."""
         return self._lag
 
     @property
     def calendar(self) -> CalTypes:
+        """The fixing calendar for the rate series."""
         return self._calendar
 
     @property
     def convention(self) -> Convention:
+        """The day count :class:`~rateslib.scheduling.Convention` associated with the fixing."""
         return self._convention
 
     @property
     def modifier(self) -> Adjuster:
+        """The date :class:`~rateslib.scheduling.Adjuster` used for date adjustment of the tenor."""
         return self._modifier
 
     @property
     def eom(self) -> bool:
+        """Whether end of month date rolling is applied to date calculations for the fixing
+        series."""
         return self._eom
+
+    @property
+    def zero_period_stub(self) -> StubInference:
+        """:class:`~rateslib.scheduling.StubInference` used when a fixing tenor does not divide
+        into the frequency of a compounded :class:`~rateslib.periods.ZeroFloatPeriod`."""
+        return self._zero_period_stub
+
+    @property
+    def tenors(self) -> list[str] | NoInput:
+        """
+        A list of tenors that are published by this interest rate series.
+        """
+        return self._tenors
 
 
 class _IBORRate:
@@ -2486,14 +2519,16 @@ class _IBORRate:
         rate_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
         start: datetime,
         end: datetime,
-        method_param: int,
+        lag: int,
         stub: bool,
         float_spread: DualTypes,
         rate_series: FloatRateSeries | NoInput,
         frequency: Frequency,
     ) -> Result[DualTypes]:
         rate_series_ = _maybe_get_rate_series_from_curve(
-            rate_curve=rate_curve, rate_series=rate_series, method_param=method_param
+            rate_curve=rate_curve,
+            rate_series=rate_series,
+            lag=lag,
         )
         fixing_date = rate_series_.calendar.lag_bus_days(start, -rate_series_.lag, settlement=False)
         if stub:
@@ -2848,7 +2883,6 @@ class _RFRRate:
         rate_curve: _BaseCurve_,
         rate_fixings: DualTypes | Series[DualTypes] | str_,  # type: ignore[type-var]
         fixing_method: FloatFixingMethod,
-        method_param: int,
         spread_compound_method: SpreadCompoundMethod,
         float_spread: DualTypes,
         rate_series: FloatRateSeries | NoInput,
@@ -2893,14 +2927,13 @@ class _RFRRate:
         rate_series_ = _maybe_get_rate_series_from_curve(
             rate_curve=rate_curve,
             rate_series=rate_series,
-            method_param=method_param,
+            lag=0,
         )
 
         bounds_obs, bounds_dcf, is_matching = _RFRRate._adjust_dates(
             start=start,
             end=end,
             fixing_method=fixing_method,
-            method_param=method_param,
             fixing_calendar=rate_series_.calendar,
         )
 
@@ -2931,7 +2964,6 @@ class _RFRRate:
                 is_matching=is_matching,
                 rate_fixings=rate_fixings,
                 fixing_method=fixing_method,
-                method_param=method_param,
             )
         )
 
@@ -2979,7 +3011,6 @@ class _RFRRate:
             fixing_rates=fixing_rates,
             fixing_dcfs=dcfs_dcf,
             fixing_method=fixing_method,
-            method_param=method_param,
             spread_compound_method=spread_compound_method,
             float_spread=float_spread,
         )
@@ -3060,7 +3091,6 @@ class _RFRRate:
         fixing_rates: Series,
         fixing_dcfs: Arr1dF64,
         fixing_method: FloatFixingMethod,
-        method_param: int,
         spread_compound_method: SpreadCompoundMethod,
         float_spread: DualTypes,
     ) -> Result[DualTypes]:
@@ -3069,8 +3099,12 @@ class _RFRRate:
         or averaging each of them up in turn, combining a float spread if necessary.
         """
         # overwrite with lockout rates: this is needed if rates have been forecast from curve.
-        if fixing_method in [FloatFixingMethod.RFRLockout, FloatFixingMethod.RFRLockoutAverage]:
+        if type(fixing_method) in [
+            FloatFixingMethod.RFRLockout,
+            FloatFixingMethod.RFRLockoutAverage,
+        ]:
             # overwrite fixings
+            method_param = fixing_method.method_param()
             if method_param >= len(fixing_rates):
                 return Err(
                     ValueError(err.VE_LOCKOUT_METHOD_PARAM.format(method_param, fixing_rates))
@@ -3078,7 +3112,7 @@ class _RFRRate:
             for i in range(1, method_param + 1):
                 fixing_rates.iloc[-i] = fixing_rates.iloc[-(method_param + 1)]
 
-        if fixing_method in [
+        if type(fixing_method) in [
             FloatFixingMethod.RFRLockoutAverage,
             FloatFixingMethod.RFRLookbackAverage,
             FloatFixingMethod.RFRObservationShiftAverage,
@@ -3106,7 +3140,6 @@ class _RFRRate:
         is_matching: bool,
         rate_fixings: Series[DualTypes] | str_,  # type: ignore[type-var]
         fixing_method: FloatFixingMethod,
-        method_param: int,
     ) -> tuple[  # type: ignore[type-var]
         Arr1dObj,
         Arr1dObj,
@@ -3153,7 +3186,6 @@ class _RFRRate:
                     fixing_rates=fixing_rates,
                     rate_fixings=rate_fixings,
                     fixing_method=fixing_method,
-                    method_param=method_param,
                 )
             )
         else:
@@ -3203,7 +3235,6 @@ class _RFRRate:
         fixing_rates: Series[DualTypes],  # type: ignore[type-var]
         rate_fixings: str | Series[DualTypes],  # type: ignore[type-var]
         fixing_method: FloatFixingMethod,
-        method_param: int,
     ) -> tuple[Series[DualTypes], Series[DualTypes], Series[DualTypes]]:  # type: ignore[type-var]
         """
         Populates an empty fixings_rates Series with values from a looked up fixings collection.
@@ -3219,7 +3250,11 @@ class _RFRRate:
             fixing_rates.update(fixing_series)
 
         # push lockout rates if they are available
-        if fixing_method in [FloatFixingMethod.RFRLockout, FloatFixingMethod.RFRLockoutAverage]:
+        if type(fixing_method) in [
+            FloatFixingMethod.RFRLockout,
+            FloatFixingMethod.RFRLockoutAverage,
+        ]:
+            method_param = fixing_method.method_param()
             if method_param >= len(fixing_rates):
                 raise ValueError(err.VE_LOCKOUT_METHOD_PARAM.format(method_param, fixing_rates))
             if not isna(fixing_rates.iloc[-(1 + method_param)]):  # type: ignore[arg-type]
@@ -3261,7 +3296,6 @@ class _RFRRate:
         start: datetime,
         end: datetime,
         fixing_method: FloatFixingMethod,
-        method_param: int,
         fixing_calendar: CalTypes,
     ) -> tuple[tuple[datetime, datetime], tuple[datetime, datetime], bool]:
         """
@@ -3274,7 +3308,7 @@ class _RFRRate:
         align.
         """
         # Depending upon method get the observation dates and dcf dates
-        if fixing_method in [
+        if type(fixing_method) in [
             FloatFixingMethod.RFRPaymentDelay,
             FloatFixingMethod.RFRPaymentDelayAverage,
             FloatFixingMethod.RFRLockout,
@@ -3283,12 +3317,16 @@ class _RFRRate:
             start_obs, end_obs = start, end
             start_dcf, end_dcf = start, end
             is_matching = True
-        elif fixing_method in [
+        elif type(fixing_method) in [
             FloatFixingMethod.RFRObservationShift,
             FloatFixingMethod.RFRObservationShiftAverage,
         ]:
-            start_obs = fixing_calendar.lag_bus_days(start, -method_param, settlement=False)
-            end_obs = fixing_calendar.lag_bus_days(end, -method_param, settlement=False)
+            start_obs = fixing_calendar.lag_bus_days(
+                start, -fixing_method.method_param(), settlement=False
+            )
+            end_obs = fixing_calendar.lag_bus_days(
+                end, -fixing_method.method_param(), settlement=False
+            )
             start_dcf, end_dcf = start_obs, end_obs
             is_matching = True
         else:
@@ -3296,8 +3334,12 @@ class _RFRRate:
             #    FloatFixingMethod.RFRLookback,
             #    FloatFixingMethod.RFRLookbackAverage,
             # ]:
-            start_obs = fixing_calendar.lag_bus_days(start, -method_param, settlement=False)
-            end_obs = fixing_calendar.lag_bus_days(end, -method_param, settlement=False)
+            start_obs = fixing_calendar.lag_bus_days(
+                start, -fixing_method.method_param(), settlement=False
+            )
+            end_obs = fixing_calendar.lag_bus_days(
+                end, -fixing_method.method_param(), settlement=False
+            )
             start_dcf, end_dcf = start, end
             is_matching = False
 
@@ -3369,7 +3411,7 @@ class _RFRRate:
             isinstance(rate_curve, _BaseCurve)
             and rate_curve._base_type == _CurveType.dfs
             and isinstance(rate_fixings, NoInput)
-            and fixing_method
+            and type(fixing_method)
             in [FloatFixingMethod.RFRPaymentDelay, FloatFixingMethod.RFRObservationShift]
             and (float_spread == 0.0 or spread_compound_method == SpreadCompoundMethod.NoneSimple)
         )
@@ -3474,7 +3516,7 @@ def _get_float_rate_series_or_blank(val: FloatRateSeries | str_) -> FloatRateSer
 def _maybe_get_rate_series_from_curve(
     rate_curve: CurveOption_,
     rate_series: FloatRateSeries | NoInput,
-    method_param: int,
+    lag: int,
 ) -> FloatRateSeries:
     """Get a rate fixing calendar and convention from a Curve or the alternatives if not given."""
 
@@ -3497,7 +3539,7 @@ def _maybe_get_rate_series_from_curve(
         if isinstance(rate_series, NoInput):
             # get params from rate_curve
             return FloatRateSeries(
-                lag=method_param,
+                lag=lag,
                 calendar=cal_,
                 convention=conv_,
                 modifier=mod_,

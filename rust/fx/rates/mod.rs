@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //! Create objects related to the management and valuation of monetary amounts in different
 //! currencies, measured at different settlement dates in time.
 
@@ -24,7 +36,7 @@ pub(crate) mod fxrate;
 pub use crate::fx::rates::fxrate::FXRate;
 
 /// A multi-currency FX market deriving all crosses from a vector of `FXRate`s.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(from = "FXRatesDataModel")]
 pub struct FXRates {

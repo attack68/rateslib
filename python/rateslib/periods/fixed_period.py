@@ -35,7 +35,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurveOption_,
@@ -131,6 +131,9 @@ class FixedPeriod(_BasePeriodStatic):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
@@ -153,6 +156,7 @@ class FixedPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
         The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -173,7 +177,7 @@ class FixedPeriod(_BasePeriodStatic):
     index_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The index value for the reference date.
         If a scalar value this is used directly. If a string identifier will link to the
-        central ``fixings`` object and data loader.
+        central ``fixings`` object and data loader. See :ref:`fixings <fixings-doc>`.
     index_base_date: datetime, :green:`optional`
         The reference date for determining the base index value. Not required if ``_index_base``
         value is given directly.
@@ -458,6 +462,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
     fx_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing`. If a scalar is used directly.
         If a string identifier will link to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     delivery: datetime, :green:`optional (set as 'payment')`
         The settlement delivery date of the :class:`~rateslib.data.fixings.FXFixing`.
 
@@ -479,6 +484,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
         The index value for the reference date.
         If a scalar value this is used directly. If a string identifier will link to the
         central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     index_only: bool, :green:`optional (set as False)`
         A flag which determines non-payment of notional on supported *Periods*.
 
@@ -693,7 +699,7 @@ class ZeroFixedPeriod(_BasePeriodStatic):
 
         Returns
         -------
-        dict of values
+        dict[Any]
         """
         d = super().cashflows(
             rate_curve=rate_curve,

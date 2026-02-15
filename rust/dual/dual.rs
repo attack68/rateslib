@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 pub use crate::dual::dual_ops::convert::{set_order, set_order_clone};
 pub use crate::dual::dual_ops::math_funcs::MathFuncs;
 pub use crate::dual::dual_ops::numeric_ops::NumberOps;
@@ -10,7 +22,7 @@ use std::cmp::PartialEq;
 use std::sync::Arc;
 
 /// A dual number data type supporting first order derivatives.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Deserialize, Serialize)]
 pub struct Dual {
     pub(crate) real: f64,
@@ -19,7 +31,7 @@ pub struct Dual {
 }
 
 /// A dual number data type supporting second order derivatives.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Dual2 {
     pub(crate) real: f64,

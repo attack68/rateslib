@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::frequency::Imm;
 
@@ -84,6 +96,7 @@ impl Imm {
             _ if item == Imm::Wed1_Post9_HMUZ as usize => Imm::Wed1_Post9_HMUZ,
             _ if item == Imm::Eom as usize => Imm::Eom,
             _ if item == Imm::Leap as usize => Imm::Leap,
+            _ if item == Imm::Som as usize => Imm::Som,
             _ => panic!("Reportable issue: must map this enum variant for serialization."),
         }
     }

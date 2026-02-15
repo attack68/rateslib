@@ -17,7 +17,7 @@ from rateslib.dual import Dual, Dual2, gradient
 from rateslib.dual.utils import _dual_float
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         DualTypes,
         FixedLeg,

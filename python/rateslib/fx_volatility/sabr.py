@@ -12,13 +12,12 @@
 
 from __future__ import annotations  # type hinting
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
 
 from rateslib import defaults
 from rateslib.dual import (
@@ -55,7 +54,7 @@ from rateslib.mutability import (
 from rateslib.scheduling import get_calendar
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         DualTypes,
         DualTypes_,
@@ -65,6 +64,9 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+
+UTC = timezone.utc
 
 
 class FXSabrSmile(_BaseSmile):
@@ -86,7 +88,7 @@ class FXSabrSmile(_BaseSmile):
         The number of business days after expiry that the physical settlement of the FX
         exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
         rates.
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use for FX delivery day determination. If str, looks up
         named calendar from static data.
     pair : str, optional
@@ -221,7 +223,12 @@ class FXSabrSmile(_BaseSmile):
 
         Returns
         -------
-        tuple of DualTypes : (placeholder, vol, k)
+        null: float, Dual, Dual2, Variable
+            A *SabrSmile* has no requirement for a delta index.
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----
@@ -478,7 +485,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         The number of business days after expiry that the physical settlement of the FX
         exchange occurs. Uses ``defaults.fx_delivery_lag``. Used in determination of ATM forward
         rates for different expiries.
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use for FX delivery day determination. If str, looks up
         named calendar from static data.
     pair : str, optional
@@ -662,7 +669,12 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
         Returns
         -------
-        tuple of DualTypes : (placeholder, vol, k)
+        null: float, Dual, Dual2, Variable
+            A *SabrSurface* has no requirement for a delta index.
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----

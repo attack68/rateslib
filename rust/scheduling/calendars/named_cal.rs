@@ -1,18 +1,62 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use chrono::prelude::*;
 use pyo3::exceptions::PyValueError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use crate::scheduling::{Cal, CalendarAdjustment, DateRoll, UnionCal};
 
+#[derive(Clone, Debug)]
+pub(crate) enum CalWrapper {
+    Cal(Cal),
+    UnionCal(UnionCal),
+}
+
+impl DateRoll for CalWrapper {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_weekday(date),
+            CalWrapper::UnionCal(c) => c.is_weekday(date),
+        }
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_holiday(date),
+            CalWrapper::UnionCal(c) => c.is_holiday(date),
+        }
+    }
+
+    fn is_settlement(&self, date: &NaiveDateTime) -> bool {
+        match self {
+            CalWrapper::Cal(c) => c.is_settlement(date),
+            CalWrapper::UnionCal(c) => c.is_settlement(date),
+        }
+    }
+}
+
+impl CalendarAdjustment for CalWrapper {}
+
 /// A wrapper for a UnionCal struct specified by a string representation.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(from = "NamedCalDataModel")]
 pub struct NamedCal {
     pub name: String,
     #[serde(skip)]
-    pub union_cal: UnionCal,
+    pub(crate) inner: Arc<CalWrapper>,
 }
 
 #[derive(Deserialize)]
@@ -35,11 +79,10 @@ impl NamedCal {
     ///
     /// # Examples
     /// ```rust
-    /// # use rateslib::scheduling::{NamedCal};
+    /// # use rateslib::scheduling::{NamedCal, ndt, DateRoll};
     /// let named_cal = NamedCal::try_new("ldn,tgt|fed");
     /// # let named_cal = named_cal.unwrap();
-    /// assert_eq!(named_cal.union_cal.calendars.len(), 2);
-    /// assert!(named_cal.union_cal.settlement_calendars.is_some());
+    /// assert!(named_cal.is_bus_day(&ndt(2026, 2, 12)));
     /// ```
     pub fn try_new(name: &str) -> Result<Self, PyErr> {
         let name_ = name.to_lowercase();
@@ -52,20 +95,20 @@ impl NamedCal {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {
+                inner: Arc::new(CalWrapper::UnionCal(UnionCal {
                     calendars: cals,
                     settlement_calendars: None,
-                },
+                })),
             })
         } else {
             let cals: Vec<Cal> = parse_cals(parts[0])?;
             let settle_cals: Vec<Cal> = parse_cals(parts[1])?;
             Ok(Self {
                 name: name_,
-                union_cal: UnionCal {
+                inner: Arc::new(CalWrapper::UnionCal(UnionCal {
                     calendars: cals,
                     settlement_calendars: Some(settle_cals),
-                },
+                })),
             })
         }
     }
@@ -73,15 +116,15 @@ impl NamedCal {
 
 impl DateRoll for NamedCal {
     fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_weekday(date)
+        self.inner.is_weekday(date)
     }
 
     fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_holiday(date)
+        self.inner.is_holiday(date)
     }
 
     fn is_settlement(&self, date: &NaiveDateTime) -> bool {
-        self.union_cal.is_settlement(date)
+        self.inner.is_settlement(date)
     }
 }
 
@@ -93,15 +136,6 @@ fn parse_cals(name: &str) -> Result<Vec<Cal>, PyErr> {
         cals.push(Cal::try_from_name(cal)?)
     }
     Ok(cals)
-}
-
-impl<T> PartialEq<T> for NamedCal
-where
-    T: DateRoll,
-{
-    fn eq(&self, other: &T) -> bool {
-        self.union_cal.eq(other)
-    }
 }
 
 // UNIT TESTS

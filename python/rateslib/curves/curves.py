@@ -18,14 +18,13 @@ import warnings
 from abc import ABC, abstractmethod
 from calendar import monthrange
 from dataclasses import replace
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from math import comb, prod
 from typing import TYPE_CHECKING, TypeAlias
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
 
 import rateslib.errors as err
 from rateslib import defaults, fixings
@@ -57,7 +56,7 @@ from rateslib.scheduling import Adjuster, Convention, add_tenor, dcf, get_calend
 from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalInput,
         CurveOption_,
@@ -69,6 +68,8 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+UTC = timezone.utc
 
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
@@ -275,7 +276,8 @@ class _BaseCurve(_WithState, _WithCache[datetime, DualTypes], _WithOperations, A
                     "Evaluating points on a curve beyond the endpoint of the basic "
                     "spline interval is undefined.\n"
                     f"date: {date.strftime('%Y-%m-%d')}, spline end: "
-                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}\n"
+                    f"{self.interpolator.spline.t[-1].strftime('%Y-%m-%d')}, curve id: "
+                    f"'{self.id}'\n"
                     "This often occurs when a curve is constructed with a final node date "
                     "that aligns with the maturity of an instrument with a payment lag.\nIn the "
                     "case that the instrument has a payment lag (e.g. a SOFR swap or ESTR swap or "
@@ -1812,7 +1814,7 @@ class Curve(_WithMutability, _BaseCurve):
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
     ad : int in {0, 1, 2}, optional
@@ -1971,7 +1973,7 @@ class LineCurve(_WithMutability, _BaseCurve):
     modifier : str, optional
         The modification rule, in {"F", "MF", "P", "MP"}, for determining rates when input as
         a tenor, e.g. "3M".
-    calendar : calendar or str, optional
+    calendar : Cal, UnionCal, NamedCal, str, optional
         The holiday calendar object to use. If str, looks up named calendar from
         static data. Used for determining rates.
     ad : int in {0, 1, 2}, optional

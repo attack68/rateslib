@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //! Wrapper to allow de/serializable objects in Rust to be passed to/from Python using pyo3
 //! bindings.
 //!
@@ -7,6 +19,7 @@
 
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
+use crate::enums::{LegIndexBase, PyFloatFixingMethod};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use crate::scheduling::{
@@ -41,6 +54,8 @@ pub(crate) enum DeserializedObj {
     PyAdjuster(PyAdjuster),
     Schedule(Schedule),
     Convention(Convention),
+    PyFloatFixingMethod(PyFloatFixingMethod),
+    LegIndexBase(LegIndexBase),
 }
 
 impl JSON for DeserializedObj {}

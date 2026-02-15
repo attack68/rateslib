@@ -34,7 +34,7 @@ from rateslib.periods import FloatPeriod
 from rateslib.scheduling import Frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurveOption_,
         CurvesT_,
@@ -73,8 +73,7 @@ class FloatRateNote(_BaseBondInstrument):
            termination="2y",
            frequency="A",
            currency="usd",
-           fixing_method="rfr_observation_shift",
-           method_param=5,
+           fixing_method="rfr_observation_shift(5)",
            convention="Act360",
            calendar="nyc|fed",
            float_spread=25.0,
@@ -176,8 +175,6 @@ class FloatRateNote(_BaseBondInstrument):
     fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
         The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
         of the floating rate for each period.
-    method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
     fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
@@ -185,7 +182,7 @@ class FloatRateNote(_BaseBondInstrument):
     fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
+        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
     float_spread: float, Dual, Dual2, Variable, :green:`optional (set as 0.0)`
         The amount (in bps) added to the rate in each period rate determination.
     spread_compound_method: SpreadCompoundMethod, str, :green:`optional (set by 'defaults')`
@@ -265,7 +262,6 @@ class FloatRateNote(_BaseBondInstrument):
         spread_compound_method: str_ = NoInput(0),
         rate_fixings: LegFixings = NoInput(0),
         fixing_method: str_ = NoInput(0),
-        method_param: int_ = NoInput(0),
         fixing_frequency: Frequency | str_ = NoInput(0),
         fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
@@ -300,7 +296,6 @@ class FloatRateNote(_BaseBondInstrument):
             spread_compound_method=spread_compound_method,
             rate_fixings=rate_fixings,
             fixing_method=fixing_method,
-            method_param=method_param,
             fixing_frequency=fixing_frequency,
             fixing_series=fixing_series,
             # meta
@@ -446,11 +441,11 @@ class FloatRateNote(_BaseBondInstrument):
         rate_curve: CurveOption_ = NoInput(0),
     ) -> DualTypes:
         acc_idx = self.leg1._period_index(settlement)
-        if self.leg1.rate_params.fixing_method == FloatFixingMethod.IBOR:
+        if isinstance(self.leg1.rate_params.fixing_method, FloatFixingMethod.IBOR):
             frac = self.kwargs.meta["calc_mode"]._settle_accrual(self, settlement, acc_idx)
             if self.ex_div(settlement):
                 frac = frac - 1  # accrued is negative in ex-div period
-            rate = self.leg1._regular_periods[acc_idx].rate(rate_curve)
+            rate = self.leg1._regular_periods[acc_idx].rate(rate_curve=rate_curve)
             cashflow = (
                 -self.leg1._regular_periods[acc_idx].settlement_params.notional
                 * self.leg1._regular_periods[acc_idx].period_params.dcf
@@ -473,7 +468,6 @@ class FloatRateNote(_BaseBondInstrument):
                 float_spread=self.float_spread,
                 fixing_method=self.leg1.rate_params.fixing_method,
                 rate_fixings=self.leg1.rate_params.fixing_identifier,
-                method_param=self.leg1.rate_params.method_param,
                 spread_compound_method=self.leg1.rate_params.spread_compound_method,
                 fixing_series=self.leg1.rate_params.fixing_series,
                 fixing_frequency=self.leg1.rate_params.fixing_frequency,

@@ -13,6 +13,38 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import TYPE_CHECKING
+
+import rateslib.rs
+from rateslib.rs import FloatFixingMethod, LegIndexBase
+
+if TYPE_CHECKING:
+    pass
+
+
+class PicklingContainer:
+    pass
+
+
+rateslib.rs.PyFloatFixingMethod = PicklingContainer()  # type: ignore[attr-defined]
+
+rateslib.rs.PyFloatFixingMethod.RFRPaymentDelay = rateslib.rs.FloatFixingMethod.RFRPaymentDelay  # type: ignore[attr-defined]
+rateslib.rs.PyFloatFixingMethod.RFRObservationShift = (  # type: ignore[attr-defined]
+    rateslib.rs.FloatFixingMethod.RFRObservationShift
+)
+rateslib.rs.PyFloatFixingMethod.RFRLockout = rateslib.rs.FloatFixingMethod.RFRLockout  # type: ignore[attr-defined]
+rateslib.rs.PyFloatFixingMethod.RFRLookback = rateslib.rs.FloatFixingMethod.RFRLookback  # type: ignore[attr-defined]
+rateslib.rs.PyFloatFixingMethod.RFRPaymentDelayAverage = (  # type: ignore[attr-defined]
+    rateslib.rs.FloatFixingMethod.RFRPaymentDelayAverage
+)
+rateslib.rs.PyFloatFixingMethod.RFRObservationShiftAverage = (  # type: ignore[attr-defined]
+    rateslib.rs.FloatFixingMethod.RFRObservationShiftAverage
+)
+rateslib.rs.PyFloatFixingMethod.RFRLockoutAverage = rateslib.rs.FloatFixingMethod.RFRLockoutAverage  # type: ignore[attr-defined]
+rateslib.rs.PyFloatFixingMethod.RFRLookbackAverage = (  # type: ignore[attr-defined]
+    rateslib.rs.FloatFixingMethod.RFRLookbackAverage
+)
+rateslib.rs.PyFloatFixingMethod.IBOR = rateslib.rs.FloatFixingMethod.IBOR  # type: ignore[attr-defined]
 
 
 class OptionType(float, Enum):
@@ -53,7 +85,7 @@ _LEG_MTM_MAP = {
 }
 
 
-def _get_let_mtm(leg_mtm: str | LegMtm) -> LegMtm:
+def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
     if isinstance(leg_mtm, LegMtm):
         return leg_mtm
     else:
@@ -81,47 +113,6 @@ class IndexMethod(Enum):
 
     def __str__(self) -> str:
         return self.name
-
-
-class FloatFixingMethod(Enum):
-    """
-    Enumerable type to define floating period rate fixing methods.
-    """
-
-    RFRPaymentDelay = 0
-    RFRObservationShift = 1
-    RFRLockout = 2
-    RFRLookback = 3
-    RFRPaymentDelayAverage = 4
-    RFRObservationShiftAverage = 5
-    RFRLockoutAverage = 6
-    RFRLookbackAverage = 7
-    IBOR = 8
-
-    def __str__(self) -> str:
-        # _MAP = {
-        #     FloatFixingMethod.RFRPaymentDelay: "RFRPaymentDelay",
-        #     FloatFixingMethod.RFRObservationShift: "RFRObservationShift",
-        #     FloatFixingMethod.RFRLockout: "RFRLockout",
-        #     FloatFixingMethod.RFRLookback: "RFRLookback",
-        #     FloatFixingMethod.RFRPaymentDelayAverage: "RFRPaymentDelayAverage",
-        #     FloatFixingMethod.RFRObservationShiftAverage: "RFRObservationShiftAverage",
-        #     FloatFixingMethod.RFRLockoutAverage: "RFRLockoutAverage",
-        #     FloatFixingMethod.RFRLookbackAverage: "RFRLookbackAverage",
-        #     FloatFixingMethod.IBOR: "IBOR",
-        # }
-        _MAP = {
-            FloatFixingMethod.RFRPaymentDelay: "rfr_payment_delay",
-            FloatFixingMethod.RFRObservationShift: "rfr_observation_shift",
-            FloatFixingMethod.RFRLockout: "rfr_lockout",
-            FloatFixingMethod.RFRLookback: "rfr_lookback",
-            FloatFixingMethod.RFRPaymentDelayAverage: "rfr_payment_delay_avg",
-            FloatFixingMethod.RFRObservationShiftAverage: "rfr_observation_shift_avg",
-            FloatFixingMethod.RFRLockoutAverage: "rfr_lockout_avg",
-            FloatFixingMethod.RFRLookbackAverage: "rfr_lookback_avg",
-            FloatFixingMethod.IBOR: "ibor",
-        }
-        return _MAP[self]
 
 
 class SpreadCompoundMethod(Enum):
@@ -171,7 +162,7 @@ def _get_index_method(index_method: str | IndexMethod) -> IndexMethod:
             )
 
 
-_FIXING_METHOD_MAP = {
+_FIXING_METHOD_MAP: dict[str, type[FloatFixingMethod]] = {
     "ibor": FloatFixingMethod.IBOR,
     "rfrpaymentdelay": FloatFixingMethod.RFRPaymentDelay,
     "rfrobservationshift": FloatFixingMethod.RFRObservationShift,
@@ -197,12 +188,26 @@ def _get_float_fixing_method(method: str | FloatFixingMethod) -> FloatFixingMeth
     if isinstance(method, FloatFixingMethod):
         return method
     else:
+        if method.lower() in ["rfrpaymentdelay", "rfr_payment_delay"]:
+            return FloatFixingMethod.RFRPaymentDelay()
+        elif method.lower() in ["rfrpaymentdelayaverage", "rfr_payment_delay_avg"]:
+            return FloatFixingMethod.RFRPaymentDelayAverage()
+
+        if not ("(" in method and method[-1] == ")"):
+            raise ValueError(
+                f"`fixing_method` as string: '{method}' must have an associated parameter "
+                f"contained in parentheses, for example 'ibor(2)' or 'rfr_observation_shift(5)'. "
+            )
+
+        method_, number_part = method[:-1].split("(")
+        number = int(number_part)
         try:
-            return _FIXING_METHOD_MAP[method.lower()]
+            enum_ = _FIXING_METHOD_MAP[method_.lower()]
         except KeyError:
             raise ValueError(
-                f"`fixing_method` as string: '{method}' is not a valid option. Please consult docs."
+                f"`fixing_method` as string: '{method_}' is not a valid FloatFixingMethod."
             )
+        return enum_(number)  # type: ignore[call-arg]
 
 
 _SPREAD_COMPOUNDING_METHOD_MAP = {
@@ -268,3 +273,15 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
                 f"FXOption `metric` as string: '{method}' is not a valid option. Please consult "
                 f"docs."
             )
+
+
+__all__ = [
+    "SpreadCompoundMethod",
+    "FloatFixingMethod",
+    "FXDeltaMethod",
+    "FXOptionMetric",
+    "LegMtm",
+    "LegIndexBase",
+    "OptionType",
+    "IndexMethod",
+]

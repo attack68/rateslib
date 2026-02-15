@@ -14,12 +14,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
-
-from pytz import UTC
 
 from rateslib import defaults
 from rateslib.curves.interpolation import INTERPOLATION, InterpolationFunction
@@ -31,7 +29,7 @@ from rateslib.scheduling.convention import _get_convention
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Any,
         CalTypes,
         DualTypes,
@@ -41,6 +39,9 @@ if TYPE_CHECKING:
         float_,
         str_,
     )  # pragma: no cover
+
+
+UTC = timezone.utc
 
 
 class _CurveType(Enum):

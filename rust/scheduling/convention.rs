@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use chrono::prelude::*;
 use chrono::Months;
 use pyo3::exceptions::PyValueError;
@@ -10,7 +22,7 @@ use crate::scheduling::{
 };
 
 /// Specifier for day count conventions
-#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen, from_py_object)]
 #[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub enum Convention {
     /// Actual days in period divided by 365.

@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::scheduling::{
     get_unadjusteds, Adjuster, Adjustment, Calendar, Frequency, RollDay, Scheduling,
 };
@@ -8,7 +20,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Specifier used by [`Schedule::try_new_inferred`] to instruct its inference logic.
-#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, from_py_object)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StubInference {
     /// Short front stub inference.
@@ -19,6 +31,8 @@ pub enum StubInference {
     ShortBack = 2,
     /// Long back stub inference.
     LongBack = 3,
+    /// Explicitly avoid any stub inference.
+    NeitherSide = 4,
 }
 
 /// A generic financial schedule with regular contiguous periods and, possibly, stubs.
@@ -29,7 +43,7 @@ pub enum StubInference {
 /// - An **irregular** schedule has a ``ufront_stub`` and/or ``uback_stub`` dates defining periods
 ///   at the boundary of the schedule which are not a standard length of time defined by the
 ///   [`Frequency`]. However, a regular schedule must exist between those interior dates.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(from = "ScheduleDataModel")]
 pub struct Schedule {
@@ -362,7 +376,7 @@ impl Schedule {
         payment_adjuster: Adjuster,
         payment_adjuster2: Adjuster,
         payment_adjuster3: Option<Adjuster>,
-        stub_inference: Option<StubInference>,
+        stub_inference: StubInference,
     ) -> Result<Self, PyErr> {
         // evaluate if schedule is valid as defined without stub inference
         let temp_schedule = Schedule::try_new_defined(
@@ -377,81 +391,121 @@ impl Schedule {
             payment_adjuster2,
             payment_adjuster3,
         );
-
         // validate inference is not blocked by user defined values.
         let _ = validate_stub_dates_and_inference(&ufront_stub, &uback_stub, &stub_inference)?;
 
         let stubs: (Option<NaiveDateTime>, Option<NaiveDateTime>);
-        if stub_inference.is_none() {
-            return temp_schedule;
-        } else {
-            let (interior_start, interior_end) =
-                match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
-            stubs = match stub_inference.unwrap() {
-                StubInference::ShortFront => {
-                    if temp_schedule.is_ok() {
-                        let test_schedule = temp_schedule.unwrap();
-                        if frequency.is_short_front_stub(
+
+        let (interior_start, interior_end) =
+            match_interior_dates(&ueffective, &ufront_stub, &uback_stub, &utermination);
+        stubs = match stub_inference {
+            // for no inference simply return the initially generated schedule result.
+            StubInference::NeitherSide => return temp_schedule,
+            // when testing stub inference, a single period stub has a uschedule length of 2 and
+            // the stub can be evaluated in either direction: front or back.
+            StubInference::ShortFront => {
+                if temp_schedule.is_ok() {
+                    let test_schedule = temp_schedule.unwrap();
+                    if frequency.is_short_front_stub(
+                        &test_schedule.uschedule[0],
+                        &test_schedule.uschedule[1],
+                    ) || (test_schedule.uschedule.len() == 2
+                        && frequency.is_short_back_stub(
                             &test_schedule.uschedule[0],
                             &test_schedule.uschedule[1],
-                        ) {
-                            return Ok(test_schedule);
-                        } // already has a short front stub
-                    }
-                    (
-                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?,
-                        uback_stub,
-                    )
+                        ))
+                    {
+                        return Ok(test_schedule);
+                    } // already has a short front stub
                 }
-                StubInference::LongFront => {
-                    if temp_schedule.is_ok() {
-                        let test_schedule = temp_schedule.unwrap();
-                        if frequency.is_long_front_stub(
-                            &test_schedule.uschedule[0],
-                            &test_schedule.uschedule[1],
-                        ) {
-                            return Ok(test_schedule);
-                        } // already has a long front stub
-                    }
-                    (
-                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?,
-                        uback_stub,
-                    )
+                let mut ufront_stub =
+                    frequency.try_infer_ufront_stub(&interior_start, &interior_end, true)?;
+                // validate as dead stub
+                let valid_stub = validate_individual_dates(
+                    &Some(ueffective),
+                    &ufront_stub,
+                    &accrual_adjuster,
+                    &calendar,
+                );
+                if valid_stub.is_err() {
+                    // an error indicates a dead stub so convert to Long
+                    ufront_stub =
+                        frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?;
                 }
-                StubInference::ShortBack => {
-                    if temp_schedule.is_ok() {
-                        let test_schedule = temp_schedule.unwrap();
-                        let n = test_schedule.uschedule.len();
-                        if frequency.is_short_back_stub(
-                            &test_schedule.uschedule[n - 1],
-                            &test_schedule.uschedule[n - 2],
-                        ) {
-                            return Ok(test_schedule);
-                        } // already has a short back stub
-                    }
-                    (
-                        ufront_stub,
-                        frequency.try_infer_uback_stub(&interior_start, &interior_end, true)?,
-                    )
-                }
-                StubInference::LongBack => {
-                    if temp_schedule.is_ok() {
-                        let test_schedule = temp_schedule.unwrap();
-                        let n = test_schedule.uschedule.len();
-                        if frequency.is_short_back_stub(
-                            &test_schedule.uschedule[n - 1],
-                            &test_schedule.uschedule[n - 2],
-                        ) {
-                            return Ok(test_schedule);
-                        } // already has a long back stub
-                    }
-                    (
-                        ufront_stub,
-                        frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?,
-                    )
-                }
+                (ufront_stub, uback_stub)
             }
-        }
+            StubInference::LongFront => {
+                if temp_schedule.is_ok() {
+                    let test_schedule = temp_schedule.unwrap();
+                    if frequency.is_long_front_stub(
+                        &test_schedule.uschedule[0],
+                        &test_schedule.uschedule[1],
+                    ) || (test_schedule.uschedule.len() == 2
+                        && frequency
+                            .is_back_stub(&test_schedule.uschedule[0], &test_schedule.uschedule[1]))
+                    {
+                        return Ok(test_schedule);
+                    } // already has a long front stub
+                }
+                (
+                    frequency.try_infer_ufront_stub(&interior_start, &interior_end, false)?,
+                    uback_stub,
+                )
+            }
+            StubInference::ShortBack => {
+                if temp_schedule.is_ok() {
+                    let test_schedule = temp_schedule.unwrap();
+                    let n = test_schedule.uschedule.len();
+                    if frequency.is_short_back_stub(
+                        &test_schedule.uschedule[n - 2],
+                        &test_schedule.uschedule[n - 1],
+                    ) || (n == 2
+                        && frequency.is_short_front_stub(
+                            &test_schedule.uschedule[n - 2],
+                            &test_schedule.uschedule[n - 1],
+                        ))
+                    {
+                        return Ok(test_schedule);
+                    } // already has a short back stub
+                }
+                let mut uback_stub =
+                    frequency.try_infer_uback_stub(&interior_start, &interior_end, true)?;
+                // validate as dead stub
+                let valid_stub = validate_individual_dates(
+                    &uback_stub,
+                    &Some(utermination),
+                    &accrual_adjuster,
+                    &calendar,
+                );
+                if valid_stub.is_err() {
+                    // error indicates a dead stub so convert to Long
+                    uback_stub =
+                        frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?;
+                }
+                (ufront_stub, uback_stub)
+            }
+            StubInference::LongBack => {
+                if temp_schedule.is_ok() {
+                    let test_schedule = temp_schedule.unwrap();
+                    let n = test_schedule.uschedule.len();
+                    if frequency.is_short_back_stub(
+                        &test_schedule.uschedule[n - 2],
+                        &test_schedule.uschedule[n - 1],
+                    ) || (n == 2
+                        && frequency.is_front_stub(
+                            &test_schedule.uschedule[n - 2],
+                            &test_schedule.uschedule[n - 1],
+                        ))
+                    {
+                        return Ok(test_schedule);
+                    } // already has a long back stub
+                }
+                (
+                    ufront_stub,
+                    frequency.try_infer_uback_stub(&interior_start, &interior_end, false)?,
+                )
+            }
+        };
         Self::try_new_defined(
             ueffective,
             utermination,
@@ -487,7 +541,7 @@ impl Schedule {
         payment_adjuster2: Adjuster,
         payment_adjuster3: Option<Adjuster>,
         eom: bool,
-        stub_inference: Option<StubInference>,
+        stub_inference: StubInference,
     ) -> Result<Self, PyErr> {
         // evaluate the Options and get the start and end of regular schedule component
         let (regular_start, regular_end) =
@@ -568,7 +622,7 @@ impl Schedule {
         payment_adjuster2: Adjuster,
         payment_adjuster3: Option<Adjuster>,
         eom: bool,
-        stub_inference: Option<StubInference>,
+        stub_inference: StubInference,
     ) -> Result<Schedule, PyErr> {
         // perform a preliminary check to determine if a given stub date actually falls under some
         // regular schedule. This is common when a list of bonds have 'first coupon' dates that
@@ -739,24 +793,24 @@ fn match_interior_dates(
 fn validate_stub_dates_and_inference(
     ufront_stub: &Option<NaiveDateTime>,
     uback_stub: &Option<NaiveDateTime>,
-    stub_inference: &Option<StubInference>,
+    stub_inference: &StubInference,
 ) -> Result<(), PyErr> {
     match (ufront_stub, uback_stub, stub_inference) {
-        (Some(_v), Some(_w), Some(_f)) => Err(PyValueError::new_err(
-            "Cannot infer stubs if they are explicitly given.",
-        )),
-        (Some(_v), None, Some(val))
-            if matches!(val, StubInference::ShortFront | StubInference::LongFront) =>
+        (Some(_v), Some(_w), si) if !matches!(si, StubInference::NeitherSide) => Err(
+            PyValueError::new_err("Cannot infer any stubs if both are explicitly given."),
+        ),
+        (Some(_v), None, si)
+            if matches!(si, StubInference::ShortFront | StubInference::LongFront) =>
         {
             Err(PyValueError::new_err(
-                "Cannot infer stubs if they are explicitly given.",
+                "Cannot infer front stub if it is explicitly given.",
             ))
         }
-        (None, Some(_w), Some(val))
-            if matches!(val, StubInference::ShortBack | StubInference::LongBack) =>
+        (None, Some(_w), si)
+            if matches!(si, StubInference::ShortBack | StubInference::LongBack) =>
         {
             Err(PyValueError::new_err(
-                "Cannot infer stubs if they are explicitly given.",
+                "Cannot infer back stub if it is explicitly given.",
             ))
         }
         _ => Ok(()),
@@ -827,7 +881,7 @@ fn filter_schedules_by_eom(uschedules: Vec<Schedule>, eom: bool) -> Schedule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::{ndt, Cal, RollDay};
+    use crate::scheduling::{ndt, Cal, NamedCal, RollDay};
 
     #[test]
     fn test_new_uschedule_defined_cases_1_and_2() {
@@ -1295,7 +1349,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            None,
+            StubInference::NeitherSide,
         )
         .unwrap();
         assert_eq!(
@@ -1321,7 +1375,7 @@ mod tests {
             Adjuster::Following {},
             None,
             false,
-            None,
+            StubInference::NeitherSide,
         )
         .unwrap();
         assert_eq!(
@@ -1347,7 +1401,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            None,
+            StubInference::NeitherSide,
         )
         .unwrap();
         assert_eq!(
@@ -1375,7 +1429,7 @@ mod tests {
                 Adjuster::BusDaysLagSettle(1),
                 Adjuster::Following {},
                 None,
-                Some(StubInference::ShortBack)
+                StubInference::ShortBack,
             )
             .is_err()
         );
@@ -1394,7 +1448,7 @@ mod tests {
                 Adjuster::BusDaysLagSettle(1),
                 Adjuster::Following {},
                 None,
-                Some(StubInference::ShortBack)
+                StubInference::ShortBack,
             )
             .is_err()
         );
@@ -1413,7 +1467,7 @@ mod tests {
                 Adjuster::BusDaysLagSettle(1),
                 Adjuster::Following {},
                 None,
-                Some(StubInference::LongBack)
+                StubInference::LongBack,
             )
             .is_err()
         );
@@ -1432,7 +1486,7 @@ mod tests {
                 Adjuster::BusDaysLagSettle(1),
                 Adjuster::Following {},
                 None,
-                Some(StubInference::ShortFront)
+                StubInference::ShortFront,
             )
             .is_err()
         );
@@ -1451,7 +1505,7 @@ mod tests {
                 Adjuster::BusDaysLagSettle(1),
                 Adjuster::Following {},
                 None,
-                Some(StubInference::LongFront)
+                StubInference::LongFront,
             )
             .is_err()
         );
@@ -1475,7 +1529,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            Some(StubInference::ShortFront),
+            StubInference::ShortFront,
         )
         .expect("short period");
         assert_eq!(s.uschedule, vec![ndt(2022, 7, 1), ndt(2022, 10, 1)]);
@@ -1499,7 +1553,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            None,
+            StubInference::NeitherSide,
         )
         .expect("short period");
         assert_eq!(
@@ -1528,7 +1582,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            None,
+            StubInference::NeitherSide,
         )
         .expect("regular");
         assert!(s.is_regular());
@@ -1548,7 +1602,7 @@ mod tests {
             Adjuster::Following {},
             None,
             true,
-            Some(StubInference::ShortBack),
+            StubInference::ShortBack,
         )
         .expect("regular");
         assert!(!s.is_regular());
@@ -1571,7 +1625,7 @@ mod tests {
             Adjuster::Following {},
             None,
             false,
-            Some(StubInference::ShortFront),
+            StubInference::ShortFront,
         )
         .expect("schedule is valid");
         assert_eq!(
@@ -1597,7 +1651,7 @@ mod tests {
             Adjuster::Following {},
             None,
             false,
-            Some(StubInference::ShortFront),
+            StubInference::ShortFront,
         )
         .expect("schedule is valid");
         assert_eq!(
@@ -1609,5 +1663,318 @@ mod tests {
                 ndt(2025, 4, 15)
             ]
         );
+    }
+
+    #[test]
+    fn test_cny7d_bug() {
+        // this bug appeared in the course of building CNY swaps.
+        let f = Frequency::CalDays {
+            // frequency
+            number: 7,
+        };
+        let s = Schedule::try_new_infer_stub(
+            ndt(2028, 11, 4),                                      // ueffective
+            ndt(2029, 2, 4),                                       // utermination
+            f,                                                     // frequency
+            None,                                                  // ufront_stub
+            None,                                                  // uback_stub
+            Calendar::NamedCal(NamedCal::try_new("bjs").unwrap()), // calendar
+            Adjuster::Following {},                                // accrual_adjuster
+            Adjuster::BusDaysLagSettle(0),                         // payment_adjuster
+            Adjuster::Following {},                                // payment_adjuster2
+            None,                                                  // payment_adjuster3
+            StubInference::ShortBack,                              // stub_inference
+        );
+
+        assert!(s.is_ok());
+    }
+
+    // The follow tests explore dead stubs
+    #[test]
+    fn test_7day_defined_errors() {
+        // this is identified as a single period long stub because it is shorter than 2 periods.
+        let s = Schedule::try_new_defined(
+            ndt(2026, 1, 3),  // saturday
+            ndt(2026, 1, 11), // sunday
+            Frequency::CalDays { number: 7 },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Following {},
+            Adjuster::BusDaysLagSettle(0),
+            Adjuster::Following {},
+            None,
+        )
+        .unwrap();
+        assert_eq!(s.uschedule, vec![ndt(2026, 1, 3), ndt(2026, 1, 11)]);
+        assert_eq!(s.aschedule, vec![ndt(2026, 1, 5), ndt(2026, 1, 12)]);
+
+        // this must fail because stubs are not specified and this is not a regular
+        // schedule and is longer than 2 periods.
+        let s = Schedule::try_new_defined(
+            ndt(2026, 1, 3),  // saturday
+            ndt(2026, 1, 18), // sunday
+            Frequency::CalDays { number: 7 },
+            None,
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Following {},
+            Adjuster::BusDaysLagSettle(0),
+            Adjuster::Following {},
+            None,
+        );
+        assert!(s.is_err());
+    }
+
+    #[test]
+    fn test_7day_frequency_can_infer_short_stubs() {
+        // a 7D frequency can properly infer these unadjusted front stub dates, even though
+        // they will prove to be dead stub dates when compared with the wider schedules of
+        // later tests.
+        let result = Frequency::CalDays { number: 7 }.try_infer_uback_stub(
+            &ndt(2026, 1, 3),
+            &ndt(2026, 1, 11),
+            true,
+        );
+        assert!(result.is_ok());
+        assert_eq!(ndt(2026, 1, 10), result.unwrap().unwrap());
+
+        let result = Frequency::CalDays { number: 7 }.try_infer_ufront_stub(
+            &ndt(2026, 1, 3),
+            &ndt(2026, 1, 11),
+            true,
+        );
+        assert!(result.is_ok());
+        assert_eq!(ndt(2026, 1, 4), result.unwrap().unwrap());
+    }
+
+    #[test]
+    fn test_7day_dead_stubs_error() {
+        // these schedules are defined by dead stubs. They cannot produce valid schedules
+        // when entered as defined.
+        let s = Schedule::try_new_defined(
+            ndt(2026, 1, 3),  // saturday
+            ndt(2026, 1, 11), // sunday
+            Frequency::CalDays { number: 7 },
+            Some(ndt(2026, 1, 4)),
+            None,
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Following {},
+            Adjuster::BusDaysLagSettle(0),
+            Adjuster::Following {},
+            None,
+        );
+        assert!(s.is_err());
+        let s = Schedule::try_new_defined(
+            ndt(2026, 1, 3),  // saturday
+            ndt(2026, 1, 11), // sunday
+            Frequency::CalDays { number: 7 },
+            None,
+            Some(ndt(2026, 1, 10)),
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::Following {},
+            Adjuster::BusDaysLagSettle(0),
+            Adjuster::Following {},
+            None,
+        );
+        assert!(s.is_err());
+    }
+
+    #[test]
+    fn test_7day_infer_long_inference() {
+        // all of these schedules should be able to derive valid results with inference.
+        // because the period is long (longer than holiday blocks) it should not produce a dead stub
+        // 1st Jan 2028 is a Saturday
+        let options: Vec<(StubInference, NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (
+                StubInference::LongFront,
+                ndt(2028, 1, 9),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9)],
+            ),
+            (
+                StubInference::LongFront,
+                ndt(2028, 1, 16),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9), ndt(2028, 1, 16)],
+            ),
+            (
+                StubInference::LongFront,
+                ndt(2028, 1, 23),
+                vec![
+                    ndt(2028, 1, 1),
+                    ndt(2028, 1, 9),
+                    ndt(2028, 1, 16),
+                    ndt(2028, 1, 23),
+                ],
+            ),
+            (
+                StubInference::LongBack,
+                ndt(2028, 1, 9),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9)],
+            ),
+            (
+                StubInference::LongBack,
+                ndt(2028, 1, 16),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 8), ndt(2028, 1, 16)],
+            ),
+            (
+                StubInference::LongBack,
+                ndt(2028, 1, 23),
+                vec![
+                    ndt(2028, 1, 1),
+                    ndt(2028, 1, 8),
+                    ndt(2028, 1, 15),
+                    ndt(2028, 1, 23),
+                ],
+            ),
+        ];
+
+        for option in options {
+            let s = Schedule::try_new_infer_stub(
+                ndt(2028, 1, 1), // saturday
+                option.1,        // sunday
+                Frequency::CalDays { number: 7 },
+                None,
+                None,
+                Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+                Adjuster::Following {},
+                Adjuster::BusDaysLagSettle(0),
+                Adjuster::Following {},
+                None,
+                option.0,
+            )
+            .unwrap();
+            assert_eq!(s.uschedule, option.2);
+        }
+    }
+
+    #[test]
+    fn test_7day_infer_short_inference_converting_dead_stub_to_long() {
+        // all of these schedules should be able to derive valid results with inference.
+        // the short stubs initially derived are detected as dead and then converted to long
+        // 1st Jan 2028 is a Saturday
+        let options: Vec<(StubInference, NaiveDateTime, Vec<NaiveDateTime>)> = vec![
+            (
+                StubInference::ShortFront,
+                ndt(2028, 1, 9),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9)],
+            ),
+            (
+                StubInference::ShortFront,
+                ndt(2028, 1, 16),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9), ndt(2028, 1, 16)],
+            ),
+            (
+                StubInference::ShortFront,
+                ndt(2028, 1, 23),
+                vec![
+                    ndt(2028, 1, 1),
+                    ndt(2028, 1, 9),
+                    ndt(2028, 1, 16),
+                    ndt(2028, 1, 23),
+                ],
+            ),
+            (
+                StubInference::ShortBack,
+                ndt(2028, 1, 9),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 9)],
+            ),
+            (
+                StubInference::ShortBack,
+                ndt(2028, 1, 16),
+                vec![ndt(2028, 1, 1), ndt(2028, 1, 8), ndt(2028, 1, 16)],
+            ),
+            (
+                StubInference::ShortBack,
+                ndt(2028, 1, 23),
+                vec![
+                    ndt(2028, 1, 1),
+                    ndt(2028, 1, 8),
+                    ndt(2028, 1, 15),
+                    ndt(2028, 1, 23),
+                ],
+            ),
+        ];
+
+        for option in options {
+            let s = Schedule::try_new_infer_stub(
+                ndt(2028, 1, 1), // saturday
+                option.1,        // sunday
+                Frequency::CalDays { number: 7 },
+                None,
+                None,
+                Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+                Adjuster::Following {},
+                Adjuster::BusDaysLagSettle(0),
+                Adjuster::Following {},
+                None,
+                option.0,
+            )
+            .unwrap();
+            assert_eq!(s.uschedule, option.2);
+        }
+    }
+
+    #[test]
+    fn test_bug_developing_neither_side_stub_inference() {
+        let s = Schedule::try_new_inferred(
+            ndt(2022, 1, 3),
+            ndt(2023, 1, 3),
+            Frequency::Months {
+                number: 3,
+                roll: None,
+            },
+            Some(ndt(2022, 2, 10)),
+            Some(ndt(2022, 8, 10)),
+            Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+            Adjuster::ModifiedFollowing {},
+            Adjuster::BusDaysLagSettle(2),
+            Adjuster::Following {},
+            None,
+            false,
+            StubInference::NeitherSide,
+        )
+        .unwrap();
+        assert_eq!(
+            s.uschedule,
+            vec![
+                ndt(2022, 1, 3),
+                ndt(2022, 2, 10),
+                ndt(2022, 5, 10),
+                ndt(2022, 8, 10),
+                ndt(2023, 1, 3),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_return_single_period_even_with_stub_inference() {
+        let options = vec![
+            StubInference::ShortFront,
+            StubInference::LongFront,
+            StubInference::ShortBack,
+            StubInference::LongBack,
+            StubInference::NeitherSide,
+        ];
+        for option in options {
+            let s = Schedule::try_new_inferred(
+                ndt(2000, 1, 1),
+                ndt(2000, 2, 15),
+                Frequency::Months {
+                    number: 3,
+                    roll: Some(RollDay::Day(1)),
+                },
+                None,
+                None,
+                Calendar::Cal(Cal::new(vec![], vec![5, 6])),
+                Adjuster::ModifiedFollowing {},
+                Adjuster::BusDaysLagSettle(2),
+                Adjuster::Following {},
+                None,
+                false,
+                option,
+            )
+            .unwrap();
+            assert_eq!(s.uschedule, vec![ndt(2000, 1, 1), ndt(2000, 2, 15),]);
+        }
     }
 }

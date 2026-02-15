@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::curves::interpolation::utils::index_left;
 use crate::curves::nodes::{Nodes, NodesTimestamp};
 use crate::dual::{get_variable_tags, ADOrder, Dual, Dual2, Number};
@@ -22,7 +34,7 @@ pub struct CurveDF<T: CurveInterpolation, U: DateRoll> {
 }
 
 /// A rule to adjust a non-business day to a business day.
-#[pyclass(module = "rateslib.rs", eq, eq_int)]
+#[pyclass(module = "rateslib.rs", eq, eq_int, from_py_object)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Modifier {
     /// Actual: date is unchanged, even if it is a non-business day.

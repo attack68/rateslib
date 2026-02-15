@@ -12,17 +12,19 @@
 
 from __future__ import annotations
 
+from datetime import timezone
 from math import floor
 from typing import TYPE_CHECKING, Protocol
-
-from pytz import UTC
 
 from rateslib.dual import dual_exp, dual_log
 from rateslib.rs import index_left_f64
 from rateslib.scheduling import Convention, dcf
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
+    from rateslib.local_types import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
+
+
+UTC = timezone.utc
 
 
 class InterpolationFunction(Protocol):

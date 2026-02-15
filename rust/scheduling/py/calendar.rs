@@ -1,11 +1,23 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //! Wrapper module to export to Python using pyo3 bindings.
 
 use crate::json::json_py::DeserializedObj;
 use crate::json::JSON;
 use crate::scheduling::py::adjuster::get_roll_adjuster_from_str;
 use crate::scheduling::{
-    Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, PyAdjuster,
-    RollDay, UnionCal,
+    Adjuster, Adjustment, Cal, CalWrapper, Calendar, CalendarAdjustment, CalendarManager, DateRoll,
+    NamedCal, PyAdjuster, RollDay, UnionCal,
 };
 use chrono::NaiveDateTime;
 use indexmap::set::IndexSet;
@@ -13,6 +25,84 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyType;
 use std::collections::HashSet;
+use std::sync::Arc;
+
+#[pymethods]
+impl CalendarManager {
+    /// Create a new calendar manager object.
+    ///
+    /// .. warning::
+    ///
+    ///    Use the ``calendars`` object specifically. It is not be necessary to create your
+    ///    own calendar manager, which refers to the same underlying data on the heap.
+    ///
+    #[new]
+    fn new_py() -> Self {
+        CalendarManager::new()
+    }
+
+    /// Add a :class:`~rateslib.scheduling.Cal` to the calendar manager.
+    ///
+    /// Parameters
+    /// -----------
+    /// name: str
+    ///     The name of the calendar to add, cannot use a comma (',') or pipe ('|') character.
+    /// calendar: Cal
+    ///     The :class:`~rateslib.scheduling.Cal` object to add to the manager.
+    ///
+    /// Returns
+    /// --------
+    /// None
+    #[pyo3(name = "add")]
+    fn add_py(&self, name: &str, calendar: Cal) -> PyResult<()> {
+        self.add(name, calendar)
+    }
+
+    /// Pop a :class:`~rateslib.scheduling.Cal` or :class:`~rateslib.scheduling.UnionCal`
+    /// from the calendar manager.
+    ///
+    /// Parameters
+    /// -----------
+    /// name: str
+    ///     The name of the calendar to remove, which already exists in the manager.
+    ///
+    /// Returns
+    /// --------
+    /// Cal, UnionCal
+    #[pyo3(name = "pop")]
+    pub fn pop_py(&self, name: &str) -> Result<Calendar, PyErr> {
+        self.pop(name)
+    }
+
+    /// Get a :class:`~rateslib.scheduling.NamedCal` from the calendar manager.
+    ///
+    /// Parameters
+    /// -----------
+    /// name: str
+    ///     The name of the calendar to lookup.
+    ///
+    /// Returns
+    /// --------
+    /// NamedCal
+    #[pyo3(name = "get")]
+    pub fn get_py(&self, name: &str) -> Result<NamedCal, PyErr> {
+        self.get_with_insert(name)
+    }
+
+    fn __contains__(&self, item: &str) -> bool {
+        self.contains_key(item)
+    }
+
+    /// Get a list of calendar names in the map.
+    ///
+    /// Returns
+    /// --------
+    /// list of str
+    #[pyo3(name = "keys")]
+    fn keys_py(&self) -> Vec<String> {
+        self.keys()
+    }
+}
 
 #[pymethods]
 impl Cal {
@@ -348,6 +438,57 @@ impl Cal {
         self.cal_date_range(&start, &end)
     }
 
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
+    }
+
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<NaiveDateTime>, Vec<u8>)> {
         Ok((
@@ -394,6 +535,21 @@ impl UnionCal {
     #[pyo3(signature = (calendars, settlement_calendars=None))]
     fn new_py(calendars: Vec<Cal>, settlement_calendars: Option<Vec<Cal>>) -> PyResult<Self> {
         Ok(UnionCal::new(calendars, settlement_calendars))
+    }
+
+    /// Create a new *UnionCal* object from simple string name.
+    /// Parameters
+    /// ----------
+    /// name: str
+    ///     The string identifier for the calendar to load.
+    ///
+    /// Returns
+    /// -------
+    /// UnionCal
+    #[classmethod]
+    #[pyo3(name = "from_name")]
+    fn from_name_py(_cls: &Bound<'_, PyType>, name: String) -> PyResult<Self> {
+        UnionCal::try_from_name(&name)
     }
 
     /// A list of specifically provided non-business days.
@@ -566,6 +722,57 @@ impl UnionCal {
         self.cal_date_range(&start, &end)
     }
 
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
+    }
+
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
+    }
+
     // Pickling
     fn __getnewargs__(&self) -> PyResult<(Vec<Cal>, Option<Vec<Cal>>)> {
         Ok((self.calendars.clone(), self.settlement_calendars.clone()))
@@ -611,13 +818,19 @@ impl NamedCal {
     /// A list of specifically provided non-business days.
     #[getter]
     fn holidays(&self) -> PyResult<Vec<NaiveDateTime>> {
-        self.union_cal.holidays()
+        match &*self.inner {
+            CalWrapper::Cal(c) => c.holidays(),
+            CalWrapper::UnionCal(c) => c.holidays(),
+        }
     }
 
     /// A list of days in the week defined as weekends.
     #[getter]
     fn week_mask(&self) -> PyResult<HashSet<u8>> {
-        self.union_cal.week_mask()
+        match &*self.inner {
+            CalWrapper::Cal(c) => c.week_mask(),
+            CalWrapper::UnionCal(c) => c.week_mask(),
+        }
     }
 
     /// The string identifier for this constructed calendar.
@@ -626,10 +839,27 @@ impl NamedCal {
         self.name.clone()
     }
 
-    /// The wrapped :class:`~rateslib.scheduling.UnionCal` object.
+    /// The wrapped :class:`~rateslib.scheduling.UnionCal` or :class:`~rateslib.scheduling.Cal` object.
     #[getter]
-    fn union_cal(&self) -> UnionCal {
-        self.union_cal.clone()
+    fn inner(&self) -> Calendar {
+        match (*self.inner).clone() {
+            CalWrapper::Cal(c) => Calendar::Cal(c),
+            CalWrapper::UnionCal(c) => Calendar::UnionCal(c),
+        }
+    }
+
+    /// Check whether the memory allocation of the calendar object matches that of another.
+    ///
+    /// Parameters
+    /// -----------
+    /// other: NamedCal
+    ///     The other :class:`~rateslib.scheduling.NamedCal` to test memory allocation against.
+    ///
+    /// Returns
+    /// --------
+    /// bool
+    fn inner_ptr_eq(&self, other: NamedCal) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
     }
 
     /// Return whether the `date` is a business day.
@@ -767,6 +997,57 @@ impl NamedCal {
         end: NaiveDateTime,
     ) -> PyResult<Vec<NaiveDateTime>> {
         self.cal_date_range(&start, &end)
+    }
+
+    /// Return a string representation of a calendar under a legend.
+    ///
+    /// Parameters
+    /// -----------
+    /// year: int
+    ///     The year of the calendar to display.
+    /// month: int, optional
+    ///     The optional month of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    #[pyo3(name = "print", signature = (year, month = None))]
+    fn print_month_py(&self, year: i32, month: Option<u8>) -> PyResult<String> {
+        match month {
+            Some(m) => Ok(self.print_month(year, m)),
+            None => Ok(self.print_year(year)),
+        }
+    }
+
+    /// Return a string representation of a calendar compared to another.
+    ///
+    /// Parameters
+    /// -----------
+    /// comparator: Cal, UnionCal, NamedCal
+    ///     The secondary calendar to compare dates against.
+    /// year: int
+    ///     The year of the calendar to display.
+    ///
+    /// Returns
+    /// --------
+    /// str
+    ///
+    /// Examples
+    /// ---------
+    /// The following example highlights the differences between the FED and NYC calendars in 2026.
+    ///
+    /// .. ipython:: python
+    ///    :suppress:
+    ///
+    ///    from rateslib import get_calendar
+    ///
+    /// .. ipython:: python
+    ///
+    ///    print(get_calendar("nyc").print_compare(get_calendar("fed"), 2026))
+    ///
+    #[pyo3(name = "print_compare")]
+    fn print_compare_py(&self, comparator: Calendar, year: i32) -> PyResult<String> {
+        Ok(self.print_compare(&comparator, year))
     }
 
     // Pickling

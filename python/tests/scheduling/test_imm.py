@@ -13,6 +13,7 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib.rs import Imm
+from rateslib.scheduling import get_imm
 
 
 @pytest.mark.parametrize(
@@ -65,3 +66,8 @@ def test_get_imm_namespace():
 def test_get_eom(month, year, expected) -> None:
     result = Imm.Eom.get(year, month)
     assert result == expected
+
+
+def test_get_som() -> None:
+    assert Imm.Som.get(2000, 3) == dt(2000, 3, 1)
+    assert get_imm(code="H25", definition="som") == dt(2025, 3, 1)

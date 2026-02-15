@@ -6,4 +6,4 @@ matplotlib==3.5.1
 
 # run tests in github actions
 maturin>=1.6.0,<2.0
-pytest>=8.2.2,<9.0
+pytest>=9.0,<10.0

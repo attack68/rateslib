@@ -12,7 +12,7 @@
 from datetime import datetime as dt
 
 import pytest
-from rateslib import defaults, fixings
+from rateslib import calendars, defaults, fixings
 from rateslib.curves import Curve
 from rateslib.default import NoInput
 from rateslib.instruments import IRS
@@ -29,7 +29,11 @@ from rateslib.scheduling import (
     get_imm,
     next_imm,
 )
-from rateslib.scheduling.calendars import _adjust_date, _get_years_and_months, _is_day_type_tenor
+from rateslib.scheduling.calendars import (
+    _adjust_date,
+    _get_years_and_months,
+    _is_day_type_tenor,
+)
 from rateslib.scheduling.frequency import _get_frequency, _get_fx_expiry_and_delivery_and_payment
 
 
@@ -566,15 +570,66 @@ def test_pipe_vectors() -> None:
 
 
 def test_pipe_raises() -> None:
-    with pytest.raises(ValueError, match="Cannot use more than one pipe"):
+    with pytest.raises(
+        ValueError, match="The calendar cannot be parsed. Is there more than one pipe character?"
+    ):
         get_calendar("tgt|nyc|stk")
 
 
 def test_add_and_get_custom_calendar() -> None:
     cal = Cal([dt(2023, 1, 2)], [5, 6])
-    defaults.calendars["custom"] = cal
+    calendars.add("custom", cal)
     result = get_calendar("custom")
     assert result == cal
+    calendars.pop("custom")
+
+
+def test_add_and_get_custom_calendar_combination() -> None:
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
+    calendars.add("custom", cal)
+    calendars.add("custom2", cal2)
+    result = get_calendar("custom,custom2")
+    assert result == UnionCal([cal, cal2], [])
+    calendars.pop("custom")
+    calendars.pop("custom2")
+
+
+def test_calendar_pop_all_combinations() -> None:
+    cal = Cal([dt(2023, 1, 2)], [5, 6])
+    cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
+    cal3 = Cal([dt(2023, 1, 3)], [1, 2, 4, 6])
+    calendars.add("custom1", cal)
+    calendars.add("custom2", cal2)
+    calendars.add("custom3", cal3)
+    _ = get_calendar("custom1,custom2")
+    _ = get_calendar("custom1,custom3")
+    _ = get_calendar("custom2,custom3")
+    calendars.pop("custom1")
+
+    assert "custom1,custom2" not in calendars
+    assert "custom1,custom3" not in calendars
+    assert "custom2,custom3" in calendars
+    calendars.pop("custom2")
+    calendars.pop("custom3")
+
+
+def test_doc_union_cal() -> None:
+    calendars.add("mondays-off", Cal([], [0, 5, 6]))
+    calendars.add("fridays-off", Cal([], [4, 5, 6]))
+    result = get_calendar("mondays-off, fridays-off").print(2026, 1)
+    expected = """        January 2026
+Su Mo Tu We Th Fr Sa
+             1  *  .
+ .  *  6  7  8  *  .
+ .  * 13 14 15  *  .
+ .  * 20 21 22  *  .
+ .  * 27 28 29  *  .
+                    
+"""  # noqa: W293
+    assert result == expected
+    calendars.pop("mondays-off")
+    calendars.pop("fridays-off")
 
 
 @pytest.mark.parametrize(
@@ -631,12 +686,6 @@ def test_is_day_type_tenor(tenor):
 @pytest.mark.parametrize("tenor", ["1M", "1m", "4Y", "4y"])
 def test_is_not_day_type_tenor(tenor):
     assert not _is_day_type_tenor(tenor)
-
-
-def test_get_calendar_from_defaults() -> None:
-    defaults.calendars["custom"] = "my_object"
-    assert get_calendar("custom") == "my_object"
-    defaults.calendars.pop("custom")
 
 
 @pytest.mark.parametrize(
@@ -720,7 +769,103 @@ def test_mex_loads():
     assert cal.is_bus_day(dt(2026, 3, 17))
 
 
+def test_bjs_loads():
+    cal = get_calendar("bjs")
+    assert not cal.is_bus_day(dt(2026, 9, 19))
+    assert cal.is_bus_day(dt(2026, 9, 20))
+
+
 def test_replace_whitespace():
     cal1 = get_calendar("nyc, tgt")
     cal2 = get_calendar("nyc,tgt")
     assert cal1 == cal2
+
+
+def test_print_month():
+    cal = get_calendar("nyc,tgt")
+    output = cal.print(2026, 1)
+    assert (
+        output
+        == r"""        January 2026
+Su Mo Tu We Th Fr Sa
+             *  2  .
+ .  5  6  7  8  9  .
+ . 12 13 14 15 16  .
+ .  * 20 21 22 23  .
+ . 26 27 28 29 30  .
+                    
+"""  # noqa: W291, W293
+    )
+
+
+def test_print_calendar():
+    cal = get_calendar("bjs")
+    output = cal.print(2026)
+    expected = """
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+             *  *  .             1  2  3  .             1  2  3  .                *  *  .
+ 4  5  6  7  8  9  .    .  *  7  8  9 10  .    .  6  7  8  9 10  .    .  *  *  *  8  9 10
+ . 12 13 14 15 16  .    . 13 14 15 16 17  .    . 13 14 15 16 17  .    . 12 13 14 15 16  .
+ . 19 20 21 22 23  .    . 20 21 22 23 24  .    . 20 21 22 23 24  .    . 19 20 21 22 23  .
+ . 26 27 28 29 30  .    . 27 28 29 30          . 27 28 29 30 31       . 26 27 28 29 30  .
+                                                                                         
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ .  2  3  4  5  6  .                   *  .                      .    .  2  3  4  5  6  .
+ .  9 10 11 12 13 14    .  *  *  6  7  8  9    .  3  4  5  6  7  .    .  9 10 11 12 13  .
+ .  *  *  *  *  *  .    . 11 12 13 14 15  .    . 10 11 12 13 14  .    . 16 17 18 19 20  .
+ .  * 24 25 26 27 28    . 18 19 20 21 22  .    . 17 18 19 20 21  .    . 23 24 25 26 27  .
+                        . 25 26 27 28 29  .    . 24 25 26 27 28  .    . 30               
+                        .                      . 31                                      
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ .  2  3  4  5  6  .       1  2  3  4  5  .          1  2  3  4  .          1  2  3  4  .
+ .  9 10 11 12 13  .    .  8  9 10 11 12  .    .  7  8  9 10 11  .    .  7  8  9 10 11  .
+ . 16 17 18 19 20  .    . 15 16 17 18  *  .    . 14 15 16 17 18  .    . 14 15 16 17 18  .
+ . 23 24 25 26 27  .    . 22 23 24 25 26  .   20 21 22 23 24  *  .    . 21 22 23 24 25  .
+ . 30 31                . 29 30                . 28 29 30             . 28 29 30 31      
+                                                                                         
+Legend:
+'1-31': Settleable business day         'X': Non-settleable business day
+   '.': Non-business weekend            '*': Non-business day
+"""  # noqa: W291, W293
+    assert output == expected
+
+
+def test_print_compare_calendar():
+    cal = get_calendar("nyc")
+    cal2 = get_calendar("fed")
+    output = cal.print_compare(cal2, 2026)
+    expected = """
+        January 2026             April 2026              July 2026           October 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+             _  _  _             _  _ []  _             _  _ []  _                _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _          _  _  _  _  _  _       _  _  _  _  _  _  _ 
+                                                                                          
+       February 2026               May 2026            August 2026          November 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _  _  _  _  _  _  _                   _  _                      _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+                        _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _                
+                        _                      _  _                                       
+          March 2026              June 2026         September 2026          December 2026
+Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa
+ _  _  _  _  _  _  _       _  _  _  _  _  _          _  _  _  _  _          _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _    _  _  _  _  _  _  _ 
+ _  _  _                _  _  _                _  _  _  _             _  _  _  _  _       
+                                                                                          
+"""  # noqa: W291, W293
+    assert output == expected
+
+
+def test_union_cal_try_from_name():
+    uc = UnionCal.from_name("ldn,tgt|fed")
+    assert isinstance(uc, UnionCal)

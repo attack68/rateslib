@@ -22,6 +22,7 @@ from rateslib.curves import Curve
 from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.default import NoInput
 from rateslib.dual import Dual
+from rateslib.enums import SpreadCompoundMethod
 from rateslib.enums.generics import _drb
 from rateslib.enums.parameters import LegMtm
 from rateslib.fx import FXForwards, FXRates
@@ -43,7 +44,9 @@ from rateslib.periods import (
     CreditProtectionPeriod,
     FixedPeriod,
     FloatPeriod,
+    ZeroFloatPeriod,
 )
+from rateslib.rs import LegIndexBase
 from rateslib.scheduling import Frequency, Schedule, get_calendar
 
 
@@ -259,8 +262,7 @@ class TestFloatLeg:
                 payment_lag=0,
             ),
             rate_fixings=name,
-            fixing_method="IBOR",
-            method_param=0,
+            fixing_method="IBOR(0)",
         )
         assert float_leg.periods[0].rate_params.rate_fixing.value == 10
         assert float_leg.periods[1].rate_params.rate_fixing.value == 20
@@ -285,14 +287,14 @@ class TestFloatLeg:
         assert float_leg.periods[2].rate_params.rate_fixing.value is NoInput(0)
 
     @pytest.mark.parametrize(
-        ("method", "param"),
+        ("method"),
         [
-            ("rfr_payment_delay", NoInput(0)),
-            ("rfr_lockout", 1),
-            ("rfr_observation_shift", 0),
+            "rfr_payment_delay",
+            "rfr_lockout(1)",
+            "rfr_observation_shift(0)",
         ],
     )
-    def test_float_leg_rfr_fixings_table(self, method, param, curve) -> None:
+    def test_float_leg_rfr_fixings_table(self, method, curve) -> None:
         name = str(hash(os.urandom(8)))
         fixings.add(
             f"{name}_1B",
@@ -313,7 +315,6 @@ class TestFloatLeg:
             rate_fixings=name,
             currency="SEK",
             fixing_method=method,
-            method_param=param,
         )
         result = float_leg.local_analytic_rate_fixings(rate_curve=curve)
         result = result[dt(2022, 12, 28) : dt(2023, 1, 1)]
@@ -426,7 +427,7 @@ class TestFloatLeg:
     @pytest.mark.parametrize(
         ("method", "spread_method", "expected"),
         [
-            ("ibor", NoInput(0), True),
+            ("ibor(2)", NoInput(0), True),
             ("rfr_payment_delay", "none_simple", True),
             ("rfr_payment_delay", "isda_compounding", False),
             ("rfr_payment_delay", "isda_flat_compounding", False),
@@ -650,8 +651,7 @@ class TestFloatLeg:
             ),
             rate_fixings=(1.5, name),
             currency="SEK",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         assert float_leg.periods[0].rate_params.rate_fixing.value == 1.5
         assert float_leg.periods[1].rate_params.rate_fixing.value == 2.0
@@ -886,6 +886,281 @@ class TestFloatLeg:
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         fixings.pop("AXDE_EURUSD")
 
+    def test_sub_zero(self):
+        # test that a Leg with a zero flag can be composed of multiple ZeroFloatPeriods
+        # e.g. quarterly payments on 7d
+        # this tests specifically a 1Y CNY IRS with Quarterly payments to CNRR007 7d rate.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 21),
+                termination=dt(2027, 1, 21),
+                frequency="Q",
+                calendar="all",
+            ),
+            fixing_frequency="7d",
+            fixing_method="ibor(1)",
+            zero_periods=True,
+        )
+        curve = Curve({dt(2026, 1, 20): 1.0, dt(2027, 10, 1): 0.95})
+
+        # ensure all periods have rates
+        for zero_period in fl._regular_periods:
+            for float_period in zero_period.float_periods:
+                _ = float_period.rate(rate_curve=curve)
+
+        result = fl.local_analytic_rate_fixings(rate_curve=curve)
+        # first 4 fixings are regular: back stubs.
+        assert [
+            dt(2026, 1, 20),
+            dt(2026, 1, 27),
+            dt(2026, 2, 3),
+            dt(2026, 2, 10),
+        ] == result.index.to_list()[:4]
+        # around the July Payment date
+        assert dt(2026, 7, 13) in result.index
+        assert dt(2026, 7, 20) in result.index
+        assert dt(2026, 7, 27) in result.index
+
+        # around the October Payment date with stubs
+        assert dt(2026, 10, 12) in result.index
+        assert dt(2026, 10, 19) in result.index
+        assert dt(2026, 10, 20) in result.index
+        assert dt(2026, 10, 27) in result.index
+
+        # final fixings
+        assert dt(2027, 1, 12) in result.index
+        assert dt(2027, 1, 19) in result.index
+        assert isinstance(fl._regular_periods[0], ZeroFloatPeriod)
+
+    def test_sub_zero_bjs_calendar(self):
+        # test that a Leg with a zero flag can be composed of multiple ZeroFloatPeriods
+        # e.g. quarterly payments on 7d
+        # this tests specifically a 1Y CNY IRS with Quarterly payments to CNRR007 7d rate.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 21),
+                termination=dt(2027, 1, 21),
+                frequency="Q",
+                calendar="bjs",
+            ),
+            fixing_frequency="7d",
+            fixing_method="ibor(1)",
+            fixing_series=FloatRateSeries(
+                lag=1,
+                convention="Act365F",
+                calendar="bjs",
+                tenors=["7D"],
+                zero_period_stub="shortback",
+                modifier="F",
+                eom=False,
+            ),
+            zero_periods=True,
+        )
+        curve = Curve(
+            nodes={dt(2026, 1, 20): 1.0, dt(2027, 10, 1): 0.95},
+            convention="act365f",
+        )
+
+        # ensure all periods have rates
+        for zero_period in fl._regular_periods:
+            for float_period in zero_period.float_periods:
+                _ = float_period.rate(rate_curve=curve)
+
+        result = fl.local_analytic_rate_fixings(rate_curve=curve)
+        # first 4 fixings are regular: back stubs.
+        assert [
+            dt(2026, 1, 20),
+            dt(2026, 1, 27),
+            dt(2026, 2, 3),
+            dt(2026, 2, 10),
+        ] == result.index.to_list()[:4]
+        # around the July Payment date
+        assert dt(2026, 7, 13) in result.index
+        assert dt(2026, 7, 20) in result.index
+        assert dt(2026, 7, 27) in result.index
+
+        # around the October Payment date with stubs
+        assert dt(2026, 10, 12) in result.index
+        assert dt(2026, 10, 19) in result.index
+        assert dt(2026, 10, 20) in result.index
+        assert dt(2026, 10, 27) in result.index
+
+        # final fixings
+        assert dt(2027, 1, 12) in result.index
+        assert dt(2027, 1, 19) in result.index
+        assert isinstance(fl._regular_periods[0], ZeroFloatPeriod)
+
+    def test_sub_zero_equivalence_with_rfr_type_rate(self):
+        # test the two representations of an object yield the same data.
+        curve = Curve(
+            nodes={dt(2026, 1, 20): 1.0, dt(2026, 3, 20): 0.99, dt(2026, 5, 20): 0.984},
+            calendar="nyc",
+            convention="act360",
+        )
+        regular = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+        )
+        zero_type = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+            zero_periods=True,
+        )
+
+        rates = [
+            curve.rate(dt(2026, 1, 20), dt(2026, 1, 21)),
+            curve.rate(dt(2026, 1, 21), dt(2026, 1, 22)),
+            curve.rate(dt(2026, 1, 22), dt(2026, 1, 23)),
+            curve.rate(dt(2026, 1, 23), dt(2026, 1, 26)),
+            curve.rate(dt(2026, 1, 26), dt(2026, 1, 27)),
+        ]
+        from math import prod
+
+        rate = prod(
+            [
+                1 + r / 100 * d
+                for (r, d) in zip(rates, [1 / 360, 1 / 360, 1 / 360, 3 / 360, 1 / 360])
+            ]
+        )
+        rate = (rate - 1) * 36000 / 7
+
+        rate1 = regular.periods[0].rate(rate_curve=curve)
+        rate2 = zero_type.periods[0].rate(rate_curve=curve)
+        assert abs(rate1 - rate) < 1e-8
+        assert abs(rate2 - rate) < 1e-8
+
+        rates2 = [_.rate(rate_curve=curve) for _ in zero_type.periods[0].float_periods]
+        assert all(abs(x - y) < 1e-10 for (x, y) in zip(rates, rates2))
+
+    def test_sub_zero_equivalence_with_rfr_type_rate_with_fixings(self):
+        # test the two representations of an object yield the same data.
+        name = str(hash(os.urandom(3)))
+        fixings.add(
+            name + "_1B", Series(index=[dt(2026, 1, 20), dt(2026, 1, 21)], data=[10.0, 12.0])
+        )
+        curve = Curve(
+            nodes={dt(2026, 1, 20): 1.0, dt(2026, 3, 20): 0.99, dt(2026, 5, 20): 0.984},
+            calendar="nyc",
+            convention="act360",
+        )
+        regular = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+            rate_fixings=name,
+        )
+        zero_type = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+            zero_periods=True,
+            rate_fixings=name,
+        )
+
+        rates = [
+            # curve.rate(dt(2026, 1, 20), dt(2026, 1, 21)),
+            # curve.rate(dt(2026, 1, 21), dt(2026, 1, 22)),
+            10.0,
+            12.0,
+            curve.rate(dt(2026, 1, 22), dt(2026, 1, 23)),
+            curve.rate(dt(2026, 1, 23), dt(2026, 1, 26)),
+            curve.rate(dt(2026, 1, 26), dt(2026, 1, 27)),
+        ]
+        from math import prod
+
+        rate = prod(
+            [
+                1 + r / 100 * d
+                for (r, d) in zip(rates, [1 / 360, 1 / 360, 1 / 360, 3 / 360, 1 / 360])
+            ]
+        )
+        rate = (rate - 1) * 36000 / 7
+
+        rate1 = regular.periods[0].rate(rate_curve=curve)
+        rate2 = zero_type.periods[0].rate(rate_curve=curve)
+        assert abs(rate1 - rate) < 1e-8
+        assert abs(rate2 - rate) < 1e-8
+
+        rates2 = [_.rate(rate_curve=curve) for _ in zero_type.periods[0].float_periods]
+        assert all(abs(x - y) < 1e-10 for (x, y) in zip(rates, rates2))
+        fixings.pop(name + "_1B")
+
+    def test_sub_zero_index_dates(self):
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2026, 2, 3),
+                frequency="7d",
+                calendar="nyc",
+                modifier="F",
+            ),
+            fixing_series="usd_rfr",
+            fixing_frequency="1b",
+            fixing_method="rfr_payment_delay",
+            zero_periods=True,
+            index_base=300.0,
+        )
+        assert len(fl.periods) == 2
+        assert fl.periods[0].index_params.index_fixing.date == dt(2026, 1, 27)
+        assert fl.periods[1].index_params.index_fixing.date == dt(2026, 2, 3)
+        assert fl.periods[0].index_params.index_base.date == dt(2026, 1, 20)
+        assert fl.periods[1].index_params.index_base.date == dt(2026, 1, 20)
+
+    def test_sub_zero_spread_compounding(self):
+        # test that a spread under `zero_periods` is added to eahc rate individually prior to
+        # compounding. The spread compound method only operates at the Period level which
+        # is specific for a ZeroFloatPeriod.
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2026, 1, 20),
+                termination=dt(2027, 1, 20),
+                frequency="A",
+                calendar="all",
+                modifier="F",
+            ),
+            fixing_frequency="S",
+            fixing_method="ibor(0)",
+            rate_fixings=[[5.0, 5.5]],
+            float_spread=50.0,
+            zero_periods=True,
+            spread_compound_method=SpreadCompoundMethod.NoneSimple,
+        )
+        result = fl.periods[0].rate()
+        expected = (
+            ((1 + 181 / 36000 * (5.0 + 0.5)) * (1 + 184 / 36000 * (5.5 + 0.5)) - 1) * 36000 / 365
+        )
+        assert abs(result - expected) < 1e-10
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve) -> None:
@@ -930,8 +1205,7 @@ class TestZeroFloatLeg:
                 frequency="Q",
                 calendar="all",
             ),
-            method_param=0,
-            fixing_method="ibor",
+            fixing_method="ibor(0)",
             rate_fixings=name,
         )
         expected = [5.0, 2.0, 3.0]
@@ -1091,8 +1365,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = zfl.local_analytic_rate_fixings(rate_curve=curve)
         assert abs(result.iloc[0, 0] - 24750) < 1e-3
@@ -1112,8 +1385,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = zfl.local_analytic_rate_fixings(
             rate_curve={"1m": curve, "3m": curve2}, disc_curve=curve
@@ -1140,8 +1412,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e9,
             convention="Act360",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
             rate_fixings=fixings,
         )
         result = zfl.local_analytic_rate_fixings(
@@ -1209,7 +1480,7 @@ class TestZeroFloatLeg:
             ),
             notional=-1e8,
             convention="Act360",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
         )
         tgt_npv = 25000000 * curve[dt(2027, 1, 1)]
         result = zfl.spread(
@@ -1363,6 +1634,30 @@ class TestZeroFixedLeg:
         )
         assert abs(result / 100 - exp) < 1e-3
 
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_exchanges(self, curve, final_exchange) -> None:
+        zfl = ZeroFixedLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 5),
+                termination="8m",
+                payment_lag=0,
+                frequency="M",
+            ),
+            notional=-1e8,
+            convention="ActAct",
+            final_exchange=final_exchange,
+            fixed_rate=NoInput(0),
+        )
+        result = zfl.spread(
+            target_npv=50000.0 + 1e8 * curve[dt(2022, 9, 5)] * final_exchange, rate_curve=curve
+        )
+        expected = 7.718420018560934  # bps
+        assert abs(result - expected) < 1e-8
+
+        zfl.fixed_rate = expected / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - (50000.0 + 1e8 * curve[dt(2022, 9, 5)] * final_exchange)) < 1e-7
+
     def test_zero_fixed_spread_raises_settlement(self, curve) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
@@ -1384,7 +1679,8 @@ class TestZeroFixedLeg:
                 forward=NoInput(0),
             )
 
-    def test_zero_fixed_spread_indexed(self, curve) -> None:
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_indexed(self, curve, final_exchange) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1395,17 +1691,24 @@ class TestZeroFixedLeg:
             notional=-1e8,
             convention="ActAct",
             fixed_rate=NoInput(0),
+            final_exchange=final_exchange,
             index_base=100.0,
             index_fixings=110.0,
         )
+        target_npv = (13140821.29 + 1e8 * 1.1 * final_exchange) * curve[dt(2027, 1, 1)]
         result = zfl.spread(
-            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            target_npv=target_npv,
             rate_curve=NoInput(0),
             disc_curve=curve,
         )
         assert abs(result / 100 - 2.2826266057484057) < 1e-3
 
-    def test_zero_fixed_spread_non_deliverable(self, curve) -> None:
+        zfl.fixed_rate = result / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - target_npv) < 1e-7
+
+    @pytest.mark.parametrize("final_exchange", [False, True])
+    def test_zero_fixed_spread_non_deliverable(self, curve, final_exchange) -> None:
         zfl = ZeroFixedLeg(
             schedule=Schedule(
                 effective=dt(2022, 1, 1),
@@ -1417,15 +1720,21 @@ class TestZeroFixedLeg:
             convention="ActAct",
             fixed_rate=NoInput(0),
             currency="usd",
+            final_exchange=final_exchange,
             pair="eurusd",
             fx_fixings=2.0,
         )
+        target_npv = (13140821.29 + 1e8 * 2.0 * final_exchange) * curve[dt(2027, 1, 1)]
         result = zfl.spread(
-            target_npv=13140821.29 * curve[dt(2027, 1, 1)],
+            target_npv=target_npv,
             rate_curve=NoInput(0),
             disc_curve=curve,
         )
         assert abs(result / 100 - 1.2808477472765924) < 1e-3
+
+        zfl.fixed_rate = result / 100.0
+        result = zfl.npv(rate_curve=curve)
+        assert abs(result - target_npv) < 1e-7
 
     def test_amortization_raises(self) -> None:
         with pytest.raises(TypeError, match="unexpected keyword argument 'amortization'"):
@@ -2472,6 +2781,21 @@ class TestFixedLeg:
         assert fl.periods[3].non_deliverable_params.fx_fixing.value == expected[3]
         fixings.pop("AXDE_EURUSD")
 
+    def test_leg_index_base(self):
+        fl = FixedLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
+                frequency="M",
+                calendar="all",
+            ),
+            index_fixings="some",
+            index_lag=0,
+            index_base_type=LegIndexBase.PeriodOnPeriod,
+        )
+        assert fl.periods[0].index_params.index_base.date == dt(2000, 1, 7)
+        assert fl.periods[1].index_params.index_base.date == dt(2000, 2, 7)
+
 
 class TestCreditPremiumLeg:
     @pytest.mark.parametrize(
@@ -2681,7 +3005,7 @@ class TestCreditProtectionLeg:
                 frequency="Q",
             ),
             notional=-1e9,
-            convention="Act360",
+            # convention="Act360",
         )
         result = leg.cashflows(rate_curve=hazard_curve, disc_curve=curve)
         # test a couple of return elements
@@ -2697,7 +3021,7 @@ class TestCreditProtectionLeg:
                 frequency="Z",
             ),
             notional=-1e9,
-            convention="Act360",
+            # convention="Act360",
         )
         assert len(leg.periods) == 1
         assert leg.periods[0].period_params.end == dt(2024, 6, 1)
@@ -3235,8 +3559,7 @@ class TestFloatLegExchangeMtm:
             currency="usd",
             pair="eurusd",
             notional=10e6,
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
             mtm="xcs",
             initial_exchange=True,
         )
@@ -3435,7 +3758,7 @@ class TestCustomLeg:
                 end=dt(2022, 4, 1),
                 payment=dt(2022, 4, 3),
                 notional=1e9,
-                convention="Act360",
+                # convention="Act360",
                 termination=dt(2022, 4, 1),
                 frequency=Frequency.Months(3, None),
                 currency="usd",

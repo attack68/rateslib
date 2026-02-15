@@ -14,12 +14,11 @@ from __future__ import annotations  # type hinting
 
 import json
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
-from pytz import UTC
 
 from rateslib.dual import (
     Dual,
@@ -44,9 +43,11 @@ from rateslib.scheduling import get_calendar
 from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
 
 if TYPE_CHECKING:
-    from rateslib.typing import Any, CalTypes, Number
+    from rateslib.local_types import Any, CalTypes, Number
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
+
+UTC = timezone.utc
 
 TERMINAL_DATE = datetime(2100, 1, 1)
 

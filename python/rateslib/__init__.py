@@ -21,13 +21,20 @@ for _dependency in _hard_dependencies:
     except ImportError as _e:  # pragma: no cover
         raise ImportError(f"`rateslib` requires installation of {_dependency}: {_e}")
 
+from rateslib.verify import VERSION, Licence
+
+__version__ = VERSION
+licence = Licence()
+
 from datetime import datetime as dt
 
 from rateslib.data.loader import Fixings
 from rateslib.default import Defaults
+from rateslib.rs import CalendarManager
 
 defaults = Defaults()
 fixings = Fixings()
+calendars = CalendarManager()
 
 from contextlib import ContextDecorator
 
@@ -87,7 +94,7 @@ from rateslib.data.fixings import (
     RFRFixing,
 )
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
-from rateslib.enums.generics import NoInput
+from rateslib.enums import FloatFixingMethod, NoInput
 from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
@@ -122,6 +129,7 @@ from rateslib.instruments import (
     Spread,
     STIRFuture,
     Value,
+    YoYIS,
 )
 from rateslib.legs import (
     Amortization,
@@ -188,8 +196,11 @@ __all__ = [
     "dt",
     "defaults",
     "fixings",
-    "NoInput",
+    "licence",
     "from_json",
+    # enums.py
+    "NoInput",
+    "FloatFixingMethod",
     # dual.py
     "ADOrder",
     "Dual",
@@ -290,6 +301,7 @@ __all__ = [
     "IIRS",
     "ZCS",
     "ZCIS",
+    "YoYIS",
     "SBS",
     "FXSwap",
     "FXForward",
@@ -305,5 +317,3 @@ __all__ = [
     "FXStrangle",
     "FXBrokerFly",
 ]
-
-__version__ = "2.5.1"

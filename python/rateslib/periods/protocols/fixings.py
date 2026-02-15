@@ -31,7 +31,7 @@ from rateslib.periods.parameters import (
 from rateslib.periods.protocols.npv import _WithNPV
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         FXForwards_,
@@ -96,7 +96,6 @@ class _WithFixings(_WithNPV, Protocol):
                payment=dt(2026, 1, 16),
                frequency="M",
                fixing_method="rfr_payment_delay",
-               method_param=0,
                rate_fixings="sofr"
            )
            fixings.add(

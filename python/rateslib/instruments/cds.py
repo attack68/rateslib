@@ -28,7 +28,7 @@ from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
 from rateslib.scheduling import Frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DataFrame,
@@ -165,7 +165,6 @@ class CDS(_BaseInstrument):
     leg2_payment_lag: Adjuster, int, :green:`optional (inherited from leg1)`
     leg2_payment_lag_exchange: Adjuster, int, :green:`optional (inherited from leg1)`
     leg2_ex_div: Adjuster, int, :green:`optional (inherited from leg1)`
-    leg2_convention: str, :green:`optional (inherited from leg1)`
 
         .. note::
 
@@ -265,7 +264,7 @@ class CDS(_BaseInstrument):
         leg2_calendar: CalInput = NoInput(1),
         leg2_payment_lag: int_ = NoInput(1),
         leg2_payment_lag_exchange: int_ = NoInput(1),
-        leg2_convention: str_ = NoInput(1),
+        # leg2_convention: str_ = NoInput(1),
         leg2_ex_div: int_ = NoInput(1),
         # settlement
         notional: float_ = NoInput(0),
@@ -313,7 +312,7 @@ class CDS(_BaseInstrument):
             leg2_ex_div=leg2_ex_div,
             leg2_notional=leg2_notional,
             leg2_amortization=leg2_amortization,
-            leg2_convention=leg2_convention,
+            # leg2_convention=leg2_convention,
             # rate and credit
             premium_accrued=premium_accrued,
             fixed_rate=fixed_rate,

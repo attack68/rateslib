@@ -23,7 +23,7 @@ from rateslib.curves.utils import _CurveType
 from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurveInput,
         CurveInput_,
         CurveOption,

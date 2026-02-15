@@ -12,10 +12,10 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
+from datetime import timezone
 from typing import TYPE_CHECKING
 
 import numpy as np
-from pytz import UTC
 
 import rateslib.errors as err
 from rateslib import defaults
@@ -69,7 +69,7 @@ from rateslib.periods.utils import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         Arr1dF64,
         DualTypes,
@@ -86,6 +86,8 @@ if TYPE_CHECKING:
         datetime_,
         str_,
     )
+
+UTC = timezone.utc
 
 
 class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metaclass=ABCMeta):
@@ -930,6 +932,7 @@ class FXCallPeriod(_BaseFXOptionPeriod):
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     ex_dividend: datetime, :green:`optional (set as 'delivery')`
         The ex-dividend date of the settled cashflow.
 
@@ -1031,6 +1034,7 @@ class FXPutPeriod(_BaseFXOptionPeriod):
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
+        See :ref:`fixings <fixings-doc>`.
     ex_dividend: datetime, :green:`optional (set as 'delivery')`
         The ex-dividend date of the settled cashflow.
 

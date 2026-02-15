@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::scheduling::{ndt, Adjuster, Cal, Calendar, DateRoll, RollDay};
 use chrono::prelude::*;
 use chrono::Months;
@@ -6,7 +18,7 @@ use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
 /// Specifier for generating unadjusted scheduling periods.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Frequency {
     /// A set number of business days, defined by a [`Calendar`], which can only align with a

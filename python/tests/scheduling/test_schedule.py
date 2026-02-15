@@ -297,16 +297,88 @@ def test_schedule_raises(cal_) -> None:
 @pytest.mark.parametrize(
     ("eff", "term", "f", "roll"),
     [
-        (dt(2022, 3, 16), dt(2024, 9, 10), "Q", "imm"),  # non-imm term
-        (dt(2022, 3, 31), dt(2023, 3, 30), "A", "eom"),  # non-eom term
-        (dt(2022, 3, 1), dt(2023, 3, 2), "A", "som"),  # non-som term
-        (dt(2022, 2, 20), dt(2025, 8, 21), "S", 20),  # roll
-        (dt(2022, 2, 28), dt(2024, 2, 28), "S", 30),  # is leap
+        (
+            dt(2022, 3, 16),
+            dt(2024, 9, 10),
+            "Q",
+            "imm",
+        ),  # cannot build because termination does not align with IMM and no back stub specified.
+        (
+            dt(2022, 3, 1),
+            dt(2023, 3, 2),
+            "A",
+            "som",
+        ),  # fails because roll is explicit and a short stub to 1st march 2022 this does not align.
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+        ),  # fails because a short stub cannot be generated aligned with specified roll.
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+        ),  # is leap year 2024 and front stub is specified so 28th Feb '24 does not align with roll
     ],
 )
 def test_unadjusted_regular_swap_dead_stubs(eff, term, f, roll) -> None:
+    # this test isn't really about dead stubs more about misalignment with rolls.
     with pytest.raises(ValueError, match="A Schedule could not be generated from the parameter c"):
+        # the default `stub` is SHORTFRONT
         Schedule(eff, term, f, eom=False, roll=roll)
+
+
+@pytest.mark.parametrize(
+    ("eff", "term", "f", "roll", "stub"),
+    [
+        (
+            dt(2022, 3, 31),
+            dt(2023, 3, 30),
+            "A",
+            "eom",
+            "shortfront",
+        ),  # this builds because it is a single period short stub.
+        (
+            dt(2022, 3, 1),
+            dt(2023, 3, 2),
+            "A",
+            "som",
+            "shortback",
+        ),  # corrects the above test issue by specifying a back stub.
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+            "longback",
+        ),  # corrects to provide a single period stub
+        (
+            dt(2022, 2, 20),
+            dt(2025, 8, 21),
+            "S",
+            20,
+            "shortback",
+        ),  # corrects to provide a shoprt back stub with regular rolling on 20th
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+            "shortback",
+        ),  # corrects the above to specify a back stub
+        (
+            dt(2022, 2, 28),
+            dt(2024, 2, 28),
+            "S",
+            30,
+            "longback",
+        ),  # or alternatively with a long back stub
+    ],
+)
+def test_unadjusted_regular_swap_dead_stubs_corrections(eff, term, f, roll, stub) -> None:
+    Schedule(eff, term, f, eom=False, roll=roll, stub=stub)
 
 
 @pytest.mark.parametrize(
@@ -334,31 +406,45 @@ def test_unadjusted_regular_swap(eff, term, f, roll, exp) -> None:
 
 # 12th and 13th of Feb and March are Saturday and Sunday
 @pytest.mark.parametrize(
-    ("eff", "term", "roll", "e_bool", "e_ueff", "e_uterm", "e_roll"),
+    ("eff", "term", "roll", "e_ueff", "e_uterm", "e_roll"),
     [
-        (dt(2022, 2, 11), dt(2022, 3, 11), 11, True, dt(2022, 2, 11), dt(2022, 3, 11), 11),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 14, True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 14), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 14), dt(2022, 3, 14), 14),
-        (dt(2022, 2, 13), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 13), dt(2022, 3, 13), 13),
-        (dt(2022, 2, 12), dt(2022, 3, 14), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 12), dt(2022, 3, 13), NoInput(0), False, None, None, None),
-        (dt(2022, 2, 14), dt(2022, 3, 12), NoInput(0), True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 12, True, dt(2022, 2, 12), dt(2022, 3, 12), 12),
-        (dt(2022, 2, 14), dt(2022, 3, 14), 11, False, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), NoInput(0), True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
-        (dt(2022, 2, 28), dt(2022, 3, 31), 28, False, None, None, None),
-        (dt(2022, 2, 28), dt(2022, 3, 31), "eom", True, dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (dt(2022, 2, 11), dt(2022, 3, 11), 11, dt(2022, 2, 11), dt(2022, 3, 11), 11),
+        (dt(2022, 2, 14), dt(2022, 3, 14), 14, dt(2022, 2, 14), dt(2022, 3, 14), 14),
+        (dt(2022, 2, 14), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 14), dt(2022, 3, 14), 14),
+        (dt(2022, 2, 13), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 13), dt(2022, 3, 13), 13),
+        (dt(2022, 2, 12), dt(2022, 3, 14), NoInput(0), dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 14), dt(2022, 3, 12), NoInput(0), dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 14), dt(2022, 3, 14), 12, dt(2022, 2, 12), dt(2022, 3, 12), 12),
+        (dt(2022, 2, 28), dt(2022, 3, 31), NoInput(0), dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (dt(2022, 2, 28), dt(2022, 3, 31), "eom", dt(2022, 2, 28), dt(2022, 3, 31), 31),
+        (
+            dt(2022, 2, 12),
+            dt(2022, 3, 13),
+            NoInput(0),
+            dt(2022, 2, 12),
+            dt(2022, 3, 13),
+            13,
+        ),  # dead stub converts to long stub
     ],
 )
-def test_check_regular_swap_mf(eff, term, roll, e_bool, e_ueff, e_uterm, e_roll, cal_) -> None:
-    try:
-        result = Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
-    except ValueError:
-        assert not e_bool
-    else:
-        assert result.ueffective == e_ueff
-        assert result.utermination == e_uterm
-        assert result.roll == e_roll
+def test_check_regular_swap_mf(eff, term, roll, e_ueff, e_uterm, e_roll, cal_) -> None:
+    result = Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
+    assert result.ueffective == e_ueff
+    assert result.utermination == e_uterm
+    assert result.roll == e_roll
+
+
+# 12th and 13th of Feb and March are Saturday and Sunday
+@pytest.mark.parametrize(
+    ("eff", "term", "roll"),
+    [
+        (dt(2022, 2, 14), dt(2022, 3, 14), 11),  # fails due to roll misalignment
+        (dt(2022, 2, 28), dt(2022, 3, 31), 28),  # fails due to wrong stub side
+    ],
+)
+def test_check_regular_swap_mf_failures(eff, term, roll, cal_) -> None:
+    with pytest.raises(ValueError):
+        Schedule(eff, term, "M", modifier="MF", eom=False, roll=roll, calendar=cal_)
 
 
 @pytest.mark.parametrize(
@@ -970,3 +1056,19 @@ def test_single_period_from_str_matching_frequency(tenor):
     # When the frequency matches the tenor it should generate only a single period.
     s = Schedule(effective=dt(2025, 1, 15), termination=tenor, frequency=tenor)
     assert s.n_periods == 1
+
+
+@pytest.mark.parametrize("stub", ["shortfront", "shortback"])
+def test_dead_stub_failures(stub) -> None:
+    # this test attempts to build a schedule from unadjusted saturday to unadjusted sunday
+    # using a 7d frequency. This converts the dead short stub to a long stub and thereby
+    # defines only one period.
+    s = Schedule(
+        effective=dt(2026, 1, 3),  # saturday
+        termination=dt(2026, 1, 11),  # sunday
+        frequency="7d",
+        calendar="bus",
+        modifier="f",
+        stub=stub,
+    )
+    assert s.uschedule == [dt(2026, 1, 3), dt(2026, 1, 11)]

@@ -68,10 +68,11 @@ VE_MISMATCHED_FX_PAIR_ND_PAIR = (
 
 # Fixings
 
-UW_NO_TENORS = (
-    "The IBORStubFixing has not detected any tenors under the identifier: '{0}' and "
-    "will therefore never obtain any fixing value."
-)
+# Tenors are now derived from a `fixing_series` and not a fixings timeseries
+# UW_NO_TENORS = (
+#     "The IBORStubFixing has not detected any tenors under the identifier: '{0}' and "
+#     "will therefore never obtain any fixing value."
+# )
 
 TE_NO_FIXING_EXPOSURE_ON_OBJ = (
     "The object type '{0}' does not contain or have available methods to calculate fixings "

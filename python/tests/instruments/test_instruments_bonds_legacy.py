@@ -21,6 +21,7 @@ from rateslib import defaults, fixings
 from rateslib.curves import Curve, LineCurve
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.enums import FloatFixingMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
     IRS,
@@ -630,6 +631,59 @@ class TestFixedRateBond:
         assert abs(result - 100.00) < 1e-5
         assert abs(stub_cash + 7828.77) < 1e-2
 
+    def test_cadgb_ytm_dirty_calc(self) -> None:
+        # Cad GB has different Accrual function for a YTM and physical settlement.
+        # If a price is supplied dirty it is expected to be a physical settlement dirty price
+        bond = FixedRateBond(
+            effective=dt(2018, 7, 27),
+            termination=dt(2029, 6, 1),
+            fixed_rate=2.25,
+            spec="ca_gb",
+        )
+
+        physical_accrued = bond._accrued(
+            dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._settle_accrual
+        )
+        ytm_accrued = bond._accrued(dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._ytm_accrual)
+        assert abs(physical_accrued - ytm_accrued) > 1e-4
+
+        clean_price = 101.00
+        clean_ytm = bond.ytm(clean_price, dt(2019, 6, 10))
+        dirty_ytm = bond.ytm(clean_price + physical_accrued, dt(2019, 6, 10), dirty=True)
+        assert abs(clean_ytm - dirty_ytm) < 1e-8
+
+    def test_cadgb_ytm_indexed_dirty_calc(self) -> None:
+        # Cad GB has different Accrual function for a YTM and physical settlement.
+        # If a price is supplied dirty it is expected to be a physical settlement dirty price
+        bond = IndexFixedRateBond(
+            effective=dt(2018, 7, 27),
+            termination=dt(2029, 6, 1),
+            fixed_rate=2.25,
+            spec="ca_gbi",
+            index_base=90.0,
+        )
+        curve = Curve({dt(2019, 1, 1): 1.0, dt(2030, 1, 1): 1.0}, index_base=99.0).shift(100.0)
+
+        physical_indexed_accrued = bond.accrued(dt(2019, 6, 10), indexed=True, index_curve=curve)
+        ytm_indexed_accrued = bond._accrued(
+            dt(2019, 6, 10), bond.kwargs.meta["calc_mode"]._ytm_accrual
+        ) * bond.index_ratio(settlement=dt(2019, 6, 18), index_curve=curve)
+        assert abs(physical_indexed_accrued - ytm_indexed_accrued) > 1e-4
+
+        clean_price = 111.00
+        clean_ytm = bond.ytm(
+            clean_price, dt(2019, 6, 10), indexed_price=True, indexed_ytm=False, index_curve=curve
+        )
+        dirty_ytm = bond.ytm(
+            clean_price + physical_indexed_accrued,
+            dt(2019, 6, 10),
+            dirty=True,
+            indexed_price=True,
+            indexed_ytm=False,
+            index_curve=curve,
+        )
+        assert abs(clean_ytm - dirty_ytm) < 1e-8
+
     ## German gov bonds comparison with official bundesbank publications.
 
     @pytest.mark.parametrize(
@@ -697,6 +751,30 @@ class TestFixedRateBond:
         # DE000BU2Z056
         bond = FixedRateBond(dt(2025, 7, 4), dt(2035, 8, 15), spec="de_gb", fixed_rate=2.60)
         assert bond.leg1.schedule.aschedule[0:2] == [dt(2025, 7, 4), dt(2026, 8, 15)]
+
+    def test_de_long_front_split_accrued_no_leap(self):
+        # this bond was not issued around a leap year so there is no difference between
+        # linear_days_long_front_split and linear_days
+        bond = FixedRateBond(dt(2025, 3, 12), dt(2056, 8, 15), spec="de_gb", fixed_rate=2.90)
+        result1 = bond.accrued(settlement=dt(2026, 1, 16))
+        result2 = bond.accrued(settlement=dt(2026, 7, 14))
+        expected1 = (dt(2026, 1, 16) - dt(2025, 3, 12)).days / 365 * 2.9
+        expected2 = (dt(2026, 7, 14) - dt(2025, 3, 12)).days / 365 * 2.9
+        assert abs(result1 - expected1) < 1e-6
+        assert abs(result2 - expected2) < 1e-6
+
+    def test_de_long_front_split_accrued_leap(self):
+        # this bond was issued in 2024 so there is a difference between linear_days and
+        # linear_days_long_front_split: ISIN DE000BU2D004
+        bond = FixedRateBond(dt(2024, 2, 6), dt(2054, 8, 15), spec="de_gb", fixed_rate=2.50)
+        result1 = bond.accrued(settlement=dt(2024, 7, 15))
+        result2 = bond.accrued(settlement=dt(2025, 7, 15))
+        expected1 = (dt(2024, 7, 15) - dt(2024, 2, 6)).days / 366 * 2.5
+        expected2 = (dt(2024, 8, 15) - dt(2024, 2, 6)).days / 366 * 2.5 + (
+            dt(2025, 7, 15) - dt(2024, 8, 15)
+        ).days / 365 * 2.5
+        assert abs(result1 - expected1) < 1e-8
+        assert abs(result2 - expected2) < 1e-8
 
     ## French OAT
 
@@ -2877,6 +2955,22 @@ class TestBill:
         ytm = bill.ytm(price=96.520547, settlement=dt(2023, 3, 15))
         assert abs(ytm - 3.5546338) < 1e-5
 
+    # norwegian
+    @pytest.mark.parametrize(
+        ("e", "t", "price", "y"),
+        [
+            (dt(2025, 3, 19), dt(2026, 3, 18), 99.38775, 4.01095),
+            (dt(2025, 6, 18), dt(2026, 6, 17), 98.4218, 4.0012),
+            (dt(2025, 9, 17), dt(2026, 9, 16), 97.4707, 3.99),
+            (dt(2025, 12, 17), dt(2026, 12, 16), 96.5409, 3.9705),
+        ],
+    )
+    def test_nogbb(self, e, t, price, y) -> None:
+        # prices obtained from Norges Bank on Friday 16th Jan 2026, settle 20th Jan
+        bill = Bill(effective=e, termination=t, spec="no_gbb")
+        ytm = bill.ytm(price=price, settlement=dt(2026, 1, 20))
+        assert abs(ytm - y) < 5e-5
+
     def test_text_example(self) -> None:
         bill = Bill(effective=dt(2023, 5, 17), termination=dt(2023, 9, 26), spec="us_gbb")
         result = bill.ytm(99.75, settlement=dt(2023, 9, 7))
@@ -3103,9 +3197,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=100,
-            fixing_method="rfr_observation_shift",
+            fixing_method=FloatFixingMethod.RFRObservationShift(5),
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(dt(2010, 3, 3))
@@ -3132,9 +3225,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3162,9 +3254,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
             metric=metric,
@@ -3193,9 +3284,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=100,
-            fixing_method="ibor",
+            fixing_method=FloatFixingMethod.IBOR(2),
             rate_fixings=name,
-            method_param=2,
             spread_compound_method="none_simple",
         )
         result = bond.accrued(settlement)
@@ -3211,9 +3301,8 @@ class TestFloatRateNote:
                 convention="Act365f",
                 ex_div=3,
                 float_spread=100,
-                fixing_method="rfr_observation_shift",
+                fixing_method="rfr_observation_shift(5)",
                 rate_fixings=NoInput(0),
-                method_param=5,
                 spread_compound_method="none_simple",
             )
 
@@ -3227,9 +3316,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=6,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3259,9 +3347,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=5,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             rate_fixings=rate_fixings,
-            method_param=5,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3281,8 +3368,7 @@ class TestFloatRateNote:
                 termination=dt(2017, 3, 16),
                 frequency="Q",
                 ex_div=5,
-                fixing_method="rfr_observation_shift",
-                method_param=3,
+                fixing_method="rfr_observation_shift(3)",
             )
 
     def test_accrued_no_fixings_in_period(self) -> None:
@@ -3293,9 +3379,8 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=0,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(0)",
             rate_fixings=NoInput(0),
-            method_param=0,
             spread_compound_method="none_simple",
             calendar=NoInput(0),
         )
@@ -3314,7 +3399,7 @@ class TestFloatRateNote:
             float_spread=100,
             notional=-1000000,
             settle=0,
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=2.0,
         )
         curve = Curve({dt(2010, 11, 25): 1.0, dt(2015, 12, 7): 1.0})
@@ -3352,10 +3437,9 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=spd,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(5)",
             calendar="bus",
             rate_fixings=name,
-            method_param=5,
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3382,8 +3466,7 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=0,
-            fixing_method="rfr_observation_shift",
-            method_param=5,
+            fixing_method="rfr_observation_shift(5)",
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3401,8 +3484,7 @@ class TestFloatRateNote:
             convention="Act365f",
             ex_div=3,
             float_spread=0.0,
-            fixing_method="rfr_observation_shift",
-            method_param=5,
+            fixing_method="rfr_observation_shift(5)",
             spread_compound_method="none_simple",
             settle=2,
         )
@@ -3416,8 +3498,7 @@ class TestFloatRateNote:
             effective=dt(2022, 2, 1),
             termination="3m",
             frequency="Q",
-            fixing_method="ibor",
-            method_param=0,
+            fixing_method="ibor(0)",
         )
         result = frn.accrued(dt(2022, 2, 5), rate_curve=f_curve)
         expected = 0.044444444
@@ -3463,8 +3544,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=2,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(2)",
             rate_fixings=name,
             convention="Act365F",
             ex_div=1,
@@ -3511,8 +3591,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=2,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(2)",
             convention="Act365F",
             ex_div=1,
         )
@@ -3528,8 +3607,7 @@ class TestFloatRateNote:
             termination="1Y",
             frequency="Q",
             settle=3,
-            method_param=0,
-            fixing_method="rfr_observation_shift",
+            fixing_method="rfr_observation_shift(0)",
             convention="Act365F",
             ex_div=1,
         )
@@ -3550,7 +3628,7 @@ class TestFloatRateNote:
             effective=dt(2001, 11, 7),
             termination=dt(2002, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=[4.0],
             curves=[curve],
         )
@@ -3563,7 +3641,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             rate_fixings=[4.0],
             curves=[curve],
         )
@@ -3581,7 +3659,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             convention="actacticma",
             calendar="nyc",
             modifier="none",
@@ -3614,7 +3692,7 @@ class TestFloatRateNote:
             effective=dt(2021, 11, 7),
             termination=dt(2022, 8, 7),
             frequency="q",
-            fixing_method="ibor",
+            fixing_method="ibor(2)",
             convention="actacticma",
             calendar="nyc",
             modifier="none",
@@ -3650,8 +3728,7 @@ class TestFloatRateNote:
             convention="Act365F",
             ex_div=3,
             rate_fixings=name,
-            fixing_method="rfr_observation_shift_avg",
-            method_param=5,
+            fixing_method="rfr_observation_shift_avg(5)",
         )
         result = frn.cashflows()
         fixings.pop(name + "_1B")

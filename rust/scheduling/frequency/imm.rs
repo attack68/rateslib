@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #![allow(non_camel_case_types)]
 
 use chrono::prelude::*;
@@ -10,7 +22,7 @@ use std::cmp::{Eq, PartialEq};
 use crate::scheduling::ndt;
 
 /// Specifier for IMM date definitions.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Imm {
     /// 3rd Wednesday of March, June, September and December.
@@ -51,10 +63,12 @@ pub enum Imm {
     ///
     /// Commonly used by ASX 90 day NZD bank bill futures.
     Wed1_Post9 = 11,
-    /// End of any calendar month
+    /// End of any calendar month.
     Eom = 8,
-    /// February Leap days
+    /// February Leap days.
     Leap = 9,
+    /// Start of any calendar month.
+    Som = 12,
 }
 
 impl Imm {
@@ -140,6 +154,13 @@ impl Imm {
                 }
                 Ok(date.unwrap().and_hms_opt(0, 0, 0).unwrap())
             }
+            Imm::Som => {
+                let date = NaiveDate::from_ymd_opt(year, month, 1);
+                match date {
+                    Some(d) => Ok(d.and_hms_opt(0, 0, 0).unwrap()),
+                    None => return Err(PyValueError::new_err("`year` or `month` out of range.")),
+                }
+            }
             Imm::Leap => {
                 if month != 2 {
                     Err(PyValueError::new_err("Leap is only in `month`:2."))
@@ -196,6 +217,8 @@ mod tests {
             (Imm::Fri2, ndt(2024, 12, 13), true),
             (Imm::Wed1_Post9, ndt(2025, 9, 10), true),
             (Imm::Wed1_Post9, ndt(2026, 9, 16), true),
+            (Imm::Som, ndt(2025, 9, 1), true),
+            (Imm::Som, ndt(2026, 9, 16), false),
         ];
         for option in options {
             assert_eq!(option.2, option.0.validate(&option.1));
@@ -210,6 +233,7 @@ mod tests {
             (Imm::Wed3, ndt(2024, 3, 21), ndt(2024, 4, 17)),
             (Imm::Day20_HU, ndt(2024, 3, 21), ndt(2024, 9, 20)),
             (Imm::Leap, ndt(2022, 1, 1), ndt(2024, 2, 29)),
+            (Imm::Som, ndt(2022, 1, 1), ndt(2022, 2, 1)),
         ];
         for option in options {
             assert_eq!(option.2, option.0.next(&option.1));
@@ -229,6 +253,7 @@ mod tests {
         assert_eq!(ndt(2022, 4, 30), Imm::Eom.from_ym_opt(2022, 4).unwrap());
         assert_eq!(ndt(2022, 3, 31), Imm::Eom.from_ym_opt(2022, 3).unwrap());
         assert_eq!(ndt(2024, 2, 29), Imm::Leap.from_ym_opt(2024, 2).unwrap());
+        assert_eq!(ndt(2024, 2, 1), Imm::Som.from_ym_opt(2024, 2).unwrap());
         assert!(Imm::Leap.from_ym_opt(2022, 2).is_err());
     }
 }

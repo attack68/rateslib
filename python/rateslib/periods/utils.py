@@ -24,7 +24,7 @@ from rateslib.fx import FXForwards, FXRates
 from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         FX_,
         Any,
         CurveOption_,

@@ -8,12 +8,12 @@
 
 from __future__ import annotations
 
+from datetime import timezone
 from functools import cached_property
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
-from pytz import UTC
 
 from rateslib import defaults
 from rateslib.curves import (
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from numpy import object_ as Nobject  # noqa: N812
     from numpy.typing import NDArray
 
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         DualTypes,
         Variable,
@@ -43,6 +43,9 @@ if TYPE_CHECKING:
         int_,
         str_,
     )
+
+
+UTC = timezone.utc
 
 
 class _NullInterpolator:

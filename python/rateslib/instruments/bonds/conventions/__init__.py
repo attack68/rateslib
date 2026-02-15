@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         YtmDiscountFunction,
         YtmStubDiscountFunction,
     )
-    from rateslib.typing import Any  # pragma: no cover
+    from rateslib.local_types import Any  # pragma: no cover
 
 
 class BondCalcMode:
@@ -597,8 +597,8 @@ CA_GB = BondCalcMode(
 
 DE_GB = BondCalcMode(
     # German government bonds
-    settle_accrual="linear_days",
-    ytm_accrual="linear_days",
+    settle_accrual="linear_days_long_front_split",
+    ytm_accrual="linear_days_long_front_split",
     v1="compounding_final_simple",
     v2="regular",
     v3="compounding",
@@ -688,6 +688,13 @@ SE_GBB = BillCalcMode(
     ytm_clone_kwargs="se_gb",
 )
 
+NO_GBB = BillCalcMode(
+    # Norwegian T-bills
+    price_type="discount",
+    # price_accrual_type="linear_days",
+    ytm_clone_kwargs="no_gb",
+)
+
 BOND_MODE_MAP = {
     "uk_gb": UK_GB,
     "nz_gb": NZ_GB,
@@ -715,6 +722,7 @@ BILL_MODE_MAP = {
     "uk_gbb": UK_GBB,
     "us_gbb": US_GBB,
     "se_gbb": SE_GBB,
+    "no_gbb": NO_GBB,
     # aliases
     "ustb": US_GBB,
     "uktb": UK_GBB,

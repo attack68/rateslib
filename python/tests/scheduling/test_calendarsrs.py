@@ -14,7 +14,7 @@ from datetime import datetime as dt
 import pytest
 from pandas import Index
 from rateslib import fixings
-from rateslib.rs import Adjuster, Cal, Modifier, NamedCal, RollDay, UnionCal
+from rateslib.rs import Adjuster, Cal, CalendarManager, Modifier, NamedCal, RollDay, UnionCal
 from rateslib.scheduling import get_calendar
 from rateslib.serialization import from_json
 
@@ -222,13 +222,13 @@ class TestCal:
 
     def test_attributes(self) -> None:
         ncal = get_calendar("tgt,LDN|Fed")
-        assert ncal.name == "tgt,ldn|fed"
-        assert isinstance(ncal.union_cal, UnionCal)
-        assert len(ncal.union_cal.calendars) == 2
-        assert len(ncal.union_cal.settlement_calendars) == 1
+        assert ncal.name == "ldn,tgt|fed"
+        assert isinstance(ncal.inner, UnionCal)
+        assert len(ncal.inner.calendars) == 2
+        assert len(ncal.inner.settlement_calendars) == 1
 
         ncal = get_calendar("tgt")
-        assert ncal.union_cal.settlement_calendars is None
+        assert isinstance(ncal.inner, Cal)
 
     def test_adjusts(self, simple_cal):
         dates = [dt(2015, 9, 4), dt(2015, 9, 5), dt(2015, 9, 6), dt(2015, 9, 7)]
@@ -259,12 +259,12 @@ class TestUnionCal:
 
 class TestNamedCal:
     def test_equality_named_cal(self) -> None:
-        cal = get_calendar("fed", named=False)
+        cal = Cal.from_name("fed")
         ncal = NamedCal("fed")
         assert cal == ncal
         assert ncal == cal
 
-        ucal = get_calendar("ldn,tgt|fed", named=False)
+        ucal = UnionCal.from_name("ldn,tgt|fed")
         ncal = NamedCal("ldn,tgt|fed")
         assert ucal == ncal
         assert ncal == ucal
@@ -324,3 +324,37 @@ class TestAdjuster:
         result = Adjuster.Following().adjusts(dates, simple_cal)
         expected = [dt(2015, 9, 4), dt(2015, 9, 8), dt(2015, 9, 8), dt(2015, 9, 8)]
         assert result == expected
+
+
+class TestCalendarManager:
+    def test_add_and_pop(self):
+        c = CalendarManager()
+        c.add("mycalendar", Cal([], [2]))
+        nc = c.get("mycalendar")
+        assert isinstance(nc, NamedCal)
+        assert nc == Cal([], [2])
+        pop = c.pop("mycalendar")
+        assert pop == Cal([], [2])
+        assert isinstance(pop, Cal)
+        with pytest.raises(KeyError):
+            c.get("mycalendar")
+
+    def test_add_union_cal_raises(self):
+        c = CalendarManager()
+        with pytest.raises(TypeError, match="argument 'calendar': 'UnionCal' object is not"):
+            c.add("mycalendar", UnionCal([Cal([], [])], None))
+
+    def test_add_and_get_composition(self):
+        c = CalendarManager()
+        x = c.get("ldn,tgt")
+        y = c.get("tgt,ldn")
+        assert x == y
+        assert x.inner_ptr_eq(y)
+
+    def test_get_raises(self):
+        c = CalendarManager()
+        with pytest.raises(KeyError, match="`name` does not exist in calendars."):
+            c.get("bad_calendar")
+
+        with pytest.raises(KeyError, match="`name` does not exist in calendars."):
+            c.get("ldn,bad_calendar")

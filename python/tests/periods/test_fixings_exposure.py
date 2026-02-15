@@ -40,16 +40,16 @@ def curve():
 
 class TestFloatPeriod:
     @pytest.mark.parametrize(
-        ("method", "param"),
+        ("method"),
         [
-            (FloatFixingMethod.RFRPaymentDelay, 0),
-            (FloatFixingMethod.RFRObservationShift, 3),
-            (FloatFixingMethod.RFRLockout, 2),
-            (FloatFixingMethod.RFRLookback, 3),
-            (FloatFixingMethod.RFRLockoutAverage, 2),
-            (FloatFixingMethod.RFRPaymentDelayAverage, 0),
-            (FloatFixingMethod.RFRObservationShiftAverage, 3),
-            (FloatFixingMethod.RFRLookbackAverage, 3),
+            FloatFixingMethod.RFRPaymentDelay(),
+            FloatFixingMethod.RFRObservationShift(3),
+            FloatFixingMethod.RFRLockout(2),
+            FloatFixingMethod.RFRLookback(3),
+            FloatFixingMethod.RFRLockoutAverage(2),
+            FloatFixingMethod.RFRPaymentDelayAverage(),
+            FloatFixingMethod.RFRObservationShiftAverage(3),
+            FloatFixingMethod.RFRLookbackAverage(3),
         ],
     )
     @pytest.mark.parametrize(
@@ -63,11 +63,11 @@ class TestFloatPeriod:
             (SpreadCompoundMethod.ISDAFlatCompounding, 500.0),
         ],
     )
-    def test_baseline_versus_solver_fixings_sensitivity(self, method, param, scm, spread, curve):
+    def test_baseline_versus_solver_fixings_sensitivity(self, method, scm, spread, curve):
         # the Solver can make fixings exposure calculations independently from analytical
         # calculations and approximations. This tests validates the analytical calculations
         # against the Solver
-        if method in [
+        if type(method) in [
             FloatFixingMethod.RFRLockoutAverage,
             FloatFixingMethod.RFRPaymentDelayAverage,
             FloatFixingMethod.RFRObservationShiftAverage,
@@ -137,7 +137,6 @@ class TestFloatPeriod:
             notional=-10e6,
             fixing_series="usd_rfr",
             fixing_method=method,
-            method_param=param,
             frequency="A",
             start=dt(2022, 2, 3),
             end=dt(2022, 2, 10),
@@ -165,7 +164,7 @@ class TestFloatPeriod:
         )
 
         risk_compare = fixings_[("curve", "usd", "usd", "1B")].astype(float).fillna(0.0).to_numpy()
-        risk_array = risk.to_numpy()[:, 0]
+        risk_array = risk.to_numpy()[:, 0].copy()
 
         _diff = np.max(np.abs(risk_compare - risk_array))
         if scm == SpreadCompoundMethod.ISDAFlatCompounding and spread > 100.0:
@@ -187,7 +186,6 @@ class TestFloatPeriod:
             notional=-10e6,
             fixing_series="usd_rfr",
             fixing_method=method,
-            method_param=param,
             frequency="A",
             start=dt(2022, 2, 3),
             end=dt(2022, 2, 10),
@@ -224,8 +222,7 @@ class TestFloatPeriod:
         p = FloatPeriod(
             notional=-10e6,
             fixing_series="eur_ibor",
-            fixing_method="ibor",
-            method_param=1,
+            fixing_method="ibor(2)",
             frequency="Q",
             start=dt(2025, 10, 8),
             end=dt(2026, 1, 8),
@@ -241,8 +238,7 @@ class TestFloatPeriod:
     def test_ibor_stub_curve_example_book(self, curve):
         p = FloatPeriod(
             notional=-10e6,
-            fixing_method="ibor",
-            method_param=2,
+            fixing_method=FloatFixingMethod.IBOR(2),
             frequency="Q",
             start=dt(2025, 10, 8),
             end=dt(2025, 12, 16),
@@ -264,8 +260,7 @@ class TestFloatPeriod:
         p = FloatPeriod(
             notional=-10e6,
             fixing_series="eur_ibor",
-            fixing_method="ibor",
-            method_param=1,
+            fixing_method="ibor(2)",
             rate_fixings=2.0,
             frequency="Q",
             start=dt(2025, 10, 8),
@@ -282,8 +277,7 @@ class TestFloatPeriod:
     def test_ibor_stub_curve_fixings_set(self, curve):
         p = FloatPeriod(
             notional=-10e6,
-            fixing_method="ibor",
-            method_param=2,
+            fixing_method="ibor(2)",
             frequency="Q",
             start=dt(2025, 10, 8),
             end=dt(2025, 12, 16),
@@ -302,20 +296,19 @@ class TestFloatPeriod:
         assert result.index[0] == dt(2025, 10, 6)
 
     @pytest.mark.parametrize(
-        ("method", "param", "expected"),
+        ("method", "expected"),
         [
-            (FloatFixingMethod.RFRPaymentDelay, 0, [0, 0, 0, 0, 277, 830, 277, 277, 277, 0]),
-            (FloatFixingMethod.RFRLockout, 2, [0, 0, 0, 0, 277, 830, 830, 0, 0, 0]),
-            (FloatFixingMethod.RFRLookback, 3, [0, 277, 830, 277, 277, 277, 0, 0, 0, 0]),
-            (FloatFixingMethod.RFRObservationShift, 3, [0, 277, 277, 277, 277, 830, 0, 0, 0, 0]),
+            (FloatFixingMethod.RFRPaymentDelay(), [0, 0, 0, 0, 277, 830, 277, 277, 277, 0]),
+            (FloatFixingMethod.RFRLockout(2), [0, 0, 0, 0, 277, 830, 830, 0, 0, 0]),
+            (FloatFixingMethod.RFRLookback(3), [0, 277, 830, 277, 277, 277, 0, 0, 0, 0]),
+            (FloatFixingMethod.RFRObservationShift(3), [0, 277, 277, 277, 277, 830, 0, 0, 0, 0]),
         ],
     )
-    def test_rfr_curve_book(self, method, param, expected, curve):
+    def test_rfr_curve_book(self, method, expected, curve):
         p = FloatPeriod(
             notional=-1e6,
             fixing_series="usd_rfr",
             fixing_method=method,
-            method_param=param,
             frequency="Q",
             start=dt(2022, 2, 3),
             end=dt(2022, 2, 10),
@@ -350,7 +343,6 @@ class TestFloatPeriod:
             payment=dt(2026, 1, 16),
             frequency="M",
             fixing_method="rfr_payment_delay",
-            method_param=0,
             rate_fixings="sofr",
         )
         fixings.add(
@@ -460,10 +452,9 @@ class TestZeroFloatPeriod:
         fixings.add("MY_RATE_INDEX_6M", pd.Series(index=[dt(1999, 1, 1)], data=[1.15]))
         period = ZeroFloatPeriod(
             schedule=Schedule(dt(2000, 1, 1), "2Y", "S"),
-            fixing_method="IBOR",
+            fixing_method=FloatFixingMethod.IBOR(0),
             rate_fixings="MY_RATE_INDEX",
             convention="Act360",
-            method_param=0,
             notional=1e6,
         )
         rc = Curve({dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.95})

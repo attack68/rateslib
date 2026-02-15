@@ -40,7 +40,7 @@ from rateslib.mutability import (
 from rateslib.scheduling import add_tenor
 
 if TYPE_CHECKING:
-    from rateslib.typing import Number, _BaseCurve, datetime_
+    from rateslib.local_types import Number, _BaseCurve, datetime_
 DualTypes: TypeAlias = (
     "Dual | Dual2 | Variable | float"  # required for non-cyclic import on _WithCache
 )

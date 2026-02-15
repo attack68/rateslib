@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::curves::nodes::NodesTimestamp;
 use crate::curves::CurveInterpolation;
 use crate::dual::Number;
@@ -13,7 +25,7 @@ use std::cmp::PartialEq;
 /// Define a null interpolation object.
 ///
 /// This is used by PyO3 binding to indicate interpolation occurs in Python.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct NullInterpolator {}
 

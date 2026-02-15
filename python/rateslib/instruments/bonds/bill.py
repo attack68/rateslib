@@ -35,7 +35,7 @@ from rateslib.scheduling import Schedule
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DualTypes,

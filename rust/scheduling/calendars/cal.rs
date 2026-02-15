@@ -1,15 +1,27 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use chrono::prelude::*;
 use chrono::Weekday;
 use indexmap::set::IndexSet;
+use pyo3::exceptions::PyKeyError;
 use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use crate::scheduling::calendars::named::{get_holidays_by_name, get_weekmask_by_name};
-use crate::scheduling::{ndt, CalendarAdjustment, DateRoll, NamedCal, UnionCal};
+use crate::scheduling::{CalWrapper, CalendarAdjustment, CalendarManager, DateRoll};
 
 /// A basic business day calendar containing holidays.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cal {
     /// A vector of specific dates that are defined as **non-business** days.
@@ -18,6 +30,22 @@ pub struct Cal {
     pub week_mask: HashSet<Weekday>,
     // pub(crate) meta: Vec<String>,
 }
+
+impl DateRoll for Cal {
+    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
+        !self.week_mask.contains(&date.weekday())
+    }
+
+    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
+        self.holidays.contains(date)
+    }
+
+    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
+        true
+    }
+}
+
+impl CalendarAdjustment for Cal {}
 
 impl Cal {
     /// Create a [`Cal`].
@@ -55,48 +83,14 @@ impl Cal {
     /// let ldn_cal = Cal::try_from_name("ldn").unwrap();
     /// ```
     pub fn try_from_name(name: &str) -> Result<Cal, PyErr> {
-        Ok(Cal::new(
-            get_holidays_by_name(name)?,
-            get_weekmask_by_name(name)?,
-            // get_rules_by_name(name)?
-        ))
-    }
-}
-
-impl DateRoll for Cal {
-    fn is_weekday(&self, date: &NaiveDateTime) -> bool {
-        !self.week_mask.contains(&date.weekday())
-    }
-
-    fn is_holiday(&self, date: &NaiveDateTime) -> bool {
-        self.holidays.contains(date)
-    }
-
-    fn is_settlement(&self, _date: &NaiveDateTime) -> bool {
-        true
-    }
-}
-
-impl CalendarAdjustment for Cal {}
-
-impl PartialEq<UnionCal> for Cal {
-    fn eq(&self, other: &UnionCal) -> bool {
-        let cd1 = self
-            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
-            .unwrap();
-        let cd2 = other
-            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
-            .unwrap();
-        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(x) == other.is_bus_day(x)
-                && self.is_settlement(x) == other.is_settlement(y)
-        })
-    }
-}
-
-impl PartialEq<NamedCal> for Cal {
-    fn eq(&self, other: &NamedCal) -> bool {
-        other.union_cal.eq(self)
+        let cm = CalendarManager::new();
+        let named_cal = cm.get(name)?;
+        match (*named_cal.inner).clone() {
+            CalWrapper::Cal(cal) => Ok(cal),
+            CalWrapper::UnionCal(_) => Err(PyKeyError::new_err(
+                "`name` was key for a UnionCal not a Cal.",
+            )),
+        }
     }
 }
 
@@ -104,7 +98,7 @@ impl PartialEq<NamedCal> for Cal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheduling::Adjuster;
+    use crate::scheduling::{ndt, Adjuster};
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday

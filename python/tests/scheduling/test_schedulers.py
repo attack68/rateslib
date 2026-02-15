@@ -19,7 +19,12 @@ from rateslib.rs import Adjuster, Cal, Frequency, RollDay, Schedule, StubInferen
 @pytest.mark.parametrize(
     ("ueff", "uterm", "si", "exp"),
     [
-        (dt(2000, 1, 1), dt(2000, 7, 1), None, [dt(2000, 1, 1), dt(2000, 4, 1), dt(2000, 7, 1)]),
+        (
+            dt(2000, 1, 1),
+            dt(2000, 7, 1),
+            StubInference.NeitherSide,
+            [dt(2000, 1, 1), dt(2000, 4, 1), dt(2000, 7, 1)],
+        ),
         (
             dt(2000, 1, 1),
             dt(2000, 8, 1),
@@ -76,7 +81,7 @@ def test_imm_schedule():
         eom=True,
         front_stub=None,
         back_stub=None,
-        stub_inference=None,
+        stub_inference=StubInference.NeitherSide,
     )
     assert s.frequency == Frequency.Months(3, RollDay.IMM())
 
@@ -93,7 +98,7 @@ def test_single_period_schedule():
         eom=True,
         front_stub=None,
         back_stub=None,
-        stub_inference=None,
+        stub_inference=StubInference.NeitherSide,
     )
     assert s.uschedule == [dt(2025, 3, 19), dt(2025, 9, 19)]
 

@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //! This is the documentation for rateslib-rs
 //!
 //! <div class="warning">This library is in development. Only parts of *rateslib (Python)* have been ported
@@ -43,9 +55,12 @@ use fx_volatility::sabr_funcs::{_sabr_x0, _sabr_x1, _sabr_x2};
 
 pub mod scheduling;
 use scheduling::{
-    Cal, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule, StubInference,
-    UnionCal,
+    Cal, CalendarManager, Convention, Frequency, Imm, NamedCal, PyAdjuster, RollDay, Schedule,
+    StubInference, UnionCal,
 };
+
+pub mod enums;
+use enums::{LegIndexBase, PyFloatFixingMethod};
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -83,6 +98,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Cal>()?;
     m.add_class::<UnionCal>()?;
     m.add_class::<NamedCal>()?;
+    m.add_class::<CalendarManager>()?;
     m.add_class::<Convention>()?;
     m.add_class::<PyAdjuster>()?;
     m.add_function(wrap_pyfunction!(_get_modifier_str, m)?)?;
@@ -102,6 +118,10 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(_sabr_x0, m)?)?;
     m.add_function(wrap_pyfunction!(_sabr_x1, m)?)?;
     m.add_function(wrap_pyfunction!(_sabr_x2, m)?)?;
+
+    // Rates and Indexes
+    m.add_class::<PyFloatFixingMethod>()?;
+    m.add_class::<LegIndexBase>()?;
 
     Ok(())
 }

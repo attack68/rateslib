@@ -13,13 +13,12 @@
 from __future__ import annotations  # type hinting
 
 import warnings
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
 
 from rateslib import defaults
 from rateslib.default import (
@@ -65,7 +64,10 @@ from rateslib.scheduling import get_calendar
 from rateslib.splines import evaluate
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, DualTypes_, Sequence  # pragma: no cover
+    from rateslib.local_types import DualTypes, DualTypes_, Sequence  # pragma: no cover
+
+
+UTC = timezone.utc
 
 
 class FXDeltaVolSmile(_BaseSmile):
@@ -289,7 +291,12 @@ class FXDeltaVolSmile(_BaseSmile):
 
         Returns
         -------
-        tuple of float, Dual, Dual2 : (delta index, vol, k)
+        delta_index: float, Dual, Dual2, Variable
+            The delta index that can be used as lookup value on the *Smile*
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----
@@ -857,7 +864,12 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
         Returns
         -------
-        tuple of float, Dual, Dual2 : (delta index, vol, k)
+        delta_index: float, Dual, Dual2, Variable
+            The delta index that can be used as lookup value on the *Smile*
+        vol: float, Dual, Dual2, Variable
+            The volatility value attained from lookup of the index on the *Smile*.
+        k: float, Dual, Dual2, Variable
+            The strike value associated with the option of the delta index.
 
         Notes
         -----

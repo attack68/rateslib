@@ -21,7 +21,6 @@ import numpy as np
 
 from rateslib._spec_loader import INSTRUMENT_SPECS
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.rs import Adjuster, Convention, NamedCal
 
 PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-defined]
@@ -30,7 +29,7 @@ PlotOutput = tuple[plt.Figure, plt.Axes, list[plt.Line2D]]  # type: ignore[name-
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CalTypes,
     )
@@ -41,24 +40,6 @@ DEFAULTS = dict(
     stub_length="SHORT",
     eval_mode="swaps_align",
     modifier="MF",
-    calendars={
-        "all": NamedCal("all"),
-        "bus": NamedCal("bus"),
-        "tgt": NamedCal("tgt"),
-        "ldn": NamedCal("ldn"),
-        "nyc": NamedCal("nyc"),
-        "fed": NamedCal("fed"),
-        "stk": NamedCal("stk"),
-        "osl": NamedCal("osl"),
-        "zur": NamedCal("zur"),
-        "tro": NamedCal("tro"),
-        "tyo": NamedCal("tyo"),
-        "syd": NamedCal("syd"),
-        "nsw": NamedCal("nsw"),
-        "wlg": NamedCal("wlg"),
-        "mum": NamedCal("mum"),
-        "mex": NamedCal("mex"),
-    },
     eom=False,
     eom_fx=True,
     # Instrument parameterisation
@@ -76,6 +57,7 @@ DEFAULTS = dict(
         "IRS": 2,
         "STIRFuture": 0,
         "IIRS": 2,
+        "YoYIS": 2,
         "ZCS": 2,
         "ZCIS": 0,
         "FXSwap": 0,
@@ -92,26 +74,6 @@ DEFAULTS = dict(
         "NDF": 2,
     },
     fixing_method="rfr_payment_delay",
-    fixing_method_param={
-        "rfr_payment_delay": 0,  # no observation shift - use payment_delay param
-        "rfr_observation_shift": 2,
-        "rfr_lockout": 2,
-        "rfr_lookback": 2,
-        "rfr_payment_delay_avg": 0,  # no observation shift - use payment_delay param
-        "rfr_observation_shift_avg": 2,
-        "rfr_lockout_avg": 2,
-        "rfr_lookback_avg": 2,
-        "ibor": 2,
-        FloatFixingMethod.RFRPaymentDelayAverage: 0,
-        FloatFixingMethod.RFRPaymentDelay: 0,
-        FloatFixingMethod.IBOR: 2,
-        FloatFixingMethod.RFRLockout: 2,
-        FloatFixingMethod.RFRLockoutAverage: 2,
-        FloatFixingMethod.RFRObservationShiftAverage: 2,
-        FloatFixingMethod.RFRObservationShift: 2,
-        FloatFixingMethod.RFRLookback: 2,
-        FloatFixingMethod.RFRLookbackAverage: 2,
-    },
     spread_compound_method="none_simple",
     base_currency="usd",
     fx_delivery_lag=2,
@@ -372,6 +334,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "usd_rfr": dict(
             lag=0,
@@ -379,6 +342,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "gbp_ibor": dict(
             lag=0,
@@ -386,6 +350,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "gbp_rfr": dict(
             lag=0,
@@ -393,6 +358,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "sek_ibor": dict(
             lag=2,
@@ -400,6 +366,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=True,
+            tenors=["2B", "1W", "1M", "2M", "3M", "6M"],
         ),
         "sek_rfr": dict(
             lag=0,
@@ -407,6 +374,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "eur_ibor": dict(
             lag=2,
@@ -414,6 +382,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1W", "1M", "3M", "6M", "12M"],
         ),
         "eur_rfr": dict(
             lag=0,
@@ -421,6 +390,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "nok_ibor": dict(
             lag=2,
@@ -428,6 +398,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1W", "1M", "2M", "3M", "6M"],
         ),
         "nok_rfr": dict(
             lag=0,
@@ -435,6 +406,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "chf_ibor": dict(
             lag=2,
@@ -442,6 +414,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1B", "1W", "1M", "2M", "3M", "6M", "12M"],
         ),
         "chf_rfr": dict(
             lag=0,
@@ -449,6 +422,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act360,
             eom=False,
+            tenors=["1b"],
         ),
         "cad_ibor": dict(
             lag=2,
@@ -456,6 +430,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1M", "2M", "3M", "6M", "12M"],
         ),
         "cad_rfr": dict(
             lag=0,
@@ -463,6 +438,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "jpy_ibor": dict(
             lag=2,
@@ -470,6 +446,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1M", "3M", "6M"],
         ),
         "jpy_rfr": dict(
             lag=0,
@@ -477,6 +454,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "aud_ibor": dict(
             lag=0,
@@ -484,6 +462,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1M", "2M", "3M", "4M", "5M", "6M"],
         ),
         "aud_rfr": dict(
             lag=0,
@@ -491,6 +470,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
         "nzd_ibor": dict(
             lag=0,
@@ -498,6 +478,7 @@ DEFAULTS = dict(
             modifier=Adjuster.ModifiedFollowing(),
             convention=Convention.Act365F,
             eom=True,
+            tenors=["1M", "3M", "6M"],
         ),
         "nzd_rfr": dict(
             lag=0,
@@ -505,6 +486,7 @@ DEFAULTS = dict(
             modifier=Adjuster.Following(),
             convention=Convention.Act365F,
             eom=False,
+            tenors=["1b"],
         ),
     },
 )
@@ -541,7 +523,6 @@ class Defaults:
     payment_lag_exchange: int
     payment_lag_specific: dict[str, int]
     fixing_method: str
-    fixing_method_param: dict[str | FloatFixingMethod, int]
     spread_compound_method: str
     base_currency: str
     fx_delivery_lag: int
@@ -651,7 +632,6 @@ Instruments:\n
                         "payment_lag_specific",
                         "notional",
                         "fixing_method",
-                        "fixing_method_param",
                         "spread_compound_method",
                         "base_currency",
                         "fx_delivery_lag",

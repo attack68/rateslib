@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         CashflowFunction,
         YtmDiscountFunction,
     )
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Cashflow,
         CurveOption_,
         DualTypes,
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         FloatLeg,
         FloatPeriod,
         Number,
+        ZeroFloatPeriod,
         _BaseCurve_,
         _KWArgs,
         datetime,
@@ -75,10 +76,9 @@ class _WithYTM(_WithAccrued, Protocol):
             calc_mode_ = BOND_MODE_MAP[calc_mode_]
         try:
             if indexed:
-                return self._generic_price_from_ytm_indexed(
+                q = self._generic_price_from_ytm_indexed(
                     ytm=ytm,
                     settlement=settlement,
-                    dirty=dirty,
                     f1=calc_mode_._v1,
                     f2=calc_mode_._v2,
                     f3=calc_mode_._v3,
@@ -89,11 +89,14 @@ class _WithYTM(_WithAccrued, Protocol):
                     rate_curve=rate_curve,
                     index_curve=index_curve,
                 )
+                if dirty:
+                    return q + self.accrued(settlement, indexed=True, index_curve=index_curve)  # type: ignore[call-arg]
+                else:
+                    return q
             else:
-                return self._generic_price_from_ytm(
+                q = self._generic_price_from_ytm(
                     ytm=ytm,
                     settlement=settlement,
-                    dirty=dirty,
                     f1=calc_mode_._v1,
                     f2=calc_mode_._v2,
                     f3=calc_mode_._v3,
@@ -103,6 +106,10 @@ class _WithYTM(_WithAccrued, Protocol):
                     accrual=calc_mode_._ytm_accrual,
                     rate_curve=rate_curve,
                 )
+                if dirty:
+                    return q + self._accrued(settlement, calc_mode_._settle_accrual)
+                else:
+                    return q
         except KeyError:
             raise ValueError(f"Cannot calculate with `calc_mode`: {calc_mode}")
 
@@ -110,7 +117,6 @@ class _WithYTM(_WithAccrued, Protocol):
         self,
         ytm: DualTypes,
         settlement: datetime,
-        dirty: bool,
         f1: YtmDiscountFunction,
         f2: YtmDiscountFunction,
         f3: YtmDiscountFunction,
@@ -182,13 +188,13 @@ class _WithYTM(_WithAccrued, Protocol):
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.settlement_params.notional * 100
 
-        return p if dirty else p - self._accrued(settlement, accrual)
+        return p - self._accrued(settlement, accrual)  # always return the clean price due to
+        # the possibility of different accrual functions for physical settlement vs YTM calc.
 
     def _generic_price_from_ytm_indexed(
         self,
         ytm: DualTypes,
         settlement: datetime,
-        dirty: bool,
         f1: YtmDiscountFunction,
         f2: YtmDiscountFunction,
         f3: YtmDiscountFunction,
@@ -263,8 +269,8 @@ class _WithYTM(_WithAccrued, Protocol):
         # discount all by the first period factor and scaled to price
         p = d / -self.leg1.settlement_params.notional * 100
 
-        settle_ir = self.index_ratio(settlement=settlement, index_curve=index_curve)
-        return p if dirty else p - self._accrued(settlement, accrual) * settle_ir
+        settle_ir: DualTypes = self.index_ratio(settlement=settlement, index_curve=index_curve)
+        return p - self._accrued(settlement, accrual) * settle_ir  # return the clean indexed price
 
     def _ytm(
         self,
@@ -365,7 +371,7 @@ class _WithYTM(_WithAccrued, Protocol):
         settlement: datetime, :red:`required`
             The settlement date on which to determine the price.
         dirty: bool, :green:`optional (set as False)`
-            If `True` will assume the
+            If `True` will assume the (settlement)
             :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
         rate_curve: _BaseCurve or dict of such, :green:`optional`
             Used to forecast floating rates if required.
@@ -401,7 +407,9 @@ class _WithYTM(_WithAccrued, Protocol):
         )
 
     def _period_cashflow(
-        self, period: Cashflow | FixedPeriod | FloatPeriod, rate_curve: CurveOption_
+        self,
+        period: Cashflow | FixedPeriod | FloatPeriod | ZeroFloatPeriod,
+        rate_curve: CurveOption_,
     ) -> DualTypes:
         """Nominal fixed rate bonds use the known "cashflow" attribute on the *Period*."""
         return period.unindexed_cashflow(rate_curve=rate_curve)

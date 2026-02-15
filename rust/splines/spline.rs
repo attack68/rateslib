@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::dual::linalg::{dmul11_, fdmul11_, fdsolve, fouter11_};
 use crate::dual::{Dual, Dual2, Gradient1, Gradient2, Number, NumberMapping};
 use ndarray::{Array1, Array2};
@@ -400,21 +412,21 @@ where
 }
 
 /// Definitive [f64] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineF64 {
     pub(crate) inner: PPSpline<f64>,
 }
 
 /// Definitive [Dual] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineDual {
     pub(crate) inner: PPSpline<Dual>,
 }
 
 /// Definitive [Dual2] type variant of a [PPSpline].
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Deserialize, Serialize)]
 pub struct PPSplineDual2 {
     pub(crate) inner: PPSpline<Dual2>,

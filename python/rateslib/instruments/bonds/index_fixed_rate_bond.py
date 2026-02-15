@@ -33,7 +33,7 @@ from rateslib.legs import FixedLeg
 from rateslib.periods.parameters import _IndexParams
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurveOption_,
         CurvesT_,
@@ -934,7 +934,7 @@ class IndexFixedRateBond(_BaseBondInstrument):
         settlement: datetime, :red:`required`
             The settlement date on which to determine the price.
         dirty: bool, :green:`optional (set as False)`
-            If `True` will assume the
+            If `True` will assume the (settlement)
             :meth:`~rateslib.instruments.FixedRateBond.accrued` is included in the price.
         rate_curve: _BaseCurve or dict of such, :green:`optional`
             Used to forecast floating rates if required.

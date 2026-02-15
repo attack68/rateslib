@@ -24,7 +24,7 @@ from pandas import __version__ as pandas_version
 from rateslib.enums.generics import Err, NoInput, Ok
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         Adjuster,
         CalTypes,
         DualTypes,

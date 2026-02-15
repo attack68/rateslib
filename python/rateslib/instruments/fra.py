@@ -30,7 +30,7 @@ from rateslib.legs import FixedLeg, FloatLeg
 from rateslib.scheduling import Adjuster
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurvesT_,
         DataFrame,
@@ -48,7 +48,6 @@ if TYPE_CHECKING:
         bool_,
         datetime,
         datetime_,
-        int_,
         str_,
     )
 
@@ -175,8 +174,9 @@ class FRA(_BaseInstrument):
     fixed_rate : float or None
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
-    leg2_method_param: int, :green:`optional (set by 'defaults')`
-        A specific parameter that is used by the specific ``fixing_method``.
+    leg2_fixing_method: int, :green:`optional (set by 'defaults')`
+        The ``fixing_method`` used by the *Instrument*. This will be IBOR with a defined
+        publication lag. The default is "IBOR(2)" with a two-day lag.
     leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given is assumed to match the
@@ -184,7 +184,7 @@ class FRA(_BaseInstrument):
     leg2_fixing_series: FloatRateSeries, str, :green:`optional (implied by other parameters)`
         The :class:`~rateslib.data.fixings.FloatRateSeries` as a component of the
         :class:`~rateslib.data.fixings.FloatRateIndex`. If not given inherits attributes given
-        such as the ``calendar``, ``convention``, ``method_param`` etc.
+        such as the ``calendar``, ``convention``, ``fixing_method`` etc.
     leg2_rate_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         See :ref:`Fixings <fixings-doc>`.
         The value of the rate fixing. If a scalar, is used directly. If a string identifier, links
@@ -321,7 +321,7 @@ class FRA(_BaseInstrument):
         # rate parameters
         fixed_rate: DualTypes_ = NoInput(0),
         leg2_rate_fixings: FixingsRates_ = NoInput(0),
-        leg2_method_param: int_ = NoInput(0),
+        leg2_fixing_method: FloatFixingMethod | str_ = NoInput(0),
         leg2_fixing_frequency: Frequency | str_ = NoInput(0),
         leg2_fixing_series: FloatRateSeries | str_ = NoInput(0),
         # meta parameters
@@ -345,9 +345,9 @@ class FRA(_BaseInstrument):
             # rate
             fixed_rate=fixed_rate,
             leg2_rate_fixings=leg2_rate_fixings,
-            leg2_method_param=leg2_method_param,
             leg2_fixing_series=leg2_fixing_series,
             leg2_fixing_frequency=leg2_fixing_frequency,
+            leg2_fixing_method=leg2_fixing_method,
             # meta
             curves=self._parse_curves(curves),
             metric=metric,
@@ -364,7 +364,6 @@ class FRA(_BaseInstrument):
             leg2_ex_div=NoInput.inherit,
             leg2_convention=NoInput.inherit,
             leg2_float_spread=0.0,
-            leg2_fixing_method=FloatFixingMethod.IBOR,
             leg2_spread_compound_method=SpreadCompoundMethod.NoneSimple,
             leg2_notional=NoInput.negate,
             leg2_currency=NoInput.inherit,
@@ -378,6 +377,7 @@ class FRA(_BaseInstrument):
         )
         default_args = dict(
             notional=defaults.notional,
+            leg2_fixing_method=FloatFixingMethod.IBOR(2),
             metric="rate",
         )
         self._kwargs = _KWArgs(

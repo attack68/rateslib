@@ -1,8 +1,21 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use chrono::prelude::*;
-use pyo3::pyclass;
+use pyo3::exceptions::PyKeyError;
+use pyo3::{pyclass, PyErr};
 use serde::{Deserialize, Serialize};
 
-use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
+use crate::scheduling::{Cal, CalWrapper, CalendarAdjustment, CalendarManager, DateRoll};
 
 /// A business day calendar which is the potential union of multiple calendars.
 ///
@@ -12,7 +25,7 @@ use crate::scheduling::{ndt, Cal, CalendarAdjustment, DateRoll};
 /// - A **settleable day** is such if it is a *business day* in each one of the
 ///   `settlement_calendars`, otherwise every calendar day is a *settleable day*.
 /// - A **settleable business day** is both a *business day* and a *settleable day*.
-#[pyclass(module = "rateslib.rs")]
+#[pyclass(module = "rateslib.rs", from_py_object)]
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct UnionCal {
     /// A vector of [Cal] used to determine **business** days.
@@ -39,6 +52,25 @@ impl UnionCal {
             settlement_calendars,
         }
     }
+
+    /// Return a [`UnionCal`] specified by a pre-defined named identifier.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use rateslib::scheduling::UnionCal;
+    /// let ldn_tgt_cal = UnionCal::try_from_name("ldn,tgt").unwrap();
+    /// ```
+    pub fn try_from_name(name: &str) -> Result<UnionCal, PyErr> {
+        let cm = CalendarManager::new();
+        let named_cal = cm.get_with_insert(name)?;
+        match (*named_cal.inner).clone() {
+            CalWrapper::Cal(_) => Err(PyKeyError::new_err(
+                "`name` was key for a Cal not a UnionCal.",
+            )),
+            CalWrapper::UnionCal(cal) => Ok(cal),
+        }
+    }
 }
 
 impl DateRoll for UnionCal {
@@ -59,28 +91,11 @@ impl DateRoll for UnionCal {
 
 impl CalendarAdjustment for UnionCal {}
 
-impl<T> PartialEq<T> for UnionCal
-where
-    T: DateRoll,
-{
-    fn eq(&self, other: &T) -> bool {
-        let cd1 = self
-            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
-            .unwrap();
-        let cd2 = other
-            .cal_date_range(&ndt(1970, 1, 1), &ndt(2200, 12, 31))
-            .unwrap();
-        cd1.iter().zip(cd2.iter()).all(|(x, y)| {
-            self.is_bus_day(x) == other.is_bus_day(x)
-                && self.is_settlement(x) == other.is_settlement(y)
-        })
-    }
-}
-
 // UNIT TESTS
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduling::ndt;
 
     fn fixture_hol_cal() -> Cal {
         let hols = vec![ndt(2015, 9, 5), ndt(2015, 9, 7)]; // Saturday and Monday

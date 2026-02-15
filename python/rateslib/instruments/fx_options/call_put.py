@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
     import numpy as np  # pragma: no cover
 
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         FX_,
         Any,
         CalInput,
@@ -85,7 +85,7 @@ class _PricingMetrics:
 
 class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
     """
-    An abstract base class for implementing *FXOptions*.
+    Abstract base class for implementing *FXOptions*.
 
     See :class:`~rateslib.instruments.FXCall` and :class:`~rateslib.instruments.FXPut`.
     """

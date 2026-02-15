@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from numpy import object_ as Nobject  # noqa: N812
     from numpy.typing import NDArray
 
-    from rateslib.typing import (
+    from rateslib.local_types import (
         FX_,
         Any,
         Callable,
@@ -199,7 +199,11 @@ class Gradients:
 
     def _grad_s_vT_final_iteration_analytical(self) -> NDArray[Nf64]:
         """Uses a pseudoinverse algorithm on floats"""
-        grad_s_vT: NDArray[Nf64] = np.linalg.pinv(self.J)  # type: ignore[assignment]
+        if self.n == 0:
+            # then there are no instruments: self is only a Solver container of `pre_solvers`
+            grad_s_vT: NDArray[Nf64] = np.array([[]], dtype=float)
+        else:
+            grad_s_vT = np.linalg.pinv(self.J)  # type: ignore[assignment]
         return grad_s_vT
 
     def _grad_s_vT_fixed_point_iteration(self) -> NDArray[Nf64]:
@@ -335,10 +339,12 @@ class Gradients:
                 ] = pre_slvr.J2_pre
                 i, j = i + pre_slvr.pre_n, j + pre_slvr.pre_m
 
-            rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
-            # solver is passed in order to extract curves as string
-            _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
-            J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
+            if self.m > 0:
+                # then self is not only a container for `pre_solvers`
+                rates = np.array([_[0].rate(**_[1]) for _ in self.instruments])
+                # solver is passed in order to extract curves as string
+                _ = np.array([gradient(r, self.pre_variables, order=2) for r in rates])
+                J2[:, :, -self.m :] = np.transpose(_, (1, 2, 0))
             self._J2_pre = J2
         return self._J2_pre
 
@@ -511,16 +517,21 @@ class Gradients:
                 m, n = pre_solver.pre_m, pre_solver.pre_n
                 grad_s_vT[i : i + m, j : j + n] = pre_solver.grad_s_vT_pre
 
-                # create the right column dependencies
-                grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
-                block = np.matmul(grad_v_r, self.grad_s_vT)
-                block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
-                grad_s_vT[i : i + m, -self.n :] = block
+                # create the right column dependencies, only if self contains some instruments
+                # and variable of its own and is not only a container of `pre_solvers`
+                if self.n > 0:
+                    grad_v_r = np.array([gradient(r, pre_solver.pre_variables) for r in self.r]).T
+                    block = np.matmul(grad_v_r, self.grad_s_vT)
+                    block = -1 * np.matmul(pre_solver.grad_s_vT_pre, block)
+                    grad_s_vT[i : i + m, -self.n :] = block
 
                 i, j = i + m, j + n
 
-            # create bottom right block
-            grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
+            if self.n > 0:
+                # create bottom right block, only if self contains some instruments
+                # and variables of its own and is not only a container of `pre_solvers`
+                grad_s_vT[-self.m :, -self.n :] = self.grad_s_vT
+
             self._grad_s_vT_pre = grad_s_vT
         return self._grad_s_vT_pre
 
@@ -1450,8 +1461,11 @@ class Solver(Gradients, _WithState):
                 r_pre[i : i + m] = pre_solver.r_pre
                 i = i + m
 
-            # create bottom right block
-            r_pre[-self.m :] = self.r
+            if self.m > 0:
+                # create bottom right block if solver contains its own instruments and self
+                # is not just a container of `pre_solvers`
+                r_pre[-self.m :] = self.r
+
             self._r_pre = r_pre
         return self._r_pre
 
@@ -1480,21 +1494,25 @@ class Solver(Gradients, _WithState):
         -------
         Series
         """
-        pre_s: Series[float] | None = None
+        pre_s: Series[float] = Series()
         for pre_solver in self.pre_solvers:
-            if pre_s is None:
-                pre_s = pre_solver.error
+            if not pre_s.empty:
+                pre_s = concat([ser for ser in [pre_solver.error, pre_s] if not ser.empty])
             else:
-                pre_s = concat([pre_solver.error, pre_s])
+                pre_s = pre_solver.error
 
-        _: Series[float] = Series(
-            self.x.astype(float) * 100 / self.rate_scalars,
-            index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
-        )
-        if pre_s is None:
-            s: Series[float] = _
+        if self.m > 0:
+            _: Series[float] = Series(
+                self.x.astype(float) * 100 / self.rate_scalars,
+                index=MultiIndex.from_tuples([(self.id, inst) for inst in self.instrument_labels]),
+            )
+            if not pre_s.empty:
+                s: Series[float] = concat([pre_s, _])
+            else:
+                s = _
         else:
-            s = concat([pre_s, _])
+            s = pre_s
+
         return s
 
     @property
@@ -1885,7 +1903,7 @@ class Solver(Gradients, _WithState):
         .. ipython:: python
            :suppress:
 
-           from rateslib import Solver, Curve
+           from rateslib import Solver, Curve, SBS, IRS
 
         .. ipython:: python
 
@@ -1922,7 +1940,7 @@ class Solver(Gradients, _WithState):
                },
                id="s"
            )
-           args = dict(termination="1Y", frequency="A", fixing_method="ibor", leg2_fixing_method="ibor")
+           args = dict(termination="1Y", frequency="A", fixing_method="ibor(0)", leg2_fixing_method="ibor(0)")
            instruments = [
                SBS(dt(2022, 1, 1), curves=["r", "s", "s", "s"], **args),
                SBS(dt(2023, 1, 1), curves=["r", "s", "s", "s"], **args),
@@ -1934,11 +1952,11 @@ class Solver(Gradients, _WithState):
                SBS(dt(2024, 1, 1), curves=["r", "s", "z", "s"], **args),
                SBS(dt(2025, 1, 1), curves=["r", "s", "z", "s"], **args),
                SBS(dt(2026, 1, 1), curves=["r", "s", "z", "s"], **args),
-               IRS(dt(2022, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2023, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2024, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2025, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
-               IRS(dt(2026, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor"),
+               IRS(dt(2022, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2023, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2024, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2025, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
+               IRS(dt(2026, 1, 1), "1Y", "A", curves=["r", "s"], leg2_fixing_method="ibor(0)"),
            ]
            solver = Solver(
                curves=[curve_r, curve_s, curve_z],
@@ -1951,7 +1969,7 @@ class Solver(Gradients, _WithState):
                    "r1", "r2", "r3", "r4", "r5",
                ],
            )
-           irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor", fixed_rate=25.0)
+           irs = IRS(dt(2022, 1, 1), "5Y", "A", notional=-8.3e8, curves=["z", "s"], leg2_fixing_method="ibor(0)", fixed_rate=25.0)
            irs.delta(solver=solver)
            irs.gamma(solver=solver)
         """  # noqa: E501
@@ -2330,3 +2348,6 @@ class Solver(Gradients, _WithState):
 # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
 # Commercial use of this code, and/or copying and redistribution is prohibited.
 # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
+
+
+__all__ = ["Gradients", "Solver"]

@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use chrono::prelude::*;
 use indexmap::IndexSet;
 use pyo3::exceptions::PyValueError;
@@ -8,7 +20,7 @@ use std::cmp::{Eq, PartialEq};
 use crate::scheduling::{Adjuster, Adjustment, Calendar, Imm};
 
 /// A roll-day used with a [`Frequency::Months`](crate::scheduling::Frequency) variant.
-#[pyclass(module = "rateslib.rs", eq)]
+#[pyclass(module = "rateslib.rs", eq, from_py_object)]
 #[derive(Debug, Copy, Hash, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum RollDay {
     /// A day of the month in [1, 31].

@@ -23,7 +23,7 @@ from rateslib.dual.utils import _dual_float, _get_order_of, gradient, set_order
 from rateslib.rs import Dual, Dual2
 
 if TYPE_CHECKING:
-    from rateslib.typing import DualTypes, Number
+    from rateslib.local_types import DualTypes, Number
 
 P = ParamSpec("P")
 

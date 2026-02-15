@@ -94,6 +94,7 @@ from rateslib.periods import FixedPeriod as FixedPeriod
 from rateslib.periods import FloatPeriod as FloatPeriod
 from rateslib.periods import FXCallPeriod as FXCallPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
+from rateslib.periods import ZeroFloatPeriod as ZeroFloatPeriod
 from rateslib.periods import _BaseFXOptionPeriod as _BaseFXOptionPeriod
 from rateslib.periods.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.periods.parameters import _IndexParams as _IndexParams
@@ -113,6 +114,7 @@ from rateslib.rs import (
     NullInterpolator,
     UnionCal,
 )
+from rateslib.rs import StubInference as StubInference
 
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
 
@@ -120,6 +122,7 @@ from rateslib.rs import Convention as Convention
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
 from rateslib.rs import Frequency as Frequency
+from rateslib.rs import LegIndexBase as LegIndexBase
 from rateslib.rs import PPSplineDual as PPSplineDual
 from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64

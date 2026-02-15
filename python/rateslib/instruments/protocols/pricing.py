@@ -20,7 +20,7 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         FX_,
         Any,
         CurvesT_,

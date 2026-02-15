@@ -28,7 +28,7 @@ from rateslib.periods.utils import _get_rfr_curve_from_dict
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -50,8 +50,7 @@ def rate_value(
     rate_fixings: DualTypes_ | str = NoInput(0),
     frequency: Frequency | str_ = NoInput(0),
     rate_series: FloatRateSeries | str_ = NoInput(0),
-    fixing_method: FloatFixingMethod | str = FloatFixingMethod.RFRPaymentDelay,
-    method_param: int = 0,
+    fixing_method: FloatFixingMethod | str = FloatFixingMethod.RFRPaymentDelay(),
     spread_compound_method: SpreadCompoundMethod | str = SpreadCompoundMethod.NoneSimple,
     float_spread: DualTypes = 0.0,
     stub: bool = False,
@@ -64,7 +63,6 @@ def rate_value(
         frequency=frequency,
         rate_fixings=rate_fixings,
         fixing_method=fixing_method,
-        method_param=method_param,
         spread_compound_method=spread_compound_method,
         float_spread=float_spread,
         stub=stub,
@@ -79,8 +77,7 @@ def try_rate_value(
     rate_series: FloatRateSeries | str_ = NoInput(0),
     frequency: Frequency | str_ = NoInput(0),
     rate_fixings: DualTypes | Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-    fixing_method: FloatFixingMethod | str = FloatFixingMethod.RFRPaymentDelay,
-    method_param: int = 0,
+    fixing_method: FloatFixingMethod | str = FloatFixingMethod.RFRPaymentDelay(),
     spread_compound_method: SpreadCompoundMethod | str = SpreadCompoundMethod.NoneSimple,
     float_spread: DualTypes = 0.0,
     stub: bool = False,
@@ -93,14 +90,14 @@ def try_rate_value(
     fm = _get_float_fixing_method(fixing_method)
     scm = _get_spread_compound_method(spread_compound_method)
     rs = _get_float_rate_series_or_blank(rate_series)
-    if fm == FloatFixingMethod.IBOR:
+    if type(fm) is FloatFixingMethod.IBOR:
         return _IBORRate._rate(
             start=start,
             end=end,
             rate_curve=rate_curve,
             rate_fixings=rate_fixings,
-            method_param=method_param,
             float_spread=_drb(0.0, float_spread),
+            lag=fm.method_param(),
             stub=stub,
             rate_series=rs,
             frequency=_get_frequency(frequency, NoInput(0), NoInput(0)),
@@ -116,7 +113,6 @@ def try_rate_value(
             rate_curve=rate_curve_,
             rate_fixings=rate_fixings,
             fixing_method=fm,
-            method_param=method_param,
             spread_compound_method=scm,
             float_spread=float_spread,
             rate_series=rs,

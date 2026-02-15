@@ -19,7 +19,7 @@ from rateslib.enums.generics import NoInput
 from rateslib.rs import Imm
 
 if TYPE_CHECKING:
-    from rateslib.typing import int_, str_
+    from rateslib.local_types import int_, str_
 
 
 _Imm: dict[str, Imm] = {
@@ -40,6 +40,7 @@ _Imm: dict[str, Imm] = {
     "wed1_post9_hmuz": Imm.Wed1_Post9_HMUZ,
     "eom": Imm.Eom,
     "leap": Imm.Leap,
+    "som": Imm.Som,
 }
 
 

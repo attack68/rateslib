@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 from rateslib.rs import Adjuster, Imm, RollDay
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalTypes, int_
+    from rateslib.local_types import CalTypes, int_
 
 
 def _get_rollday(roll: RollDay | str | int_) -> RollDay | None:

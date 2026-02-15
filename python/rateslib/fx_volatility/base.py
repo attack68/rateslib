@@ -21,7 +21,7 @@ from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
 
 if TYPE_CHECKING:
-    from rateslib.typing import FXForwards
+    from rateslib.local_types import FXForwards
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 

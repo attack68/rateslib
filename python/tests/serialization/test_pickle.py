@@ -31,6 +31,7 @@ from rateslib.curves import (
     MultiCsaCurve,
     ProxyCurve,
 )
+from rateslib.enums import FloatFixingMethod, LegIndexBase
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import (
     Adjuster,
@@ -120,6 +121,15 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
             payment_lag=Adjuster.BusDaysLagSettle(2),
             stub=StubInference.ShortBack,
         ),
+        Schedule(
+            effective=dt(2000, 1, 1),
+            termination=dt(2001, 1, 1),
+            frequency=Frequency.Months(6, RollDay.Day(1)),
+            calendar=NamedCal("tgt"),
+            modifier=Adjuster.ModifiedFollowing(),
+            payment_lag=Adjuster.BusDaysLagSettle(2),
+            stub=StubInference.NeitherSide,
+        ),
         PPSplineF64(3, [0, 0, 0, 1, 1, 1], [0.1, 0.2, 0.3]),
         PPSplineDual(
             3, [0, 0, 0, 1, 1, 1], [Dual(0.1, [], []), Dual(0.2, [], []), Dual(0.3, [], [])]
@@ -157,11 +167,30 @@ def test_pickle_round_trip_obj_via_equality(obj):
             Frequency.Months(4, None),
         ),
         (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.RFRLookback(2)),
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(5)),
+        (LegIndexBase.Initial, LegIndexBase.Initial, LegIndexBase.PeriodOnPeriod),
     ],
 )
 def test_enum_equality(a1, a2, b1):
     assert a1 == a2
     assert a2 != b1
+
+
+@pytest.mark.parametrize(
+    ("enum", "klass"),
+    [
+        (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR),
+    ],
+)
+def test_complex_enum_isinstance(enum, klass):
+    assert isinstance(enum, klass)
+    type_enum = type(enum)
+    assert type_enum is klass
+    assert type_enum in [klass]
+    assert not isinstance(enum, FloatFixingMethod.RFRLookback)
+    assert type(enum) is not FloatFixingMethod.RFRLookback
+    assert enum != FloatFixingMethod.RFRLookback(2)
 
 
 @pytest.mark.parametrize(
@@ -171,6 +200,7 @@ def test_enum_equality(a1, a2, b1):
         (StubInference, ["to_json"]),
         (ADOrder, []),
         (Convention, ["dcf", "to_json"]),
+        (LegIndexBase, ["to_json"]),
     ],
 )
 def test_simple_enum_pickle(enum, method_filter):
@@ -206,6 +236,15 @@ def test_simple_enum_pickle(enum, method_filter):
         Frequency.BusDays(2, NamedCal("tgt")),
         Frequency.Zero(),
         Frequency.CalDays(3),
+        FloatFixingMethod.RFRPaymentDelay(),
+        FloatFixingMethod.RFRPaymentDelayAverage(),
+        FloatFixingMethod.RFRObservationShift(2),
+        FloatFixingMethod.RFRObservationShiftAverage(2),
+        FloatFixingMethod.RFRLookback(3),
+        FloatFixingMethod.RFRLookbackAverage(3),
+        FloatFixingMethod.RFRLockout(4),
+        FloatFixingMethod.RFRLockoutAverage(4),
+        FloatFixingMethod.IBOR(2),
     ],
 )
 def test_complex_enum_pickle(enum):

@@ -23,7 +23,7 @@ from rateslib.scheduling.rollday import _get_rollday
 from rateslib.utils.calendars import _get_first_bus_day
 
 if TYPE_CHECKING:
-    from rateslib.typing import CalInput, datetime_, int_, str_
+    from rateslib.local_types import CalInput, datetime_, int_, str_
 
 
 def _get_frequency(
@@ -100,7 +100,7 @@ def _get_tenor_from_frequency(frequency: Frequency) -> str:
         return f"{frequency.number}M"
     elif isinstance(frequency, Frequency.CalDays):
         if frequency.number % 7 == 0:
-            return f"{frequency.number / 7}W"
+            return f"{int(frequency.number / 7)}W"
         else:
             return f"{frequency.number}D"
     elif isinstance(frequency, Frequency.BusDays):

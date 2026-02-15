@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //! Create a business day [`Calendar`], instrument [`Schedule`] and perform financial date manipulation.
 //!
 //! The purpose of this module is to provide objects which are capable of replicating all of the
@@ -88,7 +100,7 @@
 //!    Adjuster::Actual{},                      // payment_adjuster2
 //!    None,                                    // payment_adjuster3
 //!    false,                                   // eom
-//!    Some(StubInference::ShortFront),         // stub_inference
+//!    StubInference::ShortFront,               // stub_inference
 //! );
 //! # let schedule = schedule.unwrap();
 //! assert_eq!(schedule.frequency, Frequency::Months{number:3, roll: Some(RollDay::IMM())});
@@ -113,7 +125,7 @@
 //!    Adjuster::Actual{},                      // payment_adjuster2
 //!    None,                                    // payment_adjuster3
 //!    true,                                    // eom
-//!    Some(StubInference::ShortFront),         // stub_inference
+//!    StubInference::ShortFront,               // stub_inference
 //! );
 //! # let schedule = schedule.unwrap();
 //! assert_eq!(schedule.frequency, Frequency::Months{number:3, roll: Some(RollDay::Day(31))});
@@ -130,12 +142,15 @@ mod serde;
 
 pub(crate) mod py;
 
+pub(crate) use crate::scheduling::{
+    calendars::CalWrapper, frequency::get_unadjusteds, py::PyAdjuster,
+};
 pub use crate::scheduling::{
     calendars::{
-        ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, DateRoll, NamedCal, UnionCal,
+        ndt, Adjuster, Adjustment, Cal, Calendar, CalendarAdjustment, CalendarManager, DateRoll,
+        NamedCal, UnionCal,
     },
     convention::Convention,
     frequency::{Frequency, Imm, RollDay, Scheduling},
     schedule::{Schedule, StubInference},
 };
-pub(crate) use crate::scheduling::{frequency::get_unadjusteds, py::PyAdjuster};

@@ -11,13 +11,11 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import rateslib.errors as err
 from rateslib import defaults
-from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok, Result, _drb
 from rateslib.periods.parameters import (
@@ -27,15 +25,15 @@ from rateslib.periods.parameters import (
     _SettlementParams,
 )
 from rateslib.periods.protocols import _BasePeriod
-from rateslib.periods.utils import _try_validate_base_curve, _validate_credit_curves
-from rateslib.scheduling import Frequency, get_calendar
+from rateslib.periods.protocols.npv import _screen_ex_div_and_forward
+from rateslib.periods.utils import _maybe_local, _try_validate_base_curve, _validate_credit_curves
+from rateslib.scheduling import Convention, Frequency, get_calendar
 from rateslib.scheduling.adjuster import _get_adjuster
 from rateslib.scheduling.convention import _get_convention
 from rateslib.scheduling.frequency import _get_frequency
 
 if TYPE_CHECKING:  # pragma: no cover
-    from rateslib.typing import (
-        FX_,
+    from rateslib.local_types import (
         Adjuster,
         CalInput,
         CurveOption_,
@@ -131,6 +129,9 @@ class CreditPremiumPeriod(_BasePeriod):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
@@ -433,8 +434,6 @@ class CreditProtectionPeriod(_BasePeriod):
         The identified end date of the *Period*.
     frequency: Frequency, str, :red:`required`
         The :class:`~rateslib.scheduling.Frequency` associated with the *Period*.
-    convention: Convention, str, :green:`optional` (set by 'defaults')
-        The day count :class:`~rateslib.scheduling.Convention` associated with the *Period*.
     termination: datetime, :green:`optional`
         The termination date of an external :class:`~rateslib.scheduling.Schedule`.
     calendar: Calendar, :green:`optional`
@@ -442,6 +441,9 @@ class CreditProtectionPeriod(_BasePeriod):
     stub: bool, str, :green:`optional (set as False)`
         Whether the *Period* is defined as a stub according to some external
         :class:`~rateslib.scheduling.Schedule`.
+    roll: RollDay, int, str, :green:`optional (set by 'frequency')`
+        The rollday associated with any monthly :class:`~rateslib.scheduling.Frequency`, if
+        not directly associated with that object.
     adjuster: Adjuster, :green:`optional`
         The date :class:`~rateslib.scheduling.Adjuster` applied to unadjusted dates in the
         external :class:`~rateslib.scheduling.Schedule` to arrive at adjusted accrual dates.
@@ -470,7 +472,7 @@ class CreditProtectionPeriod(_BasePeriod):
         start: datetime,
         end: datetime,
         frequency: Frequency | str,
-        convention: str_ = NoInput(0),
+        # convention: str_ = NoInput(0),
         termination: datetime_ = NoInput(0),
         stub: bool = False,
         roll: RollDay | int | str_ = NoInput(0),
@@ -494,7 +496,7 @@ class CreditProtectionPeriod(_BasePeriod):
             _calendar=get_calendar(calendar),
             _adjuster=NoInput(0) if isinstance(adjuster, NoInput) else _get_adjuster(adjuster),
             _stub=stub,
-            _convention=_get_convention(_drb(defaults.convention, convention)),
+            _convention=Convention.One,  # _get_convention(_drb(defaults.convention, convention)),
             _termination=termination,
         )
 
@@ -550,7 +552,16 @@ class CreditProtectionPeriod(_BasePeriod):
         fx_vol: _FXVolOption_ = NoInput(0),
     ) -> DualTypes:
         rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
+        quadrature = self._quadrature(rate_curve_, disc_curve_)
+        cf = self.cashflow(rate_curve=rate_curve)
+        return quadrature * cf
 
+    def _quadrature(
+        self,
+        rate_curve_: _BaseCurve,
+        disc_curve_: _BaseCurve,
+    ) -> DualTypes:
+        """determine the integral component of the NPV function using discretised intervals"""
         discretization = rate_curve_.meta.credit_discretization
 
         if self.period_params.start < rate_curve_.nodes.initial:
@@ -570,9 +581,7 @@ class CreditProtectionPeriod(_BasePeriod):
             value += 0.5 * (v1 + v2) * (q1 - q2)
             # value += v2 * (q1 - q2)
 
-        # curves are pre-validated so will not error
-        cf = self.cashflow(rate_curve=rate_curve)
-        return value * cf
+        return value
 
     def try_immediate_local_analytic_delta(
         self,
@@ -589,38 +598,56 @@ class CreditProtectionPeriod(_BasePeriod):
         self,
         rate_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
-        fx: FX_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
         base: str_ = NoInput(0),
-    ) -> float:
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
         """
         Calculate the exposure of the NPV to a change in recovery rate.
 
-        For parameters see
-        :meth:`BasePeriod.analytic_delta()<rateslib.periods.BasePeriod.analytic_delta>`
+        .. role:: red
+
+        .. role:: green
+
+        Parameters
+        ----------
+        rate_curve: _BaseCurve, :red:`required`
+            Used to forecast credit parameters, such as hazard rates and recovery rates.
+        disc_curve: _BaseCurve, :red:`required`
+            Used to discount cashflows.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for currency conversion.
+        base: str, :green:`optional`
+            The currency to convert the *local settlement* value into.
+        settlement: datetime, :green:`optional`
+            The assumed settlement date of the *PV* determination. Used only to evaluate
+            *ex-dividend* status.
+        forward: datetime, :green:`optional`
+            The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
         -------
-        float
+        float, Dual, Dual2
         """
-        c_res = _validate_credit_curves(rate_curve, disc_curve)
-        if isinstance(c_res, Err):
-            c_res.unwrap()
-        else:
-            rate_curve_, disc_curve_ = c_res.unwrap()
+        rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
+        quadrature = self._quadrature(rate_curve_, disc_curve_)
+        local_immediate_value = quadrature * self.settlement_params.notional * 0.01
 
-        haz_curve = rate_curve_.copy()
-        haz_curve._meta = replace(  # type: ignore[misc]
-            rate_curve_.meta,
-            _credit_recovery_rate=Variable(
-                _dual_float(rate_curve_.meta.credit_recovery_rate), ["__rec_rate__"], []
-            ),
+        local_value = _screen_ex_div_and_forward(
+            local_value=Ok(local_immediate_value),
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            ex_dividend=self.settlement_params.ex_dividend,
+            settlement=settlement,
+            forward=forward,
         )
-        pv: DualTypes = self.npv(  # type: ignore[assignment]
-            rate_curve=haz_curve,
-            disc_curve=disc_curve_,
-            fx=fx,  # type: ignore[arg-type]
-            base=base,
+        ret: DualTypes = _maybe_local(  # type: ignore[assignment]  # local is False
+            value=local_value.unwrap(),
             local=False,
+            currency=self.settlement_params.currency,
+            fx=fx,
+            base=base,
+            forward=forward,
         )
-        _: float = _dual_float(gradient(pv, ["__rec_rate__"], order=1)[0])
-        return _ * 0.01
+        return ret

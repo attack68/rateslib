@@ -23,7 +23,7 @@ from rateslib.periods.protocols.fixings import (
 )
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurvesT_,
         DualTypes,
         FXForwards_,

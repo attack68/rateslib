@@ -21,7 +21,7 @@ from rateslib.curves._parsers import (
 )
 from rateslib.data.fixings import _leg_fixings_to_list
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import LegMtm, _get_let_mtm
+from rateslib.enums.parameters import LegMtm, _get_leg_mtm
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
 from rateslib.legs.protocols import (
     _BaseLeg,
@@ -36,9 +36,10 @@ from rateslib.periods import (
 from rateslib.periods.protocols import (
     _BasePeriod,
 )
+from rateslib.rs import LegIndexBase
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         Any,
         CurveOption_,
         DualTypes,
@@ -143,8 +144,8 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability. This should only
-        ever be entered as either:
+        to non-deliverability. Review the **notes** section non-deliverability, and
+        :ref:`fixings <fixings-doc>`. This should only ever be entered as either:
 
         - scalar value: 1.15,
         - fixings series: "Reuters_ZBS",
@@ -170,10 +171,12 @@ class FixedLeg(_BaseLeg, _WithExDiv):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See :ref:`fixings <fixings-doc>`.
     index_only: bool, :green:`optional (set as False)`
         A flag which indicates that the nominal amount is deducted from the cashflow leaving only
         the indexed up quantity.
+    index_base_type: LegIndexBase, :green:`optional` (set as 'Initial')`
+        A parameter to define how the ``index_base_date`` is set on each period.
 
     Notes
     -----
@@ -579,6 +582,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: LegFixings = NoInput(0),
         index_only: bool = False,
+        index_base_type: LegIndexBase = LegIndexBase.Initial,
     ) -> None:
         self._fixed_rate = fixed_rate
         del fixed_rate
@@ -594,7 +598,7 @@ class FixedLeg(_BaseLeg, _WithExDiv):
         del currency
         self._convention: str = _drb(defaults.convention, convention)
         del convention
-        self._mtm = _get_let_mtm(mtm)
+        self._mtm = _get_leg_mtm(mtm)
         del mtm
 
         index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
@@ -650,7 +654,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                 index_lag=index_lag,
                 index_method=index_method,
                 index_fixings=index_fixings_[-1],
-                index_base_date=self.schedule.aschedule[0],
+                index_base_date=self.schedule.aschedule[0]
+                if index_base_type is LegIndexBase.Initial
+                else self.schedule.aschedule[-2],
                 index_reference_date=self.schedule.aschedule[-1],
                 index_only=index_only,
             )
@@ -686,7 +692,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                     index_lag=index_lag,
                     index_method=index_method,
                     index_fixings=index_fixings_[i],
-                    index_base_date=self.schedule.aschedule[0],
+                    index_base_date=self.schedule.aschedule[0]
+                    if index_base_type is LegIndexBase.Initial
+                    else self.schedule.aschedule[i],
                     index_reference_date=self.schedule.aschedule[i + 1],
                     index_only=index_only,
                 )
@@ -719,7 +727,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self.schedule.aschedule[i + 1],
                         index_only=index_only,
                     )
@@ -748,7 +758,9 @@ class FixedLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self.schedule.aschedule[i + 1],
                         index_only=index_only,
                     )
@@ -874,11 +886,13 @@ class ZeroFixedLeg(_BaseLeg):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
+        See also :ref:`fixings <fixings-doc>`.
     mtm: bool, :green:`optional (set to False)`
         Define whether the non-deliverability depends on a single
         :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
 
@@ -897,7 +911,7 @@ class ZeroFixedLeg(_BaseLeg):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See :ref:`fixings <fixings-doc>`.
     """
 
     @property
@@ -1066,8 +1080,22 @@ class ZeroFixedLeg(_BaseLeg):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        disc_curve_ = _disc_required_maybe_from_curve(rate_curve, disc_curve)
+        # scale target_npv accounting for notional exchanges
+        _ = self.fixed_rate
+        self.fixed_rate = 0.0
+        local_npv = self.local_npv(
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
+            fx=fx,
+            forward=forward,
+            settlement=settlement,
+        )
+        self.fixed_rate = _
+        rate_target_npv = target_npv - local_npv
 
+        # evaluate settlement relative to ex-div
+        disc_curve_ = _disc_required_maybe_from_curve(rate_curve, disc_curve)
         if not isinstance(settlement, NoInput):
             if settlement > self.settlement_params.ex_dividend:
                 raise ZeroDivisionError(
@@ -1082,19 +1110,22 @@ class ZeroFixedLeg(_BaseLeg):
             else:
                 w_fwd = disc_curve_[forward]
 
-        immediate_target_npv = target_npv * w_fwd
+        immediate_target_npv = rate_target_npv * w_fwd
         unindexed_target_npv = immediate_target_npv / self._regular_periods[0].index_up(
             1.0, index_curve=index_curve
         )
         unindexed_reference_target_npv = unindexed_target_npv / self._regular_periods[
             0
         ].convert_deliverable(1.0, fx=fx)
+        target_cashflow = (
+            unindexed_reference_target_npv / disc_curve_[self.settlement_params.payment]
+        )
 
         f = self.schedule.periods_per_annum
         d = self._regular_periods[0].dcf
         N = self.settlement_params.notional
-        w = disc_curve_[self.settlement_params.payment]
-        R = ((-unindexed_reference_target_npv / (N * w) + 1) ** (1 / (d * f)) - 1) * f * 10000.0
+
+        R = ((-target_cashflow / N + 1) ** (1 / (d * f)) - 1) * f * 10000.0
         return R
 
 
@@ -1179,11 +1210,13 @@ class ZeroIndexLeg(_BaseLeg):
         settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
     fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability. Review the **notes** section non-deliverability.
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`,
+        and see also :ref:`fiixngs <fixings-doc>`.
     mtm: bool, :green:`optional (set to False)`
         Define whether the non-deliverability depends on a single
         :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
 
@@ -1202,7 +1235,7 @@ class ZeroIndexLeg(_BaseLeg):
     index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
         The index value for the reference date.
         Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object.
+        ``fixings`` object. See also :ref:`fixings <fixings-doc>`.
 
     Notes
     -----

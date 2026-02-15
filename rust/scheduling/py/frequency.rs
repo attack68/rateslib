@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::calendars::Calendar;
 use crate::scheduling::frequency::{Frequency, RollDay, Scheduling};
@@ -149,6 +161,28 @@ impl Frequency {
         utermination: NaiveDateTime,
     ) -> PyResult<Vec<NaiveDateTime>> {
         self.try_uregular(&ueffective, &utermination)
+    }
+
+    /// Check whether two unadjusted dates define a regular unadjusted schedule.
+    ///
+    /// Parameters
+    /// ----------
+    /// ueffective: datetime
+    ///     The unadjusted effective date of the schedule. If this is not a valid unadjusted
+    ///     date aligned with the Frequency then it will raise.
+    /// utermination: datetime
+    ///     The unadjusted termination date of the frequency period. If this is not a valid
+    ///     unadjusted date aligned with the Frequency then it will raise.
+    ///
+    /// Returns
+    /// -------
+    /// bool
+    #[pyo3(name = "is_uregular")]
+    fn is_uregular_py(&self, ueffective: NaiveDateTime, utermination: NaiveDateTime) -> bool {
+        match self.try_uregular(&ueffective, &utermination) {
+            Err(_) => false,
+            Ok(_) => true,
+        }
     }
 
     /// Infer an unadjusted stub date from given schedule endpoints.

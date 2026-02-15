@@ -19,7 +19,7 @@ from pandas import DataFrame, concat
 from rateslib.enums.generics import NoInput
 
 if TYPE_CHECKING:
-    from rateslib.typing import (
+    from rateslib.local_types import (
         CurveOption_,
         FXForwards_,
         Sequence,

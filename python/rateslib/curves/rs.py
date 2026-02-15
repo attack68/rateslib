@@ -37,7 +37,7 @@ from rateslib.scheduling import get_calendar
 from rateslib.scheduling.convention import _get_convention
 
 if TYPE_CHECKING:
-    from rateslib.typing import (  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
         CalInput,
         CurveInterpolator,
         DualTypes,
@@ -71,7 +71,7 @@ class CurveRs:
             id=_drb(uuid4().hex[:5] + "_", id),  # 1 in a million clash
             convention=_get_convention(_drb(defaults.convention, convention)),
             modifier=Modifier.ModF,
-            calendar=get_calendar(calendar, named=True),
+            calendar=get_calendar(calendar),
             index_base=_drb(None, index_base),
         )
 

@@ -1,3 +1,15 @@
+// SPDX-License-Identifier: LicenseRef-Rateslib-Dual
+//
+// Copyright (c) 2026 Siffrorna Technology Limited
+// This code cannot be used or copied externally
+//
+// Dual-licensed: Free Educational Licence or Paid Commercial Licence (commercial/professional use)
+// Source-available, not open source.
+//
+// See LICENSE and https://rateslib.com/py/en/latest/i_licence.html for details,
+// and/or contact info (at) rateslib (dot) com
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 use crate::json::{DeserializedObj, JSON};
 use crate::scheduling::{Calendar, Frequency, PyAdjuster, Schedule, StubInference};
 
@@ -15,6 +27,7 @@ impl StubInference {
             _ if item == StubInference::ShortBack as usize => StubInference::ShortBack,
             _ if item == StubInference::LongFront as usize => StubInference::LongFront,
             _ if item == StubInference::LongBack as usize => StubInference::LongBack,
+            _ if item == StubInference::NeitherSide as usize => StubInference::NeitherSide,
             _ => panic!("Reportable issue: must map this enum variant for serialization."),
         }
     }
@@ -44,7 +57,7 @@ impl StubInference {
 #[pymethods]
 impl Schedule {
     #[new]
-    #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, payment_adjuster2, eom, front_stub=None, back_stub=None, stub_inference=None, payment_adjuster3=None))]
+    #[pyo3(signature = (effective, termination, frequency, calendar, accrual_adjuster, payment_adjuster, payment_adjuster2, eom, stub_inference, front_stub=None, back_stub=None, payment_adjuster3=None))]
     fn new_py(
         effective: NaiveDateTime,
         termination: NaiveDateTime,
@@ -54,9 +67,9 @@ impl Schedule {
         payment_adjuster: PyAdjuster,
         payment_adjuster2: PyAdjuster,
         eom: bool,
+        stub_inference: StubInference,
         front_stub: Option<NaiveDateTime>,
         back_stub: Option<NaiveDateTime>,
-        stub_inference: Option<StubInference>,
         payment_adjuster3: Option<PyAdjuster>,
     ) -> PyResult<Self> {
         Schedule::try_new_inferred(
@@ -182,9 +195,9 @@ impl Schedule {
         PyAdjuster,
         PyAdjuster,
         bool,
+        StubInference,
         Option<NaiveDateTime>,
         Option<NaiveDateTime>,
-        Option<StubInference>,
         Option<PyAdjuster>,
     )> {
         Ok((
@@ -196,9 +209,9 @@ impl Schedule {
             self.payment_adjuster.into(),
             self.payment_adjuster2.into(),
             false,
+            StubInference::NeitherSide,
             self.ufront_stub,
             self.uback_stub,
-            None,
             self.payment_adjuster3.map(Into::into),
         ))
     }
