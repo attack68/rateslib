@@ -33,7 +33,7 @@ chrono = { version = "0.4", features = ["serde"] }
 indexmap = { version = "2.7", features = ["serde"] }
 ndarray = { version = "0.17", features = ["serde"] }
 internment = {  version = "0.8", features = ["serde"] }
-pyo3 = "=0.28.1"
+pyo3 = "0.28"
 num-traits = "0.2"
 auto_ops = "0.3"
 numpy = "0.28"

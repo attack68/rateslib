@@ -15,7 +15,6 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import rateslib.rs
 from rateslib.rs import FloatFixingMethod, LegIndexBase
 
 if TYPE_CHECKING:
@@ -24,27 +23,6 @@ if TYPE_CHECKING:
 
 class PicklingContainer:
     pass
-
-
-rateslib.rs.PyFloatFixingMethod = PicklingContainer()  # type: ignore[attr-defined]
-
-rateslib.rs.PyFloatFixingMethod.RFRPaymentDelay = rateslib.rs.FloatFixingMethod.RFRPaymentDelay  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRObservationShift = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRObservationShift
-)
-rateslib.rs.PyFloatFixingMethod.RFRLockout = rateslib.rs.FloatFixingMethod.RFRLockout  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRLookback = rateslib.rs.FloatFixingMethod.RFRLookback  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRPaymentDelayAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRPaymentDelayAverage
-)
-rateslib.rs.PyFloatFixingMethod.RFRObservationShiftAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRObservationShiftAverage
-)
-rateslib.rs.PyFloatFixingMethod.RFRLockoutAverage = rateslib.rs.FloatFixingMethod.RFRLockoutAverage  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRLookbackAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRLookbackAverage
-)
-rateslib.rs.PyFloatFixingMethod.IBOR = rateslib.rs.FloatFixingMethod.IBOR  # type: ignore[attr-defined]
 
 
 class OptionType(float, Enum):
