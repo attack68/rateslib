@@ -30,37 +30,6 @@ from rateslib.scheduling.frequency import add_tenor
 from rateslib.scheduling.imm import get_imm, next_imm
 from rateslib.scheduling.schedule import Schedule
 
-# Patch the namespace for pyo3 pickling: see https://github.com/PyO3/pyo3/discussions/5226
-# rateslib.rs.RollDay_Day = rateslib.rs.RollDay.Day  # type: ignore[attr-defined]
-# rateslib.rs.RollDay_IMM = rateslib.rs.RollDay.IMM  # type: ignore[attr-defined]
-
-
-class PicklingContainer:
-    pass
-
-
-rateslib.rs.PyAdjuster = PicklingContainer()  # type: ignore[attr-defined]
-
-rateslib.rs.PyAdjuster.Actual = rateslib.rs.Adjuster.Actual  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.Following = rateslib.rs.Adjuster.Following  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.ModifiedFollowing = rateslib.rs.Adjuster.ModifiedFollowing  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.Previous = rateslib.rs.Adjuster.Previous  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.ModifiedPrevious = rateslib.rs.Adjuster.ModifiedPrevious  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.FollowingSettle = rateslib.rs.Adjuster.FollowingSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.ModifiedFollowingSettle = rateslib.rs.Adjuster.ModifiedFollowingSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.PreviousSettle = rateslib.rs.Adjuster.PreviousSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.ModifiedPreviousSettle = rateslib.rs.Adjuster.ModifiedPreviousSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.BusDaysLagSettle = rateslib.rs.Adjuster.BusDaysLagSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.CalDaysLagSettle = rateslib.rs.Adjuster.CalDaysLagSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.FollowingExLast = rateslib.rs.Adjuster.FollowingExLast  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.FollowingExLastSettle = rateslib.rs.Adjuster.FollowingExLastSettle  # type: ignore[attr-defined]
-rateslib.rs.PyAdjuster.BusDaysLagSettleInAdvance = rateslib.rs.Adjuster.BusDaysLagSettleInAdvance  # type: ignore[attr-defined]
-#
-# rateslib.rs.Frequency_CalDays = rateslib.rs.Frequency.CalDays  # type: ignore[attr-defined]
-# rateslib.rs.Frequency_BusDays = rateslib.rs.Frequency.BusDays  # type: ignore[attr-defined]
-# rateslib.rs.Frequency_Months = rateslib.rs.Frequency.Months  # type: ignore[attr-defined]
-# rateslib.rs.Frequency_Zero = rateslib.rs.Frequency.Zero  # type: ignore[attr-defined]
-
 Imm.__doc__ = """
 Enumerable type for International Money-Market (IMM) date definitions.
 
