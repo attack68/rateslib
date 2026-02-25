@@ -13,13 +13,12 @@
 from __future__ import annotations  # type hinting
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import cached_property
 from typing import TYPE_CHECKING, NamedTuple
 
 import numpy as np
 from pandas import Series
-from pytz import UTC
 
 from rateslib.data.fixings import IRSFixing, _get_irs_series
 from rateslib.dual import (
@@ -37,6 +36,7 @@ if TYPE_CHECKING:
         datetime_,
     )
 
+UTC = timezone.utc
 
 class _IRVolPricingParams(NamedTuple):
     vol: DualTypes  # Black Shifted Vol
