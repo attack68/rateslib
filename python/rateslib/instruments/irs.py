@@ -66,6 +66,7 @@ class IRS(_BaseInstrument):
        from rateslib.data.fixings import FXIndex
        from datetime import datetime as dt
        from rateslib import fixings
+       from pandas import Series
 
     .. ipython:: python
 
@@ -192,7 +193,7 @@ class IRS(_BaseInstrument):
         The fixed rate applied to the :class:`~rateslib.legs.FixedLeg`. If `None`
         will be set to mid-market when curves are provided.
     leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        The :class:`~rateslib.enums.FloatFixingMethod` describing the determination
         of the floating rate for each period.
     leg2_fixing_frequency: Frequency, str, :green:`optional (set by 'frequency' or '1B')`
         The :class:`~rateslib.scheduling.Frequency` as a component of the
