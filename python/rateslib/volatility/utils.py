@@ -46,6 +46,7 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 TERMINAL_DATE = datetime(2100, 1, 1)
 UTC = timezone.utc
 
+
 @dataclass(frozen=True)
 class _SabrSmileNodes:
     """

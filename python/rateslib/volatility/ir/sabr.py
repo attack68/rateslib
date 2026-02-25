@@ -609,9 +609,9 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         en = self._node_values_.shape[0]
         tn = self._node_values_.shape[1]
         n = en * tn
-        self._node_values_[:, :, 0] = np.reshape(list(new_vec[:n]), shape=(en, tn))
-        self._node_values_[:, :, 1] = np.reshape(list(new_vec[n : 2 * n]), shape=(en, tn))
-        self._node_values_[:, :, 2] = np.reshape(list(new_vec[2 * n :]), shape=(en, tn))
+        self._node_values_[:, :, 0] = np.reshape(list(new_vec[:n]), (en, tn))
+        self._node_values_[:, :, 1] = np.reshape(list(new_vec[n : 2 * n]), (en, tn))
+        self._node_values_[:, :, 2] = np.reshape(list(new_vec[2 * n :]), (en, tn))
         return None
 
     @_new_state_post
@@ -623,14 +623,12 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         tn = self._node_values_.shape[1]
         n = en * tn
         if ad == 0:
-            self._node_values_[:, :, 0] = np.reshape(
-                [_dual_float(_) for _ in vector[:n]], shape=(en, tn)
-            )
+            self._node_values_[:, :, 0] = np.reshape([_dual_float(_) for _ in vector[:n]], (en, tn))
             self._node_values_[:, :, 1] = np.reshape(
-                [_dual_float(_) for _ in vector[n : 2 * n]], shape=(en, tn)
+                [_dual_float(_) for _ in vector[n : 2 * n]], (en, tn)
             )
             self._node_values_[:, :, 2] = np.reshape(
-                [_dual_float(_) for _ in vector[2 * n :]], shape=(en, tn)
+                [_dual_float(_) for _ in vector[2 * n :]], (en, tn)
             )
         else:
             DualType: type[Dual] | type[Dual2] = Dual if ad == 1 else Dual2
