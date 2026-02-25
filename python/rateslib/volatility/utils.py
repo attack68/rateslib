@@ -13,11 +13,10 @@
 from __future__ import annotations  # type hinting
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, TypeAlias
 
 from pandas import Series
-from pytz import UTC
 
 from rateslib.dual import (
     Dual,
@@ -45,7 +44,7 @@ if TYPE_CHECKING:
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 TERMINAL_DATE = datetime(2100, 1, 1)
-
+UTC = timezone.utc
 
 @dataclass(frozen=True)
 class _SabrSmileNodes:
