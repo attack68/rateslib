@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
 UTC = timezone.utc
 
+
 class _IRVolPricingParams(NamedTuple):
     vol: DualTypes  # Black Shifted Vol
     k: DualTypes  # Strike
@@ -252,7 +253,7 @@ class _IRSabrCubeMeta:
         """An array of *IRS* termination dates as unix timestamp."""
         return np.reshape(
             [_.replace(tzinfo=UTC).timestamp() for _ in self.tenor_dates.ravel()],
-            shape=(self._n_expiries, self._n_tenors),
+            (self._n_expiries, self._n_tenors),
         )
 
     # @cached_property
