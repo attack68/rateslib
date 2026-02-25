@@ -26,7 +26,7 @@ from rateslib.verify import LicenceNotice, _LicenceStatus
 
 
 def test_version() -> None:
-    assert __version__ == "2.6.1"
+    assert __version__ == "2.7.0"
 
 
 def test_context_raises() -> None:
