@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         Result,
         _BaseCurve_,
         _FXVolOption_,
+        _IRVolOption_,
         datetime_,
         str_,
     )
@@ -80,6 +81,7 @@ class _WithCashflows(_WithNPV, Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         """
         Calculate the cashflow for the *Period* with any non-deliverable currency adjustment
@@ -119,6 +121,7 @@ class _WithCashflows(_WithNPV, Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -209,6 +212,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> dict[str, Any]:
         # indexing parameters
         index_elements: dict[str, Any] = {}
@@ -226,6 +230,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
                 disc_curve=disc_curve,
                 fx=fx,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
             )
 
             index_elements = {
@@ -277,6 +282,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -327,6 +333,7 @@ class _WithCashflowsStatic(_WithNPVStatic, Protocol):
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
             base=base,
             forward=forward,
             settlement=settlement,
@@ -449,6 +456,7 @@ def _cashflow_elements(
     index_curve: _BaseCurve_ = NoInput(0),
     fx: FXForwards_ = NoInput(0),
     fx_vol: _FXVolOption_ = NoInput(0),
+    ir_vol: _IRVolOption_ = NoInput(0),
     base: str_ = NoInput(0),
     settlement: datetime_ = NoInput(0),
     forward: datetime_ = NoInput(0),
@@ -460,6 +468,7 @@ def _cashflow_elements(
         index_curve=index_curve,
         fx=fx,
         fx_vol=fx_vol,
+        ir_vol=ir_vol,
     )
 
     disc_curve_result = _try_disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
@@ -479,6 +488,7 @@ def _cashflow_elements(
         disc_curve=disc_curve,
         fx=fx,
         fx_vol=fx_vol,
+        ir_vol=ir_vol,
         settlement=settlement,
         forward=forward,
     )

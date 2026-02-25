@@ -43,6 +43,31 @@ class FXOptionMetric(Enum):
     Percent = 1
 
 
+class IROptionMetric(Enum):
+    """
+    Enumerable type for IROption metrics.
+    """
+
+    NormalVol = 0
+    LogNormalVol = 3
+    PercentNotional = 4
+    Cash = 5
+    BlackVol = 1
+    BlackVolShift100 = 6
+    BlackVolShift200 = 7
+    BlackVolShift300 = 8
+
+
+class SwaptionSettlementMethod(Enum):
+    """
+    Enumerable type for swaption settlement methods.
+    """
+
+    Physical = 0
+    CashParTenor = 1
+    CashCollateralized = 2
+
+
 class LegMtm(Enum):
     """
     Enumerable type to define :class:`~rateslib.data.fixings.FXFixing` dates for non-deliverable
@@ -54,25 +79,6 @@ class LegMtm(Enum):
     Initial = 0
     XCS = 1
     Payment = 2
-
-
-_LEG_MTM_MAP = {
-    "initial": LegMtm.Initial,
-    "xcs": LegMtm.XCS,
-    "payment": LegMtm.Payment,
-}
-
-
-def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
-    if isinstance(leg_mtm, LegMtm):
-        return leg_mtm
-    else:
-        try:
-            return _LEG_MTM_MAP[leg_mtm.lower()]
-        except KeyError:
-            raise ValueError(
-                f"`mtm` as string: '{leg_mtm}' is not a valid option. Please consult docs."
-            )
 
 
 class IndexMethod(Enum):
@@ -118,6 +124,50 @@ class FXDeltaMethod(Enum):
 
     def __str__(self) -> str:
         return self.name
+
+
+_SWAPTION_SETTLEMENT_MAP = {
+    "physical": SwaptionSettlementMethod.Physical,
+    "cash_par_tenor": SwaptionSettlementMethod.CashParTenor,
+    "cash_collateralized": SwaptionSettlementMethod.CashCollateralized,
+    # aliases
+    "cashcollateralized": SwaptionSettlementMethod.CashCollateralized,
+    "cashpartenor": SwaptionSettlementMethod.CashParTenor,
+}
+
+
+def _get_swaption_settlement_method(
+    method: str | SwaptionSettlementMethod,
+) -> SwaptionSettlementMethod:
+    if isinstance(method, SwaptionSettlementMethod):
+        return method
+    else:
+        try:
+            return _SWAPTION_SETTLEMENT_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`swaption_settlement_method` as string: '{method}' is not a valid option. "
+                f"Please consult docs."
+            )
+
+
+_LEG_MTM_MAP = {
+    "initial": LegMtm.Initial,
+    "xcs": LegMtm.XCS,
+    "payment": LegMtm.Payment,
+}
+
+
+def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
+    if isinstance(leg_mtm, LegMtm):
+        return leg_mtm
+    else:
+        try:
+            return _LEG_MTM_MAP[leg_mtm.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`mtm` as string: '{leg_mtm}' is not a valid option. Please consult docs."
+            )
 
 
 _INDEX_METHOD_MAP = {
@@ -253,11 +303,44 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
             )
 
 
+_IR_METRIC_MAP = {
+    "normal_vol": IROptionMetric.NormalVol,
+    "normalvol": IROptionMetric.NormalVol,
+    "log_normal_vol": IROptionMetric.LogNormalVol,
+    "lognormalvol": IROptionMetric.LogNormalVol,
+    "cash": IROptionMetric.Cash,
+    "black_vol": IROptionMetric.BlackVol,
+    "blackvol": IROptionMetric.BlackVol,
+    "black_shift_100": IROptionMetric.BlackVolShift100,
+    "black_shift_200": IROptionMetric.BlackVolShift200,
+    "black_shift_300": IROptionMetric.BlackVolShift300,
+    "blackvolshift100": IROptionMetric.BlackVolShift100,
+    "blackvolshift200": IROptionMetric.BlackVolShift200,
+    "blackvolshift300": IROptionMetric.BlackVolShift300,
+    "percent_notional": IROptionMetric.PercentNotional,
+    "percentnotional": IROptionMetric.PercentNotional,
+}
+
+
+def _get_ir_option_metric(method: str | IROptionMetric) -> IROptionMetric:
+    if isinstance(method, IROptionMetric):
+        return method
+    else:
+        try:
+            return _IR_METRIC_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"IROption `metric` as string: '{method}' is not a valid option. Please consult "
+                f"docs."
+            )
+
+
 __all__ = [
     "SpreadCompoundMethod",
     "FloatFixingMethod",
     "FXDeltaMethod",
     "FXOptionMetric",
+    "IROptionMetric",
     "LegMtm",
     "LegIndexBase",
     "OptionType",

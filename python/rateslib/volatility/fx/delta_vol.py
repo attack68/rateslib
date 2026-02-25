@@ -41,18 +41,6 @@ from rateslib.dual import (
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FXDeltaMethod, _get_fx_delta_type
-from rateslib.fx_volatility.base import _BaseSmile
-from rateslib.fx_volatility.utils import (
-    _d_plus_min_u,
-    _delta_type_constants,
-    _FXDeltaVolSmileNodes,
-    _FXDeltaVolSurfaceMeta,
-    _FXSmileMeta,
-    _moneyness_from_delta_closed_form,
-    _surface_index_left,
-    _t_var_interp,
-    _validate_weights,
-)
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -61,7 +49,21 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.scheduling import get_calendar
-from rateslib.splines import evaluate
+from rateslib.splines.evaluate import evaluate
+from rateslib.volatility.fx.base import _BaseSmile
+from rateslib.volatility.fx.utils import (
+    _delta_type_constants,
+    _FXDeltaVolSmileNodes,
+    _FXDeltaVolSurfaceMeta,
+    _FXSmileMeta,
+    _moneyness_from_delta_closed_form,
+)
+from rateslib.volatility.utils import (
+    _OptionModelBlack76,
+    _surface_index_left,
+    _t_var_interp,
+    _validate_weights,
+)
 
 if TYPE_CHECKING:
     from rateslib.local_types import DualTypes, DualTypes_, Sequence  # pragma: no cover
@@ -162,12 +164,12 @@ class FXDeltaVolSmile(_BaseSmile):
 
     @property
     def meta(self) -> _FXSmileMeta:  # type: ignore[override]
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXSmileMeta`."""
+        """An instance of :class:`~rateslib.volatility.fx._FXSmileMeta`."""
         return self.nodes.meta
 
     @property
     def nodes(self) -> _FXDeltaVolSmileNodes:
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSmileNodes`."""
+        """An instance of :class:`~rateslib.volatility.fx._FXDeltaVolSmileNodes`."""
         return self._nodes
 
     @property
@@ -673,7 +675,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     @property
     def meta(self) -> _FXDeltaVolSurfaceMeta:
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXDeltaVolSurfaceMeta`."""
+        """An instance of :class:`~rateslib.volatility.fx._FXDeltaVolSurfaceMeta`."""
         return self._meta
 
     @property
@@ -935,7 +937,7 @@ def _moneyness_from_atm_delta_one_dimensional(
         vol_sqrt_t = vol_ * sqrt_t_e
 
         # Calculate function values
-        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        d0 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_0)
         _phi0 = dual_norm_cdf(phi * d0)
         f0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
 
@@ -1011,7 +1013,7 @@ def _moneyness_from_delta_one_dimensional(
         vol_sqrt_t = vol_ * sqrt_t_e
 
         # Calculate function values
-        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        d0 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_0)
         _phi0 = dual_norm_cdf(phi * d0)
         f0 = delta - z_w_0 * z_u_0 * phi * _phi0
 
@@ -1086,11 +1088,11 @@ def _moneyness_from_atm_delta_two_dimensional(
         vol_sqrt_t = vol_ * sqrt_t_e
 
         # Calculate function values
-        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        d0 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_0)
         _phi0 = dual_norm_cdf(phi * d0)
         f0_0 = phi * z_w_0 * z_u_0 * (0.5 - _phi0)
 
-        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        d1 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_1)
         _phi1 = dual_norm_cdf(-d1)
         f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 
@@ -1163,11 +1165,11 @@ def _moneyness_from_delta_two_dimensional(
         vol_sqrt_t = vol_ * sqrt_t_e
 
         # Calculate function values
-        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        d0 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_0)
         _phi0 = dual_norm_cdf(phi * d0)
         f0_0: DualTypes = delta - z_w_0 * z_u_0 * phi * _phi0
 
-        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        d1 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_1)
         _phi1 = dual_norm_cdf(-d1)
         f0_1: DualTypes = delta_idx - z_w_1 * z_u_1 * _phi1
 
@@ -1258,11 +1260,11 @@ def _moneyness_from_delta_three_dimensional(
         vol_sqrt_t = vol_ * sqrt_t_e
 
         # Calculate function values
-        d0 = _d_plus_min_u(u, vol_sqrt_t, eta_0)
+        d0 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_0)
         _phi0 = dual_norm_cdf(phi * d0)
         f0_0 = delta - z_w_0 * z_u_0 * phi * _phi0
 
-        d1 = _d_plus_min_u(u, vol_sqrt_t, eta_1)
+        d1 = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, eta_1)
         _phi1 = dual_norm_cdf(-d1)
         f0_1 = delta_idx - z_w_1 * z_u_1 * _phi1
 

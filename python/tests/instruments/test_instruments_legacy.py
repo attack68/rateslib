@@ -24,7 +24,6 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.enums.parameters import FloatFixingMethod, LegMtm
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -50,7 +49,9 @@ from rateslib.instruments import (
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
+    PayerSwaption,
     Portfolio,
+    ReceiverSwaption,
     Spread,
     STIRFuture,
     Value,
@@ -72,6 +73,7 @@ from rateslib.legs import Amortization
 from rateslib.periods import ZeroFloatPeriod
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 
 @pytest.fixture
@@ -1572,6 +1574,11 @@ class TestIRS:
         r1 = irs.npv(curves=[curve])
         r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
         assert r1 == r2
+
+    def test_modifier_as_adjuster(self):
+        irs = IRS(dt(2000, 1, 1), "1y", "S", modifier=Adjuster.CalDaysLagSettle(10), calendar="ldn")
+        assert irs.leg1.schedule.uschedule[0] == dt(2000, 1, 1)
+        assert irs.leg1.schedule.aschedule[0] == dt(2000, 1, 11)
 
     def test_cny_zero_periods(self):
         irs = IRS(
@@ -8957,3 +8964,144 @@ def test_wmr_crosses_not_allowed_standard_instruments():
     ]
     for inst in instruments:
         inst.npv(vol=fxvs, fx=fxf)
+
+
+class TestSwaptions:
+    def test_npv_no_set_premium(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+        )
+        result = irsw.npv(curves=curve, vol=25.16)
+        expected = 0.0
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_with_set_premium(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.npv(curves=curve, vol=25.16)
+        expected = -8246.831212232395
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_local(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.npv(curves=curve, vol=25.16, local=True)
+        expected = -8246.831212232395
+        assert abs(result["usd"] - expected) < 1e-6
+
+    def test_default_payment_date(self):
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        assert irsw.leg2.periods[0].settlement_params.payment == dt(2027, 2, 18)
+
+    @pytest.mark.parametrize(
+        ("metric", "expected"),
+        [
+            ("LogNormalVol", 25.16),
+            ("BlackVol", 25.16),
+            ("Cash", 149725.796514),
+            ("NormalVol", 75.792872),
+            ("Black_shift_100", 18.880156),
+            ("Black_shift_200", 15.111396),
+            ("Black_shift_300", 12.597702),
+            ("PercentNotional", 0.149725),
+        ],
+    )
+    def test_rate(self, metric, expected):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.rate(
+            curves=[curve],
+            vol=25.16,
+            metric=metric,
+        )
+        assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize(
+        ("metric", "expected"),
+        [("Cash", 149725.796514), ("PercentNotional", 0.149725)],
+    )
+    @pytest.mark.parametrize("date", [dt(2027, 1, 3), dt(2027, 3, 19)])
+    def test_rate_unconventional_payment_date(self, metric, expected, date):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        alt_curve = Curve(nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.91}, calendar="nyc")
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+            payment_lag=date,
+        )
+        result = irsw.rate(
+            curves=[curve, alt_curve, curve],
+            vol=25.16,
+            metric=metric,
+        )
+        expected = expected * alt_curve[date] / alt_curve[dt(2027, 2, 18)]
+        assert abs(result - expected) < 1e-5
+
+    def test_cashflows(self):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        irsw = PayerSwaption(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.cashflows(
+            curves=[curve],
+            vol=25.16,
+        )
+        assert len(result.index) == 2
+        assert abs(result.loc["leg1", "DF"].iloc[0] - 0.969902553602701) < 1e-8
+        assert abs(result.loc["leg1", "Cashflow"].iloc[0] - 149725.7965143448) < 1e-8
+        assert abs(result.loc["leg1", "NPV"].iloc[0] - 145219.43237946142) < 1e-8
+        assert result.loc["leg1", "Ccy"].iloc[0] == "USD"
+        assert result.loc["leg1", "Type"].iloc[0] == "IRSCallPeriod"

@@ -17,11 +17,11 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
+from rateslib.volatility.fx.utils import _FXSmileMeta
 
 if TYPE_CHECKING:
-    from rateslib.local_types import FXForwards
+    from rateslib.local_types import FXForwards  # pragma: no cover
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -53,14 +53,14 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
            The *'delta'* ``x_axis`` type for a *SabrSmile* is calculated based on a
            **forward, unadjusted** delta and is expressed as a negated put option delta
-           consistent with the definition for a :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
+           consistent with the definition for a :class:`~rateslib.volatility.FXDeltaVolSmile`.
 
         Parameters
         ----------
         comparators: list[Smile]
             A list of Smiles which to include on the same plot as comparators.
             Note the comments on
-            :meth:`FXDeltaVolSmile.plot <rateslib.fx_volatility.FXDeltaVolSmile.plot>`.
+            :meth:`FXDeltaVolSmile.plot <rateslib.volatility.FXDeltaVolSmile.plot>`.
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.

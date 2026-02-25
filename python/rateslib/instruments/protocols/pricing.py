@@ -20,12 +20,13 @@ from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
 
 if TYPE_CHECKING:
-    from rateslib.local_types import (
+    from rateslib.local_types import (  # pragma: no cover
         FX_,
         Any,
         CurvesT_,
         FXForwards_,
         FXVol_,
+        IRVol_,
         Solver,
         Solver_,
         VolT_,
@@ -39,6 +40,8 @@ if TYPE_CHECKING:
         _BaseCurveOrIdOrIdDict_,
         _FXVolObj,
         _FXVolOption_,
+        _IRVolObj,
+        _IRVolOption_,
     )
 
 
@@ -145,19 +148,26 @@ class _Vol:
         self,
         *,
         fx_vol: FXVol_ = NoInput(0),
+        ir_vol: IRVol_ = NoInput(0),
     ):
         self._fx_vol = fx_vol
+        self._ir_vol = ir_vol
 
     @property
     def fx_vol(self) -> FXVol_:
         """The FX vol object used for modelling FX volatility."""
         return self._fx_vol
 
+    @property
+    def ir_vol(self) -> IRVol_:
+        """The IR vol object used for modelling IR volatility."""
+        return self._ir_vol
+
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _Vol):
             return False
         else:
-            return self.fx_vol == other.fx_vol
+            return self.fx_vol == other.fx_vol and self.ir_vol == other.ir_vol
 
 
 # Solver and Curve mapping
@@ -383,7 +393,7 @@ def _parse_curve_or_id_from_solver_(curve: _BaseCurveOrId, solver: Solver) -> _B
                 raise ValueError("`curve` must be in `solver`.")
 
 
-# Solver and Vol mapping
+# Solver and FX Vol mapping
 
 
 def _maybe_get_fx_vol_maybe_from_solver(
@@ -445,6 +455,70 @@ def _validate_fx_vol_is_not_id(fx_vol: _FXVolObj | str) -> _FXVolObj:
             f"`vol` must contain FXVol object, not str, if `solver` not given. Got id: '{fx_vol}'"
         )
     return fx_vol
+
+
+# Solver and IR Vol mapping
+
+
+def _maybe_get_ir_vol_maybe_from_solver(
+    vol_meta: _Vol,
+    vol: _Vol,
+    # name: str, = "fx_vol"
+    solver: Solver_,
+) -> _IRVolOption_:
+    ir_vol_ = _drb(vol_meta.ir_vol, vol.ir_vol)
+    if isinstance(ir_vol_, NoInput | float | Dual | Dual2 | Variable):
+        return ir_vol_
+    elif isinstance(solver, NoInput):
+        return _validate_ir_vol_is_not_id(ir_vol=ir_vol_)
+    else:
+        return _get_ir_vol_from_solver(ir_vol=ir_vol_, solver=solver)
+
+
+def _get_ir_vol_from_solver(ir_vol: _IRVolObj | str, solver: Solver) -> _IRVolObj:
+    if isinstance(ir_vol, str):
+        return solver._get_pre_irvol(ir_vol)
+
+    try:
+        # it is a safeguard to load curves from solvers when a solver is
+        # provided and multiple curves might have the same id
+        __: _IRVolObj = solver._get_pre_irvol(ir_vol.id)
+        if id(__) != id(ir_vol):  # Python id() is a memory id, not a string label id.
+            raise ValueError(
+                "An IRVol object has been supplied, as part of ``vol``, which has the same "
+                f"`id` ('{ir_vol.id}'),\nas one of the curves available as part of the "
+                "Solver's collection but is not the same object.\n"
+                "This is ambiguous and cannot price.\n"
+                "Either refactor the arguments as follows:\n"
+                "1) remove the conflicting object: [vol=[..], solver=<Solver>] -> "
+                "[vol=None, solver=<Solver>]\n"
+                "2) change the `id` of the supplied IRVol object and ensure the rateslib.defaults "
+                "option 'curve_not_in_solver' is set to 'ignore'.\n"
+                "   This will remove the ability to accurately price risk metrics.",
+            )
+        return __
+    except AttributeError:
+        raise AttributeError(
+            "IRVol object has no attribute `id`, likely it is not a valid object, got: "
+            f"{ir_vol}.\nSince a solver is provided have you missed labelling the `curves` "
+            f"of the instrument or supplying `curves` directly?",
+        )
+    except KeyError:
+        if defaults.curve_not_in_solver == "ignore":
+            return ir_vol
+        elif defaults.curve_not_in_solver == "warn":
+            warnings.warn("FXVol object not found in `solver`.", UserWarning)
+            return ir_vol
+        else:
+            raise ValueError("FXVol object must be in `solver`.")
+
+
+def _validate_ir_vol_is_not_id(ir_vol: _IRVolObj | str) -> _IRVolObj:
+    if isinstance(ir_vol, str):  # curve is a str ID
+        raise ValueError(
+            f"`vol` must contain IRVol object, not str, if `solver` not given. Got id: '{ir_vol}'"
+        )
+    return ir_vol
 
 
 # FX and Solver mapping

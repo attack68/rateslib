@@ -15,6 +15,7 @@ from rateslib.periods.parameters.index import (
     _IndexParams,
     _init_or_none_IndexParams,
 )
+from rateslib.periods.parameters.ir_volatility import _IROptionParams
 from rateslib.periods.parameters.mtm import (
     _init_MtmParams,
     _MtmParams,
@@ -47,4 +48,5 @@ __all__ = [
     "_CreditParams",
     "_MtmParams",
     "_FXOptionParams",
+    "_IROptionParams",
 ]

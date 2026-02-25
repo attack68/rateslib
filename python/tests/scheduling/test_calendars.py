@@ -869,3 +869,15 @@ Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We
 def test_union_cal_try_from_name():
     uc = UnionCal.from_name("ldn,tgt|fed")
     assert isinstance(uc, UnionCal)
+
+
+@pytest.mark.parametrize("number", [-3, -2, -1, 0, 1, 2, 3])
+@pytest.mark.parametrize(
+    "start", [dt(2026, 2, 13), dt(2026, 2, 14), dt(2026, 2, 15), dt(2026, 2, 16)]
+)
+def test_add_bus_days_BusDaysLagSettle_equivalence(number, start):
+    cal = Cal([], [5, 6])
+    adj = Adjuster.BusDaysLagSettle(number)
+    result = cal.adjust(start, adj)
+    expected = cal.lag_bus_days(start, number, True)
+    assert result == expected
