@@ -13,7 +13,7 @@ from datetime import datetime as dt
 
 import pytest
 from rateslib.dual import Dual
-from rateslib.fx_volatility import FXDeltaVolSmile
+from rateslib.volatility import FXDeltaVolSmile
 
 
 def test_fxsmile_update_node():

@@ -19,7 +19,6 @@ from rateslib.dual import dual_log, newton_1dim
 from rateslib.dual.utils import _set_ad_order_objects
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FXDeltaMethod
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.fx_options.call_put import FXCall, FXPut
 from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 from rateslib.instruments.protocols.pricing import (
@@ -30,6 +29,7 @@ from rateslib.instruments.protocols.pricing import (
 )
 from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.splines import evaluate
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover

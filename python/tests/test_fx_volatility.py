@@ -27,18 +27,18 @@ from rateslib.fx import (
     FXRates,
     forward_fx,
 )
-from rateslib.fx_volatility import (
+from rateslib.periods import FXCallPeriod
+from rateslib.scheduling import get_calendar
+from rateslib.volatility import (
     FXDeltaVolSmile,
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
 )
-from rateslib.fx_volatility.utils import (
-    _d_sabr_d_k_or_f,
-    _FXSabrSmileNodes,
+from rateslib.volatility.utils import (
+    _SabrModel,
+    _SabrSmileNodes,
 )
-from rateslib.periods import FXCallPeriod
-from rateslib.scheduling import get_calendar
 
 
 @pytest.fixture
@@ -682,7 +682,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss._nodes = _FXSabrSmileNodes(
+            fxss._nodes = _SabrSmileNodes(
                 _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
             )
             _ = (
@@ -697,7 +697,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         for key in ["k", "f", "alpha", "rho", "nu"]:
@@ -739,7 +739,7 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss._nodes = _FXSabrSmileNodes(
+            fxss._nodes = _SabrSmileNodes(
                 _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
             )
             _ = (
@@ -754,7 +754,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -799,7 +799,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss._nodes = _FXSabrSmileNodes(
+            fxss._nodes = _SabrSmileNodes(
                 _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
             )
             _ = (
@@ -814,7 +814,7 @@ class TestFXSabrSmile:
             )
 
             # reset
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1004,7 +1004,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(k_, ["k"], [1.0])
 
-        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        sabr_vol, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -1022,7 +1022,7 @@ class TestFXSabrSmile:
         t = 1.0
         f = Dual(f_, ["f"], [1.0])
 
-        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 2)
+        sabr_vol, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 2)
         expected = gradient(sabr_vol, ["f"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -1056,7 +1056,7 @@ class TestFXSabrSmile:
             in_ = {"k": k, "f": f, "alpha": a, "rho": p, "nu": v}
             in_[key1] += inc1
 
-            fxss._nodes = _FXSabrSmileNodes(
+            fxss._nodes = _SabrSmileNodes(
                 _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
             )
             _ = fxss._d_sabr_d_k_or_f(
@@ -1068,7 +1068,7 @@ class TestFXSabrSmile:
             )[1]
 
             # reset
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         for key in ["k", "f", "alpha", "rho", "nu"]:
@@ -1112,7 +1112,7 @@ class TestFXSabrSmile:
             in_[key1] += inc1
             in_[key2] += inc2
 
-            fxss._nodes = _FXSabrSmileNodes(
+            fxss._nodes = _SabrSmileNodes(
                 _alpha=in_["alpha"], _beta=1.0, _rho=in_["rho"], _nu=in_["nu"]
             )
             _ = fxss._d_sabr_d_k_or_f(
@@ -1124,7 +1124,7 @@ class TestFXSabrSmile:
             )[1]
 
             # reset
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1183,7 +1183,7 @@ class TestFXSabrSmile:
                 Dual2(k_, ["k"], [], []), Dual2(f_, ["f"], [], []), dt(2002, 1, 1), False, 1
             )[1]
 
-            fxss._nodes = _FXSabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
+            fxss._nodes = _SabrSmileNodes(_alpha=a, _beta=1.0, _rho=p, _nu=v)
             return _
 
         v_map = {"k": "k", "f": "f", "alpha": "v0", "rho": "v1", "nu": "v2"}
@@ -1235,16 +1235,16 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual2(1.45, ["k"], [1.0], [0.0])
 
-        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
-        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
-        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
+        _, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - r_1) / (2e-4)
         result = gradient(result, ["p"])[0]
         assert abs(result - expected) < 1e-9
 
-        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
-        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
-        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
+        _, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - 2 * result + r_1) / (1e-8)
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8
@@ -1261,7 +1261,7 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual(1.3395, ["k"], [1.0])
 
-        sabr_vol, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        sabr_vol, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
         expected = gradient(sabr_vol, ["k"])[0]
 
         assert abs(result - expected) < 1e-13
@@ -1278,16 +1278,16 @@ class TestFXSabrSmile:
         t = 1.0
         k = Dual2(1.3395, ["k"], [1.0], [0.0])
 
-        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
-        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
-        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
+        _, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - r_1) / (2e-4)
         result = gradient(result, ["p"])[0]
         assert abs(result - expected) < 1e-9
 
-        _, result = _d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
-        _, r1 = _d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
-        _, r_1 = _d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
+        _, result = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p, v, 1)
+        _, r1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p + 1e-4, v, 1)
+        _, r_1 = _SabrModel._d_sabr_d_k_or_f(k, f, t, a, b, p - 1e-4, v, 1)
         expected = (r1 - 2 * result + r_1) / (1e-8)
         result = gradient(result, ["p"], order=2)[0][0]
         assert abs(result - expected) < 1e-8

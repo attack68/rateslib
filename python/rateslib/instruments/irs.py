@@ -30,7 +30,9 @@ from rateslib.legs import FixedLeg, FloatLeg
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
+        Adjuster,
         CalInput,
+        Convention,
         CurvesT_,
         DataFrame,
         DualTypes,
@@ -90,6 +92,8 @@ class IRS(_BaseInstrument):
        curves = [rate_curve, disc_curve]  #  two curves are applied in the given order
        curves = [None, disc_curve, rate_curve, disc_curve]     # four curves applied to each leg
        curves = {"leg2_rate_curve": rate_curve, "disc_curve": disc_curve}  # dict form is explicit
+
+    ``metric`` is unused by *IRS* and is always fixed '*rate*'.
 
     .. role:: red
 
@@ -152,9 +156,9 @@ class IRS(_BaseInstrument):
         The :class:`~rateslib.scheduling.Adjuster` to use to map adjusted schedule dates into
         additional dates, which may be used, for example by fixings schedules. If given as integer
         will define the number of business days to lag dates by.
-    convention: str, :green:`optional (set by 'defaults')`
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
+    convention: Convention, str, :green:`optional (set by 'defaults')`
+        The :class:`~rateslib.scheduling.Convention` applied to calculations of period accrual
+        dates. See :meth:`~rateslib.scheduling.dcf`.
     leg2_effective : datetime, :green:`optional (inherited from leg1)`
     leg2_termination : datetime, str, :green:`optional (inherited from leg1)`
     leg2_frequency : Frequency, str, :green:`optional (inherited from leg1)`
@@ -168,7 +172,7 @@ class IRS(_BaseInstrument):
     leg2_payment_lag: Adjuster, int, :green:`optional (inherited from leg1)`
     leg2_payment_lag_exchange: Adjuster, int, :green:`optional (inherited from leg1)`
     leg2_ex_div: Adjuster, int, :green:`optional (inherited from leg1)`
-    leg2_convention: str, :green:`optional (inherited from leg1)`
+    leg2_convention: Convention, str, :green:`optional (inherited from leg1)`
 
         .. note::
 
@@ -340,12 +344,12 @@ class IRS(_BaseInstrument):
         back_stub: datetime_ = NoInput(0),
         roll: int | RollDay | str_ = NoInput(0),
         eom: bool_ = NoInput(0),
-        modifier: str_ = NoInput(0),
+        modifier: Adjuster | str_ = NoInput(0),
         calendar: CalInput = NoInput(0),
-        payment_lag: int_ = NoInput(0),
-        payment_lag_exchange: int_ = NoInput(0),
-        ex_div: int_ = NoInput(0),
-        convention: str_ = NoInput(0),
+        payment_lag: Adjuster | str | int_ = NoInput(0),
+        payment_lag_exchange: Adjuster | str | int_ = NoInput(0),
+        ex_div: Adjuster | str | int_ = NoInput(0),
+        convention: Convention | str_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
         leg2_frequency: Frequency | str_ = NoInput(1),
@@ -354,12 +358,12 @@ class IRS(_BaseInstrument):
         leg2_back_stub: datetime_ = NoInput(1),
         leg2_roll: int | RollDay | str_ = NoInput(1),
         leg2_eom: bool_ = NoInput(1),
-        leg2_modifier: str_ = NoInput(1),
+        leg2_modifier: Adjuster | str_ = NoInput(1),
         leg2_calendar: CalInput = NoInput(1),
-        leg2_payment_lag: int_ = NoInput(1),
-        leg2_payment_lag_exchange: int_ = NoInput(1),
-        leg2_ex_div: int_ = NoInput(1),
-        leg2_convention: str_ = NoInput(1),
+        leg2_payment_lag: Adjuster | str | int_ = NoInput(1),
+        leg2_payment_lag_exchange: Adjuster | str | int_ = NoInput(1),
+        leg2_ex_div: Adjuster | str | int_ = NoInput(1),
+        leg2_convention: Convention | str_ = NoInput(1),
         # settlement parameters
         currency: str_ = NoInput(0),
         notional: float_ = NoInput(0),
@@ -595,7 +599,8 @@ class IRS(_BaseInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         return _Vol()
 
-    def _parse_curves(self, curves: CurvesT_) -> _Curves:
+    @classmethod
+    def _parse_curves(cls, curves: CurvesT_) -> _Curves:
         """
         An IRS has two curve requirements: a leg2_rate_curve and a disc_curve used by both legs.
 
@@ -627,7 +632,7 @@ class IRS(_BaseInstrument):
                 )
             else:
                 raise ValueError(
-                    f"{type(self).__name__} requires only 2 curve types. Got {len(curves)}."
+                    f"{type(cls).__name__} requires only 2 curve types. Got {len(curves)}."
                 )
         elif isinstance(curves, dict):
             return _Curves(

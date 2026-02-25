@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-import rateslib.rs
 from rateslib.rs import (
     Adjuster,
     Cal,

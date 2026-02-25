@@ -38,17 +38,14 @@ from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-from rateslib.fx_volatility import FXVols
 from rateslib.mutability import (
     _new_state_post,
     _no_interior_validation,
     _validate_states,
     _WithState,
 )
+from rateslib.volatility.fx import FXVols
+from rateslib.volatility.ir import IRVolObj, IRVols
 
 P = ParamSpec("P")
 
@@ -1384,7 +1381,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
-        ret: Curve | FXVols = self.pre_curves[obj]
+        ret: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(ret, _BaseCurve):
             return ret
         else:
@@ -1395,12 +1392,23 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_fxvol(self, obj: str) -> FXVols:
-        _: Curve | FXVols = self.pre_curves[obj]
+        _: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(_, FXVols):
             return _
         else:
             raise ValueError(
                 f"A type of `FXVol` object was sought with id:'{obj}' from Solver but another "
+                f"type object was returned:'{type(_)}'."
+            )
+
+    @_validate_states
+    def _get_pre_irvol(self, obj: str) -> IRVols:
+        _: Curve | FXVols | IRVols = self.pre_curves[obj]
+        if isinstance(_, IRVolObj):
+            return _
+        else:
+            raise ValueError(
+                f"A type of `IRVol` object was sought with id:'{obj}' from Solver but another "
                 f"type object was returned:'{type(_)}'."
             )
 
@@ -1668,10 +1676,6 @@ class Solver(Gradients, _WithState):
         if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
         self._reset_properties_()
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
     @_no_interior_validation
@@ -2343,11 +2347,6 @@ class Solver(Gradients, _WithState):
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
         return _
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
 __all__ = ["Gradients", "Solver"]
