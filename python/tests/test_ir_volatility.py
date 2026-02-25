@@ -48,7 +48,7 @@ def test_bilinear_interp(h, v, expected):
 
 def test_numpy_ravel_for_dates_posix():
     a = np.array([[1, 1, 2], [3, 4, 5]])
-    b = np.reshape(list(a.ravel()), shape=(2, 3))
+    b = np.reshape(list(a.ravel()), (2, 3))
     assert np.all(a == b)
 
 

@@ -650,7 +650,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
                         )
                         for j in range(n)
                     ],
-                    shape=(en, tn),
+                    (en, tn),
                 )
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
