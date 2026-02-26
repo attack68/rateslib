@@ -50,7 +50,7 @@ from rateslib.mutability import (
 )
 from rateslib.scheduling import get_calendar
 from rateslib.splines.evaluate import evaluate
-from rateslib.volatility.fx.base import _BaseSmile
+from rateslib.volatility.fx.base import _BaseFXSmile
 from rateslib.volatility.fx.utils import (
     _delta_type_constants,
     _FXDeltaVolSmileNodes,
@@ -72,7 +72,7 @@ if TYPE_CHECKING:
 UTC = timezone.utc
 
 
-class FXDeltaVolSmile(_BaseSmile):
+class FXDeltaVolSmile(_BaseFXSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by delta percent.
 
@@ -465,7 +465,7 @@ class FXDeltaVolSmile(_BaseSmile):
         """
         Update a *Smile* with new, manually passed nodes.
 
-        For arguments see :class:`~rateslib.fx_volatility.FXDeltaVolSmile`
+        For arguments see :class:`~rateslib.volatility.FXDeltaVolSmile`
 
         Returns
         -------
@@ -574,7 +574,7 @@ class FXDeltaVolSurface(_WithState, _WithCache[datetime, FXDeltaVolSmile]):
 
     Notes
     -----
-    See :class:`~rateslib.fx_volatility.FXDeltaVolSmile` for a description of delta indexes and
+    See :class:`~rateslib.volatility.FXDeltaVolSmile` for a description of delta indexes and
     *Smile* construction.
 
     **Temporal Interpolation**

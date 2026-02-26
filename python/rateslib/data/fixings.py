@@ -37,6 +37,7 @@ from rateslib.enums.parameters import (
     _get_float_fixing_method,
     _get_index_method,
     _get_spread_compound_method,
+    _get_swaption_settlement_method,
 )
 from rateslib.rs import Adjuster
 from rateslib.scheduling.adjuster import _get_adjuster
@@ -1446,32 +1447,37 @@ class IRSFixing(_BaseFixing):
        :suppress:
 
        from rateslib.data.fixings import IRSFixing
-       from rateslib import fixings, dt, FXForwards, FXRates, Curve
+       from rateslib import fixings, dt, Curve
        from pandas import Series
 
     .. ipython:: python
 
-       fixings.add("ISDA_EUR_2Y", Series(index=[dt(1999, 12, 29)], data=[2.543]))
-       irsfix = IRSFixing(
-           delivery=dt(2000, 1, 4),
-           fx_index=FXIndex(
-               pair="audjpy",
-               calendar="syd,tyo|fed",
-               settle=2,
-               isda_mtm_calendar="syd,tyo,ldn",
-               isda_mtm_settle=-2,
-               allow_cross=True,
-           ),
-           identifier="WMR_10AMTYO"
+       fixings.add("ISDA_USD_2Y", Series(index=[dt(2000, 1, 4)], data=[2.543]))
+       irs_fix = IRSFixing(
+           publication=dt(2000, 1, 4),
+           irs_series="usd_irs",
+           tenor="2Y",
+           identifier="ISDA_USD_2Y",
        )
-       fxfix.publication  #  <--  derived from isda attributes
-       fxfix.value        #  <--  should be from the cross 1.26 * 155 = 195.3
+       irs_fix.publication
+       irs_fix.value        #  <--  determined from Series
+
+    .. ipython:: python
+
+       curve = Curve({dt(2000, 1, 4): 1.0, dt(2003, 1, 4): 0.91}, convention="Act360")
+       irs_fix = IRSFixing(
+           publication=dt(2000, 1, 11),
+           irs_series="usd_irs",
+           tenor="2Y",
+           identifier="ISDA_USD_2Y",
+       )
+       irs_fix.publication
+       irs_fix.value_or_forecast(curves=[curve, curve])  #  <-- no Series index available - use Curve
 
     .. ipython:: python
        :suppress:
 
-       fixings.pop("WMR_10AMTYO_USDJPY")
-       fixings.pop("WMR_10AMTYO_AUDUSD")
+       fixings.pop("ISDA_USD_2Y")
 
     .. role:: red
 
@@ -1485,8 +1491,6 @@ class IRSFixing(_BaseFixing):
         The publication date of the fixing.
     tenor: str, :red:`required`
         The standard tenor of the underlying :class:`~rateslib.instruments.IRS` of the fixing.
-    settlement_method: SwaptionSettlementMethod, str, :green:`optional (set as physical)`
-        The settlement method used by *Swaptions* that settle against this fixing.
     value: float, Dual, Dual2, Variable, :green:`optional`
         The initial value for the fixing to adopt. Most commonly this is not given and it is
         determined from a timeseries of published rates.
@@ -1540,9 +1544,9 @@ class IRSFixing(_BaseFixing):
 
     def annuity(
         self,
-        settlement_method: SwaptionSettlementMethod,
-        rate_curve: CurveOption_,
+        settlement_method: SwaptionSettlementMethod | str,
         index_curve: _BaseCurve,
+        rate_curve: CurveOption_,
     ) -> DualTypes:
         r"""
         Return the annuity value used in the determination of the cashflow settlement, scaled to
@@ -1554,12 +1558,15 @@ class IRSFixing(_BaseFixing):
 
         Parameters
         ----------
-        rate_curve: _BaseCurve or dict of such, :red:`optional`
-            The curve used to forecast the floating leg of the
-            underlying :class:`~rateslib.instruments.IRS`.
+        settlement_method: SwaptionSettlementMethod, str, :red:`required`
+            The :class:`~rateslib.enums.SwaptionSettlementMethod` defining the settlement method.
         index_curve: _BaseCurve, :green:`optional`
             The price alignment index (PAI) curve, colloquially known as the discount factor
-            curve for the *IRS* that determines the PV.
+            curve for the *IRS* that determines the PV. Required for certain methods.
+        rate_curve: _BaseCurve or dict of such, :green:`optional`
+            The curve used to forecast the floating leg of the
+            underlying :class:`~rateslib.instruments.IRS`.
+
 
         Returns
         -------
@@ -1573,28 +1580,30 @@ class IRSFixing(_BaseFixing):
           settlement this curve is the discount factor curve used to discount the resultant
           :class:`~rateslib.instruments.IRS`, which is likely to be cleared and hence should
           typically be a single currency RFR curve, e.g. SOFR or ESTR.
-        - **ParLegacy**: the annuity factor is derived from the *IRSFixing* value itself, using
+        - **CashParTenor**: the annuity factor is derived from the *IRSFixing* value itself, using
           the formula:
 
           .. math::
 
-             A_R = \sum_{i=1}^N d_i (1 + R / f)^{i}
+             A_R = \sum_{i=1}^N \frac{1/f}{(1 + R / f)^{i}}
 
-        Settlement methods that are **not** yet implemented are the following:
+        - **CashCollateralized**: very similar to the *Physical* settlement, only the
+          ``index_curve`` needs to be provided to derive the annuity. In practice, this *Curve*
+          should be constructed according the ISDA cash collateralized method using the published
+          rates at each tenor for the collateralization, e.g. SOFR swaps or ESTR swaps.
 
-        - **CollateralizedCash**: in this settlement method put forward by ISDA in recent
-          years a secondary :class:`~rateslib.data.fixings.IRSFixing` is required to derive the
-          annuity formula. For example if a Swaption (vs 6M Euribor) is cash settled it will
-          derive its annuity from a second fixing that references ESTR and not Euribor.
-        - **ParTenorAdjusted**: various types of adjustment such as interpolation of rates
-          for swaptions that have non-standard tenors.
+          .. math::
+
+             A_R = \sum_{i=1}^N d_i v_i
 
         """
-        if settlement_method == SwaptionSettlementMethod.Physical:
+        settlement_method_ = _get_swaption_settlement_method(settlement_method)
+        del settlement_method
+        if settlement_method_ == SwaptionSettlementMethod.Physical:
             a_r: DualTypes = self.irs.leg1.analytic_delta(  # type: ignore[assignment]
                 disc_curve=index_curve, forward=self.effective, local=False
             )
-        elif settlement_method == SwaptionSettlementMethod.CashParTenor:
+        elif settlement_method_ == SwaptionSettlementMethod.CashParTenor:
             R = self.value_or_forecast(
                 curves=dict(  # type: ignore[arg-type]
                     rate_curve=NoInput(0),
@@ -3766,11 +3775,13 @@ def _leg_fixings_to_list(rate_fixings: LegFixings, n_periods: int) -> list[Perio
 __all__ = [
     "FloatRateSeries",
     "FloatRateIndex",
+    "IRSSeries",
+    "FXIndex",
     "RFRFixing",
     "IBORFixing",
     "IBORStubFixing",
     "IndexFixing",
-    "FXIndex",
+    "IRSFixing",
     "FXFixing",
     "_FXFixingMajor",
     "_UnitFixing",

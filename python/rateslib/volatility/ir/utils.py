@@ -21,9 +21,6 @@ import numpy as np
 from pandas import Series
 
 from rateslib.data.fixings import IRSFixing, _get_irs_series
-from rateslib.dual import (
-    Variable,
-)
 from rateslib.enums.generics import NoInput
 from rateslib.scheduling import Adjuster, add_tenor
 
@@ -32,7 +29,6 @@ if TYPE_CHECKING:
         Arr2dObj,
         DualTypes,
         IRSSeries,
-        Number,
         datetime_,
     )
 
@@ -47,6 +43,11 @@ class _IRVolPricingParams(NamedTuple):
 
 
 class _IRSmileMeta:
+    """
+    A container of meta data associated with a :class:`~rateslib.volatility._BaseIRSmile`
+    used to make calculations.
+    """
+
     def __init__(
         self,
         _eval_date: datetime,
@@ -142,47 +143,10 @@ class _IRSmileMeta:
 
 
 @dataclass(frozen=True)
-class _IRSabrSmileNodes:
-    """
-    A container for data relating to the SABR parameters of a
-    :class:`~rateslib.ir_volatility.IRSabrSmile`.
-    """
-
-    _alpha: Number
-    _beta: float | Variable
-    _rho: Number
-    _nu: Number
-
-    @property
-    def alpha(self) -> Number:
-        """The :math:`\\alpha` parameter of the SABR function."""
-        return self._alpha
-
-    @property
-    def beta(self) -> float | Variable:
-        """The :math:`\\beta` parameter of the SABR function."""
-        return self._beta
-
-    @property
-    def rho(self) -> Number:
-        """The :math:`\\rho` parameter of the SABR function."""
-        return self._rho
-
-    @property
-    def nu(self) -> Number:
-        """The :math:`\\nu` parameter of the SABR function."""
-        return self._nu
-
-    @property
-    def n(self) -> int:
-        return 4
-
-
-@dataclass(frozen=True)
 class _IRSabrCubeMeta:
     """
     An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXSabrSurface` used to make calculations.
+    :class:`~rateslib.volatility.FXSabrSurface` used to make calculations.
     """
 
     _eval_date: datetime
