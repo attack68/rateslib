@@ -10,7 +10,7 @@
 ####################################################################################################
 
 
-from rateslib.volatility.fx.base import _BaseSmile
+from rateslib.volatility.fx.base import _BaseFXSmile
 from rateslib.volatility.fx.delta_vol import FXDeltaVolSmile, FXDeltaVolSurface
 from rateslib.volatility.fx.sabr import FXSabrSmile, FXSabrSurface
 from rateslib.volatility.fx.utils import (
@@ -29,7 +29,7 @@ __all__ = [
     "FXSabrSurface",
     "FXDeltaVolSurface",
     "FXDeltaVolSmile",
-    "_BaseSmile",
+    "_BaseFXSmile",
     "_FXDeltaVolSurfaceMeta",
     "_FXSmileMeta",
     "_FXDeltaVolSpline",

@@ -47,6 +47,9 @@ TERMINAL_DATE = datetime(2100, 1, 1)
 
 @dataclass
 class _FXSmileMeta:
+    """A container of meta data associated with a :class:`~rateslib.volatility._BaseFXSmile`
+    used to make calculations."""
+
     _eval_date: datetime
     _expiry: datetime
     _plot_x_axis: str
@@ -69,7 +72,7 @@ class _FXSmileMeta:
     @property
     def plot_x_axis(self) -> str:
         """The default ``x_axis`` parameter passed to
-        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        :meth:`~rateslib.volatility._BaseSmile.plot`"""
         return self._plot_x_axis
 
     @property
@@ -112,7 +115,7 @@ class _FXSmileMeta:
 class _FXDeltaVolSmileNodes:
     """
     A container for data relating to interpolating the `nodes` of a
-    :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
+    :class:`~rateslib.volatility.FXDeltaVolSmile`.
     """
 
     _nodes: dict[float, DualTypes]
@@ -196,7 +199,7 @@ class _FXDeltaVolSmileNodes:
 class _FXDeltaVolSpline:
     """
     A container for data relating to interpolating the `nodes` of
-    a :class:`~rateslib.fx_volatility.FXDeltaVolSmile` using a cubic PPSpline.
+    a :class:`~rateslib.volatility.FXDeltaVolSmile` using a cubic PPSpline.
     """
 
     _t: list[float]
@@ -317,7 +320,7 @@ class _FXDeltaVolSpline:
 class _FXDeltaVolSurfaceMeta:
     """
     An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXDeltaVolSurface` used to make calculations.
+    :class:`~rateslib.volatility.FXDeltaVolSurface` used to make calculations.
     """
 
     _eval_date: datetime
@@ -335,13 +338,13 @@ class _FXDeltaVolSurfaceMeta:
     @property
     def delta_indexes(self) -> list[float]:
         """A list of delta indexes associated with each cross-sectional
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`."""
+        :class:`~rateslib.volatility.FXDeltaVolSmile`."""
         return self._delta_indexes
 
     @property
     def expiries(self) -> list[datetime]:
         """A list of the expiries of each cross-sectional
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`."""
+        :class:`~rateslib.volatility.FXDeltaVolSmile`."""
         return self._expiries
 
     @cached_property
@@ -382,7 +385,7 @@ class _FXDeltaVolSurfaceMeta:
     @property
     def plot_x_axis(self) -> str:
         """The default ``x_axis`` parameter passed to
-        :meth:`~rateslib.fx_volatility._BaseSmile.plot`"""
+        :meth:`~rateslib.volatility._BaseSmile.plot`"""
         return self._plot_x_axis
 
 
@@ -390,7 +393,7 @@ class _FXDeltaVolSurfaceMeta:
 class _FXSabrSurfaceMeta:
     """
     An immutable container of meta data associated with a
-    :class:`~rateslib.fx_volatility.FXSabrSurface` used to make calculations.
+    :class:`~rateslib.volatility.FXSabrSurface` used to make calculations.
     """
 
     _eval_date: datetime
@@ -422,7 +425,7 @@ class _FXSabrSurfaceMeta:
     @property
     def expiries(self) -> list[datetime]:
         """A list of the expiries of each cross-sectional
-        :class:`~rateslib.fx_volatility.FXSabrSmile`."""
+        :class:`~rateslib.volatility.FXSabrSmile`."""
         return self._expiries
 
     @cached_property

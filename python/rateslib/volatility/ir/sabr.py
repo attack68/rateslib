@@ -113,11 +113,7 @@ class IRSabrSmile(_BaseIRSmile):
 
     The parameter :math:`\beta` will **not** be calibrated/mutated by a
     :class:`~rateslib.solver.Solver`. This value can be entered either as a *float*, or a
-    :class:`~rateslib.dual.Variable` to capture exogenous sensivities.
-
-    The arguments ``delivery_lag``, ``calendar`` and ``pair`` are only required if using an
-    :class:`~rateslib.fx.FXForwards` object to forecast ATM-forward FX rates for pricing. If
-    the forward rates are supplied directly as numeric values these arguments are not required.
+    :class:`~rateslib.dual.Variable` to capture exogenous sensitivities.
 
     Examples
     --------
@@ -460,7 +456,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
 
     Notes
     -----
-    See :class:`~rateslib.fx_volatility.FXSabrSmile` for a description of SABR parameters for
+    See :class:`~rateslib.volatility.FXSabrSmile` for a description of SABR parameters for
     *Smile* construction.
 
     **Temporal Interpolation**
@@ -483,7 +479,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
     one wishes to obtian values for.
 
     When seeking an ``expiry`` beyond the final expiry, a new
-    :class:`~rateslib.fx_volatility.SabrSmile` is created at that specific *expiry* using the
+    :class:`~rateslib.volatility.SabrSmile` is created at that specific *expiry* using the
     same SABR parameters as matching the final parametrised *Smile*. This will capture the
     evolution of ATM-forward rates through time.
 
@@ -841,7 +837,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         Notes
         -----
         This function returns a tuple consistent with an
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        :class:`~rateslib.volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """

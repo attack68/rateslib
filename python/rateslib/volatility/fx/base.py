@@ -26,7 +26,9 @@ if TYPE_CHECKING:
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 
-class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
+class _BaseFXSmile(_WithState, _WithCache[float, DualTypes]):
+    """Abstract base class for implementing *FX Smiles*."""
+
     _ad: int
     _default_plot_x_axis: str
     meta: _FXSmileMeta
@@ -41,7 +43,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
     def plot(
         self,
-        comparators: list[_BaseSmile] | NoInput = NoInput(0),
+        comparators: list[_BaseFXSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str | NoInput = NoInput(0),
         f: DualTypes | FXForwards | NoInput = NoInput(0),
@@ -87,7 +89,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         y = [y_]
         if not isinstance(comparators, NoInput):
             for smile in comparators:
-                if not isinstance(smile, _BaseSmile):
+                if not isinstance(smile, _BaseFXSmile):
                     raise ValueError("A `comparator` must be a valid FX Smile type.")
                 x_, y_ = smile._plot(x_axis_, f)  # type: ignore[attr-defined]
                 x.append(x_)

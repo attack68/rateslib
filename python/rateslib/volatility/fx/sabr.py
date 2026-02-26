@@ -42,7 +42,7 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.scheduling import get_calendar
-from rateslib.volatility.fx.base import _BaseSmile
+from rateslib.volatility.fx.base import _BaseFXSmile
 from rateslib.volatility.fx.utils import (
     _FXSabrSurfaceMeta,
     _FXSmileMeta,
@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 UTC = timezone.utc
 
 
-class FXSabrSmile(_BaseSmile):
+class FXSabrSmile(_BaseFXSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
 
@@ -235,7 +235,7 @@ class FXSabrSmile(_BaseSmile):
         Notes
         -----
         This function returns a tuple consistent with an
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        :class:`~rateslib.volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """
@@ -502,7 +502,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     Notes
     -----
-    See :class:`~rateslib.fx_volatility.FXSabrSmile` for a description of SABR parameters for
+    See :class:`~rateslib.volatility.FXSabrSmile` for a description of SABR parameters for
     *Smile* construction.
 
     **Temporal Interpolation**
@@ -525,7 +525,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     one wishes to obtian values for.
 
     When seeking an ``expiry`` beyond the final expiry, a new
-    :class:`~rateslib.fx_volatility.SabrSmile` is created at that specific *expiry* using the
+    :class:`~rateslib.volatility.SabrSmile` is created at that specific *expiry* using the
     same SABR parameters as matching the final parametrised *Smile*. This will capture the
     evolution of ATM-forward rates through time.
 
@@ -681,7 +681,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         Notes
         -----
         This function returns a tuple consistent with an
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        :class:`~rateslib.volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """

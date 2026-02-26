@@ -14,8 +14,21 @@ from rateslib.volatility.fx import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
+    _BaseFXSmile,
+    _FXDeltaVolSmileNodes,
+    _FXDeltaVolSpline,
+    _FXDeltaVolSurfaceMeta,
+    _FXSabrSurfaceMeta,
+    _FXSmileMeta,
+    _SabrSmileNodes,
 )
-from rateslib.volatility.ir import IRSabrCube, IRSabrSmile
+from rateslib.volatility.ir import (
+    IRSabrCube,
+    IRSabrSmile,
+    _BaseIRSmile,
+    _IRSabrCubeMeta,
+    _IRSmileMeta,
+)
 
 __all__ = [
     "FXSabrSmile",
@@ -24,4 +37,14 @@ __all__ = [
     "FXDeltaVolSmile",
     "IRSabrSmile",
     "IRSabrCube",
+    "_BaseFXSmile",
+    "_BaseIRSmile",
+    "_FXDeltaVolSurfaceMeta",
+    "_FXSmileMeta",
+    "_FXDeltaVolSpline",
+    "_FXDeltaVolSmileNodes",
+    "_FXSabrSurfaceMeta",
+    "_SabrSmileNodes",
+    "_IRSabrCubeMeta",
+    "_IRSmileMeta",
 ]

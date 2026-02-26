@@ -27,6 +27,8 @@ DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined cause
 
 
 class _BaseIRSmile(_WithState, _WithCache[float, DualTypes]):
+    """Abstract base class for implementing *IR Smiles*."""
+
     _ad: int
     _default_plot_x_axis: str
     meta: _IRSmileMeta
