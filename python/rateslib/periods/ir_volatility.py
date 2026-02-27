@@ -390,9 +390,9 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
             ir_vol=ir_vol,
         )
 
-        if metric_ == IROptionMetric.Cash:
+        if metric_ == IROptionMetric.Cash():
             return cash
-        elif metric_ == IROptionMetric.PercentNotional:
+        elif metric_ == IROptionMetric.PercentNotional():
             return cash / self.settlement_params.notional * 100.0
 
         disc_curve_ = _disc_required_maybe_from_curve(curve=rate_curve, disc_curve=disc_curve)
@@ -412,7 +412,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
             pricing_ = pricing
         del pricing
 
-        if metric_ == IROptionMetric.NormalVol:
+        if metric_ == IROptionMetric.NormalVol():
             # use a root finder to reverse engineer the _Bachelier model.
             if anal_delta is None:
                 anal_delta_: DualTypes = self.ir_option_params.option_fixing.irs.analytic_delta(  # type: ignore[assignment]
@@ -442,19 +442,11 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
             )
             g: DualTypes = result["g"]
             return g * 100.0
-
-        else:  # metric_ in [BlackVol types]
+        else:
+            # metric_ in [BlackVol types]
             # might need to resolve a volatility value depending upon the required shift
             # and the expected shift
-
-            expected_shift = {
-                IROptionMetric.LogNormalVol: 0,
-                IROptionMetric.BlackVol: 0,
-                IROptionMetric.BlackVolShift100: 100,
-                IROptionMetric.BlackVolShift200: 200,
-                IROptionMetric.BlackVolShift300: 300,
-            }
-            required_shift = expected_shift[metric_]
+            required_shift = metric_.shift()
             provided_shift = int(_dual_float(pricing_.shift))
             if required_shift == provided_shift:
                 return pricing_.vol

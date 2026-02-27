@@ -13,15 +13,11 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Never
 
-from rateslib.rs import FloatFixingMethod, LegIndexBase
+from rateslib.rs import FloatFixingMethod, IROptionMetric, LegIndexBase
 
 if TYPE_CHECKING:
-    pass
-
-
-class PicklingContainer:
     pass
 
 
@@ -41,21 +37,6 @@ class FXOptionMetric(Enum):
 
     Pips = 0
     Percent = 1
-
-
-class IROptionMetric(Enum):
-    """
-    Enumerable type for IROption metrics.
-    """
-
-    NormalVol = 0
-    LogNormalVol = 3
-    PercentNotional = 4
-    Cash = 5
-    BlackVol = 1
-    BlackVolShift100 = 6
-    BlackVolShift200 = 7
-    BlackVolShift300 = 8
 
 
 class SwaptionSettlementMethod(Enum):
@@ -303,22 +284,17 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
             )
 
 
-_IR_METRIC_MAP = {
+_IR_METRIC_MAP: dict[str, type[IROptionMetric]] = {
     "normal_vol": IROptionMetric.NormalVol,
-    "normalvol": IROptionMetric.NormalVol,
     "log_normal_vol": IROptionMetric.LogNormalVol,
-    "lognormalvol": IROptionMetric.LogNormalVol,
     "cash": IROptionMetric.Cash,
-    "black_vol": IROptionMetric.BlackVol,
-    "blackvol": IROptionMetric.BlackVol,
-    "black_shift_100": IROptionMetric.BlackVolShift100,
-    "black_shift_200": IROptionMetric.BlackVolShift200,
-    "black_shift_300": IROptionMetric.BlackVolShift300,
-    "blackvolshift100": IROptionMetric.BlackVolShift100,
-    "blackvolshift200": IROptionMetric.BlackVolShift200,
-    "blackvolshift300": IROptionMetric.BlackVolShift300,
     "percent_notional": IROptionMetric.PercentNotional,
+    "black_vol_shift": IROptionMetric.BlackVolShift,
+    # aliases
+    "normalvol": IROptionMetric.NormalVol,
+    "lognormalvol": IROptionMetric.LogNormalVol,
     "percentnotional": IROptionMetric.PercentNotional,
+    "blackvolshift": IROptionMetric.BlackVolShift,
 }
 
 
@@ -326,12 +302,26 @@ def _get_ir_option_metric(method: str | IROptionMetric) -> IROptionMetric:
     if isinstance(method, IROptionMetric):
         return method
     else:
+        method = method.lower()
+        if "shift" in method:
+            idx = method.rfind("_")
+            if idx < 0:
+                raise ValueError(
+                    "The 'BlackVolShift' metric must have an underscore and shift, e.g. "
+                    "'black_vol_shift_100"
+                )
+            else:
+                args: tuple[Never, ...] | tuple[int]= (int(method[idx + 1 :]),)
+            method = method[:idx]
+        else:
+            args = tuple()
+
         try:
-            return _IR_METRIC_MAP[method.lower()]
+            return _IR_METRIC_MAP[method](*args)
         except KeyError:
             raise ValueError(
                 f"IROption `metric` as string: '{method}' is not a valid option. Please consult "
-                f"docs."
+                f"documentation."
             )
 
 

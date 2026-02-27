@@ -5870,14 +5870,15 @@ class TestIROption:
     @pytest.mark.parametrize(
         ("metric", "expected"),
         [
+            ("NormalVol", 75.792872),
             ("LogNormalVol", 25.16),
-            ("BlackVol", 25.16),
             ("Cash", 149725.796514),
             ("PercentNotional", 0.149725),
-            ("NormalVol", 75.792872),
-            ("Black_shift_100", 18.880156),
-            ("Black_shift_200", 15.111396),
-            ("Black_shift_300", 12.597702),
+            ("black_vol_shift_0", 25.16),
+            ("Black_vol_shift_100", 18.880156),
+            ("Black_vol_shift_200", 15.111396),
+            ("Black_vol_shift_300", 12.597702),
+            ("Black_vol_shift_117", 18.112063),
         ],
     )
     def test_option_rate(self, metric, expected):

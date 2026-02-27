@@ -9025,12 +9025,12 @@ class TestSwaptions:
         ("metric", "expected"),
         [
             ("LogNormalVol", 25.16),
-            ("BlackVol", 25.16),
+            ("BlackVolShift_0", 25.16),
             ("Cash", 149725.796514),
             ("NormalVol", 75.792872),
-            ("Black_shift_100", 18.880156),
-            ("Black_shift_200", 15.111396),
-            ("Black_shift_300", 12.597702),
+            ("Black_vol_shift_100", 18.880156),
+            ("Black_vol_shift_200", 15.111396),
+            ("Black_vol_shift_300", 12.597702),
             ("PercentNotional", 0.149725),
         ],
     )
