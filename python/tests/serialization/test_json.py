@@ -11,7 +11,7 @@
 
 import pytest
 from rateslib import Curve, Dual, Dual2, FXForwards, FXRates, dt, from_json
-from rateslib.enums import FloatFixingMethod, LegIndexBase
+from rateslib.enums import FloatFixingMethod, IROptionMetric, LegIndexBase
 from rateslib.rs import Schedule as ScheduleRs
 from rateslib.scheduling import (
     Adjuster,
@@ -82,6 +82,11 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         FloatFixingMethod.RFRLockout(4),
         FloatFixingMethod.RFRLockoutAverage(4),
         FloatFixingMethod.IBOR(2),
+        IROptionMetric.Cash(),
+        IROptionMetric.PercentNotional(),
+        IROptionMetric.NormalVol(),
+        IROptionMetric.LogNormalVol(),
+        IROptionMetric.BlackVolShift(25),
         LegIndexBase.Initial,
         LegIndexBase.PeriodOnPeriod,
     ],

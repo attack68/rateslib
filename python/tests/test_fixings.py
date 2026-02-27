@@ -20,12 +20,13 @@ from rateslib.data.fixings import (
     FloatRateSeries,
     FXFixing,
     FXIndex,
+    IRSFixing,
     RFRFixing,
     _FXFixingMajor,
     _UnitFixing,
 )
 from rateslib.enums.generics import NoInput
-from rateslib.enums.parameters import FloatFixingMethod
+from rateslib.enums.parameters import FloatFixingMethod, SwaptionSettlementMethod
 from rateslib.instruments import IRS
 from rateslib.scheduling import Adjuster, get_calendar
 
@@ -466,3 +467,28 @@ class TestFXFixingMajor:
         assert fx_fixing.value == 0.20
         assert fx_fixing._state == fixings["TEST_USDRUB"][0]
         fixings.pop("test_USDRUB")
+
+
+class TestIRSFixing:
+    @pytest.mark.parametrize(
+        ("method", "expected"),
+        [
+            (SwaptionSettlementMethod.Physical, 192.8729663786536),
+            (SwaptionSettlementMethod.CashParTenor, 189.90825721068495),
+            (SwaptionSettlementMethod.CashCollateralized, 192.8729663786536),
+        ],
+    )
+    def test_annuity(self, method, expected) -> None:
+
+        fixing = IRSFixing(
+            irs_series="usd_irs",
+            publication=dt(2026, 2, 18),
+            tenor="2Y",
+        )
+        curve = Curve(nodes={dt(2026, 2, 18): 1.0, dt(2029, 2, 18): 0.9})
+        result = fixing.annuity(
+            settlement_method=method,
+            rate_curve=curve,
+            index_curve=curve,
+        )
+        assert abs(result - expected) < 1e-6

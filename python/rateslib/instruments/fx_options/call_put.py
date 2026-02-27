@@ -18,14 +18,13 @@ from typing import TYPE_CHECKING
 
 from pandas import DataFrame
 
-from rateslib import FXDeltaVolSmile, FXDeltaVolSurface, defaults
+from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.data.fixings import _fx_index_set_cross, _get_fx_index
 from rateslib.default import PlotOutput, plot
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FXOptionMetric, _get_fx_delta_type
-from rateslib.fx_volatility import FXSabrSmile, FXSabrSurface
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
@@ -38,6 +37,8 @@ from rateslib.legs import CustomLeg
 from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.volatility.ir import IRVolObj
 
 if TYPE_CHECKING:
     from typing import NoReturn  # pragma: no cover
@@ -167,6 +168,8 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         """
         if isinstance(vol, _Vol):
             return vol
+        elif isinstance(vol, IRVolObj):
+            raise TypeError("`vol` cannot be an IR type vol object and must be FX type vol object.")
         else:
             return _Vol(fx_vol=vol)
 

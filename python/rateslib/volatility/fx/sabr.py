@@ -34,16 +34,6 @@ from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards
-from rateslib.fx_volatility.base import _BaseSmile
-from rateslib.fx_volatility.utils import (
-    _d_sabr_d_k_or_f,
-    _FXSabrSmileNodes,
-    _FXSabrSurfaceMeta,
-    _FXSmileMeta,
-    _surface_index_left,
-    _t_var_interp_d_sabr_d_k_or_f,
-    _validate_weights,
-)
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
@@ -52,6 +42,18 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.scheduling import get_calendar
+from rateslib.volatility.fx.base import _BaseFXSmile
+from rateslib.volatility.fx.utils import (
+    _FXSabrSurfaceMeta,
+    _FXSmileMeta,
+)
+from rateslib.volatility.utils import (
+    _SabrModel,
+    _SabrSmileNodes,
+    _surface_index_left,
+    _t_var_interp_d_sabr_d_k_or_f,
+    _validate_weights,
+)
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -69,7 +71,7 @@ if TYPE_CHECKING:
 UTC = timezone.utc
 
 
-class FXSabrSmile(_BaseSmile):
+class FXSabrSmile(_BaseFXSmile):
     r"""
     Create an *FX Volatility Smile* at a given expiry indexed by strike using SABR parameters.
 
@@ -132,7 +134,7 @@ class FXSabrSmile(_BaseSmile):
     _ini_solve = 1
     _meta: _FXSmileMeta
     _id: str
-    _nodes: _FXSabrSmileNodes
+    _nodes: _SabrSmileNodes
 
     @_new_state_post
     def __init__(
@@ -168,7 +170,7 @@ class FXSabrSmile(_BaseSmile):
                 raise ValueError(
                     f"'{_}' is a required SABR parameter that must be included in ``nodes``"
                 )
-        self._nodes: _FXSabrSmileNodes = _FXSabrSmileNodes(
+        self._nodes: _SabrSmileNodes = _SabrSmileNodes(
             _alpha=_to_number(nodes["alpha"]),
             _beta=nodes["beta"],  # type: ignore[arg-type]
             _rho=_to_number(nodes["rho"]),
@@ -190,12 +192,12 @@ class FXSabrSmile(_BaseSmile):
 
     @property
     def meta(self) -> _FXSmileMeta:  # type: ignore[override]
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXSmileMeta`."""
+        """An instance of :class:`~rateslib.volatility.fx._FXSmileMeta`."""
         return self._meta
 
     @property
-    def nodes(self) -> _FXSabrSmileNodes:
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSmileNodes`."""
+    def nodes(self) -> _SabrSmileNodes:
+        """An instance of :class:`~rateslib.volatility.fx._FXSabrSmileNodes`."""
         return self._nodes
 
     def get_from_strike(
@@ -233,7 +235,7 @@ class FXSabrSmile(_BaseSmile):
         Notes
         -----
         This function returns a tuple consistent with an
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        :class:`~rateslib.volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """
@@ -256,7 +258,7 @@ class FXSabrSmile(_BaseSmile):
         else:
             raise ValueError("`f` (ATM-forward FX rate) must be a value or FXForwards object.")
 
-        vol_ = _d_sabr_d_k_or_f(
+        vol_ = _SabrModel._d_sabr_d_k_or_f(
             _to_number(k),
             _to_number(f_),
             self._meta.t_expiry,
@@ -305,7 +307,7 @@ class FXSabrSmile(_BaseSmile):
             p_ = self.nodes.rho
             v_ = self.nodes.nu
 
-        return _d_sabr_d_k_or_f(k_, f_, t_e, a_, b_, p_, v_, derivative)
+        return _SabrModel._d_sabr_d_k_or_f(k_, f_, t_e, a_, b_, p_, v_, derivative)
 
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
@@ -331,7 +333,7 @@ class FXSabrSmile(_BaseSmile):
         base_obj = DualType(0.0, [f"{self.id}{i}" for i in range(3)], *DualArgs)
         ident = np.eye(3)
 
-        self._nodes = _FXSabrSmileNodes(
+        self._nodes = _SabrSmileNodes(
             _beta=self.nodes.beta,
             _alpha=DualType.vars_from(
                 base_obj,  # type: ignore[arg-type]
@@ -368,7 +370,7 @@ class FXSabrSmile(_BaseSmile):
 
         self._ad = order
 
-        self._nodes = _FXSabrSmileNodes(
+        self._nodes = _SabrSmileNodes(
             _beta=self.nodes.beta,
             _alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
             _rho=set_order_convert(self.nodes.rho, order, [f"{self.id}1"]),
@@ -409,7 +411,7 @@ class FXSabrSmile(_BaseSmile):
             raise KeyError("`key` is not in ``nodes``.")
         kwargs = {f"_{_}": getattr(self.nodes, _) for _ in params if _ != key}
         kwargs.update({f"_{key}": value})
-        self._nodes = _FXSabrSmileNodes(**kwargs)
+        self._nodes = _SabrSmileNodes(**kwargs)
         self._set_ad_order(self.ad)
 
     # Plotting
@@ -500,7 +502,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     Notes
     -----
-    See :class:`~rateslib.fx_volatility.FXSabrSmile` for a description of SABR parameters for
+    See :class:`~rateslib.volatility.FXSabrSmile` for a description of SABR parameters for
     *Smile* construction.
 
     **Temporal Interpolation**
@@ -523,7 +525,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
     one wishes to obtian values for.
 
     When seeking an ``expiry`` beyond the final expiry, a new
-    :class:`~rateslib.fx_volatility.SabrSmile` is created at that specific *expiry* using the
+    :class:`~rateslib.volatility.SabrSmile` is created at that specific *expiry* using the
     same SABR parameters as matching the final parametrised *Smile*. This will capture the
     evolution of ATM-forward rates through time.
 
@@ -595,7 +597,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
 
     @property
     def meta(self) -> _FXSabrSurfaceMeta:
-        """An instance of :class:`~rateslib.fx_volatility.utils._FXSabrSurfaceMeta`."""
+        """An instance of :class:`~rateslib.volatility.fx._FXSabrSurfaceMeta`."""
         return self._meta
 
     @property
@@ -679,7 +681,7 @@ class FXSabrSurface(_WithState, _WithCache[datetime, FXSabrSmile]):
         Notes
         -----
         This function returns a tuple consistent with an
-        :class:`~rateslib.fx_volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
+        :class:`~rateslib.volatility.FXDeltaVolSmile`, however since the *FXSabrSmile* has no
         concept of a `delta index` the first element returned is always zero and can be
         effectively ignored.
         """

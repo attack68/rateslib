@@ -32,27 +32,6 @@ from rateslib.enums.parameters import (
     _get_fx_option_metric,
 )
 from rateslib.fx import FXForwards
-from rateslib.fx_volatility import (
-    FXDeltaVolSmile,
-    FXDeltaVolSurface,
-    FXSabrSmile,
-    FXSabrSurface,
-    FXVolObj,
-)
-from rateslib.fx_volatility.delta_vol import (
-    _moneyness_from_atm_delta_one_dimensional,
-    _moneyness_from_atm_delta_two_dimensional,
-    _moneyness_from_delta_one_dimensional,
-    _moneyness_from_delta_two_dimensional,
-)
-from rateslib.fx_volatility.utils import (
-    _black76,
-    _d_plus_min_u,
-    _delta_type_constants,
-    _moneyness_from_atm_delta_closed_form,
-    _moneyness_from_delta_closed_form,
-    _surface_index_left,
-)
 from rateslib.periods.parameters import (
     _FXOptionParams,
     _IndexParams,
@@ -61,11 +40,33 @@ from rateslib.periods.parameters import (
 )
 from rateslib.periods.protocols import _BasePeriodStatic, _WithAnalyticFXOptionGreeks
 from rateslib.periods.utils import (
+    _get_fx_vol_value_maybe_from_obj,
     _get_vol_delta_type,
-    _get_vol_maybe_from_obj,
     _get_vol_smile_or_raise,
     _get_vol_smile_or_value,
     _validate_fx_as_forwards,
+)
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+)
+from rateslib.volatility.fx import FXVolObj
+from rateslib.volatility.fx.delta_vol import (
+    _moneyness_from_atm_delta_one_dimensional,
+    _moneyness_from_atm_delta_two_dimensional,
+    _moneyness_from_delta_one_dimensional,
+    _moneyness_from_delta_two_dimensional,
+)
+from rateslib.volatility.fx.utils import (
+    _delta_type_constants,
+    _moneyness_from_atm_delta_closed_form,
+    _moneyness_from_delta_closed_form,
+)
+from rateslib.volatility.utils import (
+    _OptionModelBlack76,
+    _surface_index_left,
 )
 
 if TYPE_CHECKING:
@@ -279,7 +280,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             # value is expressed in reference currency (i.e. pair[3:])
             fx_ = _validate_fx_as_forwards(fx)
 
-            vol_ = _get_vol_maybe_from_obj(
+            vol_ = _get_fx_vol_value_maybe_from_obj(
                 fx_vol=fx_vol,
                 fx=fx_,
                 rate_curve=rate_curve,
@@ -302,11 +303,10 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
                     "Use one of `disc_curve`, `fx_vol`, or `rate_curve`."
                 )
 
-            expected = _black76(
+            expected = _OptionModelBlack76._value(
                 F=fx_.rate(self.fx_option_params.pair, self.fx_option_params.delivery),
                 K=k,
                 t_e=t_e,
-                v1=NoInput(0),  # not required
                 v2=1.0,  # disc_curve_[delivery] / disc_curve_[payment],
                 vol=vol_ / 100.0,
                 phi=self.fx_option_params.direction.value,  # controls calls or put price
@@ -325,7 +325,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         """
         Return the pricing metric of the *FXOption*, with lazy error handling.
 
-        See :meth:`~rateslib.periods.FXOptionPeriod.rate`.
+        See :meth:`~rateslib.periods._BaseFXOptionPeriod.rate`.
         """
         if not isinstance(metric, NoInput):
             metric_ = _get_fx_option_metric(metric)
@@ -466,9 +466,9 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         def root(
             vol: DualTypes, f_d: DualTypes, k: DualTypes, t_e: float, v2: DualTypes, phi: float
         ) -> tuple[DualTypes, DualTypes]:
-            f0 = _black76(f_d, k, t_e, NoInput(0), v2, vol, phi) * 10000.0 - imm_premium
+            f0 = _OptionModelBlack76._value(f_d, k, t_e, v2, vol, phi) * 10000.0 - imm_premium
             sqrt_t = t_e**0.5
-            d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
+            d_plus = _OptionModelBlack76._d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
             f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0
             return f0, f1
 
@@ -523,7 +523,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             return self._index_vol_and_strike_from_atm_sabr(f, eta_0, vol)
         else:  # DualTypes | FXDeltaVolSmile | FXDeltaVolSurface
             f_: DualTypes = f  # type: ignore[assignment]
-            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol  # type: ignore[assignment]
+            vol_: DualTypes | FXDeltaVolSmile | FXDeltaVolSurface = vol
             return self._index_vol_and_strike_from_atm_dv(
                 f_,
                 eta_0,
@@ -567,7 +567,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol  # type: ignore[assignment]
+            vol_: FXSabrSurface = vol
             expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
@@ -822,7 +822,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         if isinstance(vol, FXSabrSmile):
             alpha = vol.nodes.alpha
         else:  # FXSabrSurface
-            vol_: FXSabrSurface = vol  # type: ignore[assignment]
+            vol_: FXSabrSurface = vol
             expiry_posix = self.fx_option_params.expiry.replace(tzinfo=UTC).timestamp()
             e_idx, _ = _surface_index_left(vol_.meta.expiries_posix, expiry_posix)
             alpha = vol_.smiles[e_idx].nodes.alpha
@@ -926,9 +926,9 @@ class FXCallPeriod(_BaseFXOptionPeriod):
         The notional of the option expressed in units of LHS currency of `pair`.
     delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
         The definition of the delta for the option.
-    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
+    metric: FXOptionMetric, str, :green:`optional` (set by 'default')`
         The metric used by default in the
-        :meth:`~rateslib.periods.fx_volatility.FXOptionPeriod.rate` method.
+        :meth:`~rateslib.periods.fx_volatility._BaseFXOptionPeriod.rate` method.
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.
@@ -1028,9 +1028,9 @@ class FXPutPeriod(_BaseFXOptionPeriod):
         The notional of the option expressed in units of LHS currency of `pair`.
     delta_type: FXDeltaMethod, str, :green:`optional (set by 'default')`
         The definition of the delta for the option.
-    metric: FXDeltaMethod, str, :green:`optional` (set by 'default')`
+    metric: FXOptionMetric, str, :green:`optional` (set by 'default')`
         The metric used by default in the
-        :meth:`~rateslib.periods.fx_volatility.FXOptionPeriod.rate` method.
+        :meth:`~rateslib.periods.fx_volatility._BaseFXOptionPeriod.rate` method.
     option_fixings: float, Dual, Dual2, Variable, Series, str, :green:`optional`
         The value of the option :class:`~rateslib.data.fixings.FXFixing`. If a scalar, is used
         directly. If a string identifier, links to the central ``fixings`` object and data loader.

@@ -36,6 +36,11 @@ from rateslib.instruments.fx_options import (
 from rateslib.instruments.fx_swap import FXSwap
 from rateslib.instruments.fx_vol_value import FXVolValue
 from rateslib.instruments.iirs import IIRS
+from rateslib.instruments.ir_options import (
+    PayerSwaption,
+    ReceiverSwaption,
+)
+from rateslib.instruments.ir_vol_value import IRVolValue
 from rateslib.instruments.irs import IRS
 from rateslib.instruments.ndf import NDF
 from rateslib.instruments.ndxcs import NDXCS
@@ -82,12 +87,16 @@ __all__ = [
     "FXStraddle",
     "FXStrangle",
     "FXBrokerFly",
+    # ir options
+    "ReceiverSwaption",
+    "PayerSwaption",
     # generics
     "Portfolio",
     "Fly",
     "Spread",
     "Value",
     "FXVolValue",
+    "IRVolValue",
     "BondCalcMode",
     "BillCalcMode",
     "_BaseInstrument",

@@ -17,19 +17,21 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
+from rateslib.volatility.ir.utils import _IRSmileMeta
 
 if TYPE_CHECKING:
-    from rateslib.local_types import FXForwards
+    pass
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 
-class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
+class _BaseIRSmile(_WithState, _WithCache[float, DualTypes]):
+    """Abstract base class for implementing *IR Smiles*."""
+
     _ad: int
     _default_plot_x_axis: str
-    meta: _FXSmileMeta
+    meta: _IRSmileMeta
 
     @property
     def ad(self) -> int:
@@ -41,35 +43,26 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
     def plot(
         self,
-        comparators: list[_BaseSmile] | NoInput = NoInput(0),
+        comparators: list[_BaseIRSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str | NoInput = NoInput(0),
-        f: DualTypes | FXForwards | NoInput = NoInput(0),
+        f: DualTypes | NoInput = NoInput(0),
     ) -> PlotOutput:
         """
         Plot volatilities associated with the *Smile*.
-
-        .. warning::
-
-           The *'delta'* ``x_axis`` type for a *SabrSmile* is calculated based on a
-           **forward, unadjusted** delta and is expressed as a negated put option delta
-           consistent with the definition for a :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
 
         Parameters
         ----------
         comparators: list[Smile]
             A list of Smiles which to include on the same plot as comparators.
-            Note the comments on
-            :meth:`FXDeltaVolSmile.plot <rateslib.fx_volatility.FXDeltaVolSmile.plot>`.
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
-        x_axis : str in {"strike", "moneyness", "delta"}
-            *'strike'* is the natural option for this *SabrSmile* types while *'delta'* is the
-            natural choice for *DeltaVolSmile* types.
-            If *'delta'* see the warning. If *'moneyness'* the strikes are converted using ``f``.
+        x_axis : str in {"strike", "moneyness"}
+            *'strike'* is the natural option for this *SabrSmile*.
+            If *'moneyness'* the strikes are converted using ``f``.
         f: DualTypes
-            The FX forward rate at delivery.
+            The mid-market IRS rate.
 
         Returns
         -------
@@ -87,7 +80,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         y = [y_]
         if not isinstance(comparators, NoInput):
             for smile in comparators:
-                if not isinstance(smile, _BaseSmile):
+                if not isinstance(smile, _BaseIRSmile):
                     raise ValueError("A `comparator` must be a valid FX Smile type.")
                 x_, y_ = smile._plot(x_axis_, f)  # type: ignore[attr-defined]
                 x.append(x_)

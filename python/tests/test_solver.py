@@ -24,7 +24,6 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, ind
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     IRS,
     XCS,
@@ -39,6 +38,7 @@ from rateslib.instruments import (
     Value,
 )
 from rateslib.solver import Gradients, Solver
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 
 class TestIFTSolver:

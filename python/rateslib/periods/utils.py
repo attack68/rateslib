@@ -21,18 +21,29 @@ from rateslib.curves.curves import _BaseCurve
 from rateslib.enums.generics import Err, NoInput, Ok, Result
 from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.instruments.protocols.pricing import _Curves
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    IRSabrCube,
+    IRSabrSmile,
+)
+from rateslib.volatility.ir.utils import _IRVolPricingParams
 
 if TYPE_CHECKING:
     from rateslib.local_types import (
         FX_,
+        IRS,
         Any,
         CurveOption_,
         DualTypes,
         FXForwards_,
-        _BaseCurve,
+        IRSabrCube,
         _BaseCurve_,
         _FXVolOption_,
+        _IRVolOption_,
         datetime_,
         str_,
     )
@@ -137,7 +148,54 @@ def _get_immediate_fx_scalar_and_base(
             return fx, base  # type: ignore[return-value]
 
 
-def _get_vol_maybe_from_obj(
+def _get_ir_vol_value_and_forward_maybe_from_obj(
+    ir_vol: _IRVolOption_,
+    rate_curve: CurveOption_,
+    index_curve: _BaseCurve_,
+    strike: DualTypes | str,
+    irs: IRS,
+    expiry: datetime,
+    tenor: datetime,
+) -> _IRVolPricingParams:
+    """
+    Return the following pring requirements:
+
+    Returns
+    -------
+    output: tuple[DualTypes, DualTypes, DualTypes]
+        The forward IRS rate exc. shift, the Black shifted vol, the shift to add to `f` and `k`.
+    """
+    # IROption can have a `strike` that is NoInput, however this internal function should
+    # only be performed after a `strike` has been set to number, temporarily or otherwise.
+    f_ = irs.rate(
+        curves=_Curves(
+            disc_curve=index_curve, leg2_rate_curve=rate_curve, leg2_disc_curve=index_curve
+        )
+    )
+
+    if isinstance(strike, NoInput):
+        k_: DualTypes = f_
+    elif isinstance(strike, str):
+        if strike.lower() == "atm":
+            k_ = f_
+        elif "bps" in strike:
+            k_ = f_ + float(strike[:-3])
+        else:
+            raise ValueError("`strike` as string must be either 'atm' or '{}bps'.")
+    else:
+        k_ = strike
+
+    if isinstance(ir_vol, IRSabrSmile | IRSabrCube):
+        # ir_vol is a Vol object
+        return ir_vol.get_from_strike(k=k_, f=f_, expiry=expiry, tenor=tenor)
+    elif isinstance(ir_vol, NoInput):
+        raise ValueError("`ir_vol` cannot be NoInput when provided to pricing function.")
+    else:
+        # vol given as scalar interpolated as Black Vol Zero shifted
+        return _IRVolPricingParams(vol=ir_vol, f=f_, k=k_, shift=0.0)
+
+
+def _get_fx_vol_value_maybe_from_obj(
     fx_vol: _FXVolOption_,
     fx: FXForwards,
     rate_curve: _BaseCurve_,

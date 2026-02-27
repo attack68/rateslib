@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         _BaseCurve_,
         _BasePeriod,
         _FXVolOption_,
+        _IRVolOption_,
         datetime,
         datetime_,
         str_,
@@ -50,6 +51,7 @@ class _WithCashflows(Protocol):
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -64,27 +66,34 @@ class _WithCashflows(Protocol):
            should be avoided. It is more efficent to source relevant parameters or calculations
            from object attributes or other methods directly.
 
+        .. role:: red
+
+        .. role:: green
+
         Parameters
         ----------
-        rate_curve: _BaseCurve or dict of such indexed by string tenor, optional
+        rate_curve: _BaseCurve or dict of such indexed by string tenor, :green:`optional`
             Used to forecast floating period rates, if necessary.
-        index_curve: _BaseCurve, optional
+        index_curve: _BaseCurve, :green:`optional`
             Used to forecast index values for indexation, if necessary.
-        disc_curve: _BaseCurve, optional
+        disc_curve: _BaseCurve, :green:`optional`
             Used to discount cashflows.
-        fx: FXForwards, optional
+        fx: FXForwards, :green:`optional`
             The :class:`~rateslib.fx.FXForwards` object used for forecasting the
             ``fx_fixing`` for deliverable cashflows, if necessary. Or, an
             :class:`~rateslib.fx.FXRates` object purely for immediate currency conversion.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, :green:`optional`
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
-        base: str, optional
+        ir_vol: IRSabrSmile, :green:`optional`
+            The IR volatility *Smile* or *Surface* object used for determining Black calendar
+            day implied volatility values.
+        base: str, :green:`optional`
             The currency to convert relevant values into.
-        settlement: datetime, optional
+        settlement: datetime, :green:`optional`
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
-        forward: datetime, optional
+        forward: datetime, :green:`optional`
             The future date to project the *PV* to using the ``disc_curve``.
 
         Returns
@@ -98,6 +107,7 @@ class _WithCashflows(Protocol):
                 index_curve=index_curve,
                 fx=fx,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 base=base,
                 settlement=settlement,
                 forward=forward,
