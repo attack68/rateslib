@@ -406,7 +406,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             metric=metric_,
         )
         if (
-            metric_ in [IROptionMetric.Cash, IROptionMetric.PercentNotional]
+            metric_ in [IROptionMetric.Cash(), IROptionMetric.PercentNotional()]
             and self.leg2.settlement_params.payment != self.leg1.settlement_params.payment
         ):
             disc_curve_ = _validate_obj_not_no_input(disc_curve, name="disc_curve")

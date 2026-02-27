@@ -60,7 +60,7 @@ use scheduling::{
 };
 
 pub mod enums;
-use enums::{LegIndexBase, PyFloatFixingMethod};
+use enums::{LegIndexBase, PyFloatFixingMethod, PyIROptionMetric};
 
 #[pymodule]
 fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -122,6 +122,7 @@ fn rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Rates and Indexes
     m.add_class::<PyFloatFixingMethod>()?;
     m.add_class::<LegIndexBase>()?;
+    m.add_class::<PyIROptionMetric>()?;
 
     Ok(())
 }

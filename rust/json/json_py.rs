@@ -19,7 +19,7 @@
 
 use crate::curves::curve_py::Curve;
 use crate::dual::{Dual, Dual2};
-use crate::enums::{LegIndexBase, PyFloatFixingMethod};
+use crate::enums::{LegIndexBase, PyFloatFixingMethod, PyIROptionMetric};
 use crate::fx::rates::FXRates;
 use crate::json::JSON;
 use crate::scheduling::{
@@ -56,6 +56,7 @@ pub(crate) enum DeserializedObj {
     Convention(Convention),
     PyFloatFixingMethod(PyFloatFixingMethod),
     LegIndexBase(LegIndexBase),
+    PyIROptionMetric(PyIROptionMetric),
 }
 
 impl JSON for DeserializedObj {}

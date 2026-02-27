@@ -53,6 +53,21 @@ impl FloatFixingMethod {
     }
 }
 
+/// Specifier for the rate metric on IR Option types.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum IROptionMetric {
+    /// Volatility expressed in normalized basis points, i.e. used in the Bachelier pricing model.
+    NormalVol {},
+    /// Alias for BlackVolShift(0)
+    LogNormalVol {},
+    /// Cash option premium expressed as a percentage of the notional.
+    PercentNotional {},
+    /// Option premium expressed as a cash quantity.
+    Cash {},
+    /// Log-normal Black volatility applying a basis-points shift to the forward and strike.
+    BlackVolShift(i32),
+}
+
 /// Enumerable type for index base determination on each Period in a Leg.
 #[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen, from_py_object)]
 #[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
