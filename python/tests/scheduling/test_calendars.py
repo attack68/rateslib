@@ -595,6 +595,20 @@ def test_add_and_get_custom_calendar_combination() -> None:
     calendars.pop("custom2")
 
 
+@pytest.mark.parametrize("name", ["abc,def", "abc|def"])
+def test_add_fails_on_comma_or_pipe(name):
+    with pytest.raises(
+        ValueError, match="`name` cannot contain the comma \(','\) or pipe \('|'\) cha"
+    ):
+        calendars.add(name, Cal([], []))
+
+
+@pytest.mark.parametrize("name", ["tgt", "nyc"])
+def test_add_fails_on_existing(name):
+    with pytest.raises(KeyError, match=r"'`name` already exists in calendars.\\nCannot overwri"):
+        calendars.add(name, Cal([], []))
+
+
 def test_calendar_pop_all_combinations() -> None:
     cal = Cal([dt(2023, 1, 2)], [5, 6])
     cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])

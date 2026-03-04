@@ -66,18 +66,14 @@ impl CalendarManager {
         let k: String = sort_calendar_names(name);
         if k.chars().any(|c| c == ',' || c == '|') {
             return Err(PyValueError::new_err(
-                "
-            `name` cannot contain the comma (',') or pipe ('|') characters.\nThese are reserved
-            to define calendar combinations (i.e. UnionCal) and only Cal objects are allowed to be
-            populated directly to the calendar manager.",
+                "`name` cannot contain the comma (',') or pipe ('|') characters.\nThese are reserved to define calendar combinations (i.e. UnionCal) and only Cal objects are allowed to be populated directly to the calendar manager.",
             ));
         }
 
         let mut w = NAMED_CALENDARS.write().unwrap();
         if w.contains_key(&k) {
             return Err(PyKeyError::new_err(
-                "`name` already exists in calendars.
-            Cannot overwrite, first `pop` the existing calendar.",
+                "`name` already exists in calendars.\nCannot overwrite, first `pop` the existing calendar.",
             ));
         }
         w.insert(k, Arc::new(CalWrapper::Cal(calendar)));

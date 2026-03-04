@@ -189,6 +189,32 @@ class IRSabrSmile(_BaseIRSmile):
         """An instance of :class:`~rateslib.volatility.utils._SabrSmileNodes`."""
         return self._nodes
 
+    def _get_sabr_param(self, expiry: datetime, tenor: datetime, param: str) -> DualTypes:
+        """
+        Return a specific SABR parameter of the Smile diretcly from its nodes.
+
+        Parameters
+        -----------
+        expiry: datetime, optional
+            The expiry of the option. Required for temporal interpolation.
+        tenor: datetime, optional
+            The termination date of the underlying *IRS*, required for parameter interpolation.
+        param: str,
+            The string in "alpha", "beta", "rho", "nu".
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        if isinstance(expiry, datetime) and self._meta.expiry != expiry:
+            raise ValueError(
+                "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
+                "due to potential pricing errors.",
+            )
+
+        param_ = param.lower()
+        return getattr(self.nodes, param_)
+
     def get_from_strike(
         self,
         k: DualTypes,
@@ -224,6 +250,8 @@ class IRSabrSmile(_BaseIRSmile):
                 "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
                 "due to potential pricing errors.",
             )
+
+        # TODO: catch whether tenor matches the tenor of the Smile and raise an error?
 
         if isinstance(f, NoInput):
             f_: DualTypes = self.meta.irs_fixing.irs.rate(curves=curves)
@@ -863,6 +891,46 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
                 ),
             )
         return smile.get_from_strike(k=k, f=f, curves=curves)
+
+    def _get_sabr_param(self, expiry: datetime, tenor: datetime, param: str) -> DualTypes:
+        """
+        Determine a Smile and return a specific SABR parameter
+
+        Parameters
+        -----------
+        expiry: datetime, optional
+            The expiry of the option. Required for temporal interpolation.
+        tenor: datetime, optional
+            The termination date of the underlying *IRS*, required for parameter interpolation.
+        param: str,
+            The string in "alpha", "beta", "rho", "nu
+
+        Returns
+        -------
+        float, Dual, Dual2, Variable
+        """
+        if (expiry, tenor) in self._cache:
+            smile = self._cache[expiry, tenor]
+        else:
+            alpha, rho, nu = self._bilinear_interpolation(expiry=expiry, tenor=tenor)
+            smile = self._cached_value(
+                key=(expiry, tenor),
+                val=IRSabrSmile(
+                    nodes={
+                        "alpha": alpha,
+                        "beta": self.beta,
+                        "rho": rho,
+                        "nu": nu,
+                    },
+                    eval_date=self.meta.eval_date,
+                    expiry=expiry,
+                    tenor=tenor,
+                    irs_series=self.meta.irs_series,
+                    id="UNUSED_VARIABLE_NAME",
+                    ad=None,  # ensure variables tags are not overridden by new `id`
+                ),
+            )
+        return smile._get_sabr_param(param=param, expiry=expiry, tenor=tenor)
 
     @_new_state_post
     @_clear_cache_post

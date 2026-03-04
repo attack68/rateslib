@@ -30,17 +30,13 @@ from rateslib.instruments.fx_options import (
     FXRiskReversal,
     FXStraddle,
     FXStrangle,
+    FXVolValue,
     _BaseFXOption,
     _BaseFXOptionStrat,
 )
 from rateslib.instruments.fx_swap import FXSwap
-from rateslib.instruments.fx_vol_value import FXVolValue
 from rateslib.instruments.iirs import IIRS
-from rateslib.instruments.ir_options import (
-    PayerSwaption,
-    ReceiverSwaption,
-)
-from rateslib.instruments.ir_vol_value import IRVolValue
+from rateslib.instruments.ir_options import IRVolValue, PayerSwaption, ReceiverSwaption
 from rateslib.instruments.irs import IRS
 from rateslib.instruments.ndf import NDF
 from rateslib.instruments.ndxcs import NDXCS

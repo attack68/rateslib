@@ -11,10 +11,13 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
+from rateslib.data.fixings import _get_irs_series
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import OptionType
 from rateslib.instruments.irs import IRS
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
@@ -22,8 +25,10 @@ from rateslib.instruments.protocols.pricing import (
     _maybe_get_ir_vol_maybe_from_solver,
     _Vol,
 )
+from rateslib.periods.parameters import _IROptionParams
+from rateslib.scheduling import add_tenor
 from rateslib.volatility.fx import FXVolObj
-from rateslib.volatility.ir import IRSabrSmile
+from rateslib.volatility.ir import IRSabrCube, IRSabrSmile
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -31,8 +36,10 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         FXForwards_,
+        IRSSeries,
         Solver_,
         VolT_,
+        datetime,
         datetime_,
         str_,
     )
@@ -101,10 +108,20 @@ class IRVolValue(_BaseInstrument):
 
     Parameters
     ----------
-    index_value : float, Dual, Dual2, :red:`required`
-        The value of some index to the *IRVolSmile* or *IRVolSurface*.
-    expiry: datetime, :green:`optional`
-        The expiry at which to evaluate. This will only be used with *Surfaces*, not *Smiles*.
+    strike: float, Variable, str, :red:`required`
+        The strike value used as the index value to the pricing model.
+        If str, there are two possibilities; {"atm", "{}bps"}. "atm" will produce a strike equal
+        to the mid-market *IRS* rate, whilst "20bps" or "-50bps" will yield a strike that number
+        of basis points different to the mid-market rate.
+    expiry: datetime, str, :red:`required`
+        The expiry of the option. If given in string tenor format, e.g. "1M" requires an
+        ``eval_date``. See **Notes**.
+    tenor: datetime, str, :red:`required`
+        The parameter defining the maturity of the underlying :class:`~rateslib.instruments.IRS`.
+    irs_series: IRSSeries, str, :red:`required`
+        The standard conventions applied to the underlying :class:`~rateslib.instruments.IRS`.
+    eval_date: datetime, :green:`optional`
+        If expiry is given as string tenor, use eval date to determine the date.
     metric: str, :green:`optional (set as 'vol')`
         The default metric to return from the ``rate`` method.
     vol: str, IRSabrSmile, :green:`optional`
@@ -119,15 +136,21 @@ class IRVolValue(_BaseInstrument):
 
     def __init__(
         self,
-        index_value: DualTypes,
-        expiry: datetime_ = NoInput(0),
+        strike: DualTypes | str,
+        expiry: datetime | str,
+        tenor: datetime | str,
+        irs_series: IRSSeries | str,
+        *,
+        eval_date: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
         vol: VolT_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
     ):
         user_args = dict(
+            tenor=tenor,
             expiry=expiry,
-            index_value=index_value,
+            strike=strike,
+            irs_series=irs_series,
             vol=self._parse_vol(vol),
             metric=metric,
             curves=IRS._parse_curves(curves),
@@ -138,6 +161,30 @@ class IRVolValue(_BaseInstrument):
             user_args=user_args,
             default_args=default_args,
             meta_args=["curves", "metric", "vol", "curves"],
+        )
+        if isinstance(self.kwargs.leg1["expiry"], str):
+            if isinstance(eval_date, NoInput):
+                raise ValueError("`tenor` as string requires an `eval_date` to quantify.")
+            series_ = _get_irs_series(self.kwargs.leg1["irs_series"])
+            self.kwargs.leg1["expiry"] = add_tenor(
+                start=eval_date,
+                tenor=self.kwargs.leg1["expiry"],
+                modifier=series_.modifier,
+                calendar=series_.calendar,
+            )
+
+    @cached_property
+    def _ir_option_params(self):
+        return _IROptionParams(
+            _expiry=self.kwargs.leg1["expiry"],
+            _tenor=self.kwargs.leg1["tenor"],
+            _irs_series=_get_irs_series(self.kwargs.leg1["irs_series"]),
+            _strike=self.kwargs.leg1["strike"],
+            # unused parameters
+            _direction=OptionType.Put,
+            _metric=defaults.ir_option_metric,
+            _option_fixings=NoInput(0),
+            _settlement_method=defaults.ir_option_settlement,
         )
 
     def _parse_vol(self, vol: VolT_) -> _Vol:
@@ -162,28 +209,46 @@ class IRVolValue(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         _vol: _Vol = self._parse_vol(vol)
+        vol_ = _maybe_get_ir_vol_maybe_from_solver(
+            vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
+        )
+
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         if metric_ == "vol":
-            vol_ = _maybe_get_ir_vol_maybe_from_solver(
-                vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
-            )
-
-            if isinstance(vol_, IRSabrSmile):
+            if isinstance(vol_, (IRSabrSmile, IRSabrCube)):
                 return vol_.get_from_strike(
-                    k=self.kwargs.leg1["index_value"],
+                    k=self.kwargs.leg1["strike"],
                     curves=curves,
                 ).vol
             else:
                 raise ValueError("`vol` as an object must be provided for VolValue.")
+        elif metric_ in ["alpha", "beta", "rho", "nu"]:
+            if isinstance(vol_, IRSabrSmile | IRSabrCube):
+                return vol_._get_sabr_param(
+                    expiry=self.kwargs.leg1["expiry"],
+                    tenor=self._ir_option_params.option_fixing.termination,
+                    param=metric_,
+                )
+            else:
+                raise ValueError(
+                    "A SABR parameter `metric` can only be obtained from a SABR type "
+                    "IR Volatility object."
+                )
 
-        raise ValueError("`metric` must be in {'vol'}.")
+        raise ValueError("`metric` must be in {'vol', 'alpha', 'beta', 'rho', 'nu'}.")
 
     def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
-        raise NotImplementedError("`VolValue` instrument has no concept of NPV.")
+        raise NotImplementedError(
+            "`VolValue` instrument has no concept of NPV."
+        )  # pragma: no cover
 
     def cashflows(self, *args: Any, **kwargs: Any) -> NoReturn:
-        raise NotImplementedError("`VolValue` instrument has no concept of cashflows.")
+        raise NotImplementedError(
+            "`VolValue` instrument has no concept of cashflows."
+        )  # pragma: no cover
 
     def analytic_delta(self, *args: Any, **kwargs: Any) -> NoReturn:
-        raise NotImplementedError("`VolValue` instrument has no concept of analytic delta.")
+        raise NotImplementedError(
+            "`VolValue` instrument has no concept of analytic delta."
+        )  # pragma: no cover

@@ -311,7 +311,7 @@ def _get_ir_option_metric(method: str | IROptionMetric) -> IROptionMetric:
                     "'black_vol_shift_100"
                 )
             else:
-                args: tuple[Never, ...] | tuple[int]= (int(method[idx + 1 :]),)
+                args: tuple[Never, ...] | tuple[int] = (int(method[idx + 1 :]),)
             method = method[:idx]
         else:
             args = tuple()
