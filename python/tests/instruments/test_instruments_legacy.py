@@ -49,6 +49,7 @@ from rateslib.instruments import (
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
+    IRVolValue,
     PayerSwaption,
     Portfolio,
     ReceiverSwaption,
@@ -73,7 +74,14 @@ from rateslib.legs import Amortization
 from rateslib.periods import ZeroFloatPeriod
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
-from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    IRSabrCube,
+    IRSabrSmile,
+)
 
 
 @pytest.fixture
@@ -9105,3 +9113,149 @@ class TestSwaptions:
         assert abs(result.loc["leg1", "NPV"].iloc[0] - 145219.43237946142) < 1e-8
         assert result.loc["leg1", "Ccy"].iloc[0] == "USD"
         assert result.loc["leg1", "Type"].iloc[0] == "IRSCallPeriod"
+
+
+class TestIRVolValue:
+    def test_solver_passthrough(self) -> None:
+        smile = FXDeltaVolSmile(
+            nodes={0.25: 10.0, 0.5: 10.0, 0.75: 10.0},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delta_type="forward",
+            id="VolSmile",
+        )
+        instruments = [
+            FXVolValue(0.25, vol=smile),
+            FXVolValue(0.5, vol="VolSmile"),
+            FXVolValue(0.75, vol="VolSmile"),
+        ]
+        Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1])
+        assert abs(smile[0.25] - 8.9) < 5e-7
+        assert abs(smile[0.5] - 8.2) < 5e-7
+        assert abs(smile[0.75] - 9.1) < 5e-7
+
+    def test_solver_passthrough_sabr(self) -> None:
+        smile = FXSabrSmile(
+            nodes={"alpha": 0.01, "beta": 1.0, "rho": 0.01, "nu": 0.01},
+            eval_date=dt(2023, 3, 16),
+            expiry=dt(2023, 6, 16),
+            delivery_lag=2,
+            calendar="tgt|fed",
+            pair="eurusd",
+            id="VolSmile",
+        )
+        fxf = FXForwards(
+            fx_curves={
+                "eureur": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.95}),
+                "eurusd": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.95}),
+                "usdusd": Curve({dt(2023, 3, 16): 1.0, dt(2025, 6, 9): 0.93}),
+            },
+            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2023, 3, 18)),
+        )
+        instruments = [
+            FXVolValue(1.0, vol=smile),
+            FXVolValue(1.10, vol="VolSmile"),
+            FXVolValue(1.20, vol="VolSmile"),
+        ]
+        Solver(curves=[smile], instruments=instruments, s=[8.9, 8.2, 9.1], fx=fxf)
+        assert abs(smile.get_from_strike(1.0, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 8.9) < 5e-7
+        assert abs(smile.get_from_strike(1.10, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 8.2) < 5e-7
+        assert abs(smile.get_from_strike(1.20, fxf.rate("eurusd", dt(2023, 6, 20)))[1] - 9.1) < 5e-7
+
+    def test_solver_surface_passthrough(self) -> None:
+        surface = FXDeltaVolSurface(
+            delta_indexes=[0.5],
+            expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
+            node_values=[[1.0], [1.0]],
+            eval_date=dt(1999, 12, 1),
+            delta_type="forward",
+            id="VolSurf",
+        )
+        instruments = [
+            FXVolValue(0.25, dt(2000, 1, 1), vol=surface),
+            FXVolValue(0.5, dt(2001, 1, 1), vol="VolSurf"),
+        ]
+        Solver(surfaces=[surface], instruments=instruments, s=[8.9, 8.2], func_tol=1e-14)
+        assert abs(surface._get_index(0.5, dt(2000, 1, 1)) - 8.9) < 5e-7
+        assert abs(surface._get_index(0.5, dt(2001, 1, 1)) - 8.2) < 5e-7
+
+    def test_no_solver_vol_value(self) -> None:
+        vv = FXVolValue(0.25, vol="string_id")
+        with pytest.raises(ValueError, match="`vol` must contain FXVol object, not str,"):
+            vv.rate()
+
+    def test_repr(self):
+        v = IRVolValue(
+            strike=0.25,
+            expiry="1y",
+            tenor="1y",
+            eval_date=dt(2000, 1, 1),
+            irs_series="usd_irs",
+        )
+        expected = f"<rl.IRVolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected
+
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            IRSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "beta": 1.0,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                eval_date=dt(2001, 1, 1),
+                expiry="1y",
+                irs_series="eur_irs6",
+                tenor="1y",
+                id="vol",
+            ),
+            IRSabrCube(
+                eval_date=dt(2001, 1, 1),
+                expiries=["1y"],
+                tenors=["1Y", "2y"],
+                irs_series="usd_irs",
+                beta=1.0,
+                alphas=np.array([[0.17431060, 0.2]]),
+                rhos=np.array([[-0.11268306, 0.2]]),
+                nus=np.array([[0.81694072, 0.2]]),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("metric", ["alpha", "beta", "rho", "nu"])
+    def test_sabr_param(self, vol, metric):
+        v = IRVolValue(
+            strike=0.25,
+            expiry="1y",
+            tenor="1y",
+            eval_date=dt(2001, 1, 1),
+            irs_series="usd_irs",
+            metric=metric,
+        )
+        expected = {
+            "alpha": 0.17431060,
+            "beta": 1.0,
+            "rho": -0.11268306,
+            "nu": 0.81694072,
+        }
+        assert v.rate(vol=vol) == expected[metric]
+
+    def test_sabr_surface(self):
+        fxss = FXSabrSurface(
+            expiries=[dt(2000, 6, 1), dt(2000, 9, 1)],
+            node_values=[[0.1, 1.0, 0.01, 0.01], [0.11, 1.0, 0.01, 0.01]],
+            eval_date=dt(2000, 1, 1),
+            pair="eurusd",
+        )
+        fxvv = FXVolValue(index_value=1.1, expiry=dt(2000, 8, 1))
+        fxf = FXForwards(
+            fx_rates=FXRates({"eurusd": 1.15}, settlement=dt(2000, 1, 4)),
+            fx_curves={
+                "eureur": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.95}),
+                "eurusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.951}),
+                "usdusd": Curve({dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 0.94}),
+            },
+        )
+        result = fxvv.rate(vol=fxss, fx=fxf)
+        assert abs(result - 10.767884) < 1e-5

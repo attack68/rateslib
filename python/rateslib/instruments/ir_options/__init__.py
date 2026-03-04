@@ -10,9 +10,11 @@
 ####################################################################################################
 
 from rateslib.instruments.ir_options.call_put import PayerSwaption, ReceiverSwaption, _BaseIROption
+from rateslib.instruments.ir_options.vol_value import IRVolValue
 
 __all__ = [
     "PayerSwaption",
     "ReceiverSwaption",
+    "IRVolValue",
     "_BaseIROption",
 ]

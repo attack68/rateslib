@@ -206,6 +206,7 @@ __all__ = [
     "dt",
     "defaults",
     "fixings",
+    "calendars",
     "licence",
     "from_json",
     # enums.py
