@@ -174,7 +174,7 @@ class IRVolValue(_BaseInstrument):
             )
 
     @cached_property
-    def _ir_option_params(self):
+    def _ir_option_params(self) -> _IROptionParams:
         return _IROptionParams(
             _expiry=self.kwargs.leg1["expiry"],
             _tenor=self.kwargs.leg1["tenor"],
@@ -220,6 +220,8 @@ class IRVolValue(_BaseInstrument):
                 return vol_.get_from_strike(
                     k=self.kwargs.leg1["strike"],
                     curves=curves,
+                    expiry=self.kwargs.leg1["expiry"],
+                    tenor=self._ir_option_params.option_fixing.termination,
                 ).vol
             else:
                 raise ValueError("`vol` as an object must be provided for VolValue.")

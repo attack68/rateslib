@@ -21,7 +21,9 @@ from rateslib.mutability import _WithCache, _WithState
 from rateslib.volatility.ir.utils import _IRSmileMeta
 
 if TYPE_CHECKING:
-    pass
+    from rateslib.local_types import (  # pragma: no cover
+        CurvesT_,
+    )
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
@@ -46,23 +48,35 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes]):
         comparators: list[_BaseIRSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str | NoInput = NoInput(0),
+        y_axis: str | NoInput = NoInput(0),
         f: DualTypes | NoInput = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
     ) -> PlotOutput:
         """
         Plot volatilities associated with the *Smile*.
 
+        .. role:: green
+
+        .. role:: red
+
         Parameters
         ----------
-        comparators: list[Smile]
+        comparators: list[Smile], :green:`optional`
             A list of Smiles which to include on the same plot as comparators.
-        labels : list[str]
+        labels : list[str], :green:`optional`
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
-        x_axis : str in {"strike", "moneyness"}
+        x_axis : str in {"strike", "moneyness"}, :green:`optional (set by object)`
             *'strike'* is the natural option for this *SabrSmile*.
             If *'moneyness'* the strikes are converted using ``f``.
-        f: DualTypes
-            The mid-market IRS rate.
+        y_axis : str in {"black_vol", "normal_vol"}, :green:`optional (set by object)`
+            Convert the y-axis to a different representation using the Hagan approximation from
+            `Managing Smile Risk <https://www.researchgate.net/publication/235622441_Managing_Smile_Risk>`__
+        f: DualTypes, :green:`optional`
+            The mid-market IRS rate. If ``curves`` are not given then ``f`` is required.
+        curves: Curves, :green:`optional`
+            The *Curves* in the required form for an :class:`~rateslib.instruments.IRS`. If ``f``
+            is not given then ``curves`` are required.
 
         Returns
         -------
@@ -73,16 +87,18 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes]):
         labels = _drb([], labels)
 
         x_axis_: str = _drb(self.meta.plot_x_axis, x_axis)
+        y_axis_: str = _drb(self.meta.plot_y_axis, y_axis)
+        del x_axis, y_axis
 
-        x_, y_ = self._plot(x_axis_, f)  # type: ignore[attr-defined]
+        x_, y_ = self._plot(x_axis_, f, y_axis_, curves)  # type: ignore[attr-defined]
 
         x = [x_]
         y = [y_]
         if not isinstance(comparators, NoInput):
             for smile in comparators:
                 if not isinstance(smile, _BaseIRSmile):
-                    raise ValueError("A `comparator` must be a valid FX Smile type.")
-                x_, y_ = smile._plot(x_axis_, f)  # type: ignore[attr-defined]
+                    raise ValueError("A `comparator` must be a valid IR Smile type.")
+                x_, y_ = smile._plot(x_axis_, f, y_axis_, curves)  # type: ignore[attr-defined]
                 x.append(x_)
                 y.append(y_)
 

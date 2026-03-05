@@ -3,7 +3,10 @@
 .. ipython:: python
    :suppress:
 
-   from rateslib.volatility import IRSabrSmile
+   from rateslib.volatility import IRSabrSmile, IRSabrCube
+   from rateslib.instruments import IRS, IRCall, IRPut, IRStraddle
+   from rateslib.curves import Curve
+   from rateslib.solver import Solver
    import matplotlib.pyplot as plt
    from datetime import datetime as dt
    import numpy as np
@@ -57,14 +60,20 @@ An example of an *IRSabrSmile* is shown below.
            "nu": 0.65,
        },
    )
-   #  -->  smile.plot(x_axis="strike", f=2.25)
+   #  -->  smile.plot(f=2.25,)
    #  -->  smile.plot(x_axis="moneyness", f=2.25)
+   #  -->  smile.plot(f=2.25, y_axis="normal_vol")
+   #  -->  smile.plot(x_axis="moneyness", f=2.25, y_axis="normal_vol")
+
+Note that *Black Vol* plotted below uses the ``shift`` parameter that is associated with
+the *Smile*, but that shift is not plotted. A *Smile* with a larger ``shift`` typically results
+in a lower *Black Vol*.
 
 .. container:: twocol
 
    .. container:: leftside50
 
-      **Strike vs Vol Plot**
+      **Strike vs Black Vol Plot**
 
       .. plot::
 
@@ -86,9 +95,31 @@ An example of an *IRSabrSmile* is shown below.
          plt.show()
          plt.close()
 
+      **Strike vs Normal Vol Plot**
+
+      .. plot::
+
+         from rateslib.volatility import IRSabrSmile
+         from datetime import datetime as dt
+         smile = IRSabrSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             tenor="1y",
+             irs_series="usd_irs",
+             nodes={
+                 "alpha": 0.20,
+                 "beta": 0.5,
+                 "rho": -0.05,
+                 "nu": 0.65,
+             },
+         )
+         fig, ax, lines = smile.plot(x_axis="strike", f=2.25, y_axis="normal_vol")
+         plt.show()
+         plt.close()
+
    .. container:: rightside50
 
-      **Moneyness vs Vol Plot**
+      **Moneyness vs Black Vol Plot**
 
       .. plot::
 
@@ -110,250 +141,403 @@ An example of an *IRSabrSmile* is shown below.
          plt.show()
          plt.close()
 
+      **Moneyness vs Normal Vol Plot**
+
+      .. plot::
+
+         from rateslib.volatility import IRSabrSmile
+         from datetime import datetime as dt
+         smile = IRSabrSmile(
+             eval_date=dt(2000, 1, 1),
+             expiry=dt(2000, 7, 1),
+             tenor="1y",
+             irs_series="usd_irs",
+             nodes={
+                 "alpha": 0.20,
+                 "beta": 0.5,
+                 "rho": -0.05,
+                 "nu": 0.65,
+             },
+         )
+         fig, ax, lines = smile.plot(x_axis="moneyness", f=2.25, y_axis="normal_vol")
+         plt.show()
+         plt.close()
+
 .. _c-ir-smile-constructing-doc:
 
-Constructing a Smile
-*********************
+Calibrating a Smile
+**********************
 
 It is expected that *Smiles* will typically be calibrated to market prices, similar to
-interest rate curves.
+interest rate *Curves*.
 
-..
-    The following data describes *Instruments* to calibrate the EURUSD FX volatility surface on 7th May 2024.
-    We will take a cross-section of this data, at the 3-week expiry (28th May 2024), and create
-    both an *FXDeltaVolSmile* and *FXSabrSmile*.
+As usual with the :class:`~rateslib.solver.Solver` you can use any relevant *Instruments*
+and ``metrics`` to
+calibrate a *Smile* provided they are sufficiently suitable. Below we use an *ATM-Straddle* and
+an *OTM-Put* and *OTM-Call* to define the smile and skew. The normal-bps prices (and note
+that the ``metric`` of the *IROption Instruments* are specifically set to *'normal_vol'*) are
+calibrated to 50bps, 62bps and 60bps respectively.
 
-    FX Options are **multi-currency derivative** *Instruments* and require an :class:`~rateslib.fx.FXForwards`
-    framework for pricing. We will do this first using other prevailing market data,
-    i.e. local currency interest rates at 3.90% and 5.32%, and an FX Swap rate at 8.85 points.
+.. ipython:: python
 
-    .. ipython:: python
+   # Define an interest rate curve for pricing the mid-market rate of an IRS
+   curve = Curve(
+       nodes={dt(2026, 3, 2): 1.0, dt(2029, 3, 2): 0.90},
+       calendar="nyc",
+       convention="act360",
+       id="sofr",
+   )
+   curve_solver = Solver(
+       curves=[curve],
+       instruments=[IRS(dt(2026, 3, 4), "2y", spec="usd_irs", curves=["sofr"])],
+       s=[3.90],
+       instrument_labels=["US_2y"],
+   )
+   # Define the SABR Smile for pricing a 6m1y Swaption.
+   smile = IRSabrSmile(
+       eval_date=dt(2026, 3, 2),
+       expiry="6m",
+       tenor="1y",
+       irs_series="usd_irs",
+       nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5},
+       id="sofr_vol",
+   )
+   solver = Solver(
+       pre_solvers=[curve_solver],  # <- contains the US SOFR Curve
+       curves=[smile],              # <- mutates only the smile
+       instruments=[
+           IRStraddle(dt(2026, 9, 2), "1y", "atm", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+           IRPut(dt(2026, 9, 2), "1y", "-20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+           IRCall(dt(2026, 9, 2), "1y", "+20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+       ],
+       s=[50, 62, 60],
+       instrument_labels=["ATM", "-20bps", "20bps"],
+       id="sofr_sv",
+   )
 
-       # Define the interest rate curves for EUR, USD and X-Ccy basis
-       usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
-       eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
-       eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
+.. plot::
+   :caption: Rateslib IR SABR Vol Smile
 
-       # Create an FX Forward market with spot FX rate data
-       fxf = FXForwards(
-           fx_rates=FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9)),
-           fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
-       )
+   from rateslib.curves import Curve
+   from rateslib.instruments import *
+   from rateslib.volatility import IRSabrSmile
+   from rateslib.solver import Solver
+   from datetime import datetime as dt
+   import matplotlib.pyplot as plt
+   # Define an interest rate curve for pricing the mid-market rate of an IRS
+   curve = Curve(
+       nodes={dt(2026, 3, 2): 1.0, dt(2029, 3, 2): 0.90},
+       calendar="nyc",
+       convention="act360",
+       id="sofr",
+   )
+   # Define the SABR Smile for pricing a 6m1y Swaption.
+   smile = IRSabrSmile(
+       eval_date=dt(2026, 3, 2),
+       expiry="6m",
+       tenor="1y",
+       irs_series="usd_irs",
+       nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5},
+       id="sofr_vol",
+   )
+   # Solve Curve and Smile simultaneously in this small system
+   solver = Solver(
+       curves=[curve, smile],
+       instruments=[
+           IRS(dt(2026, 3, 2), "2y", spec="usd_irs", curves="sofr"),
+           IRStraddle(dt(2026, 9, 2), "1y", "atm", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+           IRPut(dt(2026, 9, 2), "1y", "-20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+           IRCall(dt(2026, 9, 2), "1y", "+20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+       ],
+       s=[3.90, 50, 62, 60],
+       id="sofr_sv",
+   )
+   fig, ax, line = smile.plot(x_axis="strike", y_axis="normal_vol", labels=["Normal Vol"], curves=curve)
+   plt.show()
+   plt.close()
 
-       pre_solver = Solver(
-           curves=[eureur, eurusd, usdusd],
-           instruments=[
-               IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
-               IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-               FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=["eurusd", "usdusd"]),
-           ],
-           s=[3.90, 5.32, 8.85],
-           fx=fxf,
-           id="rates_sv",
-       )
+IR Volatility Cube
+*********************
 
-    Since EURUSD *Options* are **not** premium adjusted and the premium currency is USD we will match
-    the *FXDeltaVolSmile* with this definition and set it to a ``delta_type`` of *'spot'*, matching
-    the market convention of these quoted instruments.
-    Since we have 5 calibrating instruments we can safely utilise 5 degrees of freedom.
+*IR Swaptions* are typically priced by an object that simultaneously measures its **expiry**,
+**tenor** and **strike**. *Rateslib* implements an :class:`~rateslib.volatility.IRSabrCube` which
+constructs an individual :class:`~rateslib.volatility.IRSabrSmile` for each **(expiry, tenor)**
+pair.
 
-    .. ipython:: python
+.. container:: twocol
 
-       dv_smile = FXDeltaVolSmile(
-           nodes={
-               0.10: 10.0,
-               0.25: 10.0,
-               0.50: 10.0,
-               0.75: 10.0,
-               0.90: 10.0,
-           },
-           eval_date=dt(2024, 5, 7),
-           expiry=dt(2024, 5, 28),
-           delta_type="spot",
-           id="eurusd_3w_smile"
-       )
+   .. container:: leftside40
 
-       sabr_smile = FXSabrSmile(
-           nodes={
-               "alpha": 0.10,  # default vol level set to 10%
-               "beta": 1.0,  # model is fully lognormal
-               "rho": 0.10,
-               "nu": 1.0,  # initialised with curvature
-           },
-           eval_date=dt(2024, 5, 7),
-           expiry=dt(2024, 5, 28),
-           id="eurusd_3w_smile"
-       )
+      .. image:: _static/ir_sabr_cube_grid.png
+         :align: center
+         :alt: IR Sabr Cube framework in Rateslib
+         :height: 180
+         :width: 380
 
-    The above *FXDeltaVolSmile* is initialised as a flat vol at 10%, whilst the *FXSabrSmile*
-    is initialised with around 10% with some shallow curvature. In order to calibrate
-    these, we need to create the pricing
-    instruments, given in the market prices data table.
+   .. container:: rightside60
 
-    .. ipython:: python
+      The SABR parameters for each :class:`~rateslib.volatility.IRSabrSmile` are either provided
+      directly at each node in the (expiry, tenor) surface grid, or are **bilinearly interpolated**.
 
-       # Setup the Solver instrument calibration for FXOptions and vol Smiles
-       option_args=dict(
-           pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt|fed", delta_type="spot",
-           curves=["eurusd", "usdusd"], vol="eurusd_3w_smile"
-       )
-       dv_solver = Solver(
-           pre_solvers=[pre_solver],
-           curves=[dv_smile],
-           instruments=[
-               FXStraddle(strike="atm_delta", **option_args),
-               FXRiskReversal(strike=("-25d", "25d"), **option_args),
-               FXRiskReversal(strike=("-10d", "10d"), **option_args),
-               FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
-               FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
-           ],
-           s=[5.493, -0.157, -0.289, 0.071, 0.238],
-           fx=fxf,
-           id="dv_solver",
-       )
+      The below example has 4 grid points defined by 2 expiries and 2 tenors. Since each *Smile*
+      at each gridpoint has 3 variable SABR parameters this *Cube* has a total of 12 parameters.
 
-    The *FXSabrSmile* can be similarly calibrated.
+.. ipython:: python
 
-    .. ipython:: python
+   # Define the SABR Cube with 4 gridpoints and consistent SABR parameters.
+   cube = IRSabrCube(
+       eval_date=dt(2026, 3, 2),
+       expiries=["1y", "5y"],
+       tenors=["1y", "5y"],
+       irs_series="usd_irs",
+       beta=0.5,
+       alphas=0.25, # <- set every alpha to 0.25 initially
+       rhos=-0.05,  # <- set every rho to -0.05 initially
+       nus=0.5,     # <- set every nu to 0.50 initially
+       id="sofr_cube",
+   )
+   # Calibrate the Cube accoridng to 12 instruments
+   op_args = dict(
+       eval_date=dt(2026, 3, 2),
+       curves=["sofr"],
+       vol="sofr_cube",
+       metric="normal_vol",
+   )
+   instruments = [
+       IRStraddle("1y", "1y", "atm", "usd_irs", **op_args),
+       IRStraddle("5y", "1y", "atm", "usd_irs", **op_args),
+       IRStraddle("1y", "5y", "atm", "usd_irs", **op_args),
+       IRStraddle("5y", "5y", "atm", "usd_irs", **op_args),
+       IRPut("1y", "1y", "-20bps", "usd_irs", **op_args),
+       IRPut("5y", "1y", "-20bps", "usd_irs", **op_args),
+       IRPut("1y", "5y", "-20bps", "usd_irs", **op_args),
+       IRPut("5y", "5y", "-20bps", "usd_irs", **op_args),
+       IRCall("1y", "1y", "+20bps", "usd_irs", **op_args),
+       IRCall("5y", "1y", "+20bps", "usd_irs", **op_args),
+       IRCall("1y", "5y", "+20bps", "usd_irs", **op_args),
+       IRCall("5y", "5y", "+20bps", "usd_irs", **op_args),
+   ]
+   solver = Solver(
+       pre_solvers=[curve_solver],
+       surfaces=[cube],
+       instruments=instruments,
+       s=[
+           51.6, 50.8, 55.1, 88.1,  # <- Straddles
+           52.1, 51.1, 55.6, 88.8,  # <- OTM Puts
+           52.7, 51.5, 55.6, 89.1   # <- OT< Calls
+       ],
+       instrument_labels=[
+           "1y1y ATM", "5y1y ATM", "1y5y ATM", "5y5y ATM",
+           "1y1y Put", "5y1y Put", "1y5y Put", "5y5y Put",
+           "1y1y Call", "5y1y Call", "1y5y Call", "5y5y Call",
+       ]
+   )
 
-       sabr_solver = Solver(
-           pre_solvers=[pre_solver],
-           curves=[sabr_smile],
-           instruments=[
-               FXStraddle(strike="atm_delta", **option_args),
-               FXRiskReversal(strike=("-25d", "25d"), **option_args),
-               FXRiskReversal(strike=("-10d", "10d"), **option_args),
-               FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
-               FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
-           ],
-           s=[5.493, -0.157, -0.289, 0.071, 0.238],
-           fx=fxf,
-           id="sabr_solver",
-       )
+The solved parameters are visible as attributes on the object.
 
-       dv_smile.plot(f=fxf.rate("eurusd", dt(2024, 5, 30)), x_axis="delta", labels=["DeltaVol", "Sabr"])
+.. ipython:: python
 
+   cube.alpha_float
 
-    .. plot::
-       :caption: Rateslib Vol Smile: 'delta index'
+.. ipython:: python
 
-       from rateslib.curves import Curve
-       from rateslib.instruments import *
-       from rateslib.volatility import FXDeltaVolSmile, FXSabrSmile
-       from rateslib.fx import FXRates, FXForwards
-       from rateslib.solver import Solver
-       import matplotlib.pyplot as plt
-       from datetime import datetime as dt
-       dv_smile = FXDeltaVolSmile(
-           nodes={
-               0.10: 10.0,
-               0.25: 10.0,
-               0.50: 10.0,
-               0.75: 10.0,
-               0.90: 10.0,
-           },
-           eval_date=dt(2024, 5, 7),
-           expiry=dt(2024, 5, 28),
-           delta_type="spot",
-           id="eurusd_3w_smile"
-       )
-       sabr_smile = FXSabrSmile(
-           nodes={
-               "alpha": 0.10,
-               "beta": 1.0,
-               "rho": 0.10,
-               "nu": 1.0,
-           },
-           eval_date=dt(2024, 5, 7),
-           expiry=dt(2024, 5, 28),
-           id="eurusd_3w_smile"
-       )
-       # Define the interest rate curves for EUR, USD and X-Ccy basis
-       eureur = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="tgt", id="eureur")
-       eurusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, id="eurusd")
-       usdusd = Curve({dt(2024, 5, 7): 1.0, dt(2024, 5, 30): 1.0}, calendar="nyc", id="usdusd")
-       # Create an FX Forward market with spot FX rate data
-       fxf = FXForwards(
-           fx_rates=FXRates({"eurusd": 1.0760}, settlement=dt(2024, 5, 9)),
-           fx_curves={"eureur": eureur, "usdusd": usdusd, "eurusd": eurusd},
-       )
-       # Setup the Solver instrument calibration for rates Curves and vol Smiles
-       option_args=dict(
-           pair="eurusd", expiry=dt(2024, 5, 28), calendar="tgt", delta_type="spot",
-           curves=["eurusd", "usdusd"], vol="eurusd_3w_smile"
-       )
-       pre_solver = Solver(
-           curves=[eureur, eurusd, usdusd],
-           instruments=[
-               IRS(dt(2024, 5, 9), "3W", spec="eur_irs", curves="eureur"),
-               IRS(dt(2024, 5, 9), "3W", spec="usd_irs", curves="usdusd"),
-               FXSwap(dt(2024, 5, 9), "3W", pair="eurusd", curves=["eurusd", "usdusd"]),
-           ],
-           s=[3.90, 5.32, 8.85],
-           fx=fxf,
-       )
-       sabr_solver = Solver(
-           pre_solvers=[pre_solver],
-           curves=[sabr_smile],
-           instruments=[
-               FXStraddle(strike="atm_delta", **option_args),
-               FXRiskReversal(strike=("-25d", "25d"), **option_args),
-               FXRiskReversal(strike=("-10d", "10d"), **option_args),
-               FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
-               FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
-           ],
-           s=[5.493, -0.157, -0.289, 0.071, 0.238],
-           fx=fxf,
-           id="sabr_solver",
-       )
-       dv_solver = Solver(
-           pre_solvers=[pre_solver],
-           curves=[dv_smile],
-           instruments=[
-               FXStraddle(strike="atm_delta", **option_args),
-               FXRiskReversal(strike=("-25d", "25d"), **option_args),
-               FXRiskReversal(strike=("-10d", "10d"), **option_args),
-               FXBrokerFly(strike=(("-25d", "25d"), "atm_delta"), **option_args),
-               FXBrokerFly(strike=(("-10d", "10d"), "atm_delta"), **option_args),
-           ],
-           s=[5.493, -0.157, -0.289, 0.071, 0.238],
-           fx=fxf,
-           id="dv_solver",
-       )
-       fig, ax, line = dv_smile.plot(f=fxf.rate("eurusd", dt(2024, 5, 30)), x_axis="delta", comparators=[sabr_smile], labels=["DeltaVol", "Sabr"])
-       plt.show()
-       plt.close()
+   cube.rho_float
+
+.. ipython:: python
+
+   cube.nu_float
+
+Different Volatility Measures
+********************************
+
+The SABR model outputs a Black (log-normal) volatility, used in the Black-76 pricing model.
+To handle negative interest rates, industry standard is to apply shifts to the strikes and
+forwards, e.g. +100bps. This is available as a *meta* property on the pricing object.
+
+Normal basis points volatility, which prices options under the Bachelier pricing model
+can be observed;
+
+- in *plots* where the Hagan approximation is used.
+- in *Instruments* when the *'normal_vol'* ``metric`` is used.
+
+The :class:`~rateslib.volatility.IRSabrSmile` and :class:`~rateslib.volatility.IRSabrCube` are
+simply parameter containers so each, with its own hyper-parameters can be calibrated accoridng to
+the same *Instrument* specification, and each resultant object results in very similar option
+prices.
+
+.. ipython:: python
+
+   smile_args = dict(
+       eval_date=dt(2026, 3, 2),
+       expiry="6m",
+       tenor="1y",
+       irs_series="usd_irs",
+       id="sofr_vol",
+   )
+   def smile_solver_factory(smile):
+        solver = Solver(
+            pre_solvers=[curve_solver],  # <- contains the US SOFR Curve
+            curves=[smile],              # <- mutates only the smile
+            instruments=[
+                IRStraddle(dt(2026, 9, 2), "1y", "atm", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                IRPut(dt(2026, 9, 2), "1y", "-20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                IRCall(dt(2026, 9, 2), "1y", "+20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+            ],
+            s=[50, 62, 60],
+            instrument_labels=["ATM", "-20bps", "20bps"],
+            id="sofr_sv",
+        )
+
+.. ipython:: python
+
+   # Define different SABR Smiles
+   smile1 = IRSabrSmile(shift=0, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+   smile2 = IRSabrSmile(shift=0, nodes={"beta": 0.75, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+   smile3 = IRSabrSmile(shift=0, nodes={"beta": 0.25, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+   smile4 = IRSabrSmile(shift=100, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+   smile5 = IRSabrSmile(shift=200, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+   # calibrate each smile similarly
+   smile_solver_factory(smile1)
+   smile_solver_factory(smile2)
+   smile_solver_factory(smile3)
+   smile_solver_factory(smile4)
+   smile_solver_factory(smile5)
 
 
-    FX Volatility Surfaces
-    **********************
+.. container:: twocol
 
-    An :class:`~rateslib.volatility.FXDeltaVolSurface` in *rateslib* is a collection of
-    multiple, cross-sectional :class:`~rateslib.volatility.FXDeltaVolSmile` where:
+   .. container:: leftside50
 
-    - each cross-sectional *Smile* will represent a *DeltaVolSmile* at that explicit *expiry*,
-    - the *delta type* and the *delta indexes* on each cross-sectional *Smile* are the same,
-    - each *Smile* has its own calibrated node values,
-    - *Smiles* for *expiries* that do not pre-exist are generated with an interpolation
-      scheme that uses linear total variance, which is equivalent to flat-forward volatility,
-      measured relative to the delta indexes.
+      **Strike vs Black Vol Plot**
 
-    An :class:`~rateslib.volatility.FXSabrSurface` is a collection of multiple,
-    cross-sectional :class:`~rateslib.volatility.FXSabrSmile` where:
+      .. plot::
 
-    - each cross-sectional *Smile* will represent a *SabrSmile* at that explicit *expiry*,
-    - each cross-sectional *Smile* is defined by its own :math:`\alpha, \beta, \rho, \nu`
-      parameters,
-    - *Smiles* for *expiries* that do not pre-exist are **not** generated. Volatility values
-      for a given *strike*  are interpolated with linear total variance between the volatility
-      on neighboring *Smiles* for the same *strike*.
+         from rateslib import dt, Solver, IRS, Curve, IRCall, IRPut, IRSabrSmile, IRStraddle
+         curve = Curve(
+             nodes={dt(2026, 3, 2): 1.0, dt(2029, 3, 2): 0.90},
+             calendar="nyc",
+             convention="act360",
+             id="sofr",
+         )
+         curve_solver = Solver(
+             curves=[curve],
+             instruments=[IRS(dt(2026, 3, 4), "2y", spec="usd_irs", curves=["sofr"])],
+             s=[3.90],
+             instrument_labels=["US_2y"],
+         )
+         smile_args = dict(
+             eval_date=dt(2026, 3, 2),
+             expiry="6m",
+             tenor="1y",
+             irs_series="usd_irs",
+             id="sofr_vol",
+         )
+         def smile_solver_factory(smile):
+             solver = Solver(
+                 pre_solvers=[curve_solver],  # <- contains the US SOFR Curve
+                 curves=[smile],              # <- mutates only the smile
+                 instruments=[
+                     IRStraddle(dt(2026, 9, 2), "1y", "atm", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                     IRPut(dt(2026, 9, 2), "1y", "-20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                     IRCall(dt(2026, 9, 2), "1y", "+20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                 ],
+                 s=[50, 62, 60],
+                 instrument_labels=["ATM", "-20bps", "20bps"],
+                 id="sofr_sv",
+             )
+         smile1 = IRSabrSmile(shift=0, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile2 = IRSabrSmile(shift=0, nodes={"beta": 0.75, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile3 = IRSabrSmile(shift=0, nodes={"beta": 0.25, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile4 = IRSabrSmile(shift=100, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile5 = IRSabrSmile(shift=200, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         # calibrate each smile similarly
+         smile_solver_factory(smile1)
+         smile_solver_factory(smile2)
+         smile_solver_factory(smile3)
+         smile_solver_factory(smile4)
+         smile_solver_factory(smile5)
 
-    **Further Information**
+         fig, ax, lines = smile1.plot(x_axis="strike", curves=curve, comparators=[smile2, smile3, smile4, smile5], labels=["b=0.5", "b=0.75", "b=0.25", "shift=100", "shift=200"])
+         plt.show()
+         plt.close()
 
-    Examples of the differences between each *Surface* type, temporal interpolation and using
-    **volatility weights** and calibrating an entire EURUSD surface to all given market data
-    is included in three separate notebooks available in the :ref:`Cookbook <cookbook-doc>`.
+   .. container:: rightside50
 
-    - Comparing Surface Interpolation for FX Options.
-    - FX Volatility Surface Temporal Interpolation.
-    - A EURUSD market for IRS, cross-currency and FX volatility.
+      **Strike vs Normal Vol Plot**
+
+      .. plot::
+
+         from rateslib import dt, Solver, IRS, Curve, IRCall, IRPut, IRSabrSmile, IRStraddle
+         curve = Curve(
+             nodes={dt(2026, 3, 2): 1.0, dt(2029, 3, 2): 0.90},
+             calendar="nyc",
+             convention="act360",
+             id="sofr",
+         )
+         curve_solver = Solver(
+             curves=[curve],
+             instruments=[IRS(dt(2026, 3, 4), "2y", spec="usd_irs", curves=["sofr"])],
+             s=[3.90],
+             instrument_labels=["US_2y"],
+         )
+         smile_args = dict(
+             eval_date=dt(2026, 3, 2),
+             expiry="6m",
+             tenor="1y",
+             irs_series="usd_irs",
+             id="sofr_vol",
+         )
+         def smile_solver_factory(smile):
+             solver = Solver(
+                 pre_solvers=[curve_solver],  # <- contains the US SOFR Curve
+                 curves=[smile],              # <- mutates only the smile
+                 instruments=[
+                     IRStraddle(dt(2026, 9, 2), "1y", "atm", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                     IRPut(dt(2026, 9, 2), "1y", "-20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                     IRCall(dt(2026, 9, 2), "1y", "+20bps", "usd_irs", curves="sofr", vol="sofr_vol", metric="normal_vol"),
+                 ],
+                 s=[50, 62, 60],
+                 instrument_labels=["ATM", "-20bps", "20bps"],
+                 id="sofr_sv",
+             )
+         smile1 = IRSabrSmile(shift=0, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile2 = IRSabrSmile(shift=0, nodes={"beta": 0.75, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile3 = IRSabrSmile(shift=0, nodes={"beta": 0.25, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile4 = IRSabrSmile(shift=100, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         smile5 = IRSabrSmile(shift=200, nodes={"beta": 0.5, "alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args)
+         # calibrate each smile similarly
+         smile_solver_factory(smile1)
+         smile_solver_factory(smile2)
+         smile_solver_factory(smile3)
+         smile_solver_factory(smile4)
+         smile_solver_factory(smile5)
+
+         fig, ax, lines = smile1.plot(x_axis="strike", y_axis="normal_vol", curves=curve, comparators=[smile2, smile3, smile4, smile5], labels=["b=0.5", "b=0.75", "b=0.25", "shift=100", "shift=200"])
+         plt.show()
+         plt.close()
+
+
+Delta and Gamma Risks
+***********************
+
+Because these objects are integrated into the :class:`~rateslib.solver.Solver` framework
+delta and cross-gamma risks are available in the usual way utilising 1st and 2nd order AD,
+with risks expressed relative to the rate ``metric`` of each *Instrument*. Consider a
+2y2y ATM Payer Swaption:
+
+.. ipython:: python
+
+   irc = IRCall(
+       eval_date=dt(2026, 3, 2),
+       expiry="2y",
+       tenor="2y",
+       strike=3.0,
+       notional=100e6,
+       irs_series="usd_irs",
+       curves="sofr",
+       vol="sofr_cube",
+       premium=1800000.0,
+   )
+   irc.npv(solver=solver)
+   irc.delta(solver=solver)
+   irc.gamma(solver=solver)
