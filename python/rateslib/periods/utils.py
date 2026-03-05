@@ -179,7 +179,7 @@ def _get_ir_vol_value_and_forward_maybe_from_obj(
         if strike.lower() == "atm":
             k_ = f_
         elif "bps" in strike:
-            k_ = f_ + float(strike[:-3])
+            k_ = f_ + float(strike[:-3]) / 100.0
         else:
             raise ValueError("`strike` as string must be either 'atm' or '{}bps'.")
     else:

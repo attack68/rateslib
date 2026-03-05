@@ -79,19 +79,29 @@ class _IRVolPricingMetrics:
 
 class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
     """
-    Abstract base class for implementing *IROptions*.
+    Abstract base class for implementing *IR Swaptions*.
 
-    See :class:`~rateslib.instruments.PayerSwaption` and
-    :class:`~rateslib.instruments.ReceiverSwaption`.
+    See :class:`~rateslib.instruments.IRCall` and
+    :class:`~rateslib.instruments.IRPut`.
     """
 
-    _rate_scalar: float = 1.0
     _pricing: _IRVolPricingMetrics
+
+    @property
+    def rate_scalar(self) -> float:
+        if type(self.kwargs.meta["metric"]) in [
+            IROptionMetric.BlackVolShift,
+            IROptionMetric.NormalVol,
+            IROptionMetric.LogNormalVol,
+        ]:
+            return 100.0
+        else:
+            return 1.0
 
     @property
     def leg1(self) -> CustomLeg:
         """The :class:`~rateslib.legs.CustomLeg` of the *Instrument* containing the
-        :class:`~rateslib.periods.FXOptionPeriod`."""
+        :class:`~rateslib.periods.IROptionPeriod`."""
         return self._leg1
 
     @property
@@ -173,7 +183,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
     @classmethod
     def _parse_vol(cls, vol: VolT_) -> _Vol:
         """
-        FXoptions requires only a single FXVolObj or a scalar.
+        IR options requires only a single IRVolObj or a scalar.
         """
         if isinstance(vol, _Vol):
             return vol
@@ -235,6 +245,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             irs_series=self.kwargs.leg1["irs_series"],
             payment_lag=self.kwargs.leg2["payment_lag"],
         )
+
+        # sanitise
+        self.kwargs.meta["metric"] = _get_ir_option_metric(self.kwargs.meta["metric"])
 
         self._leg1 = CustomLeg(
             [
@@ -818,24 +831,24 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
     #     raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
 
-class PayerSwaption(_BaseIROption):
+class IRCall(_BaseIROption):
     """
-    An *IR Payer* swaption.
+    An *IR Payer Swaption*.
 
     .. warning::
 
-       *Swaptions* are in Beta status introduced in v2.7.0
+       *Swaptions* and *IR Volatility* are in Beta status introduced in v2.7.0
 
     .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import dt, Curve, PayerSwaption
+       from rateslib import dt, Curve, IRCall
 
     .. ipython:: python
 
-       iro = PayerSwaption(
+       iro = IRCall(
            expiry=dt(2027, 2, 16),
            tenor="6m",
            strike=3.02,
@@ -887,16 +900,16 @@ class PayerSwaption(_BaseIROption):
            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
        )
 
-    - **"BlackVol" or "BlackVolShift100", "BlackVolShift200", "BlackVolShift300"**:
+    - **"BlackVolShift(_)"**:
       The *rate* method will make the necessary conversions between the different volatility
       representations.
 
       .. ipython:: python
 
-          iro.rate(curves=[curve], vol=25.16, metric="BlackVol")
-          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift100")
-          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift200")
-          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift300")
+          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift_0")
+          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift_100")
+          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift_200")
+          iro.rate(curves=[curve], vol=25.16, metric="BlackVolShift_300")
 
     - **"NormalVol"**: the equivalent number of basis point volatility used in the Bachelier
       formula:
@@ -944,7 +957,7 @@ class PayerSwaption(_BaseIROption):
         to the mid-market *IRS* rate, whilst "20bps" or "-50bps" will yield a strike that number
         of basis points different to the mid-market rate.
     notional: float, :green:`optional (set by 'defaults')`
-        The notional amount expressed in units of LHS of ``pair``.
+        The notional amount expressed in units of ``currency`` fo the ``irs_series``.
     eval_date: datetime, :green:`optional`
         Only required if ``expiry`` is given as string tenor.
         Should be entered as today (also called horizon) and **not** spot.
@@ -969,8 +982,9 @@ class PayerSwaption(_BaseIROption):
 
            The following are **meta parameters**.
 
-    metric : str, :green:`optional (set as "pips_or_%")`
-        The pricing metric returned by the ``rate`` method. See **Pricing**.
+    metric: IROptionMetric, str, :green:`optional` (set by 'default')`
+        The metric used by default in the
+        :meth:`~rateslib.instruments._BaseIROption.rate` method. See **Pricing**.
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
         Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
         **Pricing**.
@@ -987,11 +1001,11 @@ class PayerSwaption(_BaseIROption):
         super().__init__(*args, call=True, **kwargs)
 
 
-class ReceiverSwaption(_BaseIROption):
+class IRPut(_BaseIROption):
     """
-    An *IR Receiver* swaption.
+    An *IR Receiver Swaption*.
 
-    For parameters and examples see :class:`~rateslib.instruments.PayerSwaption`.
+    For parameters and examples see :class:`~rateslib.instruments.IRCall`.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

@@ -56,12 +56,14 @@ class _IRSmileMeta:
         _irs_series: IRSSeries,
         _shift: DualTypes,
         _plot_x_axis: str,
+        _plot_y_axis: str,
     ):
         self._eval_date = _eval_date
         self._expiry_input = _expiry_input
         self._tenor_input = _tenor_input
         self._irs_series = _irs_series
         self._plot_x_axis = _plot_x_axis
+        self._plot_y_axis = _plot_y_axis
         self._irs_fixing = IRSFixing(
             irs_series=self.irs_series,
             publication=self.expiry,
@@ -95,6 +97,12 @@ class _IRSmileMeta:
         """The default ``x_axis`` parameter passed to
         :meth:`~rateslib.volatility._BaseIRSmile.plot`"""
         return self._plot_x_axis
+
+    @property
+    def plot_y_axis(self) -> str:
+        """The default ``y_axis`` parameter passed to
+        :meth:`~rateslib.volatility._BaseIRSmile.plot`"""
+        return self._plot_y_axis
 
     @property
     def irs_series(self) -> IRSSeries:
@@ -234,12 +242,11 @@ class _IRSabrCubeMeta:
     def expiry_dates(self) -> list[datetime]:
         """A list of the expiries as datetime."""
         _: list[datetime] = []
-        effective = self.irs_series.calendar.adjust(self._eval_date, self.irs_series.settle)
         for date in self.expiries:
             if isinstance(date, str):
                 _.append(
                     add_tenor(
-                        start=effective,
+                        start=self._eval_date,
                         tenor=date,
                         modifier=self.irs_series.modifier,
                         calendar=self.irs_series.calendar,

@@ -76,6 +76,7 @@ from rateslib.instruments import Portfolio as Portfolio
 from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
+from rateslib.instruments.ir_options import _BaseIROption as _BaseIROption
 from rateslib.instruments.protocols.kwargs import _KWArgs as _KWArgs
 from rateslib.instruments.protocols.pricing import _Curves as _Curves
 from rateslib.instruments.protocols.pricing import _Vol as _Vol
@@ -251,10 +252,11 @@ FXForwards_: TypeAlias = "FXForwards | NoInput"
 # )
 
 
-class SupportsRate:
-    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
+class SupportsRate(Protocol):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...
 
-    _rate_scalar: float
+    @property
+    def rate_scalar(self) -> float: ...
 
 
 class SupportsMetrics:

@@ -598,7 +598,7 @@ def test_add_and_get_custom_calendar_combination() -> None:
 @pytest.mark.parametrize("name", ["abc,def", "abc|def"])
 def test_add_fails_on_comma_or_pipe(name):
     with pytest.raises(
-        ValueError, match="`name` cannot contain the comma \(','\) or pipe \('|'\) cha"
+        ValueError, match=r"`name` cannot contain the comma \(','\) or pipe \('|'\) cha"
     ):
         calendars.add(name, Cal([], []))
 

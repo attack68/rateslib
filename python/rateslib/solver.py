@@ -1014,10 +1014,10 @@ class Solver(Gradients, _WithState):
         The maximum number of iterations to perform.
     func_tol : float
         The tolerance to determine convergence if the objective function is lower
-        than a specific value. Defaults to 1e-12.
+        than a specific value. Defaults to 1e-11.
     conv_tol : float
         The tolerance to determine convergence if successive objective function
-        values are similar. Defaults to 1e-17.
+        values are similar. Defaults to 1e-14.
     ini_lambda : 3-tuple of float, optional
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
@@ -1194,7 +1194,7 @@ class Solver(Gradients, _WithState):
             self._parse_instrument(inst) for inst in instruments
         )
         self.pre_instruments += self.instruments
-        self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
+        self.rate_scalars = tuple(inst[0].rate_scalar for inst in self.instruments)
         self.pre_rate_scalars += self.rate_scalars
 
         # TODO need to check curves associated with fx object and set order.

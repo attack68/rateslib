@@ -929,6 +929,71 @@ class TestIRSabrSmile:
         assert irss.nodes.rho == Dual(2.0, ["v1"], [])
         assert irss.nodes.nu == Dual(3.0, ["v2"], [])
 
+    def test_plot_normal_from_black_shift(self):
+        # test that smiles with shift equate to the same normal vol graph
+        smile1 = IRSabrSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            nodes={
+                "alpha": 0.20,
+                "beta": 0.5,
+                "rho": -0.05,
+                "nu": 0.65,
+            },
+            id="sofr_vol",
+        )
+        smile2 = IRSabrSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            nodes={
+                "alpha": 0.20,
+                "beta": 0.5,
+                "rho": -0.05,
+                "nu": 0.65,
+            },
+            id="sofr_vol",
+            shift=50.0,
+        )
+        curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.90}, id="sofr")
+        option_args = dict(
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            metric="NormalVol",
+            curves="sofr",
+            vol="sofr_vol",
+        )
+
+        from rateslib import IRS, IRCall, Solver
+
+        def solver_factory(smile):
+            solver = Solver(
+                curves=[curve, smile],
+                instruments=[
+                    IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr"),
+                    IRCall(strike="-20bps", **option_args),
+                    IRCall(strike="atm", **option_args),
+                    IRCall(strike="+20bps", **option_args),
+                ],
+                s=[3.0, 50.0, 45.0, 49.0],
+                instrument_labels=["1Y IRS", "-20bps Vol", "ATM Vol", "+20bps Vol"],
+            )
+            return solver
+
+        solver_factory(smile1)
+        solver_factory(smile2)
+
+        fig, ax, lines = smile1.plot(f=3.0, y_axis="normal_vol", comparators=[smile2])
+
+        y1 = lines[0]._y
+        y2 = lines[1]._y
+
+        assert all([abs(_1 - _2) < 0.75 for _1, _2 in zip(y1, y2, strict=True)])
+
 
 class TestIRSabrCube:
     def test_init(self):
@@ -961,9 +1026,9 @@ class TestIRSabrCube:
         )
         _ = irsc.get_from_strike(k=1.0, f=1.02, expiry=dt(2026, 3, 30), tenor=dt(2028, 8, 12))
         smile = irsc._cache[(dt(2026, 3, 30), dt(2028, 8, 12))]
-        assert smile.nodes.alpha.vars == ["my-c_a_0", "my-c_a_1", "my-c_a_2", "my-c_a_3"]
-        assert smile.nodes.rho.vars == ["my-c_p_0", "my-c_p_1", "my-c_p_2", "my-c_p_3"]
-        assert smile.nodes.nu.vars == ["my-c_v_0", "my-c_v_1", "my-c_v_2", "my-c_v_3"]
+        assert smile.nodes.alpha.vars == ["my-c_a_0_0", "my-c_a_0_1", "my-c_a_1_0", "my-c_a_1_1"]
+        assert smile.nodes.rho.vars == ["my-c_p_0_0", "my-c_p_0_1", "my-c_p_1_0", "my-c_p_1_1"]
+        assert smile.nodes.nu.vars == ["my-c_v_0_0", "my-c_v_0_1", "my-c_v_1_0", "my-c_v_1_1"]
         assert isinstance(smile.nodes.alpha, klass)
 
     @pytest.mark.parametrize(
@@ -1207,6 +1272,77 @@ class TestIRSabrCube:
         )
         irsc.get_from_strike(k=1.02, f=1.04, expiry=dt(2026, 3, 30), tenor=dt(2027, 8, 12))
         assert (dt(2026, 3, 30), dt(2027, 8, 12)) in irsc._cache
+
+    def test_get_node_vector(self):
+        irsc = IRSabrCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            beta=0.5,
+            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            id="X",
+        )
+        result = irsc._get_node_vector()
+        expected = np.array([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3, 4, 10, 20, 30, 40])
+        assert np.all(result == expected)
+
+    def test_get_node_vector_ad1(self):
+        irsc = IRSabrCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            beta=0.5,
+            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            id="X",
+            ad=1,
+        )
+        result = irsc._get_node_vector()
+        assert result[2] == Dual(0.30, ["X_a_1_0"], [])
+        assert result[9] == Dual(20.0, ["X_v_0_1"], [])
+
+    def test_set_node_vector(self):
+        irsc = IRSabrCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            beta=0.5,
+            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            id="X",
+        )
+        irsc._set_node_vector(np.array([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3, 4, 10, 20, 30, 40]), ad=1)
+        result = irsc._get_node_vector()
+        assert result[2] == Dual(0.30, ["X_a_1_0"], [])
+        assert result[9] == Dual(20.0, ["X_v_0_1"], [])
 
 
 class TestStateAndCache:
