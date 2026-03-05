@@ -13,12 +13,12 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Never
+from typing import TYPE_CHECKING
 
 from rateslib.rs import FloatFixingMethod, IROptionMetric, LegIndexBase
 
 if TYPE_CHECKING:
-    pass
+    from typing import NoReturn  # TODO: convert to Never on Python >= 3.11
 
 
 class OptionType(float, Enum):
@@ -311,7 +311,7 @@ def _get_ir_option_metric(method: str | IROptionMetric) -> IROptionMetric:
                     "'black_vol_shift_100"
                 )
             else:
-                args: tuple[Never, ...] | tuple[int] = (int(method[idx + 1 :]),)
+                args: tuple[NoReturn, ...] | tuple[int] = (int(method[idx + 1 :]),)
             method = method[:idx]
         else:
             args = tuple()
