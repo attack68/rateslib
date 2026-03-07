@@ -27,7 +27,10 @@ from rateslib.periods.protocols.analytic_fixings import (
     _WithAnalyticRateFixings,
     _WithAnalyticRateFixingsStatic,
 )
-from rateslib.periods.protocols.analytic_greeks import _WithAnalyticFXOptionGreeks
+from rateslib.periods.protocols.analytic_greeks import (
+    _WithAnalyticFXOptionGreeks,
+    _WithAnalyticIROptionGreeks,
+)
 from rateslib.periods.protocols.cashflows import (
     _WithCashflows,
     _WithCashflowsStatic,
@@ -70,6 +73,7 @@ __all__ = [
     "_WithAnalyticDelta",
     "_WithAnalyticRateFixings",
     "_WithAnalyticFXOptionGreeks",
+    "_WithAnalyticIROptionGreeks",
     "_WithNPVStatic",
     "_WithCashflowsStatic",
     "_WithAnalyticDeltaStatic",

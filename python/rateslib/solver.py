@@ -38,17 +38,14 @@ from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-from rateslib.fx_volatility import FXVols
 from rateslib.mutability import (
     _new_state_post,
     _no_interior_validation,
     _validate_states,
     _WithState,
 )
+from rateslib.volatility.fx import FXVols
+from rateslib.volatility.ir import IRVolObj, IRVols
 
 P = ParamSpec("P")
 
@@ -62,15 +59,11 @@ if TYPE_CHECKING:
         Any,
         Callable,
         DualTypes,
-        FXDeltaVolSmile,
-        FXDeltaVolSurface,
         FXForwards_,
-        FXSabrSmile,
-        FXSabrSurface,
         Sequence,
         SupportsRate,
+        SupportsSolverMutability,
         Variable,
-        _FXVolObj,
         str_,
     )
 
@@ -1017,10 +1010,10 @@ class Solver(Gradients, _WithState):
         The maximum number of iterations to perform.
     func_tol : float
         The tolerance to determine convergence if the objective function is lower
-        than a specific value. Defaults to 1e-12.
+        than a specific value. Defaults to 1e-11.
     conv_tol : float
         The tolerance to determine convergence if successive objective function
-        values are similar. Defaults to 1e-17.
+        values are similar. Defaults to 1e-14.
     ini_lambda : 3-tuple of float, optional
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
@@ -1075,8 +1068,8 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve | FXDeltaVolSmile | FXSabrSmile] = (),
-        surfaces: Sequence[FXDeltaVolSurface | FXSabrSurface] = (),
+        curves: Sequence[Any] = (),
+        surfaces: Sequence[Any] = (),
         instruments: Sequence[SupportsRate] = (),
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
@@ -1138,7 +1131,7 @@ class Solver(Gradients, _WithState):
         self.W = np.diag(self.weights)
 
         # `surfaces` are treated identically to `curves`. Introduced in PR
-        self.curves = {
+        self.curves: dict[str, SupportsSolverMutability] = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
             if type(curve) not in NO_PARAMETER_CURVES
@@ -1150,13 +1143,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | _FXVolObj] = {}
+        self.pre_curves: dict[str, Any] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | _FXVolObj] = []
+        curve_collection: list[Any] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1197,7 +1190,7 @@ class Solver(Gradients, _WithState):
             self._parse_instrument(inst) for inst in instruments
         )
         self.pre_instruments += self.instruments
-        self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
+        self.rate_scalars = tuple(inst[0].rate_scalar for inst in self.instruments)
         self.pre_rate_scalars += self.rate_scalars
 
         # TODO need to check curves associated with fx object and set order.
@@ -1384,7 +1377,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
-        ret: Curve | FXVols = self.pre_curves[obj]
+        ret: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(ret, _BaseCurve):
             return ret
         else:
@@ -1395,12 +1388,23 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_fxvol(self, obj: str) -> FXVols:
-        _: Curve | FXVols = self.pre_curves[obj]
+        _: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(_, FXVols):
             return _
         else:
             raise ValueError(
                 f"A type of `FXVol` object was sought with id:'{obj}' from Solver but another "
+                f"type object was returned:'{type(_)}'."
+            )
+
+    @_validate_states
+    def _get_pre_irvol(self, obj: str) -> IRVols:
+        _: Curve | FXVols | IRVols = self.pre_curves[obj]
+        if isinstance(_, IRVolObj):
+            return _
+        else:
+            raise ValueError(
+                f"A type of `IRVol` object was sought with id:'{obj}' from Solver but another "
                 f"type object was returned:'{type(_)}'."
             )
 
@@ -1652,7 +1656,7 @@ class Solver(Gradients, _WithState):
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
             n_vars = curve._n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
+            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)
             var_counter += n_vars
 
         self._update_fx()
@@ -1668,10 +1672,6 @@ class Solver(Gradients, _WithState):
         if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
         self._reset_properties_()
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
     @_no_interior_validation
@@ -2343,11 +2343,6 @@ class Solver(Gradients, _WithState):
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
         return _
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
 __all__ = ["Gradients", "Solver"]

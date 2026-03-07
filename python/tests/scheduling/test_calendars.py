@@ -595,6 +595,20 @@ def test_add_and_get_custom_calendar_combination() -> None:
     calendars.pop("custom2")
 
 
+@pytest.mark.parametrize("name", ["abc,def", "abc|def"])
+def test_add_fails_on_comma_or_pipe(name):
+    with pytest.raises(
+        ValueError, match=r"`name` cannot contain the comma \(','\) or pipe \('|'\) cha"
+    ):
+        calendars.add(name, Cal([], []))
+
+
+@pytest.mark.parametrize("name", ["tgt", "nyc"])
+def test_add_fails_on_existing(name):
+    with pytest.raises(KeyError, match=r"'`name` already exists in calendars.\\nCannot overwri"):
+        calendars.add(name, Cal([], []))
+
+
 def test_calendar_pop_all_combinations() -> None:
     cal = Cal([dt(2023, 1, 2)], [5, 6])
     cal2 = Cal([dt(2023, 1, 3)], [1, 2, 5, 6])
@@ -869,3 +883,15 @@ Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We Th Fr Sa   Su Mo Tu We
 def test_union_cal_try_from_name():
     uc = UnionCal.from_name("ldn,tgt|fed")
     assert isinstance(uc, UnionCal)
+
+
+@pytest.mark.parametrize("number", [-3, -2, -1, 0, 1, 2, 3])
+@pytest.mark.parametrize(
+    "start", [dt(2026, 2, 13), dt(2026, 2, 14), dt(2026, 2, 15), dt(2026, 2, 16)]
+)
+def test_add_bus_days_BusDaysLagSettle_equivalence(number, start):
+    cal = Cal([], [5, 6])
+    adj = Adjuster.BusDaysLagSettle(number)
+    result = cal.adjust(start, adj)
+    expected = cal.lag_bus_days(start, number, True)
+    assert result == expected

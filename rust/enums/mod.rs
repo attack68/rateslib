@@ -13,7 +13,8 @@
 // pub mod docs;
 
 mod parameters;
-pub use crate::enums::parameters::{FloatFixingMethod, LegIndexBase};
+pub use crate::enums::parameters::{FloatFixingMethod, IROptionMetric, LegIndexBase};
 
 pub(crate) mod py;
 pub(crate) use crate::enums::py::PyFloatFixingMethod;
+pub(crate) use crate::enums::py::PyIROptionMetric;

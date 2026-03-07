@@ -15,36 +15,10 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING
 
-import rateslib.rs
-from rateslib.rs import FloatFixingMethod, LegIndexBase
+from rateslib.rs import FloatFixingMethod, IROptionMetric, LegIndexBase
 
 if TYPE_CHECKING:
-    pass
-
-
-class PicklingContainer:
-    pass
-
-
-rateslib.rs.PyFloatFixingMethod = PicklingContainer()  # type: ignore[attr-defined]
-
-rateslib.rs.PyFloatFixingMethod.RFRPaymentDelay = rateslib.rs.FloatFixingMethod.RFRPaymentDelay  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRObservationShift = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRObservationShift
-)
-rateslib.rs.PyFloatFixingMethod.RFRLockout = rateslib.rs.FloatFixingMethod.RFRLockout  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRLookback = rateslib.rs.FloatFixingMethod.RFRLookback  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRPaymentDelayAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRPaymentDelayAverage
-)
-rateslib.rs.PyFloatFixingMethod.RFRObservationShiftAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRObservationShiftAverage
-)
-rateslib.rs.PyFloatFixingMethod.RFRLockoutAverage = rateslib.rs.FloatFixingMethod.RFRLockoutAverage  # type: ignore[attr-defined]
-rateslib.rs.PyFloatFixingMethod.RFRLookbackAverage = (  # type: ignore[attr-defined]
-    rateslib.rs.FloatFixingMethod.RFRLookbackAverage
-)
-rateslib.rs.PyFloatFixingMethod.IBOR = rateslib.rs.FloatFixingMethod.IBOR  # type: ignore[attr-defined]
+    from typing import NoReturn  # TODO: convert to Never on Python >= 3.11
 
 
 class OptionType(float, Enum):
@@ -65,6 +39,25 @@ class FXOptionMetric(Enum):
     Percent = 1
 
 
+class OptionPricingModel(Enum):
+    """
+    Enumerable type for option pricing models
+    """
+
+    Black76 = 0
+    Bachelier = 1
+
+
+class SwaptionSettlementMethod(Enum):
+    """
+    Enumerable type for swaption settlement methods.
+    """
+
+    Physical = 0
+    CashParTenor = 1
+    CashCollateralized = 2
+
+
 class LegMtm(Enum):
     """
     Enumerable type to define :class:`~rateslib.data.fixings.FXFixing` dates for non-deliverable
@@ -76,25 +69,6 @@ class LegMtm(Enum):
     Initial = 0
     XCS = 1
     Payment = 2
-
-
-_LEG_MTM_MAP = {
-    "initial": LegMtm.Initial,
-    "xcs": LegMtm.XCS,
-    "payment": LegMtm.Payment,
-}
-
-
-def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
-    if isinstance(leg_mtm, LegMtm):
-        return leg_mtm
-    else:
-        try:
-            return _LEG_MTM_MAP[leg_mtm.lower()]
-        except KeyError:
-            raise ValueError(
-                f"`mtm` as string: '{leg_mtm}' is not a valid option. Please consult docs."
-            )
 
 
 class IndexMethod(Enum):
@@ -140,6 +114,78 @@ class FXDeltaMethod(Enum):
 
     def __str__(self) -> str:
         return self.name
+
+
+_OPTION_PRICING_MAP = {
+    "black76": OptionPricingModel.Black76,
+    "bachelier": OptionPricingModel.Bachelier,
+    # aliases
+    "black": OptionPricingModel.Black76,
+    "log_normal": OptionPricingModel.Black76,
+    "normal": OptionPricingModel.Bachelier,
+    "normal_vol": OptionPricingModel.Bachelier,
+    "log_normal_vol": OptionPricingModel.Black76,
+    "black_vol": OptionPricingModel.Black76,
+    "black_vol_shift": OptionPricingModel.Black76,
+}
+
+
+def _get_option_pricing_model(
+    method: str | OptionPricingModel,
+) -> OptionPricingModel:
+    if isinstance(method, OptionPricingModel):
+        return method
+    else:
+        try:
+            return _OPTION_PRICING_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`pricing_model` as string: '{method}' is not a valid option. Please consult docs."
+            )
+
+
+_SWAPTION_SETTLEMENT_MAP = {
+    "physical": SwaptionSettlementMethod.Physical,
+    "cash_par_tenor": SwaptionSettlementMethod.CashParTenor,
+    "cash_collateralized": SwaptionSettlementMethod.CashCollateralized,
+    # aliases
+    "cashcollateralized": SwaptionSettlementMethod.CashCollateralized,
+    "cashpartenor": SwaptionSettlementMethod.CashParTenor,
+}
+
+
+def _get_swaption_settlement_method(
+    method: str | SwaptionSettlementMethod,
+) -> SwaptionSettlementMethod:
+    if isinstance(method, SwaptionSettlementMethod):
+        return method
+    else:
+        try:
+            return _SWAPTION_SETTLEMENT_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`swaption_settlement_method` as string: '{method}' is not a valid option. "
+                f"Please consult docs."
+            )
+
+
+_LEG_MTM_MAP = {
+    "initial": LegMtm.Initial,
+    "xcs": LegMtm.XCS,
+    "payment": LegMtm.Payment,
+}
+
+
+def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
+    if isinstance(leg_mtm, LegMtm):
+        return leg_mtm
+    else:
+        try:
+            return _LEG_MTM_MAP[leg_mtm.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`mtm` as string: '{leg_mtm}' is not a valid option. Please consult docs."
+            )
 
 
 _INDEX_METHOD_MAP = {
@@ -275,13 +321,54 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
             )
 
 
+_IR_METRIC_MAP: dict[str, type[IROptionMetric]] = {
+    "normal_vol": IROptionMetric.NormalVol,
+    "cash": IROptionMetric.Cash,
+    "percent_notional": IROptionMetric.PercentNotional,
+    "black_vol_shift": IROptionMetric.BlackVolShift,
+    # aliases
+    "normalvol": IROptionMetric.NormalVol,
+    "percentnotional": IROptionMetric.PercentNotional,
+    "blackvolshift": IROptionMetric.BlackVolShift,
+}
+
+
+def _get_ir_option_metric(method: str | IROptionMetric) -> IROptionMetric:
+    if isinstance(method, IROptionMetric):
+        return method
+    else:
+        method = method.lower()
+        if "shift" in method:
+            idx = method.rfind("_")
+            if idx < 0:
+                raise ValueError(
+                    "The 'BlackVolShift' metric must have an underscore and shift, e.g. "
+                    "'black_vol_shift_100"
+                )
+            else:
+                args: tuple[NoReturn, ...] | tuple[int] = (int(method[idx + 1 :]),)
+            method = method[:idx]
+        else:
+            args = tuple()
+
+        try:
+            return _IR_METRIC_MAP[method](*args)
+        except KeyError:
+            raise ValueError(
+                f"IROption `metric` as string: '{method}' is not a valid option. Please consult "
+                f"documentation."
+            )
+
+
 __all__ = [
     "SpreadCompoundMethod",
     "FloatFixingMethod",
     "FXDeltaMethod",
     "FXOptionMetric",
+    "IROptionMetric",
     "LegMtm",
     "LegIndexBase",
     "OptionType",
+    "OptionPricingModel",
     "IndexMethod",
 ]

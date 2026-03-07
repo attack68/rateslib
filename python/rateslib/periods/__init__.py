@@ -34,6 +34,7 @@ from rateslib.periods.float_period import (
     ZeroFloatPeriod,
 )
 from rateslib.periods.fx_volatility import FXCallPeriod, FXPutPeriod, _BaseFXOptionPeriod
+from rateslib.periods.ir_volatility import IRSCallPeriod, IRSPutPeriod, _BaseIRSOptionPeriod
 from rateslib.periods.protocols import _BasePeriod, _BasePeriodStatic
 
 __all__ = [
@@ -47,7 +48,10 @@ __all__ = [
     "CreditProtectionPeriod",
     "FXCallPeriod",
     "FXPutPeriod",
+    "IRSCallPeriod",
+    "IRSPutPeriod",
     "_BasePeriod",
     "_BasePeriodStatic",
     "_BaseFXOptionPeriod",
+    "_BaseIRSOptionPeriod",
 ]

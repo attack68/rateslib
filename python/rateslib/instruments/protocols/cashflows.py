@@ -24,6 +24,7 @@ from rateslib.instruments.protocols.pricing import (
     _maybe_get_curve_object_maybe_from_solver,
     _maybe_get_curve_or_dict_object_maybe_from_solver,
     _maybe_get_fx_vol_maybe_from_solver,
+    _maybe_get_ir_vol_maybe_from_solver,
     _WithPricingObjs,
 )
 
@@ -154,6 +155,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(_vol_meta, _vol, solver)
+        ir_vol = _maybe_get_ir_vol_maybe_from_solver(_vol_meta, _vol, solver)
         legs_df = [
             self.legs[0].cashflows(
                 rate_curve=_maybe_get_curve_or_dict_object_maybe_from_solver(
@@ -167,6 +169,7 @@ class _WithCashflows(_WithPricingObjs, Protocol):
                 ),
                 fx=_fx_maybe_from_solver,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 settlement=settlement,
                 forward=forward,
                 base=base,

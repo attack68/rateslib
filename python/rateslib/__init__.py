@@ -96,7 +96,6 @@ from rateslib.data.fixings import (
 from rateslib.dual import ADOrder, Dual, Dual2, Variable, dual_exp, dual_log, dual_solve, gradient
 from rateslib.enums import FloatFixingMethod, NoInput
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -125,6 +124,12 @@ from rateslib.instruments import (
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
+    IRCall,
+    IRPut,
+    IRRiskReversal,
+    IRStraddle,
+    IRStrangle,
+    IRVolValue,
     Portfolio,
     Spread,
     STIRFuture,
@@ -179,6 +184,15 @@ from rateslib.splines import (
     bspldnev_single,
     bsplev_single,
 )
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    IRSabrCube,
+    IRSabrSmile,
+    IRSplineSmile,
+)
 
 # module level doc-string
 __doc__ = """
@@ -196,6 +210,7 @@ __all__ = [
     "dt",
     "defaults",
     "fixings",
+    "calendars",
     "licence",
     "from_json",
     # enums.py
@@ -253,11 +268,15 @@ __all__ = [
     "FXIndex",
     "FloatRateIndex",
     "FloatRateSeries",
-    # fx_volatility.py
+    # volatility/fx
     "FXDeltaVolSmile",
     "FXDeltaVolSurface",
     "FXSabrSmile",
     "FXSabrSurface",
+    # volatility/ir
+    "IRSabrSmile",
+    "IRSabrCube",
+    "IRSplineSmile",
     # solver.py
     "Solver",
     # fx.py
@@ -293,6 +312,7 @@ __all__ = [
     "FRA",
     "Value",
     "FXVolValue",
+    "IRVolValue",
     "Bill",
     "BillCalcMode",
     "IRS",
@@ -316,4 +336,9 @@ __all__ = [
     "FXStraddle",
     "FXStrangle",
     "FXBrokerFly",
+    "IRCall",
+    "IRPut",
+    "IRRiskReversal",
+    "IRStraddle",
+    "IRStrangle",
 ]

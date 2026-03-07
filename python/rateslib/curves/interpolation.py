@@ -21,7 +21,13 @@ from rateslib.rs import index_left_f64
 from rateslib.scheduling import Convention, dcf
 
 if TYPE_CHECKING:
-    from rateslib.local_types import Any, DualTypes, _BaseCurve, datetime  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
+        Any,
+        DualTypes,
+        Sequence,
+        _BaseCurve,
+        datetime,
+    )
 
 
 UTC = timezone.utc
@@ -149,7 +155,7 @@ def _get_posix(date: datetime, curve: _BaseCurve) -> tuple[float, float, float, 
 
 
 def index_left(
-    list_input: list[Any],
+    list_input: Sequence[Any],
     list_length: int,
     value: Any,
     left_count: int = 0,

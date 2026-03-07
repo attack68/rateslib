@@ -37,6 +37,7 @@ if TYPE_CHECKING:
         Result,
         _BaseCurve_,
         _FXVolOption_,
+        _IRVolOption_,
         datetime,
         datetime_,
         str_,
@@ -155,6 +156,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the immediate NPV of the *Period* in local settlement currency.
@@ -180,6 +182,9 @@ class _WithNPV(Protocol):
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -197,6 +202,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPV.immediate_local_npv` with
@@ -212,6 +218,7 @@ class _WithNPV(Protocol):
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -229,6 +236,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
@@ -259,6 +267,9 @@ class _WithNPV(Protocol):
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *Smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
         settlement: datetime, optional (set as immediate date)
             The assumed settlement date of the *PV* determination. Used only to evaluate
             *ex-dividend* status.
@@ -275,6 +286,7 @@ class _WithNPV(Protocol):
             disc_curve=disc_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
         )
         return _screen_ex_div_and_forward(
             local_value=Ok(local_immediate_npv),
@@ -293,6 +305,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
@@ -312,6 +325,7 @@ class _WithNPV(Protocol):
                 settlement=settlement,
                 forward=forward,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -327,6 +341,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -363,6 +378,9 @@ class _WithNPV(Protocol):
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
         base: str, optional
             The currency to convert the *local settlement* NPV to.
         local: bool, optional
@@ -393,6 +411,7 @@ class _WithNPV(Protocol):
             disc_curve=disc_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
             settlement=settlement,
             forward=forward,
         )
@@ -609,6 +628,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* before settlement currency and
@@ -633,6 +653,9 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -652,6 +675,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.unindexed_reference_cashflow`
@@ -667,6 +691,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -682,6 +707,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* before settlement currency adjustment
@@ -706,6 +732,9 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -717,6 +746,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
         )
         return self.index_up(value=urc, index_curve=index_curve)
 
@@ -728,6 +758,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.reference_cashflow`
@@ -743,6 +774,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -758,6 +790,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* with settlement currency adjustment
@@ -782,6 +815,9 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -793,6 +829,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             index_curve=index_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
         )
         return self.convert_deliverable(value=urc, fx=fx)
 
@@ -804,6 +841,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.unindexed_cashflow`
@@ -819,6 +857,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -834,6 +873,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Period* with settlement currency adjustment
@@ -858,6 +898,9 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -869,6 +912,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             disc_curve=disc_curve,
             fx=fx,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
         )
         return self.convert_deliverable(value=rc, fx=fx)
 
@@ -880,6 +924,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.cashflow`
@@ -895,6 +940,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
                 index_curve=index_curve,
                 disc_curve=disc_curve,
                 fx_vol=fx_vol,
+                ir_vol=ir_vol,
                 fx=fx,
             )
         except Exception as e:
@@ -910,6 +956,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the NPV of the *Period* in local settlement currency.
@@ -937,6 +984,9 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
+        ir_vol: IRSabrSmile, optional
+            The IR volatility *smile* or *Cube* object used for determining Black calendar
+            day implied volatility values.
 
         Returns
         -------
@@ -957,6 +1007,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
             index_curve=index_curve,
             disc_curve=disc_curve_,
             fx_vol=fx_vol,
+            ir_vol=ir_vol,
             fx=fx,
         )
         return c * disc_curve_[self.settlement_params.payment]

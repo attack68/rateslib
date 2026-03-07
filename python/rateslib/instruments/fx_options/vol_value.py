@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
@@ -24,6 +23,8 @@ from rateslib.instruments.protocols.pricing import (
     _Vol,
 )
 from rateslib.periods.utils import _validate_fx_as_forwards
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.volatility.ir import IRVolObj
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -47,13 +48,13 @@ class FXVolValue(_BaseInstrument):
 
     Examples
     --------
-    The below :class:`~rateslib.fx_volatility.FXDeltaVolSmile` is solved directly
+    The below :class:`~rateslib.volatility.FXDeltaVolSmile` is solved directly
     from calibrating volatility values.
 
     .. ipython:: python
        :suppress:
 
-       from rateslib.fx_volatility import FXDeltaVolSmile
+       from rateslib.volatility import FXDeltaVolSmile
        from rateslib.instruments import FXVolValue
        from rateslib.solver import Solver
 
@@ -134,7 +135,12 @@ class FXVolValue(_BaseInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         if isinstance(vol, _Vol):
             return vol
-        return _Vol(fx_vol=vol)
+        elif isinstance(vol, IRVolObj):
+            raise TypeError(
+                f"`vol` must be suitable object for FX vol pricing. Got {type(vol).__name__}"
+            )
+        else:
+            return _Vol(fx_vol=vol)
 
     def rate(
         self,
