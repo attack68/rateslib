@@ -12,14 +12,17 @@
 
 from rateslib.volatility.ir.base import _BaseIRSmile
 from rateslib.volatility.ir.sabr import IRSabrCube, IRSabrSmile
-from rateslib.volatility.ir.utils import _IRSabrCubeMeta, _IRSmileMeta
+from rateslib.volatility.ir.spline import IRSplineSmile
+from rateslib.volatility.ir.utils import _IRSabrCubeMeta, _IRSmileMeta, _IRVolPricingParams
 
 __all__ = [
     "IRSabrSmile",
+    "IRSplineSmile",
     "IRSabrCube",
     "_BaseIRSmile",
     "_IRSmileMeta",
     "_IRSabrCubeMeta",
+    "_IRVolPricingParams",
 ]
 
 IRVols = IRSabrSmile | IRSabrCube

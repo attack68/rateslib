@@ -39,6 +39,15 @@ class FXOptionMetric(Enum):
     Percent = 1
 
 
+class OptionPricingModel(Enum):
+    """
+    Enumerable type for option pricing models
+    """
+
+    Black76 = 0
+    Bachelier = 1
+
+
 class SwaptionSettlementMethod(Enum):
     """
     Enumerable type for swaption settlement methods.
@@ -105,6 +114,34 @@ class FXDeltaMethod(Enum):
 
     def __str__(self) -> str:
         return self.name
+
+
+_OPTION_PRICING_MAP = {
+    "black76": OptionPricingModel.Black76,
+    "bachelier": OptionPricingModel.Bachelier,
+    # aliases
+    "black": OptionPricingModel.Black76,
+    "log_normal": OptionPricingModel.Black76,
+    "normal": OptionPricingModel.Bachelier,
+    "normal_vol": OptionPricingModel.Bachelier,
+    "log_normal_vol": OptionPricingModel.Black76,
+    "black_vol": OptionPricingModel.Black76,
+    "black_vol_shift": OptionPricingModel.Black76,
+}
+
+
+def _get_option_pricing_model(
+    method: str | OptionPricingModel,
+) -> OptionPricingModel:
+    if isinstance(method, OptionPricingModel):
+        return method
+    else:
+        try:
+            return _OPTION_PRICING_MAP[method.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`pricing_model` as string: '{method}' is not a valid option. Please consult docs."
+            )
 
 
 _SWAPTION_SETTLEMENT_MAP = {
@@ -286,13 +323,11 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
 
 _IR_METRIC_MAP: dict[str, type[IROptionMetric]] = {
     "normal_vol": IROptionMetric.NormalVol,
-    "log_normal_vol": IROptionMetric.LogNormalVol,
     "cash": IROptionMetric.Cash,
     "percent_notional": IROptionMetric.PercentNotional,
     "black_vol_shift": IROptionMetric.BlackVolShift,
     # aliases
     "normalvol": IROptionMetric.NormalVol,
-    "lognormalvol": IROptionMetric.LogNormalVol,
     "percentnotional": IROptionMetric.PercentNotional,
     "blackvolshift": IROptionMetric.BlackVolShift,
 }
@@ -334,5 +369,6 @@ __all__ = [
     "LegMtm",
     "LegIndexBase",
     "OptionType",
+    "OptionPricingModel",
     "IndexMethod",
 ]

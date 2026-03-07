@@ -15,20 +15,27 @@ from functools import cached_property
 from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
+from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.data.fixings import _get_irs_series
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import OptionType
-from rateslib.instruments.irs import IRS
+from rateslib.enums.parameters import OptionPricingModel, OptionType, _get_ir_option_metric
+from rateslib.instruments.ir_options.call_put import _BaseIROption
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
+    _Curves,
+    _maybe_get_curve_maybe_from_solver,
     _maybe_get_ir_vol_maybe_from_solver,
     _Vol,
 )
 from rateslib.periods.parameters import _IROptionParams
+from rateslib.periods.utils import (
+    _get_ir_vol_value_and_forward_maybe_from_obj,
+)
+from rateslib.rs import IROptionMetric
 from rateslib.scheduling import add_tenor
-from rateslib.volatility.fx import FXVolObj
 from rateslib.volatility.ir import IRSabrCube, IRSabrSmile
+from rateslib.volatility.utils import _OptionModelBachelier, _OptionModelBlack76
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -39,6 +46,7 @@ if TYPE_CHECKING:
         IRSSeries,
         Solver_,
         VolT_,
+        _BaseCurve,
         datetime,
         datetime_,
         str_,
@@ -99,8 +107,13 @@ class IRVolValue(_BaseInstrument):
     The ``curves`` must match the pricing for an :class:`~rateslib.instruments.IRS`, since the
     atm-rate is determined directly from an *IRS* instance.
 
-    Currently the only available ``metric`` is *'vol'* which returns the specific volatility value
-    for the index value, i.e. a strike for an :class:`~rateslib.instruments.IRS`.
+    The available ``metric`` are:
+
+    - **'normal_vol'**: which returns a normal volatility in bps suitable for the Bachelier pricing
+      formula.
+    - **'black_vol_shift_{}'**: same as above but allowing an explicit shift.
+    - **'alpha', 'beta', 'rho', 'nu'**: returns the SABR parameters explicitly for a SABR based
+      pricing object.
 
     .. role:: red
 
@@ -122,9 +135,9 @@ class IRVolValue(_BaseInstrument):
         The standard conventions applied to the underlying :class:`~rateslib.instruments.IRS`.
     eval_date: datetime, :green:`optional`
         If expiry is given as string tenor, use eval date to determine the date.
-    metric: str, :green:`optional (set as 'vol')`
+    metric: str, IROptionMetric, :green:`optional (set as 'normal_vol')`
         The default metric to return from the ``rate`` method.
-    vol: str, IRSabrSmile, :green:`optional`
+    vol: str, IRVolObj, :green:`optional`
         The associated object from which to determine the ``rate``.
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
         Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
@@ -153,9 +166,9 @@ class IRVolValue(_BaseInstrument):
             irs_series=irs_series,
             vol=self._parse_vol(vol),
             metric=metric,
-            curves=IRS._parse_curves(curves),
+            curves=self._parse_curves(curves),
         )
-        default_args = dict(convention=defaults.convention, metric="vol", curves=NoInput(0))
+        default_args = dict(convention=defaults.convention, metric="normal_vol", curves=NoInput(0))
         self._kwargs = _KWArgs(
             spec=NoInput(0),
             user_args=user_args,
@@ -187,15 +200,6 @@ class IRVolValue(_BaseInstrument):
             _settlement_method=defaults.ir_option_settlement,
         )
 
-    def _parse_vol(self, vol: VolT_) -> _Vol:
-        if isinstance(vol, _Vol):
-            return vol
-        elif isinstance(vol, FXVolObj):
-            raise TypeError(
-                f"`vol` must be suitable object for IR vol pricing. Got {type(vol).__name__}"
-            )
-        return _Vol(ir_vol=vol)
-
     def rate(
         self,
         *,
@@ -208,37 +212,109 @@ class IRVolValue(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _vol: _Vol = self._parse_vol(vol)
-        vol_ = _maybe_get_ir_vol_maybe_from_solver(
-            vol_meta=self.kwargs.meta["vol"], solver=solver, vol=_vol
+        ir_vol = _maybe_get_ir_vol_maybe_from_solver(
+            vol=self._parse_vol(vol), vol_meta=self.kwargs.meta["vol"], solver=solver
         )
 
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
+        del metric
 
-        if metric_ == "vol":
-            if isinstance(vol_, (IRSabrSmile, IRSabrCube)):
-                return vol_.get_from_strike(
-                    k=self.kwargs.leg1["strike"],
-                    curves=curves,
-                    expiry=self.kwargs.leg1["expiry"],
-                    tenor=self._ir_option_params.option_fixing.termination,
-                ).vol
-            else:
-                raise ValueError("`vol` as an object must be provided for VolValue.")
-        elif metric_ in ["alpha", "beta", "rho", "nu"]:
-            if isinstance(vol_, IRSabrSmile | IRSabrCube):
-                return vol_._get_sabr_param(
+        if metric_ in ["alpha", "beta", "rho", "nu"]:
+            if isinstance(ir_vol, IRSabrSmile | IRSabrCube):
+                return ir_vol._get_sabr_param(
                     expiry=self.kwargs.leg1["expiry"],
                     tenor=self._ir_option_params.option_fixing.termination,
                     param=metric_,
                 )
             else:
                 raise ValueError(
-                    "A SABR parameter `metric` can only be obtained from a SABR type "
-                    "IR Volatility object."
+                    "A SABR parameter `metric` can only be obtained from a SABR type vol pricing "
+                    "object."
                 )
 
-        raise ValueError("`metric` must be in {'vol', 'alpha', 'beta', 'rho', 'nu'}.")
+        _curves = self._parse_curves(curves)
+        rate_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
+        )
+        disc_curve: _BaseCurve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="disc_curve",
+            ),
+            name="disc_curve",
+        )
+        index_curve: _BaseCurve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="index_curve",
+            ),
+            name="index_curve",
+        )
+
+        metric__ = _get_ir_option_metric(metric_)
+        del metric_
+
+        if not hasattr(ir_vol, "get_from_strike"):
+            raise TypeError("`vol` for IRVolValue must be of type _BaseIRSmile or _BaseIRCube.")
+
+        params = _get_ir_vol_value_and_forward_maybe_from_obj(
+            rate_curve=rate_curve,
+            index_curve=index_curve,
+            strike=self.kwargs.leg1["strike"],
+            ir_vol=ir_vol,
+            irs=self._ir_option_params.option_fixing.irs,
+            tenor=self._ir_option_params.option_fixing.termination,
+            expiry=self._ir_option_params.expiry,
+            t_e=ir_vol.meta._t_expiry(self._ir_option_params.expiry),  # type: ignore[union-attr]
+        )
+
+        match type(metric__):
+            case IROptionMetric.Cash | IROptionMetric.PercentNotional:
+                raise ValueError(
+                    "`metric` cannot be a cash or monetary quantity for this Instrument type"
+                )
+            case IROptionMetric.NormalVol:
+                if params.pricing_model == OptionPricingModel.Bachelier:
+                    return params.vol
+                else:
+                    return _OptionModelBlack76.convert_to_bachelier(
+                        f=params.f, k=params.k, shift=params.shift, t_e=params.t_e, vol=params.vol
+                    )
+            case IROptionMetric.BlackVolShift:
+                params = ir_vol.get_from_strike(
+                    k=self.kwargs.leg1["strike"],
+                    curves=curves,
+                    expiry=self.kwargs.leg1["expiry"],
+                    tenor=self._ir_option_params.option_fixing.termination,
+                )
+                shift = metric__.shift()
+                if params.pricing_model == OptionPricingModel.Bachelier:
+                    return _OptionModelBachelier.convert_to_black76(
+                        f=params.f, k=params.k, shift=shift, t_e=params.t_e, vol=params.vol
+                    )
+                else:
+                    return _OptionModelBlack76.convert_to_new_shift(
+                        f=params.f,
+                        k=params.k,
+                        old_shift=params.shift,
+                        target_shift=shift,
+                        t_e=params.t_e,
+                        vol=params.vol,
+                    )
+            case _:
+                raise RuntimeError(  # pragma: no cover
+                    "Unexpected error: unmapped IROptionMetric branch - please report."
+                )
+
+    def _parse_curves(self, curves: CurvesT_) -> _Curves:
+        return _BaseIROption._parse_curves(curves)
+
+    def _parse_vol(self, vol: VolT_) -> _Vol:
+        return _BaseIROption._parse_vol(vol)
 
     def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError(

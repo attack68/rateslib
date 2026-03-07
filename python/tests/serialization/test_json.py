@@ -85,7 +85,6 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         IROptionMetric.Cash(),
         IROptionMetric.PercentNotional(),
         IROptionMetric.NormalVol(),
-        IROptionMetric.LogNormalVol(),
         IROptionMetric.BlackVolShift(25),
         LegIndexBase.Initial,
         LegIndexBase.PeriodOnPeriod,

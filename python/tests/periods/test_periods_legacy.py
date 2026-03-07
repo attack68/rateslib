@@ -5871,7 +5871,6 @@ class TestIROption:
         ("metric", "expected"),
         [
             ("NormalVol", 75.792872),
-            ("LogNormalVol", 25.16),
             ("Cash", 149725.796514),
             ("PercentNotional", 0.149725),
             ("black_vol_shift_0", 25.16),

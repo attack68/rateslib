@@ -59,15 +59,11 @@ if TYPE_CHECKING:
         Any,
         Callable,
         DualTypes,
-        FXDeltaVolSmile,
-        FXDeltaVolSurface,
         FXForwards_,
-        FXSabrSmile,
-        FXSabrSurface,
         Sequence,
         SupportsRate,
+        SupportsSolverMutability,
         Variable,
-        _FXVolObj,
         str_,
     )
 
@@ -1072,8 +1068,8 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve | FXDeltaVolSmile | FXSabrSmile] = (),
-        surfaces: Sequence[FXDeltaVolSurface | FXSabrSurface] = (),
+        curves: Sequence[Any] = (),
+        surfaces: Sequence[Any] = (),
         instruments: Sequence[SupportsRate] = (),
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
@@ -1135,7 +1131,7 @@ class Solver(Gradients, _WithState):
         self.W = np.diag(self.weights)
 
         # `surfaces` are treated identically to `curves`. Introduced in PR
-        self.curves = {
+        self.curves: dict[str, SupportsSolverMutability] = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
             if type(curve) not in NO_PARAMETER_CURVES
@@ -1147,13 +1143,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | _FXVolObj] = {}
+        self.pre_curves: dict[str, Any] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | _FXVolObj] = []
+        curve_collection: list[Any] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1660,7 +1656,7 @@ class Solver(Gradients, _WithState):
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
             n_vars = curve._n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
+            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)
             var_counter += n_vars
 
         self._update_fx()

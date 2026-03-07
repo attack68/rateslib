@@ -19,7 +19,7 @@ import rateslib.errors as err
 from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.curves.curves import _BaseCurve
 from rateslib.enums.generics import Err, NoInput, Ok, Result
-from rateslib.enums.parameters import FXDeltaMethod
+from rateslib.enums.parameters import FXDeltaMethod, OptionPricingModel
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments.protocols.pricing import _Curves
 from rateslib.volatility import (
@@ -156,6 +156,7 @@ def _get_ir_vol_value_and_forward_maybe_from_obj(
     irs: IRS,
     expiry: datetime,
     tenor: datetime,
+    t_e: DualTypes,
 ) -> _IRVolPricingParams:
     """
     Return the following pring requirements:
@@ -192,7 +193,9 @@ def _get_ir_vol_value_and_forward_maybe_from_obj(
         raise ValueError("`ir_vol` cannot be NoInput when provided to pricing function.")
     else:
         # vol given as scalar interpolated as Black Vol Zero shifted
-        return _IRVolPricingParams(vol=ir_vol, f=f_, k=k_, shift=0.0)
+        return _IRVolPricingParams(
+            vol=ir_vol, f=f_, k=k_, shift=0.0, pricing_model=OptionPricingModel.Black76, t_e=t_e
+        )
 
 
 def _get_fx_vol_value_maybe_from_obj(

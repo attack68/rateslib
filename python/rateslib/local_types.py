@@ -13,6 +13,7 @@
 # It avoids all circular import by performing a TYPE_CHECKING check on any component.
 
 from collections.abc import Callable as Callable
+from collections.abc import Iterable as Iterable
 from collections.abc import Sequence as Sequence
 from datetime import datetime as datetime
 from typing import Any as Any
@@ -47,6 +48,7 @@ from rateslib.enums.parameters import FXDeltaMethod as FXDeltaMethod
 from rateslib.enums.parameters import FXOptionMetric as FXOptionMetric
 from rateslib.enums.parameters import IndexMethod as IndexMethod
 from rateslib.enums.parameters import IROptionMetric as IROptionMetric
+from rateslib.enums.parameters import OptionPricingModel as OptionPricingModel
 from rateslib.enums.parameters import OptionType as OptionType
 from rateslib.enums.parameters import SpreadCompoundMethod as SpreadCompoundMethod
 from rateslib.enums.parameters import SwaptionSettlementMethod as SwaptionSettlementMethod
@@ -120,6 +122,7 @@ from rateslib.volatility import FXSabrSmile as FXSabrSmile
 from rateslib.volatility import FXSabrSurface as FXSabrSurface
 from rateslib.volatility import IRSabrCube as IRSabrCube
 from rateslib.volatility import IRSabrSmile as IRSabrSmile
+from rateslib.volatility import _IRVolPricingParams as _IRVolPricingParams
 
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
 
@@ -250,6 +253,17 @@ FXForwards_: TypeAlias = "FXForwards | NoInput"
 # Instrument: TypeAlias = (
 #     "Combinations | Security | FXOptionTypes | RatesDerivative | CDS | CurrencyDerivative"
 # )
+
+
+class SupportsSolverMutability(Protocol):
+    @property
+    def _n(self) -> int: ...
+    @property
+    def _ini_solve(self) -> int: ...
+    def _set_ad_order(self, ad: int) -> None: ...
+    def _set_node_vector(self, vector: Arr1dObj, ad: int) -> None: ...
+    def _get_node_vars(self) -> tuple[str, ...]: ...
+    def _get_node_vector(self) -> Arr1dObj: ...
 
 
 class SupportsRate(Protocol):

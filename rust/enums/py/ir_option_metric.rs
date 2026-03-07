@@ -40,14 +40,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyIROptionMetric {
     #[pyo3(constructor = (_u8=0))]
-    NormalVol { _u8: u8 },
-    #[pyo3(constructor = (_u8=1))]
-    LogNormalVol { _u8: u8 },
-    #[pyo3(constructor = (_u8=2))]
     PercentNotional { _u8: u8 },
-    #[pyo3(constructor = (_u8=3))]
+    #[pyo3(constructor = (_u8=1))]
     Cash { _u8: u8 },
-    #[pyo3(constructor = (param, _u8=4))]
+    #[pyo3(constructor = (_u8=2))]
+    NormalVol { _u8: u8 },
+    #[pyo3(constructor = (param, _u8=3))]
     BlackVolShift { param: i32, _u8: u8 },
 }
 
@@ -91,12 +89,11 @@ impl<'py> FromPyObject<'py, 'py> for PyIROptionMetricNewArgs {
 impl From<IROptionMetric> for PyIROptionMetric {
     fn from(value: IROptionMetric) -> Self {
         match value {
-            IROptionMetric::NormalVol {} => PyIROptionMetric::NormalVol { _u8: 0 },
-            IROptionMetric::LogNormalVol {} => PyIROptionMetric::LogNormalVol { _u8: 1 },
-            IROptionMetric::PercentNotional {} => PyIROptionMetric::PercentNotional { _u8: 2 },
-            IROptionMetric::Cash {} => PyIROptionMetric::Cash { _u8: 3 },
+            IROptionMetric::PercentNotional {} => PyIROptionMetric::PercentNotional { _u8: 0 },
+            IROptionMetric::Cash {} => PyIROptionMetric::Cash { _u8: 1 },
+            IROptionMetric::NormalVol {} => PyIROptionMetric::NormalVol { _u8: 2 },
             IROptionMetric::BlackVolShift(n) => {
-                PyIROptionMetric::BlackVolShift { param: n, _u8: 4 }
+                PyIROptionMetric::BlackVolShift { param: n, _u8: 3 }
             }
         }
     }
@@ -106,7 +103,6 @@ impl From<PyIROptionMetric> for IROptionMetric {
     fn from(value: PyIROptionMetric) -> Self {
         match value {
             PyIROptionMetric::NormalVol { _u8: _ } => IROptionMetric::NormalVol {},
-            PyIROptionMetric::LogNormalVol { _u8: _ } => IROptionMetric::LogNormalVol {},
             PyIROptionMetric::PercentNotional { _u8: _ } => IROptionMetric::PercentNotional {},
             PyIROptionMetric::Cash { _u8: _ } => IROptionMetric::Cash {},
             PyIROptionMetric::BlackVolShift { param: n, _u8: _ } => {
@@ -134,7 +130,6 @@ impl PyIROptionMetric {
     fn __str__(&self) -> String {
         match self {
             PyIROptionMetric::NormalVol { _u8: _ } => "normal_vol".to_string(),
-            PyIROptionMetric::LogNormalVol { _u8: _ } => "log_normal_vol".to_string(),
             PyIROptionMetric::PercentNotional { _u8: _ } => "percent_notional".to_string(),
             PyIROptionMetric::Cash { _u8: _ } => "cash".to_string(),
             PyIROptionMetric::BlackVolShift { param: n, _u8: _ } => {
@@ -146,7 +141,6 @@ impl PyIROptionMetric {
     fn __getnewargs__(&self) -> PyIROptionMetricNewArgs {
         match self {
             PyIROptionMetric::NormalVol { _u8: u } => PyIROptionMetricNewArgs::NoArgs(*u),
-            PyIROptionMetric::LogNormalVol { _u8: u } => PyIROptionMetricNewArgs::NoArgs(*u),
             PyIROptionMetric::PercentNotional { _u8: u } => PyIROptionMetricNewArgs::NoArgs(*u),
             PyIROptionMetric::Cash { _u8: u } => PyIROptionMetricNewArgs::NoArgs(*u),
             PyIROptionMetric::BlackVolShift { param: n, _u8: u } => {
@@ -158,12 +152,11 @@ impl PyIROptionMetric {
     #[new]
     fn new_py(args: PyIROptionMetricNewArgs) -> PyIROptionMetric {
         match args {
-            PyIROptionMetricNewArgs::NoArgs(0) => PyIROptionMetric::NormalVol { _u8: 0 },
-            PyIROptionMetricNewArgs::NoArgs(1) => PyIROptionMetric::LogNormalVol { _u8: 1 },
-            PyIROptionMetricNewArgs::NoArgs(2) => PyIROptionMetric::PercentNotional { _u8: 2 },
-            PyIROptionMetricNewArgs::NoArgs(3) => PyIROptionMetric::Cash { _u8: 3 },
-            PyIROptionMetricNewArgs::I32(n, 4) => {
-                PyIROptionMetric::BlackVolShift { param: n, _u8: 4 }
+            PyIROptionMetricNewArgs::NoArgs(0) => PyIROptionMetric::PercentNotional { _u8: 0 },
+            PyIROptionMetricNewArgs::NoArgs(1) => PyIROptionMetric::Cash { _u8: 1 },
+            PyIROptionMetricNewArgs::NoArgs(2) => PyIROptionMetric::NormalVol { _u8: 2 },
+            PyIROptionMetricNewArgs::I32(n, 3) => {
+                PyIROptionMetric::BlackVolShift { param: n, _u8: 3 }
             }
             _ => panic!("Undefined behaviour."),
         }

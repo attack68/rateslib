@@ -265,14 +265,14 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                 irs=self.ir_option_params.option_fixing.irs,
                 expiry=self.ir_option_params.expiry,
                 tenor=self.ir_option_params.option_fixing.termination,
+                t_e=self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial),
             )
 
-            t_e = self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial)  # time to expiry
             expected = (
                 _OptionModelBlack76._value(
                     F=pricing_.f + pricing_.shift,
                     K=pricing_.k + pricing_.shift,
-                    t_e=t_e,
+                    t_e=pricing_.t_e,
                     v2=1.0,  # not required
                     vol=pricing_.vol / 100.0,
                     phi=self.ir_option_params.direction.value,  # controls calls or put price
@@ -407,6 +407,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                 irs=self.ir_option_params.option_fixing.irs,
                 expiry=self.ir_option_params.expiry,
                 tenor=self.ir_option_params.option_fixing.termination,
+                t_e=self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial),
             )
         else:
             pricing_ = pricing
@@ -428,7 +429,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                 return _OptionModelBachelier._value(
                     F=pricing_.f,
                     K=pricing_.k,
-                    t_e=self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial),
+                    t_e=pricing_.t_e,
                     v2=1.0,
                     vol=g,
                     phi=self.ir_option_params.direction.value,
@@ -466,7 +467,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                     return _OptionModelBlack76._value(
                         F=pricing_.f + float(required_shift) / 100.0,
                         K=pricing_.k + float(required_shift) / 100.0,
-                        t_e=self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial),
+                        t_e=pricing_.t_e,
                         v2=1.0,
                         vol=g,
                         phi=self.ir_option_params.direction.value,
