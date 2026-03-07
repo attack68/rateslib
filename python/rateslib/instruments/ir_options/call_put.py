@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 from abc import ABCMeta
-from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -39,7 +38,7 @@ from rateslib.periods.utils import (
     _get_ir_vol_value_and_forward_maybe_from_obj,
 )
 from rateslib.volatility.fx import FXVolObj
-from rateslib.volatility.ir import IRSabrSmile
+from rateslib.volatility.ir import _BaseIRSmile
 from rateslib.volatility.ir.utils import _get_ir_expiry_and_payment
 
 if TYPE_CHECKING:
@@ -51,7 +50,6 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        IROptionMetric,
         IRSSeries,
         Sequence,
         Solver_,
@@ -61,20 +59,10 @@ if TYPE_CHECKING:
         _BaseIRSOptionPeriod,
         _BaseLeg,
         _IRVolOption_,
+        _IRVolPricingParams,
         datetime_,
         str_,
     )
-
-
-@dataclass
-class _IRVolPricingMetrics:
-    """None elements are used as flags to indicate an element is not yet set."""
-
-    vol: DualTypes
-    k: DualTypes
-    t_e: DualTypes
-    f: DualTypes
-    shift: DualTypes
 
 
 class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
@@ -85,14 +73,13 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
     :class:`~rateslib.instruments.IRPut`.
     """
 
-    _pricing: _IRVolPricingMetrics
+    _pricing: _IRVolPricingParams
 
     @property
     def rate_scalar(self) -> float:
         if type(self.kwargs.meta["metric"]) in [
             IROptionMetric.BlackVolShift,
             IROptionMetric.NormalVol,
-            IROptionMetric.LogNormalVol,
         ]:
             return 100.0
         else:
@@ -310,7 +297,13 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
 
         Pricing elements are captured and cached so they can be used later by subsequent methods.
         """
-        _ir_price_params = _get_ir_vol_value_and_forward_maybe_from_obj(
+        if isinstance(vol, _BaseIRSmile):  # TODO _BaseIRCube
+            eval_date = vol.meta.eval_date
+        else:
+            _ = _validate_obj_not_no_input(disc_curve, "disc_curve")
+            eval_date = _.nodes.initial
+
+        _pricing = _get_ir_vol_value_and_forward_maybe_from_obj(
             rate_curve=rate_curve,
             index_curve=index_curve,
             strike=self.kwargs.leg1["strike"],
@@ -318,21 +311,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             irs=self._irs,
             tenor=self._option.ir_option_params.option_fixing.termination,
             expiry=self._option.ir_option_params.expiry,
-        )
-
-        if isinstance(vol, IRSabrSmile):
-            eval_date = vol.meta.eval_date
-        else:
-            _ = _validate_obj_not_no_input(disc_curve, "disc_curve")
-            eval_date = _.nodes.initial
-        t_e_ = self._option.ir_option_params.time_to_expiry(eval_date)
-
-        _pricing = _IRVolPricingMetrics(
-            vol=_ir_price_params.vol,
-            k=_ir_price_params.k,
-            t_e=t_e_,
-            f=_ir_price_params.f,
-            shift=_ir_price_params.shift,
+            t_e=self._option.ir_option_params.time_to_expiry(eval_date),
         )
 
         # Review section in book regarding Hyper-parameters and Solver interaction
@@ -345,7 +324,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         rate_curve: CurveOption_,
         disc_curve: _BaseCurve_,
         index_curve: _BaseCurve_,
-        pricing: _IRVolPricingMetrics,
+        pricing: _IRVolPricingParams,
     ) -> None:
         """
         Set an unspecified premium on the Option to be equal to the mid-market premium.

@@ -21,16 +21,17 @@ from pandas import DataFrame, Index
 
 from rateslib.curves.interpolation import index_left
 from rateslib.data.fixings import IRSSeries, _get_irs_series
-from rateslib.dual import Dual, Dual2, Variable, dual_log, set_order_convert
+from rateslib.dual import Dual, Dual2, Variable, set_order_convert
 from rateslib.dual.utils import _dual_float, _to_number, dual_exp, dual_inv_norm_cdf
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.enums.parameters import OptionPricingModel
 from rateslib.mutability import (
     _clear_cache_post,
     _new_state_post,
     _WithCache,
     _WithState,
 )
-from rateslib.volatility.ir.base import _BaseIRSmile
+from rateslib.volatility.ir.base import _BaseIRSmile, _WithMutability
 from rateslib.volatility.ir.utils import (
     _bilinear_interp,
     _IRSabrCubeMeta,
@@ -48,14 +49,14 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         DualTypes_,
+        Iterable,
         Number,
-        Sequence,
         Series,
-        datetime_,
+        float_,
     )
 
 
-class IRSabrSmile(_BaseIRSmile):
+class IRSabrSmile(_BaseIRSmile, _WithMutability):
     r"""
     Create an *IR Volatility Smile* at a given expiry indexed for a specific IRS tenor
     using SABR parameters.
@@ -120,11 +121,6 @@ class IRSabrSmile(_BaseIRSmile):
 
     """
 
-    _ini_solve = 1
-    _meta: _IRSmileMeta
-    _id: str
-    _nodes: _SabrSmileNodes
-
     @_new_state_post
     def __init__(
         self,
@@ -141,7 +137,7 @@ class IRSabrSmile(_BaseIRSmile):
         self._id: str = (
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
-        self._meta = _IRSmileMeta(
+        self._meta: _IRSmileMeta = _IRSmileMeta(
             _tenor_input=tenor,
             _irs_series=_get_irs_series(irs_series),
             _eval_date=eval_date,
@@ -149,6 +145,7 @@ class IRSabrSmile(_BaseIRSmile):
             _plot_x_axis="strike",
             _plot_y_axis="black_vol",
             _shift=_drb(0.0, shift),
+            _pricing_model=OptionPricingModel.Black76,
         )
 
         try:
@@ -168,21 +165,21 @@ class IRSabrSmile(_BaseIRSmile):
 
         self._set_ad_order(ad)
 
+    ### Object unique elements
+
     @property
     def _n(self) -> int:
-        """The number of pricing parameters in ``nodes``."""
         return self.nodes.n
+
+    @property
+    def _ini_solve(self) -> int:
+        return 1
 
     @property
     def id(self) -> str:
         """A str identifier to name the *Smile* used in
         :class:`~rateslib.solver.Solver` mappings."""
         return self._id
-
-    @property
-    def meta(self) -> _IRSmileMeta:  # type: ignore[override]
-        """An instance of :class:`~rateslib.volatility.ir.utils._IRSmileMeta`."""
-        return self._meta
 
     @property
     def nodes(self) -> _SabrSmileNodes:
@@ -214,61 +211,6 @@ class IRSabrSmile(_BaseIRSmile):
 
         param_ = param.lower()
         return getattr(self.nodes, param_)  # type: ignore[no-any-return]
-
-    def get_from_strike(
-        self,
-        k: DualTypes,
-        expiry: datetime_ = NoInput(0),
-        tenor: datetime_ = NoInput(0),
-        f: DualTypes_ = NoInput(0),
-        curves: CurvesT_ = NoInput(0),
-    ) -> _IRVolPricingParams:
-        """
-        Given an option strike return the volatility.
-
-        Parameters
-        -----------
-        k: float, Dual, Dual2
-            The strike of the option.
-        f: float, Dual, Dual2
-            The forward rate at delivery of the option.
-        expiry: datetime, optional
-            The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
-            The termination date of the underlying *IRS*, required for parameter interpolation.
-        curves: _Curves,
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
-            for details of allowed inputs.
-
-        Returns
-        -------
-        _IRVolPricingParams
-        """
-        if isinstance(expiry, datetime) and self._meta.expiry != expiry:
-            raise ValueError(
-                "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
-                "due to potential pricing errors.",
-            )
-
-        # TODO: catch whether tenor matches the tenor of the Smile and raise an error?
-
-        if isinstance(f, NoInput):
-            f_: DualTypes = self.meta.irs_fixing.irs.rate(curves=curves)
-        else:
-            f_ = f
-        del f
-
-        vol_ = _SabrModel._d_sabr_d_k_or_f(
-            _to_number(k + self.meta.rate_shift),
-            _to_number(f_ + self.meta.rate_shift),
-            self._meta.t_expiry,
-            self.nodes.alpha,
-            self.nodes.beta,
-            self.nodes.rho,
-            self.nodes.nu,
-            derivative=0,
-        )[0]
-        return _IRVolPricingParams(vol=vol_ * 100.0, k=k, f=f_, shift=self.meta.rate_shift)
 
     def _d_sabr_d_k_or_f(
         self,
@@ -308,6 +250,8 @@ class IRSabrSmile(_BaseIRSmile):
 
         return _SabrModel._d_sabr_d_k_or_f(k_, f_, t_e, a_, b_, p_, v_, derivative)
 
+    ### _WithMutability ABCs:
+
     def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.array([self.nodes.alpha, self.nodes.rho, self.nodes.nu])
@@ -316,9 +260,7 @@ class IRSabrSmile(_BaseIRSmile):
         """Get the variable names of elements updated by a Solver"""
         return tuple(f"{self.id}{i}" for i in range(3))
 
-    @_new_state_post
-    @_clear_cache_post
-    def _set_node_vector(
+    def _set_node_vector_direct(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
         """
@@ -357,8 +299,7 @@ class IRSabrSmile(_BaseIRSmile):
             ),
         )
 
-    @_clear_cache_post
-    def _set_ad_order(self, order: int | None) -> None:
+    def _set_ad_order_direct(self, order: int | None) -> None:
         """This does not alter the beta node, since that is not varied by a Solver.
         beta values that are AD sensitive should be given as a Variable and not Dual/Dual2.
 
@@ -378,35 +319,7 @@ class IRSabrSmile(_BaseIRSmile):
             _nu=set_order_convert(self.nodes.nu, order, [f"{self.id}2"]),
         )
 
-    @_new_state_post
-    @_clear_cache_post
-    def update_node(self, key: str, value: DualTypes) -> None:
-        """
-        Update a single node value on the *SABRSmile*.
-
-        Parameters
-        ----------
-        key: str in {"alpha", "beta", "rho", "nu"}
-            The node value to update.
-        value: float, Dual, Dual2, Variable
-            Value to update on the *Smile*.
-
-        Returns
-        -------
-        None
-
-        Notes
-        -----
-
-        .. warning::
-
-           *Rateslib* is an object-oriented library that uses complex associations. Although
-           Python may not object to directly mutating attributes of a *Curve* instance, this
-           should be avoided in *rateslib*. Only use official ``update`` methods to mutate the
-           values of an existing *Curve* instance.
-           This class is labelled as a **mutable on update** object.
-
-        """
+    def _set_single_node(self, key: str, value: DualTypes) -> None:
         params = ["alpha", "beta", "rho", "nu"]
         if key not in params:
             raise KeyError(f"'{key}' is not in `nodes`.")
@@ -415,59 +328,84 @@ class IRSabrSmile(_BaseIRSmile):
         self._nodes = _SabrSmileNodes(**kwargs)
         self._set_ad_order(self.ad)
 
-    # Plotting
+    # _BaseIRSmile ABCS:
 
     def _plot(
         self,
         x_axis: str,
-        f: DualTypes_,
+        f: float,
         y_axis: str,
-        curves: CurvesT_,
-    ) -> tuple[list[float], list[DualTypes]]:
-        if isinstance(f, NoInput) and isinstance(curves, NoInput):
-            raise ValueError("`f` (ATM-forward FX rate) is required by `FXSabrSmile.plot`.")
-        elif isinstance(f, float | Dual | Dual2 | Variable):
-            f_: float = _dual_float(f)
-        elif not isinstance(curves, NoInput):
-            f_ = _dual_float(self.meta.irs_fixing.irs.rate(curves=curves))
-        del f
-
-        shf = self.meta.shift / 100.0
-        v_ = _dual_float(self.get_from_strike(k=f_, f=f_).vol) / 100.0
+        tgt_shift: float_,
+    ) -> tuple[Iterable[float], Iterable[float]]:
+        shf = _dual_float(self.meta.shift) / 100.0
+        v_ = _dual_float(self.get_from_strike(k=f, f=f).vol) / 100.0
         sq_t = self._meta.t_expiry_sqrt
         x_low = _dual_float(
-            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * (f_ + shf) - shf
+            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.95) * v_ * sq_t) * (f + shf) - shf
         )
         x_top = _dual_float(
-            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * (f_ + shf) - shf
+            dual_exp(0.5 * v_**2 * sq_t**2 - dual_inv_norm_cdf(0.05) * v_ * sq_t) * (f + shf) - shf
         )
 
         x = np.linspace(x_low, x_top, 301, dtype=np.float64)
-        u: Sequence[float] = x / f_  # type: ignore[assignment]
-        y: list[DualTypes] = [self.get_from_strike(k=_, f=f_).vol for _ in x]
+        y: Iterable[float] = [_dual_float(self.get_from_strike(k=_, f=f).vol) for _ in x]
 
-        if y_axis == "normal_vol":
+        return self._plot_conversion(
+            y_axis=y_axis, x_axis=x_axis, f=f, shift=shf, tgt_shift=_drb(shf, tgt_shift), x=x, y=y
+        )
 
-            def _hagan_convert(
-                f: DualTypes, k: DualTypes, sigma_b: DualTypes, t_e: DualTypes
-            ) -> DualTypes:
-                if abs(f - k) < 1e-13:
-                    center = f + shf
-                else:
-                    center = (f - k) / dual_log((f + shf) / (k + shf))
-                return sigma_b * center * (1 - sigma_b**2 * t_e / 24)
+    @property
+    def ad(self) -> int:
+        return self._ad
 
-            y_ = [
-                _hagan_convert(f_, k, sigma_b / 100.0, self._meta.t_expiry) * 100.0
-                for (k, sigma_b) in zip(x, y, strict=True)
-            ]
-        else:  # "black_vol"
-            y_ = y
+    @property
+    def pricing_params(self) -> tuple[float | Dual | Dual2 | Variable, ...]:
+        return self.nodes.alpha, self.nodes.beta, self.nodes.rho, self.nodes.nu
 
-        if x_axis == "moneyness":
-            return list(u), y_
-        else:  # x_axis = "strike"
-            return list(x), y_
+    @property
+    def meta(self) -> _IRSmileMeta:
+        return self._meta
+
+    def _get_from_strike(self, k: DualTypes, f: DualTypes) -> _IRVolPricingParams:
+        """
+        Given an option strike return the volatility.
+
+        Parameters
+        -----------
+        k: float, Dual, Dual2
+            The strike of the option.
+        f: float, Dual, Dual2
+            The forward rate at delivery of the option.
+        expiry: datetime, optional
+            The expiry of the option. Required for temporal interpolation.
+        tenor: datetime, optional
+            The termination date of the underlying *IRS*, required for parameter interpolation.
+        curves: _Curves,
+            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
+            for details of allowed inputs.
+
+        Returns
+        -------
+        _IRVolPricingParams
+        """
+        vol_ = _SabrModel._d_sabr_d_k_or_f(
+            _to_number(k + self.meta.rate_shift),
+            _to_number(f + self.meta.rate_shift),
+            self._meta.t_expiry,
+            self.nodes.alpha,
+            self.nodes.beta,
+            self.nodes.rho,
+            self.nodes.nu,
+            derivative=0,
+        )[0]
+        return _IRVolPricingParams(
+            vol=vol_ * 100.0,
+            k=k,
+            f=f,
+            shift=self.meta.rate_shift,
+            pricing_model=OptionPricingModel.Black76,
+            t_e=self._meta.t_expiry,
+        )
 
 
 class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile]):
@@ -896,11 +834,15 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         """
         Given an option strike, expiry and tenor, return the volatility.
 
+        .. role:: red
+
+        .. role:: green
+
         Parameters
         -----------
-        k: float, Dual, Dual2
+        k: float, Dual, Dual2, Variable, :red:`required`
             The strike of the option.
-        expiry: datetime, optional
+        expiry: datetime, :green:`
             The expiry of the option. Required for temporal interpolation.
         tenor: datetime, optional
             The termination date of the underlying *IRS*, required for parameter interpolation.

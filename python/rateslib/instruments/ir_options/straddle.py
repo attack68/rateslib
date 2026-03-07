@@ -130,11 +130,7 @@ class _BaseIROptionStrat(_BaseIROption):
         vol_: FXVolStrat_ = self._parse_vol(vol)
         metric_: IROptionMetric = _get_ir_option_metric(_drb(self.kwargs.meta["metric"], metric))
         match type(metric_):
-            case (
-                IROptionMetric.NormalVol
-                | IROptionMetric.BlackVolShift
-                | IROptionMetric.LogNormalVol
-            ):
+            case IROptionMetric.NormalVol | IROptionMetric.BlackVolShift:
                 weights = self.kwargs.meta["rate_weight_vol"]
             case IROptionMetric.Cash | IROptionMetric.PercentNotional:
                 weights = self.kwargs.meta["rate_weight"]
@@ -230,7 +226,7 @@ class _BaseIROptionStrat(_BaseIROption):
                 curves=curves,
                 solver=solver,
                 fx=fx,
-                vol=vol__,  # type: ignore[arg-type]
+                vol=vol__,
             )
             if y is None:
                 y = y_

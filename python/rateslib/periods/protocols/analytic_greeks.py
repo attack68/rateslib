@@ -666,6 +666,7 @@ class _WithAnalyticIROptionGreeks(Protocol):
             irs=self.ir_option_params.option_fixing.irs,
             expiry=self.ir_option_params.expiry,
             tenor=self.ir_option_params.option_fixing.termination,
+            t_e=sqrt_t**2,
         )
         vol_sqrt_t = pricing_.vol / 100.0 * sqrt_t
         d_plus = _OptionModelBlack76._d_plus_min_u(pricing_.k / pricing_.f, vol_sqrt_t, 0.5)

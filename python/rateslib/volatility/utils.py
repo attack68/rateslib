@@ -25,6 +25,7 @@ from rateslib.dual import (
     dual_log,
     dual_norm_cdf,
     dual_norm_pdf,
+    ift_1dim,
 )
 from rateslib.dual.utils import _to_number
 from rateslib.enums.generics import (
@@ -262,7 +263,7 @@ class _OptionModelBlack76:
     def _value(
         F: DualTypes,
         K: DualTypes,
-        t_e: float,
+        t_e: DualTypes,
         v2: DualTypes,
         vol: DualTypes,
         phi: float,
@@ -276,7 +277,7 @@ class _OptionModelBlack76:
             The forward price for settlement at the delivery date.
         K: float, Dual, Dual2
             The strike price of the option.
-        t_e: float
+        t_e: float, Dual, Dual2
             The annualised time to expiry.
         v2: float, Dual, Dual2
             The discounting rate to delivery (ccy2 on FX options), at the appropriate collateral
@@ -305,6 +306,69 @@ class _OptionModelBlack76:
         # _ = df1 * S_imm * Nd1 - K * df2 * Nd2
         return _ * v2
 
+    @classmethod
+    def convert_to_bachelier(
+        cls,
+        f: DualTypes,
+        k: DualTypes,
+        shift: DualTypes,
+        vol: DualTypes,
+        t_e: DualTypes,
+    ) -> DualTypes:
+        s_tgt = cls._value(
+            F=f + shift / 100.0, K=k + shift / 100.0, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=1.0
+        )
+
+        def s(g: DualTypes) -> DualTypes:
+            """s(g) is the price, s, of an option given a volatility, g,"""
+            return _OptionModelBachelier._value(
+                F=f,
+                K=k,
+                t_e=t_e,
+                v2=1.0,
+                vol=g,
+                phi=1.0,
+            )
+
+        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        g: DualTypes = result["g"]
+        return g * 100.0
+
+    @classmethod
+    def convert_to_new_shift(
+        cls,
+        f: DualTypes,
+        k: DualTypes,
+        old_shift: DualTypes,
+        target_shift: DualTypes,
+        vol: DualTypes,
+        t_e: DualTypes,
+    ) -> DualTypes:
+        s_tgt = cls._value(
+            F=f + old_shift / 100.0,
+            K=k + old_shift / 100.0,
+            t_e=t_e,
+            v2=1.0,
+            vol=vol / 100.0,
+            phi=1.0,
+        )
+
+        def s(g: DualTypes) -> DualTypes:
+            """s(g) is the price, s, of an option given a volatility, g,"""
+            return cls._value(
+                F=f + target_shift / 100.0,
+                K=k + target_shift / 100.0,
+                t_e=t_e,
+                v2=1.0,
+                vol=g,
+                phi=1.0,
+            )
+
+        # result = ift_1dim(s=s, s_tgt=s_tgt, h="modified_brent", ini_h_args=(0.0001, 10.0))
+        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        g: DualTypes = result["g"]
+        return g * 100.0
+
 
 class _OptionModelBachelier:
     """Container for option pricing formulae relating to the lognormal Black-76 model."""
@@ -313,7 +377,7 @@ class _OptionModelBachelier:
     def _value(
         F: DualTypes,
         K: DualTypes,
-        t_e: float,
+        t_e: DualTypes,
         v2: DualTypes,
         vol: DualTypes,
         phi: float,
@@ -327,7 +391,7 @@ class _OptionModelBachelier:
             The forward price for settlement at the delivery date.
         K: float, Dual, Dual2
             The strike price of the option.
-        t_e: float
+        t_e: float, Dual, Dual2
             The annualised time to expiry.
         v2: float, Dual, Dual2
             The discounting rate to delivery (ccy2 on FX options), at the appropriate collateral
@@ -349,6 +413,33 @@ class _OptionModelBachelier:
 
         _: DualTypes = phi * (F - K) * P + vs * p
         return _ * v2
+
+    @classmethod
+    def convert_to_black76(
+        cls,
+        f: DualTypes,
+        k: DualTypes,
+        shift: DualTypes,
+        vol: DualTypes,
+        t_e: DualTypes,
+    ) -> DualTypes:
+        s_tgt = cls._value(F=f, K=k, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=1.0)
+
+        def s(g: DualTypes) -> DualTypes:
+            """s(g) is the price, s, of an option given a volatility, g,"""
+            return _OptionModelBlack76._value(
+                F=f + shift / 100.0,
+                K=k + shift / 100.0,
+                t_e=t_e,
+                v2=1.0,
+                vol=g,
+                phi=1.0,
+            )
+
+        # result = ift_1dim(s=s, s_tgt=s_tgt, h="modified_brent", ini_h_args=(0.0001, 10.0))
+        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        g: DualTypes = result["g"]
+        return g * 100.0
 
 
 class _SabrModel:

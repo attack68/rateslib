@@ -9029,7 +9029,6 @@ class TestSwaptions:
     @pytest.mark.parametrize(
         ("metric", "expected"),
         [
-            ("LogNormalVol", 25.16),
             ("BlackVolShift_0", 25.16),
             ("Cash", 149725.796514),
             ("NormalVol", 75.792872),
@@ -9118,7 +9117,6 @@ class TestSwaptions:
             ("Cash", [1.0, 1.0]),
             ("NormalVol", [0.5, 0.5]),
             ("BlackVolShift_0", [0.5, 0.5]),
-            ("LogNormalVol", [0.5, 0.5]),
             ("BlackVolShift_100", [0.5, 0.5]),
             ("BlackVolShift_200", [0.5, 0.5]),
             ("BlackVolShift_300", [0.5, 0.5]),
@@ -9324,7 +9322,7 @@ class TestIRVolValue:
             irs_series="eur_irs6",
             eval_date=dt(2001, 1, 1),
             vol=vol,
-            metric="vol",
+            metric="black_vol_shift_0",
         )
         result = v.rate(vol=vol, curves=Curve({dt(2001, 1, 1): 1.0, dt(2005, 1, 1): 0.7}))
         expected = 15.170743310759043

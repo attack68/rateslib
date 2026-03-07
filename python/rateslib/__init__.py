@@ -191,6 +191,7 @@ from rateslib.volatility import (
     FXSabrSurface,
     IRSabrCube,
     IRSabrSmile,
+    IRSplineSmile,
 )
 
 # module level doc-string
@@ -275,6 +276,7 @@ __all__ = [
     # volatility/ir
     "IRSabrSmile",
     "IRSabrCube",
+    "IRSplineSmile",
     # solver.py
     "Solver",
     # fx.py

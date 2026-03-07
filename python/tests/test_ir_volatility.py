@@ -25,6 +25,7 @@ from rateslib.dual import Dual, Dual2, Variable, gradient
 from rateslib.volatility import (
     IRSabrCube,
     IRSabrSmile,
+    IRSplineSmile,
 )
 from rateslib.volatility.ir.utils import _bilinear_interp
 from rateslib.volatility.utils import _SabrSmileNodes
@@ -132,7 +133,10 @@ class TestIRSabrSmile:
             tenor="2y",
             id="vol",
         )
-        with pytest.raises(ValueError, match=r"`f` \(ATM-forward FX rate\) is required by"):
+        with pytest.raises(
+            ValueError,
+            match=r"`f` \(ATM-forward interest rate\) is required by `_BaseIRSmile.plot`.",
+        ):
             irss.plot()
 
     @pytest.mark.parametrize(("k", "f"), [(1.34, 1.34), (1.33, 1.35), (1.35, 1.33)])
@@ -450,7 +454,9 @@ class TestIRSabrSmile:
             tenor="2y",
             id="myid",
         )
-        with pytest.raises(ValueError, match="`expiry` of VolSmile and OptionPeriod do not match"):
+        with pytest.raises(
+            ValueError, match="`expiry` of _BaseIRSmile and intended price do not match"
+        ):
             irss.get_from_strike(k=1.0, f=1.0, expiry=dt(1999, 1, 1))
 
     @pytest.mark.parametrize("k", [1.2034, 1.2050, 1.3620, 1.5410, 1.5449])
@@ -1343,6 +1349,56 @@ class TestIRSabrCube:
         result = irsc._get_node_vector()
         assert result[2] == Dual(0.30, ["X_a_1_0"], [])
         assert result[9] == Dual(20.0, ["X_v_0_1"], [])
+
+
+class TestIRSplineSmile:
+    @pytest.mark.parametrize(
+        ("strike", "vol"),
+        [
+            (1.2034, 51.0888),
+            (1.2050, 51.07599999999999),
+            (1.3395, 50.0),  # f == k
+            (1.3620, 50.2475),
+            (1.5410, 52.216499999999996),
+            (1.5449, 52.2594),
+        ],
+    )
+    def test_spline_vol(self, strike, vol):
+        # repeat the same test developed for FXSabrSmile
+        irss = IRSplineSmile(
+            nodes={-200.0: 70.0, -100.0: 58, 0: 50.0, 100.0: 61, 200.0: 75.0},
+            k=2,
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            irs_series="eur_irs6",
+            tenor="2y",
+            id="vol",
+        )
+        result = irss.get_from_strike(k=strike, f=1.3395).vol
+        assert abs(result - vol) < 1e-2
+
+    @pytest.mark.parametrize(
+        ("strike", "vol"),
+        [
+            (1.01, 50.0),
+            (1.85, 50.0),
+            (1.3395, 50.0),  # f == k
+        ],
+    )
+    @pytest.mark.parametrize("k", [2, 4])
+    def test_spline_vol_flat(self, strike, vol, k):
+        # repeat the same test developed for FXSabrSmile
+        irss = IRSplineSmile(
+            nodes={0: 50.0},
+            k=k,
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            irs_series="eur_irs6",
+            tenor="2y",
+            id="vol",
+        )
+        result = irss.get_from_strike(k=strike, f=1.3395).vol
+        assert abs(result - vol) < 1e-2
 
 
 class TestStateAndCache:
