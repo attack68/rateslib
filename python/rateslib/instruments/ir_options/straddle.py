@@ -13,6 +13,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pandas import DataFrame
+
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import IROptionMetric, _get_ir_option_metric
@@ -23,7 +25,6 @@ if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
         Any,
         CurvesT_,
-        DataFrame,
         DualTypes,
         DualTypes_,
         FXForwards_,
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
         datetime,
         datetime_,
         str_,
+        VolStrat_,
     )
 
 
@@ -105,7 +107,7 @@ class _BaseIROptionStrat(_BaseIROption):
         self.kwargs.meta["curves"] = self._parse_curves(curves)
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> VolStrat_:  # type: ignore[override]
         raise NotImplementedError(f"{type(cls).__name__} must implement `_parse_vol`.")
 
     @property
@@ -173,11 +175,11 @@ class _BaseIROptionStrat(_BaseIROption):
                 fx=fx,
                 base=base,
                 local=local,
-                vol=vol__,
+                vol=vol__,  # type: ignore[arg-type]
                 forward=forward,
                 settlement=settlement,
             )
-            for (option, vol__) in zip(self.instruments, vol_, strict=True)
+            for (option, vol__) in zip(self.instruments, vol_, strict=True)  # type: ignore[arg-type]
         ]
 
         if local:
@@ -215,18 +217,18 @@ class _BaseIROptionStrat(_BaseIROption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
-        vol_: FXVolStrat_ = self._parse_vol(vol)
+        vol_ = self._parse_vol(vol)
 
         y = None
-        for inst, vol__ in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
+        for inst, vol__ in zip(self.instruments, vol_, strict=True):  # type: ignore[arg-type]
             x, y_ = inst._plot_payoff(
                 window=window,
                 curves=curves,
                 solver=solver,
                 fx=fx,
-                vol=vol__,
+                vol=vol__,  # type: ignore[arg-type]
             )
             if y is None:
                 y = y_

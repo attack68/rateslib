@@ -19,22 +19,17 @@ from uuid import uuid4
 import numpy as np
 from pandas import DataFrame, Index
 
-from rateslib.curves.interpolation import index_left
 from rateslib.data.fixings import IRSSeries, _get_irs_series
 from rateslib.dual import Dual, Dual2, Variable, set_order_convert
 from rateslib.dual.utils import _dual_float, _to_number, dual_exp, dual_inv_norm_cdf
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import OptionPricingModel
 from rateslib.mutability import (
-    _clear_cache_post,
     _new_state_post,
-    _WithCache,
-    _WithState,
 )
-from rateslib.volatility.ir.base import _BaseIRSmile, _WithMutability
+from rateslib.volatility.ir.base import _BaseIRCube, _BaseIRSmile, _WithMutability
 from rateslib.volatility.ir.utils import (
-    _bilinear_interp,
-    _IRSabrCubeMeta,
+    _IRCubeMeta,
     _IRSmileMeta,
     _IRVolPricingParams,
 )
@@ -44,9 +39,9 @@ UTC = timezone.utc
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
+        Arr1dObj,
         Arr2dObj,
         Arr3dObj,
-        CurvesT_,
         DualTypes,
         DualTypes_,
         Iterable,
@@ -72,7 +67,9 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
     Parameters
     ----------
     nodes: dict[str, float], :red:`required`
-        The parameters for the SABR model. Keys must be *'alpha', 'beta', 'rho', 'nu'*. See below.
+        The parameters for the SABR model. Keys must be *'alpha', 'rho', 'nu'*. See below.
+    beta: float, Variable, :red:`required`
+        The SABR beta parameter assumed by this *Smile*.
     eval_date: datetime, :red:`required`
         Acts like the initial node of a *Curve*. Should be assigned today's immediate date.
     expiry: datetime, :red:`required`
@@ -101,8 +98,6 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
 
     - ``alpha``: The initial volatility parameter (e.g. 0.10 for 10%) of the SABR model,
       in (0, inf).
-    - ``beta``: The scaling parameter between normal (0) and lognormal (1)
-      of the SABR model in [0, 1].
     - ``rho``: The correlation between spot and volatility of the SABR model,
       e.g. -0.10, in [-1.0, 1.0)
     - ``nu``: The volatility of volatility parameter of the SABR model, e.g. 0.80.
@@ -125,6 +120,7 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
     def __init__(
         self,
         nodes: dict[str, DualTypes],
+        beta: float | Variable,
         eval_date: datetime,
         expiry: datetime | str,
         irs_series: IRSSeries | str,
@@ -151,12 +147,12 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
         try:
             self._nodes: _SabrSmileNodes = _SabrSmileNodes(
                 _alpha=_to_number(nodes["alpha"]),
-                _beta=nodes["beta"],  # type: ignore[arg-type]
+                _beta=beta,
                 _rho=_to_number(nodes["rho"]),
                 _nu=_to_number(nodes["nu"]),
             )
         except KeyError as e:
-            for _ in ["alpha", "beta", "rho", "nu"]:
+            for _ in ["alpha", "rho", "nu"]:
                 if _ not in nodes:
                     raise ValueError(
                         f"'{_}' is a required SABR parameter that must be included in ``nodes``"
@@ -185,32 +181,6 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
     def nodes(self) -> _SabrSmileNodes:
         """An instance of :class:`~rateslib.volatility.utils._SabrSmileNodes`."""
         return self._nodes
-
-    def _get_sabr_param(self, expiry: datetime, tenor: datetime, param: str) -> DualTypes:
-        """
-        Return a specific SABR parameter of the Smile diretcly from its nodes.
-
-        Parameters
-        -----------
-        expiry: datetime, optional
-            The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
-            The termination date of the underlying *IRS*, required for parameter interpolation.
-        param: str,
-            The string in "alpha", "beta", "rho", "nu".
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable
-        """
-        if isinstance(expiry, datetime) and self._meta.expiry != expiry:
-            raise ValueError(
-                "`expiry` of VolSmile and OptionPeriod do not match: calculation aborted "
-                f"due to potential pricing errors.\nGot '{expiry}' and '{self._meta.expiry}'",
-            )
-
-        param_ = param.lower()
-        return getattr(self.nodes, param_)  # type: ignore[no-any-return]
 
     def _d_sabr_d_k_or_f(
         self,
@@ -305,13 +275,13 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
 
         Using `None` allows this Smile to be constructed without overwriting any variable names.
         """
-        if order == getattr(self, "_ad", None):
+        # -1, -2 force updates to new variables
+        if order is None or order == getattr(self, "ad", None):
             return None
-        elif order not in [0, 1, 2]:
+        elif abs(order) not in [0, 1, 2]:
             raise ValueError("`order` can only be in {0, 1, 2} for auto diff calcs.")
 
-        self._ad = order
-
+        self._ad = abs(order)
         self._nodes = _SabrSmileNodes(
             _beta=self.nodes.beta,
             _alpha=set_order_convert(self.nodes.alpha, order, [f"{self.id}0"]),
@@ -320,7 +290,7 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
         )
 
     def _set_single_node(self, key: str, value: DualTypes) -> None:
-        params = ["alpha", "beta", "rho", "nu"]
+        params = ["alpha", "rho", "nu", "beta"]
         if key not in params:
             raise KeyError(f"'{key}' is not in `nodes`.")
         kwargs = {f"_{_}": getattr(self.nodes, _) for _ in params if _ != key}
@@ -360,7 +330,7 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
 
     @property
     def pricing_params(self) -> tuple[float | Dual | Dual2 | Variable, ...]:
-        return self.nodes.alpha, self.nodes.beta, self.nodes.rho, self.nodes.nu
+        return self.nodes.alpha, self.nodes.rho, self.nodes.nu
 
     @property
     def meta(self) -> _IRSmileMeta:
@@ -402,16 +372,16 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
             vol=vol_ * 100.0,
             k=k,
             f=f,
-            shift=self.meta.rate_shift,
+            shift=self.meta.shift,
             pricing_model=OptionPricingModel.Black76,
             t_e=self._meta.t_expiry,
         )
 
 
-class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile]):
+class IRSabrCube(_BaseIRCube[str], _WithMutability):
     r"""
-    Create an *IR Volatility Cube* parametrised by *Smiles* at different
-    expiries and *IRS* tenors.
+    Create an *IR Volatility Cube* parametrized by :class:`~rateslib.volatility.IRSabrSmile` at
+    different expiries and *IRS* tenors.
 
     .. warning::
 
@@ -425,24 +395,24 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
 
     Parameters
     ----------
-    expiries: list[datetime | str], :red:`required`
-        Datetimes representing the expiries of each parametrised *Smile*, in ascending order.
-    tenors: list[str], :red:`required`
-        The tenors of each underlying *IRS* from each expiry for the parameterised *Smiles*.
     eval_date: datetime, :red:`required`
         Acts as the initial node of a *Curve*. Should be assigned today's immediate date.
         If expiry is given as string used to derive the specific date.
+    expiries: list[datetime | str], :red:`required`
+        Datetimes representing the expiries of each parametrized *Smile*, in ascending order.
+    tenors: list[str], :red:`required`
+        The tenors of each underlying *IRS* from each expiry for the parameterised *Smiles*.
+    alpha: float, Variable, or 2D-ndarray of such, :red:`required`
+        The alpha, :math:`\alpha_{expiry, tenor}`, parameters of each (expiry, tenor) node.
+    rho: float, Variable, or 2D-ndarray of such, :red:`required`
+        The rho, :math:`\rho_{expiry, tenor}`, parameters of each (expiry, tenor) node.
+    nu: float, Variable, or 2D-ndarray of such, :red:`required`
+        The nu, :math:`\nu_{expiry, tenor}`, parameters of each (expiry, tenor) node.
     irs_series: str, IRSSeries, :red:`required`
         The :class:`~rateslib.data.fixings.IRSSeries` that contains the parameters for the
         underlying :class:`~rateslib.instruments.IRS` that the swaptions are settled against.
     beta: float, Variable, :red:`required`
         The beta, :math:`\beta`, parameter of the SABR model.
-    alphas: float, Variable, or 2D-ndarray of such, :red:`required`
-        The alpha, :math:`\alpha_{expiry, tenor}`, parameters of each (expiry, tenor) node.
-    rhos: float, Variable, or 2D-ndarray of such, :red:`required`
-        The rho, :math:`\rho_{expiry, tenor}`, parameters of each (expiry, tenor) node.
-    nus: float, Variable, or 2D-ndarray of such, :red:`required`
-        The nu, :math:`\nu_{expiry, tenor}`, parameters of each (expiry, tenor) node.
     weights: Series, optional
        Weights used for temporal volatility interpolation. See notes.
     id: str, optional
@@ -455,54 +425,25 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
 
     Notes
     -----
-    See :class:`~rateslib.volatility.FXSabrSmile` for a description of SABR parameters for
-    *Smile* construction.
-
-    **Temporal Interpolation**
-
-    Interpolation along the expiry axis occurs by performing total linear variance interpolation
-    for a given *strike* measured on neighboring *Smiles*.
-
-    If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated
-    in Clark's *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are
-    not implemented). A datetime indexed `Series` must be provided, where any calendar date that
-    is not included will be assigned the default weight of 1.0.
-
-    See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
-
-    **Extrapolation**
-
-    When an ``expiry`` is sought that is prior to the first parametrised *Smile expiry* or after the
-    final parametrised *Smile expiry* extrapolation is required. This is not recommended,
-    however. It would be wiser to create parameterised *Smiles* at *expiries* which suit those
-    one wishes to obtian values for.
-
-    When seeking an ``expiry`` beyond the final expiry, a new
-    :class:`~rateslib.volatility.SabrSmile` is created at that specific *expiry* using the
-    same SABR parameters as matching the final parametrised *Smile*. This will capture the
-    evolution of ATM-forward rates through time.
-
-    When seeking an ``expiry`` prior to the first expiry, the volatility found on the first *Smile*
-    will be used an interpolated, using total linear variance accooridng to the given ``weights``.
-    If ``weights`` are not used then this will return the same value as obtained from that
-    first parametrised *Smile*. This does not account any evolution of ATM-forward rates.
-
+    TBD
     """
 
     _ini_solve = 0
-    _meta: _IRSabrCubeMeta
+    _SmileType = IRSabrSmile
+    _meta: _IRCubeMeta
     _id: str
 
     def __init__(
         self,
+        eval_date: datetime,
         expiries: list[datetime | str],
         tenors: list[str],
-        eval_date: datetime,
+        alpha: DualTypes | Arr2dObj,
+        rho: DualTypes | Arr2dObj,
+        nu: DualTypes | Arr2dObj,
         irs_series: str | IRSSeries,
         beta: DualTypes,
-        alphas: DualTypes | Arr2dObj,
-        rhos: DualTypes | Arr2dObj,
-        nus: DualTypes | Arr2dObj,
+        shift: DualTypes_ = NoInput(0),
         weights: Series[float] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int = 0,
@@ -511,18 +452,20 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
             uuid4().hex[:5] + "_" if isinstance(id, NoInput) else id
         )  # 1 in a million clash
 
-        self._meta = _IRSabrCubeMeta(
+        self._meta = _IRCubeMeta(
             _eval_date=eval_date,
             _tenors=tenors,
             _weights=weights,
             _expiries=expiries,
             _irs_series=_get_irs_series(irs_series),
+            _shift=_drb(0.0, shift),
+            _indexes=["alpha", "rho", "nu"],
+            _smile_params=dict(beta=beta),
         )
 
-        self._beta = beta
         _shape = (self.meta._n_expiries, self.meta._n_tenors)
         self._node_values_: Arr3dObj = np.empty(shape=_shape + (3,), dtype=object)
-        for i, kw in enumerate([alphas, rhos, nus]):
+        for i, kw in enumerate([alpha, rho, nu]):
             if isinstance(kw, float | Dual | Dual2 | Variable):
                 self._node_values_[:, :, i] = np.full(fill_value=kw, shape=_shape)
             else:
@@ -535,7 +478,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
     def beta(self) -> DualTypes:
         """The *beta*  value of each :class:`~rateslib.volatility.IRSabrSmile` associated with
         this *Cube*."""
-        return self._beta
+        return self.meta.smile_params["beta"]  # type: ignore[no-any-return]
 
     @property
     def alpha(self) -> DataFrame:
@@ -599,17 +542,21 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         return self._id
 
     @property
-    def meta(self) -> _IRSabrCubeMeta:
-        """An instance of :class:`~rateslib.volatility.fx._FXSabrSurfaceMeta`."""
+    def meta(self) -> _IRCubeMeta:
+        """An instance of :class:`~rateslib.volatility._IRCubeMeta`."""
         return self._meta
+
+    @property
+    def pricing_params(self) -> Arr3dObj:
+        """The pricing parameters of the *Cube* as 3-d array by (expiry, tenor, strike)."""
+        return self._node_values_
 
     @property
     def ad(self) -> int:
         """Int in {0,1,2} describing the AD order associated with the *Surface*."""
         return self._ad
 
-    @_clear_cache_post
-    def _set_ad_order(self, order: int) -> None:
+    def _set_ad_order_direct(self, order: int | None) -> None:
         if order == getattr(self, "ad", None):
             return None
         elif order not in [0, 1, 2]:
@@ -627,9 +574,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
         self._node_values_[:, :, 2] = np.reshape(list(new_vec[2 * n :]), (en, tn))
         return None
 
-    @_new_state_post
-    @_clear_cache_post
-    def _set_node_vector(
+    def _set_node_vector_direct(
         self, vector: np.ndarray[tuple[int, ...], np.dtype[np.object_]], ad: int
     ) -> None:
         en = self._node_values_.shape[0]
@@ -666,7 +611,7 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
                     (en, tn),
                 )
 
-    def _get_node_vector(self) -> np.ndarray[tuple[int, ...], np.dtype[np.object_]]:
+    def _get_node_vector(self) -> Arr1dObj:
         """Get a 1d array of variables associated with nodes of this object updated by Solver"""
         return np.block(
             [
@@ -687,248 +632,16 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
             )
         return vars_
 
-    def _bilinear_interpolation(
-        self,
-        expiry: datetime,
-        tenor: datetime,
-    ) -> tuple[DualTypes, DualTypes, DualTypes]:
-        """
-        Linearly interpolate the expiries / tenors array and return interpolated values
-        for the alpha, rho and nu parameters.
-
-        Returns
-        -------
-        (alpha, rho, nu)
-        """
-        # For out of bounds expiry values convert to boundary expiries with tenor time adjustment
-        if expiry < self.meta.expiry_dates[0]:
-            return self._bilinear_interpolation(
-                expiry=self.meta.expiry_dates[0],
-                tenor=tenor + (self.meta.expiry_dates[0] - expiry),
-            )
-        elif expiry > self.meta.expiry_dates[-1]:
-            return self._bilinear_interpolation(
-                expiry=self.meta.expiry_dates[-1],
-                tenor=tenor - (expiry - self.meta.expiry_dates[-1]),
-            )
-
-        e_posix = expiry.replace(tzinfo=UTC).timestamp()
-        t_posix = tenor.replace(tzinfo=UTC).timestamp()
-
-        match (self.meta._n_expiries, self.meta._n_tenors):
-            case (1, 1):
-                # nothing to interpolate: return the only parameters of the surface
-                return (
-                    self._node_values_[0, 0, 0],
-                    self._node_values_[0, 0, 1],
-                    self._node_values_[0, 0, 2],
-                )
-
-            case (1, _):
-                # interpolate only over tenor
-                e_l = 0
-                e_l_p = 0
-                t_posix_1 = t_posix - (e_posix - self.meta.expiries_posix[0])
-                t_l_1 = index_left(
-                    list_input=self.meta.tenor_dates_posix[0, :],  # type: ignore[arg-type]
-                    list_length=self.meta._n_tenors,
-                    value=t_posix_1,
-                )
-                t_l_1_p = t_l_1 + 1
-                v_ = (0.0, 0.0)  # only one expiry so no interpolation over that dimension
-                t_l_2, t_l_2_p = t_l_1, t_l_1_p
-                h_: tuple[float, float] = (
-                    (t_posix_1 - self.meta.tenor_dates_posix[e_l, t_l_1])
-                    / (
-                        self.meta.tenor_dates_posix[e_l, t_l_1_p]
-                        - self.meta.tenor_dates_posix[e_l, t_l_1]
-                    ),
-                ) * 2
-
-            case (_, 1):
-                # interpolate only over expiry
-                e_l = index_left(
-                    list_input=self.meta.expiries_posix,
-                    list_length=self.meta._n_expiries,
-                    value=e_posix,
-                )
-                e_l_p = e_l + 1
-                t_l_1, t_l_2 = 0, 0
-                t_l_1_p, t_l_2_p = 0, 0
-                h_ = (0, 0)
-                v_ = (
-                    (e_posix - self.meta.expiries_posix[e_l])
-                    / (self.meta.expiries_posix[e_l_p] - self.meta.expiries_posix[e_l]),
-                ) * 2
-
-            case _:
-                # perform true bilinear interpolation
-                e_l = index_left(
-                    list_input=self.meta.expiries_posix,
-                    list_length=self.meta._n_expiries,
-                    value=e_posix,
-                )
-                e_l_p = e_l + 1
-                v_ = (
-                    (e_posix - self.meta.expiries_posix[e_l])
-                    / (self.meta.expiries_posix[e_l_p] - self.meta.expiries_posix[e_l]),
-                ) * 2
-
-                # these are the relative tenors as measured per each benchmark expiry
-                t_posix_1 = t_posix - (e_posix - self.meta.expiries_posix[e_l])
-                t_posix_2 = t_posix - (e_posix - self.meta.expiries_posix[e_l_p])
-
-                t_l_1 = index_left(
-                    list_input=self.meta.tenor_dates_posix[e_l, :],  # type: ignore[arg-type]
-                    list_length=self.meta._n_tenors,
-                    value=t_posix_1,
-                )
-                t_l_1_p = t_l_1 + 1
-                t_l_2 = index_left(
-                    list_input=self.meta.tenor_dates_posix[e_l_p, :],  # type: ignore[arg-type]
-                    list_length=self.meta._n_tenors,
-                    value=t_posix_2,
-                )
-                t_l_2_p = t_l_2 + 1
-
-                h_ = (
-                    (t_posix_1 - self.meta.tenor_dates_posix[e_l, t_l_1])
-                    / (
-                        self.meta.tenor_dates_posix[e_l, t_l_1 + 1]
-                        - self.meta.tenor_dates_posix[e_l, t_l_1]
-                    ),
-                    (t_posix_2 - self.meta.tenor_dates_posix[e_l_p, t_l_2])
-                    / (
-                        self.meta.tenor_dates_posix[e_l_p, t_l_2 + 1]
-                        - self.meta.tenor_dates_posix[e_l_p, t_l_2]
-                    ),
-                )
-
-        h_ = (min(max(h_[0], 0), 1), min(max(h_[1], 0), 1))
-        a = self._node_values_[:, :, 0]
-        p = self._node_values_[:, :, 1]
-        v = self._node_values_[:, :, 2]
-
-        return tuple(  # type: ignore[return-value]
-            [
-                _bilinear_interp(
-                    tl=param[e_l, t_l_1],
-                    tr=param[e_l, t_l_1_p],
-                    bl=param[e_l_p, t_l_2],
-                    br=param[e_l_p, t_l_2_p],
-                    h=h_,
-                    v=v_,
-                )
-                for param in [a, p, v]
-            ]
-        )
-
-    def get_from_strike(
-        self,
-        k: DualTypes,
-        expiry: datetime,
-        tenor: datetime,
-        f: DualTypes_ = NoInput(0),
-        curves: CurvesT_ = NoInput(0),
-    ) -> _IRVolPricingParams:
-        """
-        Given an option strike, expiry and tenor, return the volatility.
-
-        .. role:: red
-
-        .. role:: green
-
-        Parameters
-        -----------
-        k: float, Dual, Dual2, Variable, :red:`required`
-            The strike of the option.
-        expiry: datetime, :green:`
-            The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
-            The termination date of the underlying *IRS*, required for parameter interpolation.
-        f: float, Dual, Dual2
-            The forward rate at delivery of the option.
-        curves: _Curves,
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
-            for details of allowed inputs.
-
-        Returns
-        -------
-        _IRVolPricingParams
-        """
-        if (expiry, tenor) in self._cache:
-            smile = self._cache[expiry, tenor]
-        else:
-            alpha, rho, nu = self._bilinear_interpolation(expiry=expiry, tenor=tenor)
-            smile = self._cached_value(
-                key=(expiry, tenor),
-                val=IRSabrSmile(
-                    nodes={
-                        "alpha": alpha,
-                        "beta": self.beta,
-                        "rho": rho,
-                        "nu": nu,
-                    },
-                    eval_date=self.meta.eval_date,
-                    expiry=expiry,
-                    tenor=tenor,
-                    irs_series=self.meta.irs_series,
-                    id="UNUSED_VARIABLE_NAME",
-                    ad=None,  # ensure variables tags are not overridden by new `id`
-                ),
-            )
-        return smile.get_from_strike(k=k, f=f, curves=curves)
-
-    def _get_sabr_param(self, expiry: datetime, tenor: datetime, param: str) -> DualTypes:
-        """
-        Determine a Smile and return a specific SABR parameter
-
-        Parameters
-        -----------
-        expiry: datetime, optional
-            The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
-            The termination date of the underlying *IRS*, required for parameter interpolation.
-        param: str,
-            The string in "alpha", "beta", "rho", "nu
-
-        Returns
-        -------
-        float, Dual, Dual2, Variable
-        """
-        if (expiry, tenor) in self._cache:
-            smile = self._cache[expiry, tenor]
-        else:
-            alpha, rho, nu = self._bilinear_interpolation(expiry=expiry, tenor=tenor)
-            smile = self._cached_value(
-                key=(expiry, tenor),
-                val=IRSabrSmile(
-                    nodes={
-                        "alpha": alpha,
-                        "beta": self.beta,
-                        "rho": rho,
-                        "nu": nu,
-                    },
-                    eval_date=self.meta.eval_date,
-                    expiry=expiry,
-                    tenor=tenor,
-                    irs_series=self.meta.irs_series,
-                    id="UNUSED_VARIABLE_NAME",
-                    ad=None,  # ensure variables tags are not overridden by new `id`
-                ),
-            )
-        return smile._get_sabr_param(param=param, expiry=expiry, tenor=tenor)
-
-    @_new_state_post
-    @_clear_cache_post
-    def update_node(self, key: str, value: DualTypes | Arr2dObj) -> None:
+    def _set_single_node_direct(
+        self, key: tuple[datetime, datetime, str], value: DualTypes
+    ) -> None:
         """
         Update some generic parameters on the *SabrCube*.
 
         Parameters
         ----------
-        key: str in {"alpha", "beta", "rho", "nu"}
-            The node value to update.
+        key: tuple of (datetime, datetime, str in {"alpha", "rho", "nu"})
+            The node value to update, indexed by (expiry, tenor, SABR param).
         value: Array, float, Dual, Dual2, Variable
             Value to update on the *Cube*.
 
@@ -938,6 +651,8 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
 
         Notes
         -----
+        This function may update all of the AD variable names to be a consistent pricing object
+        familiar to a :class:`~rateslib.solver.Solver`.
 
         .. warning::
 
@@ -948,22 +663,16 @@ class IRSabrCube(_WithState, _WithCache[tuple[datetime, datetime], IRSabrSmile])
            This class is labelled as a **mutable on update** object.
 
         """
-        params = ["alpha", "beta", "rho", "nu"]
-        if key not in params:
-            raise KeyError(f"'{key}' is not in `nodes`.")
+        params = ["alpha", "rho", "nu"]
+        if key[2] not in params:
+            raise KeyError(f"'{key[2]}' is not in `nodes`.")
 
-        for i, key_ in enumerate(["alpha", "rho", "nu"]):
-            _shape = (self.meta._n_expiries, self.meta._n_tenors)
-            if key == key_:
-                if isinstance(value, float | Dual | Dual2 | Variable):
-                    self._node_values_[:, :, i] = np.full(fill_value=value, shape=_shape)
-                else:
-                    self._node_values_[:, :, i] = np.asarray(value)
-                return None
-
-        if not isinstance(value, float | Dual | Dual2 | Variable):
-            raise ValueError("'beta' must must be a scalar quantity in [0, 1].")
-        else:
-            self._beta = value
+        tenor_row = self.meta.expiry_dates.index(key[0])
+        self._node_values_[
+            self.meta.expiry_dates.index(key[0]),
+            self.meta.tenor_dates[tenor_row].tolist().index(key[1]),
+            self.meta.indexes.index(key[2]),
+        ] = value
 
         self._set_ad_order(self.ad)
+        return None

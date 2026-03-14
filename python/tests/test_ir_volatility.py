@@ -22,9 +22,11 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.data.fixings import IRSSeries
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.splines import PPSplineF64
 from rateslib.volatility import (
     IRSabrCube,
     IRSabrSmile,
+    IRSplineCube,
     IRSplineSmile,
 )
 from rateslib.volatility.ir.utils import _bilinear_interp
@@ -84,10 +86,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -102,10 +104,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -123,10 +125,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -146,10 +148,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -203,10 +205,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -266,10 +268,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -322,10 +324,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -344,11 +346,10 @@ class TestIRSabrSmile:
         dual2 = abs(diff) < 5e-1
         assert np.all(dual2)
 
-    @pytest.mark.parametrize("param", ["alpha", "beta", "rho", "nu"])
+    @pytest.mark.parametrize("param", ["alpha", "rho", "nu"])
     def test_missing_param_raises(self, param):
         nodes = {
             "alpha": 0.17431060,
-            "beta": 1.0,
             "rho": -0.11268306,
             "nu": 0.81694072,
         }
@@ -356,6 +357,7 @@ class TestIRSabrSmile:
         with pytest.raises(ValueError):
             IRSabrSmile(
                 nodes=nodes,
+                beta=1.0,
                 eval_date=dt(2001, 1, 1),
                 expiry=dt(2002, 1, 1),
                 irs_series="eur_irs6",
@@ -368,10 +370,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -386,10 +388,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -404,10 +406,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.17431060,
-                "beta": 1.0,
                 "rho": -0.11268306,
                 "nu": 0.81694072,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -422,10 +424,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -444,10 +446,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -465,10 +467,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -511,10 +513,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -569,10 +571,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -632,10 +634,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -686,10 +688,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.20,
-                "beta": 1.0,
                 "rho": -0.10,
                 "nu": 0.80,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -806,10 +808,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": a,
-                "beta": b,
                 "rho": p,
                 "nu": v,
             },
+            beta=b,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -867,10 +869,10 @@ class TestIRSabrSmile:
             IRSabrSmile(
                 nodes={
                     "alpha": 0.05,
-                    "beta": -0.03,
                     "rho": 0.1,
                     "bad": 0.1,
                 },
+                beta=-0.03,
                 eval_date=dt(2001, 1, 1),
                 expiry=dt(2002, 1, 1),
                 irs_series="eur_irs6",
@@ -883,10 +885,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.05,
-                "beta": -0.03,
                 "rho": 0.1,
                 "nu": 0.1,
             },
+            beta=1.0,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -901,10 +903,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.05,
-                "beta": -0.03,
                 "rho": 0.1,
                 "nu": 0.1,
             },
+            beta=-0.03,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -919,10 +921,10 @@ class TestIRSabrSmile:
         irss = IRSabrSmile(
             nodes={
                 "alpha": 0.05,
-                "beta": -0.03,
                 "rho": 0.1,
                 "nu": 0.1,
             },
+            beta=-0.03,
             eval_date=dt(2001, 1, 1),
             expiry=dt(2002, 1, 1),
             irs_series="eur_irs6",
@@ -944,11 +946,12 @@ class TestIRSabrSmile:
             irs_series="usd_irs",
             nodes={
                 "alpha": 0.20,
-                "beta": 0.5,
                 "rho": -0.05,
-                "nu": 0.65,
+                "nu": 1.5,
             },
+            beta=0.5,
             id="sofr_vol",
+            shift=0.0,
         )
         smile2 = IRSabrSmile(
             eval_date=dt(2000, 1, 1),
@@ -957,14 +960,23 @@ class TestIRSabrSmile:
             irs_series="usd_irs",
             nodes={
                 "alpha": 0.20,
-                "beta": 0.5,
-                "rho": -0.05,
-                "nu": 0.65,
+                "rho": -0.06,
+                "nu": 1.5,
             },
+            beta=0.5,
             id="sofr_vol",
-            shift=50.0,
+            shift=10.0,
         )
+
+        from rateslib import IRS, IRCall, Solver
+
         curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.90}, id="sofr")
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr")],
+            s=[3.0],
+            instrument_labels=["1Y IRS"],
+        )
         option_args = dict(
             expiry=dt(2000, 7, 1),
             tenor="1y",
@@ -974,31 +986,43 @@ class TestIRSabrSmile:
             vol="sofr_vol",
         )
 
-        from rateslib import IRS, IRCall, Solver
+        instruments = [
+            IRCall(strike="-20bps", **option_args),
+            IRCall(strike="atm", **option_args),
+            IRCall(strike="+20bps", **option_args),
+        ]
 
         def solver_factory(smile):
             solver = Solver(
-                curves=[curve, smile],
-                instruments=[
-                    IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr"),
-                    IRCall(strike="-20bps", **option_args),
-                    IRCall(strike="atm", **option_args),
-                    IRCall(strike="+20bps", **option_args),
-                ],
-                s=[3.0, 50.0, 45.0, 49.0],
-                instrument_labels=["1Y IRS", "-20bps Vol", "ATM Vol", "+20bps Vol"],
+                pre_solvers=[curve_solver],
+                curves=[smile],
+                instruments=instruments,
+                s=[50.0, 47.0, 49.0],
+                instrument_labels=["-20bps Vol", "ATM Vol", "+20bps Vol"],
+                ini_lambda=(20000, 0.4, 2),
+                conv_tol=1e-6,
             )
             return solver
 
-        solver_factory(smile1)
-        solver_factory(smile2)
+        s2 = solver_factory(smile2)
+        s1 = solver_factory(smile1)
 
-        fig, ax, lines = smile1.plot(f=3.0, y_axis="normal_vol", comparators=[smile2])
+        res1_nvol = [_.rate(solver=s1) for _ in instruments]
+        res2_nvol = [_.rate(solver=s2) for _ in instruments]
+        res1_lnvol = [_.rate(solver=s1, metric="black_vol_shift_0") for _ in instruments]
+        res2_lnvol = [_.rate(solver=s2, metric="black_vol_shift_10") for _ in instruments]
 
-        y1 = lines[0]._y
-        y2 = lines[1]._y
+        fig, ax, lines = smile1.plot(curves=curve, y_axis="normal_vol", comparators=[smile2])
 
-        assert all([abs(_1 - _2) < 0.75 for _1, _2 in zip(y1, y2, strict=True)])
+        pp1 = PPSplineF64(k=2, t=[lines[0]._x[0]] + lines[0]._x.tolist() + [lines[0]._x[-1]])
+        pp1.csolve(tau=lines[0]._x, y=lines[0]._y, left_n=0, right_n=0, allow_lsq=False)
+        pp2 = PPSplineF64(k=2, t=[lines[1]._x[0]] + lines[1]._x.tolist() + [lines[1]._x[-1]])
+        pp2.csolve(tau=lines[1]._x, y=lines[1]._y, left_n=0, right_n=0, allow_lsq=False)
+
+        x = np.linspace(2.54, 2.83, 101)
+        eps = [abs(pp1.ppev_single(_) - pp2.ppev_single(_)) for _ in x]
+
+        assert all(_ < 0.001 for _ in eps)
 
 
 class TestIRSabrCube:
@@ -1010,9 +1034,9 @@ class TestIRSabrCube:
             irs_series="usd_irs",
             id="usd_ir_vol",
             beta=0.5,
-            alphas=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
-            rhos=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
-            nus=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+            alpha=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+            rho=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+            nu=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
         )
         pass
 
@@ -1024,9 +1048,9 @@ class TestIRSabrCube:
             tenors=["2y", "5y"],
             irs_series="usd_irs",
             beta=0.5,
-            alphas=0.05,
-            rhos=-0.01,
-            nus=0.01,
+            alpha=0.05,
+            rho=-0.01,
+            nu=0.01,
             ad=ad,
             id="my-c",
         )
@@ -1111,12 +1135,12 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
-            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
-            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            alpha=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rho=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nu=np.array([[10.0, 20.0], [30.0, 40.0]]),
             id="my-c",
         )
-        result = irsc._bilinear_interpolation(expiry=expiry, tenor=tenor)
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor))
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -1166,12 +1190,12 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1, 0.2]]),
-            rhos=np.array([[1.0, 2.0]]),
-            nus=np.array([[10.0, 20.0]]),
+            alpha=np.array([[0.1, 0.2]]),
+            rho=np.array([[1.0, 2.0]]),
+            nu=np.array([[10.0, 20.0]]),
             id="my-c",
         )
-        result = irsc._bilinear_interpolation(expiry=expiry, tenor=tenor)
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor))
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -1221,15 +1245,15 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1], [0.2]]),
-            rhos=np.array([[1.0], [2.0]]),
-            nus=np.array([[10.0], [20.0]]),
+            alpha=np.array([[0.1], [0.2]]),
+            rho=np.array([[1.0], [2.0]]),
+            nu=np.array([[10.0], [20.0]]),
             id="my-c",
         )
-        result = irsc._bilinear_interpolation(expiry=expiry, tenor=tenor)
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor).tolist())
         assert result == expected
 
-    def test_alphas(self):
+    def test_alpha(self):
         irsc = IRSabrCube(
             eval_date=dt(2026, 2, 16),
             expiries=["1m", "3m"],
@@ -1237,9 +1261,9 @@ class TestIRSabrCube:
             irs_series="usd_irs",
             id="usd_ir_vol",
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.11, 0.12]]),
-            rhos=np.array([[0.1, 0.3], [0.11, 0.12]]),
-            nus=np.array([[0.1, 0.4], [0.11, 0.12]]),
+            alpha=np.array([[0.1, 0.2], [0.11, 0.12]]),
+            rho=np.array([[0.1, 0.3], [0.11, 0.12]]),
+            nu=np.array([[0.1, 0.4], [0.11, 0.12]]),
         )
         expected = DataFrame(
             index=Index(["1m", "3m"], name="expiry"),
@@ -1272,9 +1296,9 @@ class TestIRSabrCube:
             irs_series="usd_irs",
             id="usd_ir_vol",
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.11, 0.12]]),
-            rhos=np.array([[0.1, 0.3], [0.11, 0.12]]),
-            nus=np.array([[0.1, 0.4], [0.11, 0.12]]),
+            alpha=np.array([[0.1, 0.2], [0.11, 0.12]]),
+            rho=np.array([[0.1, 0.3], [0.11, 0.12]]),
+            nu=np.array([[0.1, 0.4], [0.11, 0.12]]),
         )
         irsc.get_from_strike(k=1.02, f=1.04, expiry=dt(2026, 3, 30), tenor=dt(2027, 8, 12))
         assert (dt(2026, 3, 30), dt(2027, 8, 12)) in irsc._cache
@@ -1293,9 +1317,9 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
-            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
-            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            alpha=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rho=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nu=np.array([[10.0, 20.0], [30.0, 40.0]]),
             id="X",
         )
         result = irsc._get_node_vector()
@@ -1316,9 +1340,9 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
-            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
-            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            alpha=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rho=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nu=np.array([[10.0, 20.0], [30.0, 40.0]]),
             id="X",
             ad=1,
         )
@@ -1340,9 +1364,9 @@ class TestIRSabrCube:
                 leg2_fixing_method="ibor(2)",
             ),
             beta=0.5,
-            alphas=np.array([[0.1, 0.2], [0.3, 0.4]]),
-            rhos=np.array([[1.0, 2.0], [3.0, 4.0]]),
-            nus=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            alpha=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rho=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nu=np.array([[10.0, 20.0], [30.0, 40.0]]),
             id="X",
         )
         irsc._set_node_vector(np.array([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3, 4, 10, 20, 30, 40]), ad=1)
@@ -1400,6 +1424,348 @@ class TestIRSplineSmile:
         result = irss.get_from_strike(k=strike, f=1.3395).vol
         assert abs(result - vol) < 1e-2
 
+    @pytest.mark.parametrize("k", [2, 4])
+    @pytest.mark.parametrize(
+        ("nodes", "expected_k"),
+        [
+            ({0.0: 100.0}, 2),
+            ({-10.0: 49.0, 10.0: 53.0}, 2),
+            ({-25.0: 62, 0: 59, 25: 65}, None),
+            ({-25.0: 64, -10: 60, 10: 61, 25: 66}, None),
+        ],
+    )
+    def test_spline_construction(self, k, nodes, expected_k):
+        irss = IRSplineSmile(
+            nodes=nodes,
+            k=k,
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            irs_series="eur_irs6",
+            tenor="2y",
+            id="vol",
+        )
+        expected_k = expected_k or k
+        for key, v in nodes.items():
+            result = irss.get_from_strike(k=key / 100.0, f=0.0).vol
+            assert abs(result - v) < 1e-6
+            assert irss.nodes.spline.k == expected_k
+
+
+class TestIRSplineCube:
+    def test_init(self):
+        IRSplineCube(
+            eval_date=dt(2026, 2, 16),
+            expiries=["1m", "3m"],
+            tenors=["1Y", "2y", "3y"],
+            strikes=[-100.0, 0.0, 100.0],
+            irs_series="usd_irs",
+            id="usd_ir_vol",
+            parameters=20.0,
+        )
+        pass
+
+    @pytest.mark.parametrize(("ad", "klass"), [(1, Dual), (2, Dual2)])
+    def test_constructed_spline_smile_vars(self, ad, klass):
+        irsc = IRSplineCube(
+            eval_date=dt(2026, 2, 20),
+            expiries=["1m", "3m"],
+            tenors=["2y", "5y"],
+            strikes=[-10.0],
+            irs_series="usd_irs",
+            parameters=10.0,
+            ad=ad,
+            id="my-c",
+        )
+        _ = irsc.get_from_strike(k=1.0, f=1.02, expiry=dt(2026, 3, 30), tenor=dt(2028, 8, 12))
+        smile = irsc._cache[(dt(2026, 3, 30), dt(2028, 8, 12))]
+        vars_ = smile.pricing_params[0].vars
+        assert vars_ == ["my-c0", "my-c1", "my-c2", "my-c3"]
+        assert isinstance(smile.pricing_params[0], klass)
+
+    @pytest.mark.parametrize(
+        ("expiry", "tenor", "expected"),
+        [
+            # tests on a node directly
+            (dt(2001, 1, 1), dt(2002, 1, 1), (10.0,)),
+            (dt(2002, 1, 1), dt(2003, 1, 1), (30.0,)),
+            (dt(2001, 1, 1), dt(2003, 1, 1), (20.0,)),
+            (dt(2002, 1, 1), dt(2004, 1, 1), (40.0,)),
+            # test within bounds
+            (dt(2001, 4, 1), dt(2002, 7, 1), (17.424657534246577,)),
+            (
+                dt(2001, 4, 1),
+                dt(2003, 1, 1),
+                (22.46575342465753,),
+            ),
+            (
+                dt(2001, 10, 1),
+                dt(2003, 1, 1),
+                (27.47945205479452,),
+            ),
+            (
+                dt(2001, 10, 1),
+                dt(2003, 7, 1),
+                (32.43835616438356,),
+            ),
+            # test out of bounds
+            (dt(2000, 7, 1), dt(2001, 1, 1), (10.0,)),  # 6m6m
+            (
+                dt(2000, 7, 1),
+                dt(2002, 1, 1),
+                (15.04109589041096,),
+            ),  # 6m18m
+            (dt(2000, 7, 1), dt(2003, 7, 1), (20.0,)),  # 6m3y
+            (
+                dt(2001, 7, 1),
+                dt(2002, 1, 1),
+                (19.91780821917808,),
+            ),  # 18m6m
+            (
+                dt(2001, 7, 1),
+                dt(2004, 7, 1),
+                (29.91780821917808,),
+            ),  # 18m3y
+            (dt(2003, 1, 1), dt(2003, 7, 1), (30.0,)),  # 3y6m
+            (
+                dt(2003, 1, 1),
+                dt(2004, 7, 1),
+                (34.986301369863014,),
+            ),  # 3y18m
+            (dt(2003, 1, 1), dt(2006, 1, 1), (40.0,)),  # 3y3y
+        ],
+    )
+    def test_interpolation_boundaries(self, expiry, tenor, expected):
+        # test that the SplineCube will interpolate the parameters if the expiry and tenors are
+        # - exactly falling on node dates
+        # - some elements within the node-mesh
+        # - some elements outside the node-mesh which are mapped to nearest components.
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            strikes=[0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=np.reshape(np.array([10.0, 20.0, 30.0, 40.0]), (2, 2, 1)),
+            id="my-c",
+        )
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("expiry", "tenor", "expected"),
+        [
+            (dt(2000, 7, 1), dt(2001, 1, 1), (10.0,)),
+            (dt(2000, 7, 1), dt(2001, 7, 1), (10.0,)),
+            (
+                dt(2000, 7, 1),
+                dt(2002, 1, 1),
+                (15.04109589041096,),
+            ),
+            (dt(2000, 7, 1), dt(2003, 7, 1), (20.0,)),
+            (dt(2001, 1, 1), dt(2001, 7, 1), (10.0,)),
+            (dt(2001, 1, 1), dt(2002, 1, 1), (10.0,)),
+            (
+                dt(2001, 1, 1),
+                dt(2002, 7, 1),
+                (14.95890410958904,),
+            ),
+            (dt(2001, 1, 1), dt(2003, 7, 1), (20.0,)),
+            (dt(2002, 1, 1), dt(2002, 7, 1), (10.0,)),
+            (dt(2002, 1, 1), dt(2003, 1, 1), (10.0,)),
+            (
+                dt(2002, 1, 1),
+                dt(2003, 7, 1),
+                (14.95890410958904,),
+            ),
+            (dt(2002, 1, 1), dt(2004, 7, 1), (20.0,)),
+        ],
+    )
+    def test_interpolation_single_expiry(self, expiry, tenor, expected):
+        # test that the SplineCube will interpolate the parameters if the expiry and tenors are
+        # - exactly falling on node dates
+        # - some elements within the node-mesh
+        # - some elements outside the node-mesh which are mapped to nearest components.
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y"],
+            tenors=["1y", "2y"],
+            strikes=[0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=np.reshape(np.array([10.0, 20.0]), (1, 2, 1)),
+            id="my-c",
+        )
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor))
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("expiry", "tenor", "expected"),
+        [
+            (dt(2000, 7, 1), dt(2001, 1, 1), (10.0,)),
+            (dt(2000, 7, 1), dt(2001, 7, 1), (10.0,)),
+            (dt(2000, 7, 1), dt(2002, 1, 1), (10.0,)),
+            (dt(2001, 1, 1), dt(2001, 7, 1), (10.0,)),
+            (dt(2001, 1, 1), dt(2002, 1, 1), (10.0,)),
+            (dt(2001, 1, 1), dt(2002, 7, 1), (10.0,)),
+            (
+                dt(2001, 7, 1),
+                dt(2002, 1, 1),
+                (14.95890410958904,),
+            ),
+            (
+                dt(2001, 7, 1),
+                dt(2002, 7, 1),
+                (14.95890410958904,),
+            ),
+            (
+                dt(2001, 7, 1),
+                dt(2003, 1, 1),
+                (14.95890410958904,),
+            ),
+            (dt(2002, 7, 1), dt(2003, 1, 1), (20.0,)),
+            (dt(2002, 7, 1), dt(2003, 7, 1), (20.0,)),
+            (dt(2002, 7, 1), dt(2004, 7, 1), (20.0,)),
+        ],
+    )
+    def test_interpolation_single_tenor(self, expiry, tenor, expected):
+        # test that the SplineCube will interpolate the parameters if the expiry and tenors are
+        # - exactly falling on node dates
+        # - some elements within the node-mesh
+        # - some elements outside the node-mesh which are mapped to nearest components.
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y"],
+            strikes=[0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=np.reshape(np.array([10.0, 20.0]), (2, 1, 1)),
+            id="my-c",
+        )
+        result = tuple(irsc._bilinear_interpolation(expiry=expiry, tenor=tenor).tolist())
+        assert result == expected
+
+    def test_cache(self):
+        irsc = IRSplineCube(
+            eval_date=dt(2026, 2, 16),
+            expiries=["1m", "3m"],
+            tenors=["1Y", "2Y"],
+            strikes=[-10.0, 0.0, 10.0],
+            irs_series="usd_irs",
+            id="usd_ir_vol",
+            parameters=10.0,
+        )
+        irsc.get_from_strike(k=1.02, f=1.04, expiry=dt(2026, 3, 30), tenor=dt(2027, 8, 12))
+        assert (dt(2026, 3, 30), dt(2027, 8, 12)) in irsc._cache
+
+    def test_get_node_vector(self):
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            strikes=[-10.0, 0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=np.reshape(np.array([1, 2, 3, 4, 5, 6, 7, 8]), (2, 2, 2)),
+            id="X",
+        )
+        result = irsc._get_node_vector()
+        expected = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+        assert irsc.get_smile("1y", "1y").pricing_params == [np.float64(1.0), np.float64(2.0)]
+        assert np.all(result == expected)
+
+    def test_get_node_vector_ad1(self):
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            strikes=[0.0, 10.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=10.0,
+            id="X",
+            ad=1,
+        )
+        result = irsc._get_node_vector()
+        assert result[2] == Dual(10.0, ["X2"], [])
+        assert result[7] == Dual(10.0, ["X7"], [])
+
+    def test_set_node_vector(self):
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            strikes=[-10.0, 0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=10.0,
+            id="X",
+        )
+        irsc._set_node_vector(np.array([0.1, 0.2, 0.3, 0.4, 1.0, 2.0, 3, 4]), ad=1)
+        result = irsc._get_node_vector()
+        assert result[2] == Dual(0.30, ["X2"], [])
+        assert result[7] == Dual(4, ["X7"], [])
+
+    def test_update_single_key(self):
+        # TODO need to decide how _set_or_ad should work with update nodes.
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            strikes=[-10.0, 0.0],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            parameters=10.0,
+            id="X",
+            ad=1,
+        )
+        irsc.update_node(("1y", "1y", -10.0), 20.0)
+        result = irsc._get_node_vector()
+        assert result[0] == Dual(20.0, ["X0"], [])
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(
@@ -1408,10 +1774,10 @@ class TestStateAndCache:
             IRSabrSmile(
                 nodes={
                     "alpha": 0.1,
-                    "beta": 0.5,
                     "rho": -0.05,
                     "nu": 0.1,
                 },
+                beta=0.5,
                 eval_date=dt(2001, 1, 1),
                 expiry=dt(2002, 1, 1),
                 irs_series="eur_irs6",
@@ -1426,9 +1792,9 @@ class TestStateAndCache:
                 irs_series="usd_irs",
                 id="usd_ir_vol",
                 beta=0.5,
-                alphas=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
-                rhos=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
-                nus=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+                alpha=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+                rho=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
+                nu=np.array([[0.1, 0.2, 0.3], [0.11, 0.12, 0.13]]),
             ),
         ],
     )
@@ -1445,10 +1811,10 @@ class TestStateAndCache:
             IRSabrSmile(
                 nodes={
                     "alpha": 0.1,
-                    "beta": 0.5,
                     "rho": -0.05,
                     "nu": 0.1,
                 },
+                beta=0.5,
                 eval_date=dt(2001, 1, 1),
                 expiry=dt(2002, 1, 1),
                 irs_series="eur_irs6",
@@ -1477,27 +1843,16 @@ class TestStateAndCache:
             IRSabrSmile(
                 nodes={
                     "alpha": 0.1,
-                    "beta": 0.5,
                     "rho": -0.05,
                     "nu": 0.1,
                 },
+                beta=0.5,
                 eval_date=dt(2001, 1, 1),
                 expiry=dt(2002, 1, 1),
                 irs_series="eur_irs6",
                 tenor="2y",
                 id="v",
                 ad=2,
-            ),
-            IRSabrCube(
-                eval_date=dt(2026, 2, 16),
-                expiries=["1m"],
-                tenors=["1Y"],
-                irs_series="usd_irs",
-                id="usd_ir_vol",
-                beta=0.5,
-                alphas=np.array([[0.1]]),
-                rhos=np.array([[0.2]]),
-                nus=np.array([[0.3]]),
             ),
         ],
     )
@@ -1509,6 +1864,35 @@ class TestStateAndCache:
         ],
     )
     def test_method_changes_state_sabr(self, curve, method, args):
+        before = curve._state
+        getattr(curve, method)(*args)
+        after = curve._state
+        assert before != after
+
+    @pytest.mark.parametrize(
+        "curve",
+        [
+            IRSabrCube(
+                eval_date=dt(2026, 2, 16),
+                expiries=["1m"],
+                tenors=["1Y"],
+                irs_series="usd_irs",
+                id="usd_ir_vol",
+                beta=0.5,
+                alpha=np.array([[0.1]]),
+                rho=np.array([[0.2]]),
+                nu=np.array([[0.3]]),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("method", "args"),
+        [
+            ("_set_node_vector", ([0.99, 0.98, 0.99], 1)),
+            ("update_node", ((dt(2026, 3, 16), dt(2027, 3, 18), "alpha"), 0.98)),
+        ],
+    )
+    def test_method_changes_state_sabr_cube(self, curve, method, args):
         before = curve._state
         getattr(curve, method)(*args)
         after = curve._state
@@ -1538,9 +1922,9 @@ class TestStateAndCache:
             irs_series="usd_irs",
             id="usd_ir_vol",
             beta=0.5,
-            alphas=np.array([[0.1]]),
-            rhos=np.array([[0.2]]),
-            nus=np.array([[0.3]]),
+            alpha=np.array([[0.1]]),
+            rho=np.array([[0.2]]),
+            nu=np.array([[0.3]]),
         )
         surf.get_from_strike(f=1.0, k=1.01, expiry=dt(2026, 3, 1), tenor=dt(2027, 3, 1))
         assert (dt(2026, 3, 1), dt(2027, 3, 1)) in surf._cache

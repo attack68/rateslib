@@ -18,6 +18,7 @@ from rateslib import defaults
 from rateslib.curves import MultiCsaCurve, ProxyCurve
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
+from rateslib.volatility import _BaseIRCube, _BaseIRSmile
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -475,7 +476,9 @@ def _maybe_get_ir_vol_maybe_from_solver(
         return _get_ir_vol_from_solver(ir_vol=ir_vol_, solver=solver)
 
 
-def _get_ir_vol_from_solver(ir_vol: _IRVolObj | str, solver: Solver) -> _IRVolObj:
+def _get_ir_vol_from_solver(
+    ir_vol: _BaseIRSmile | _BaseIRCube[Any] | str, solver: Solver
+) -> _BaseIRSmile | _BaseIRCube[Any]:
     if isinstance(ir_vol, str):
         return solver._get_pre_irvol(ir_vol)
 

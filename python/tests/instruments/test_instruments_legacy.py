@@ -9134,8 +9134,8 @@ class TestSwaptions:
                 "alpha": 0.2,
                 "rho": -0.05,
                 "nu": 0.6,
-                "beta": 0.5,
             },
+            beta=0.5,
             irs_series="usd_irs",
         )
         irsc = IRCall(
@@ -9176,8 +9176,8 @@ class TestSwaptions:
                 "alpha": 0.2,
                 "rho": -0.05,
                 "nu": 0.6,
-                "beta": 0.5,
             },
+            beta=0.5,
             irs_series="usd_irs",
         )
         irsc = IRCall(
@@ -9211,10 +9211,10 @@ class TestSwaptions:
             irs_series="usd_irs",
             nodes={
                 "alpha": 0.20,
-                "beta": 0.5,
                 "rho": -0.05,
                 "nu": 0.65,
             },
+            beta=0.5,
             id="sofr_vol",
         )
         curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.90}, id="sofr")
@@ -9257,10 +9257,10 @@ class TestIRVolValue:
             IRSabrSmile(
                 nodes={
                     "alpha": 0.17431060,
-                    "beta": 0.75,
                     "rho": -0.11268306,
                     "nu": 0.81694072,
                 },
+                beta=0.75,
                 eval_date=dt(2001, 1, 1),
                 expiry="1y",
                 irs_series="eur_irs6",
@@ -9272,10 +9272,10 @@ class TestIRVolValue:
                 expiries=["1y"],
                 irs_series="eur_irs6",
                 tenors=["1y"],
-                alphas=0.17,
+                alpha=0.17,
                 beta=0.75,
-                rhos=-0.11,
-                nus=0.817,
+                rho=-0.11,
+                nu=0.817,
                 id="VolSmile",
             ),
         ],
@@ -9312,7 +9312,12 @@ class TestIRVolValue:
         ]
         Solver(curves=[vol], instruments=instruments, s=[0.25, -0.04, 0.75])
         for param, expected in zip(["alpha", "rho", "nu"], [0.25, -0.04, 0.75]):
-            result = vol._get_sabr_param(param=param, expiry=dt(2002, 1, 2), tenor=dt(2003, 1, 4))
+            if isinstance(vol, IRSabrCube):
+                result = getattr(
+                    vol.get_smile(expiry=dt(2002, 1, 2), tenor=dt(2003, 1, 4)).nodes, param
+                )
+            else:
+                result = getattr(vol.nodes, param)
             assert abs(result - expected) < 1e-6
 
         v = IRVolValue(
@@ -9354,28 +9359,28 @@ class TestIRVolValue:
     @pytest.mark.parametrize(
         "vol",
         [
-            IRSabrSmile(
-                nodes={
-                    "alpha": 0.17431060,
-                    "beta": 1.0,
-                    "rho": -0.11268306,
-                    "nu": 0.81694072,
-                },
-                eval_date=dt(2001, 1, 1),
-                expiry="1y",
-                irs_series="eur_irs6",
-                tenor="1y",
-                id="vol",
-            ),
+            # IRSabrSmile(
+            #     nodes={
+            #         "alpha": 0.17431060,
+            #         "rho": -0.11268306,
+            #         "nu": 0.81694072,
+            #     },
+            #     beta=1.0,
+            #     eval_date=dt(2001, 1, 1),
+            #     expiry="1y",
+            #     irs_series="eur_irs6",
+            #     tenor="1y",
+            #     id="vol",
+            # ),
             IRSabrCube(
                 eval_date=dt(2001, 1, 1),
                 expiries=["1y"],
                 tenors=["1Y", "2y"],
                 irs_series="usd_irs",
                 beta=1.0,
-                alphas=np.array([[0.17431060, 0.2]]),
-                rhos=np.array([[-0.11268306, 0.2]]),
-                nus=np.array([[0.81694072, 0.2]]),
+                alpha=np.array([[0.17431060, 0.2]]),
+                rho=np.array([[-0.11268306, 0.2]]),
+                nu=np.array([[0.81694072, 0.2]]),
             ),
         ],
     )

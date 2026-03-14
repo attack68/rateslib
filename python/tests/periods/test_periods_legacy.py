@@ -45,7 +45,7 @@ from rateslib.periods import (
 )
 from rateslib.periods.float_rate import rate_value
 from rateslib.scheduling import Cal, Frequency, RollDay, Schedule
-from rateslib.volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
+from rateslib.volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface, IRSabrSmile
 from rateslib.volatility.utils import _OptionModelBlack76
 
 
@@ -5901,6 +5901,66 @@ class TestIROption:
         )
         assert abs(result - expected) < 1e-5
 
+    @pytest.mark.parametrize(
+        ("smile", "expected"),
+        [
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.4, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                ),
+                70.27947168577464,
+            ),
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.4, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                    shift=200.0,
+                ),
+                90.68148269529259,
+            ),
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.3, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                    shift=50.0,
+                ),
+                56.96593721292377,
+            ),
+        ],
+    )
+    def test_ir_option_rate_from_sabr(self, smile, expected):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=smile,
+            metric="normal_vol",
+        )
+        assert abs(result - expected) < 1e-5
+
     def test_cashflows(self):
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
@@ -5934,8 +5994,16 @@ class TestIROption:
         assert result == expected
 
     def test_analytic_greeks(self):
+        from rateslib.instruments import IRS
+        from rateslib.solver import Solver
+
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2026, 2, 16), "1y", spec="usd_irs", curves=curve)],
+            s=[3.0],
         )
         ir_period = IRSCallPeriod(
             expiry=dt(2027, 2, 16),
@@ -5951,10 +6019,172 @@ class TestIROption:
             ir_vol=25.16,
         )
         expected = {
-            "__forward": 3.0203829940764084,
+            "__bs76": 0.2792463326582493,
+            "__forward": 2.9774664970728626,
             "__sqrt_t": 1.0,
             "__strike": 3.020383,
             "__vol": 0.2516,
-            "delta": 0.5500548760276942,
+            "__notional": 100e6,
+            "delta": 0.5274735620216011,
+            "gamma": 0.5312770889914765,
+            "vanna": 0.28897329599293436,
+            "vega": 1.185019484592725,
+            "delta_usd": 2534.939100519541,
+            "gamma_usd": 25.532181384278392,
+            "vega_usd": 5694.981592743021,
+            "vanna_usd": 13.88751512418925,
         }
-        assert result == expected
+
+        # forward rate is increased by 1bp. Check the gamma and vanna values.
+        curve_solver.s = [3.01]
+        curve_solver.iterate()
+        result2 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+        )
+        assert abs(result2["delta_usd"] - result["delta_usd"] - result["gamma_usd"]) < 1.0
+        assert abs(result2["vega_usd"] - result["vega_usd"] - result["vanna_usd"]) < 2.0
+        assert all(abs(v - result[k]) < 1e-5 for k, v in expected.items())
+
+    def test_analytic_greeks_bachelier(self):
+        # this test compares the analytic_greeks results with a Solver framework (i,e, independent
+        # calculations) configured about a normal_vol metric.
+        from rateslib.instruments import IRS, IRVolValue
+        from rateslib.solver import Solver
+        from rateslib.volatility import IRSplineCube
+
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225},
+            calendar="nyc",
+            id="r",
+        )
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2026, 2, 16), "1y", spec="usd_irs", curves=curve)],
+            s=[3.0],
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        cube = IRSplineCube(
+            eval_date=dt(2026, 2, 16),
+            expiries=[dt(2027, 2, 16)],
+            tenors=["6m"],
+            strikes=[0.0],
+            parameters=75.0,
+            irs_series="usd_irs",
+            id="v",
+        )
+        ir_vol_solver = Solver(
+            pre_solvers=[curve_solver],
+            surfaces=[cube],
+            instruments=[
+                IRVolValue(
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    strike=3.0,
+                    irs_series="usd_irs",
+                    metric="normal_vol",
+                    curves=curve,
+                    vol=cube,
+                )
+            ],
+            s=[75.0],
+            instrument_labels=["vol"],
+        )
+        result = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        expected = {
+            "__bachelier": 0.27823818012037993,
+            "__forward": 2.9774664970728626,
+            "__sqrt_t": 1.0,
+            "__strike": 3.020383,
+            "__vol": 0.75,
+            "__notional": 100e6,
+            "delta": 0.47718417514818345,
+            "gamma": 0.5310528998576186,
+            "vanna": 0.030387911108272263,
+            "vega": 0.398289674893214,
+            "vomma": 0.001738857168037003,
+            "delta_usd": 2293.2577304846204,
+            "gamma_usd": 25.521407274593162,
+            "vega_usd": 1914.1055455944868,
+            "vanna_usd": 1.4603860666729847,
+            "vomma_usd": 0.08356621720682876,
+        }
+
+        # first test that the calculations are generally static, i.e. quantities are obtainable
+        assert all(abs(v - result[k]) < 1e-5 for k, v in expected.items())
+
+        p = ir_period.npv(
+            rate_curve=curve,
+            index_curve=curve,
+            disc_curve=curve,
+            ir_vol=cube,
+            local=True,
+        )
+        _ = ir_vol_solver.delta(p)
+        exp_delta = _.iloc[0, 0]
+        exp_vega = _.iloc[1, 0]
+
+        for res, exp in zip(["delta_usd", "vega_usd"], [exp_delta, exp_vega]):
+            percent_diff = abs(result[res] - exp) / abs(exp)
+            assert percent_diff < 0.025
+
+        ir_vol_solver._set_ad_order(2)
+        p2 = ir_period.npv(
+            rate_curve=curve,
+            index_curve=curve,
+            disc_curve=curve,
+            ir_vol=cube,
+            local=True,
+        )
+        _ = ir_vol_solver.gamma(p2)
+        ir_vol_solver._set_ad_order(1)
+        exp_gamma = _.iloc[0, 0]
+        exp_vomma = _.iloc[1, 1]
+        exp_vanna = _.iloc[1, 0]
+
+        for res, exp in zip(
+            ["gamma_usd", "vanna_usd", "vomma_usd"], [exp_gamma, exp_vanna, exp_vomma]
+        ):
+            percent_diff2 = abs(result[res] - exp) / abs(exp)
+            assert percent_diff2 < 0.07 or abs(result[res] - exp) < 0.5
+
+        # test finite difference
+
+        # forward rate is increased by 1bp. Check the gamma and vanna values.
+        curve_solver.s = [3.01]
+        curve_solver.iterate()
+        ir_vol_solver.iterate()
+        result2 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        assert abs(result2["delta_usd"] - result["delta_usd"] - result["gamma_usd"]) < 1e-0
+        assert abs(result2["vega_usd"] - result["vega_usd"] - result["vanna_usd"]) < 5e-1
+
+        curve_solver.s = [3.00]
+        ir_vol_solver.s = [76.0]
+        curve_solver.iterate()
+        ir_vol_solver.iterate()
+        result3 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        assert abs(result3["delta_usd"] - result["delta_usd"] - result["vanna_usd"]) < 2e-2
+        assert abs(result3["vega_usd"] - result["vega_usd"] - result["vomma_usd"]) < 2e-3

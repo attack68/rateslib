@@ -24,7 +24,7 @@ from rateslib.instruments.protocols.pricing import (
 )
 from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
-from rateslib.volatility.ir import IRVolObj
+from rateslib.volatility.ir import _BaseIRCube, _BaseIRSmile
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -135,7 +135,7 @@ class FXVolValue(_BaseInstrument):
     def _parse_vol(self, vol: VolT_) -> _Vol:
         if isinstance(vol, _Vol):
             return vol
-        elif isinstance(vol, IRVolObj):
+        elif isinstance(vol, _BaseIRSmile | _BaseIRCube):
             raise TypeError(
                 f"`vol` must be suitable object for FX vol pricing. Got {type(vol).__name__}"
             )

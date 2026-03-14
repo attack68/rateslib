@@ -40,6 +40,7 @@ from rateslib.data.fixings import IRSSeries as IRSSeries
 from rateslib.data.fixings import RFRFixing as RFRFixing
 from rateslib.data.loader import Fixings as Fixings
 from rateslib.data.loader import _BaseFixingsLoader as _BaseFixingsLoader
+from rateslib.default import PlotOutput as PlotOutput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.enums.generics import NoInput as NoInput
 from rateslib.enums.generics import Result as Result
@@ -122,6 +123,10 @@ from rateslib.volatility import FXSabrSmile as FXSabrSmile
 from rateslib.volatility import FXSabrSurface as FXSabrSurface
 from rateslib.volatility import IRSabrCube as IRSabrCube
 from rateslib.volatility import IRSabrSmile as IRSabrSmile
+from rateslib.volatility import IRSplineCube as IRSplineCube
+from rateslib.volatility import IRSplineSmile as IRSplineSmile
+from rateslib.volatility import _BaseIRCube as _BaseIRCube
+from rateslib.volatility import _BaseIRSmile as _BaseIRSmile
 from rateslib.volatility import _IRVolPricingParams as _IRVolPricingParams
 
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
@@ -199,7 +204,7 @@ _FXVolOption_: TypeAlias = "_FXVolOption | NoInput"
 FXVol: TypeAlias = "_FXVolOption | str"
 FXVol_: TypeAlias = "FXVol | NoInput"
 
-_IRVolObj: TypeAlias = "IRSabrSmile | IRSabrCube"
+_IRVolObj: TypeAlias = "_BaseIRSmile | _BaseIRCube[Any]"
 _IRVolOption: TypeAlias = "_IRVolObj | DualTypes"
 _IRVolOption_: TypeAlias = "_IRVolOption | NoInput"
 
@@ -209,6 +214,7 @@ IRVol_: TypeAlias = "IRVol | NoInput"
 VolT: TypeAlias = "IRVol | FXVol | _Vol"
 VolT_: TypeAlias = "VolT | NoInput"
 FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | VolT | NoInput"
+VolStrat_: TypeAlias = "Sequence[VolStrat_] | VolT | NoInput"
 SeqVolT_: TypeAlias = "Sequence[VolT_]"
 
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"

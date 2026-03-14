@@ -14,7 +14,7 @@ from __future__ import annotations
 from abc import ABCMeta
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pandas import DataFrame
 
@@ -38,7 +38,7 @@ from rateslib.periods import Cashflow, FXCallPeriod, FXPutPeriod
 from rateslib.periods.utils import _validate_fx_as_forwards
 from rateslib.scheduling.frequency import _get_fx_expiry_and_delivery_and_payment
 from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
-from rateslib.volatility.ir import IRVolObj
+from rateslib.volatility.ir import _BaseIRCube, _BaseIRSmile
 
 if TYPE_CHECKING:
     from typing import NoReturn  # pragma: no cover
@@ -168,7 +168,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         """
         if isinstance(vol, _Vol):
             return vol
-        elif isinstance(vol, IRVolObj):
+        elif isinstance(vol, _BaseIRSmile | _BaseIRCube):
             raise TypeError("`vol` cannot be an IR type vol object and must be FX type vol object.")
         else:
             return _Vol(fx_vol=vol)

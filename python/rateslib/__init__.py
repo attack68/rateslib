@@ -155,6 +155,8 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
+    IRSCallPeriod,
+    IRSPutPeriod,
     ZeroFixedPeriod,
     ZeroFloatPeriod,
 )
@@ -191,6 +193,7 @@ from rateslib.volatility import (
     FXSabrSurface,
     IRSabrCube,
     IRSabrSmile,
+    IRSplineCube,
     IRSplineSmile,
 )
 
@@ -277,6 +280,7 @@ __all__ = [
     "IRSabrSmile",
     "IRSabrCube",
     "IRSplineSmile",
+    "IRSplineCube",
     # solver.py
     "Solver",
     # fx.py
@@ -290,6 +294,8 @@ __all__ = [
     "Cashflow",
     "FXCallPeriod",
     "FXPutPeriod",
+    "IRSCallPeriod",
+    "IRSPutPeriod",
     "CreditPremiumPeriod",
     "CreditProtectionPeriod",
     # legs.py
