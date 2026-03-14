@@ -30,8 +30,6 @@ from rateslib.dual import Dual, gradient
 from rateslib.enums import FloatFixingMethod
 from rateslib.enums.parameters import FXDeltaMethod, IndexMethod, SpreadCompoundMethod
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface
-from rateslib.fx_volatility.utils import _d_plus_min_u
 from rateslib.periods import (
     Cashflow,
     CreditPremiumPeriod,
@@ -40,15 +38,15 @@ from rateslib.periods import (
     FloatPeriod,
     FXCallPeriod,
     FXPutPeriod,
-    # IndexCashflow,
-    # IndexFixedPeriod,
+    IRSCallPeriod,
+    IRSPutPeriod,
     MtmCashflow,
-    # NonDeliverableCashflow,
-    # NonDeliverableFixedPeriod,
     ZeroFixedPeriod,
 )
 from rateslib.periods.float_rate import rate_value
 from rateslib.scheduling import Cal, Frequency, RollDay, Schedule
+from rateslib.volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface, IRSabrSmile
+from rateslib.volatility.utils import _OptionModelBlack76
 
 
 @pytest.fixture
@@ -5337,7 +5335,7 @@ class TestFXOption:
             delta_type="spot_pa",
         )
 
-        d_eta = _d_plus_min_u(1.10 / 1.065, 0.10 * 0.5, -0.5)
+        d_eta = _OptionModelBlack76._d_plus_min_u(1.10 / 1.065, 0.10 * 0.5, -0.5)
         result = fxc._analytic_kega(1.10 / 1.065, 0.99, -0.5, 0.10, 0.50, 1.065, 1.0, 1.10, d_eta)
         expected = 0.355964619118249
         assert abs(result - expected) < 1e-12
@@ -5789,3 +5787,404 @@ class TestFXOption:
         )
         cf = fxo.cashflows()
         assert isinstance(cf, dict)
+
+
+class TestIROption:
+    @pytest.mark.parametrize("today", [dt(2026, 1, 3), dt(2026, 4, 15)])
+    @pytest.mark.parametrize(
+        ("strike", "fixing", "klass"), [(2.0, 2.5, IRSCallPeriod), (2.0, 1.5, IRSPutPeriod)]
+    )
+    def test_cashflow_known_exercise(self, today, strike, fixing, klass):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve({today: 1.0, dt(2028, 4, 15): 0.95}, calendar="nyc")
+        ir_period = klass(
+            expiry=dt(2027, 2, 3),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=strike,
+            notional=100e6,
+            option_fixings=fixing,
+        )
+        immediate_npv = ir_period.ir_option_params.option_fixing.irs.npv(curves=curve)
+        forward_npv = immediate_npv / curve[dt(2027, 2, 5)] * 100.0
+
+        result = ir_period.unindexed_reference_cashflow(rate_curve=curve, index_curve=curve)
+        assert abs(abs(result) - abs(forward_npv)) < 1e-8
+
+    def test_cashflow_option_value(self):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        cashflow = ir_period.unindexed_reference_cashflow(
+            rate_curve=curve, ir_vol=25.16, index_curve=curve
+        )
+        expected = cashflow * curve[dt(2027, 2, 18)]
+        result = ir_period.npv(rate_curve=curve, ir_vol=25.16, index_curve=curve)
+        assert abs(result - expected) < 1e-8
+        assert abs(result - 145000) < 500.0
+
+    def test_option_npv_different_csa(self):
+        # test that a forward NPV alignbed with cashflow does not change, but an NPV does.
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        alt_disc_curve = Curve(nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.91}, calendar="tgt")
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.000,
+            notional=100e6,
+        )
+        fwd_result = ir_period.npv(
+            rate_curve=curve,
+            ir_vol=25.16,
+            index_curve=curve,
+            disc_curve=alt_disc_curve,
+            forward=dt(2027, 2, 18),
+        )
+        imm_exp = fwd_result * alt_disc_curve[dt(2027, 2, 18)]
+        imm_res = ir_period.npv(
+            rate_curve=curve, ir_vol=25.16, index_curve=curve, disc_curve=alt_disc_curve
+        )
+        assert abs(imm_exp - imm_res) < 1e-6
+
+        fwd_result2 = ir_period.npv(
+            rate_curve=curve, ir_vol=25.16, index_curve=curve, forward=dt(2027, 2, 18)
+        )
+        imm_exp2 = fwd_result * curve[dt(2027, 2, 18)]
+        imm_res2 = ir_period.npv(rate_curve=curve, ir_vol=25.16, index_curve=curve)
+        assert abs(imm_exp2 - imm_res2) < 1e-6
+
+        assert abs(fwd_result - fwd_result2) < 1e-6
+        assert abs(imm_res - imm_res2) > 2000.0
+
+    @pytest.mark.parametrize(
+        ("metric", "expected"),
+        [
+            ("NormalVol", 75.792872),
+            ("Cash", 149725.796514),
+            ("PercentNotional", 0.149725),
+            ("black_vol_shift_0", 25.16),
+            ("Black_vol_shift_100", 18.880156),
+            ("Black_vol_shift_200", 15.111396),
+            ("Black_vol_shift_300", 12.597702),
+            ("Black_vol_shift_117", 18.112063),
+        ],
+    )
+    def test_option_rate(self, metric, expected):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+            metric=metric,
+        )
+        assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize(
+        ("smile", "expected"),
+        [
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.4, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                ),
+                70.27947168577464,
+            ),
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.4, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                    shift=200.0,
+                ),
+                90.68148269529259,
+            ),
+            (
+                IRSabrSmile(
+                    eval_date=dt(2026, 2, 16),
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    beta=0.5,
+                    nodes={"alpha": 0.3, "rho": -0.05, "nu": 0.4},
+                    irs_series="usd_irs",
+                    shift=50.0,
+                ),
+                56.96593721292377,
+            ),
+        ],
+    )
+    def test_ir_option_rate_from_sabr(self, smile, expected):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=smile,
+            metric="normal_vol",
+        )
+        assert abs(result - expected) < 1e-5
+
+    def test_cashflows(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.cashflows(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+        )
+        expected = {
+            "Base Ccy": "USD",
+            "Cashflow": 149725.7965143448,
+            "Ccy": "USD",
+            "Collateral": None,
+            "DF": 0.969902553602701,
+            "FX Rate": 1.0,
+            "NPV": 145219.43237946142,
+            "NPV Ccy": 145219.43237946142,
+            "Notional": 100000000.0,
+            "Payment": dt(2027, 2, 18, 0, 0),
+            "Type": "IRSCallPeriod",
+        }
+        assert result == expected
+
+    def test_analytic_greeks(self):
+        from rateslib.instruments import IRS
+        from rateslib.solver import Solver
+
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2026, 2, 16), "1y", spec="usd_irs", curves=curve)],
+            s=[3.0],
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+        )
+        expected = {
+            "__bs76": 0.2792463326582493,
+            "__forward": 2.9774664970728626,
+            "__sqrt_t": 1.0,
+            "__strike": 3.020383,
+            "__vol": 0.2516,
+            "__notional": 100e6,
+            "delta": 0.5274735620216011,
+            "gamma": 0.5312770889914765,
+            "vanna": 0.28897329599293436,
+            "vega": 1.185019484592725,
+            "delta_usd": 2534.939100519541,
+            "gamma_usd": 25.532181384278392,
+            "vega_usd": 5694.981592743021,
+            "vanna_usd": 13.88751512418925,
+        }
+
+        # forward rate is increased by 1bp. Check the gamma and vanna values.
+        curve_solver.s = [3.01]
+        curve_solver.iterate()
+        result2 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+        )
+        assert abs(result2["delta_usd"] - result["delta_usd"] - result["gamma_usd"]) < 1.0
+        assert abs(result2["vega_usd"] - result["vega_usd"] - result["vanna_usd"]) < 2.0
+        assert all(abs(v - result[k]) < 1e-5 for k, v in expected.items())
+
+    def test_analytic_greeks_bachelier(self):
+        # this test compares the analytic_greeks results with a Solver framework (i,e, independent
+        # calculations) configured about a normal_vol metric.
+        from rateslib.instruments import IRS, IRVolValue
+        from rateslib.solver import Solver
+        from rateslib.volatility import IRSplineCube
+
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225},
+            calendar="nyc",
+            id="r",
+        )
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2026, 2, 16), "1y", spec="usd_irs", curves=curve)],
+            s=[3.0],
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        cube = IRSplineCube(
+            eval_date=dt(2026, 2, 16),
+            expiries=[dt(2027, 2, 16)],
+            tenors=["6m"],
+            strikes=[0.0],
+            parameters=75.0,
+            irs_series="usd_irs",
+            id="v",
+        )
+        ir_vol_solver = Solver(
+            pre_solvers=[curve_solver],
+            surfaces=[cube],
+            instruments=[
+                IRVolValue(
+                    expiry=dt(2027, 2, 16),
+                    tenor="6m",
+                    strike=3.0,
+                    irs_series="usd_irs",
+                    metric="normal_vol",
+                    curves=curve,
+                    vol=cube,
+                )
+            ],
+            s=[75.0],
+            instrument_labels=["vol"],
+        )
+        result = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        expected = {
+            "__bachelier": 0.27823818012037993,
+            "__forward": 2.9774664970728626,
+            "__sqrt_t": 1.0,
+            "__strike": 3.020383,
+            "__vol": 0.75,
+            "__notional": 100e6,
+            "delta": 0.47718417514818345,
+            "gamma": 0.5310528998576186,
+            "vanna": 0.030387911108272263,
+            "vega": 0.398289674893214,
+            "vomma": 0.001738857168037003,
+            "delta_usd": 2293.2577304846204,
+            "gamma_usd": 25.521407274593162,
+            "vega_usd": 1914.1055455944868,
+            "vanna_usd": 1.4603860666729847,
+            "vomma_usd": 0.08356621720682876,
+        }
+
+        # first test that the calculations are generally static, i.e. quantities are obtainable
+        assert all(abs(v - result[k]) < 1e-5 for k, v in expected.items())
+
+        p = ir_period.npv(
+            rate_curve=curve,
+            index_curve=curve,
+            disc_curve=curve,
+            ir_vol=cube,
+            local=True,
+        )
+        _ = ir_vol_solver.delta(p)
+        exp_delta = _.iloc[0, 0]
+        exp_vega = _.iloc[1, 0]
+
+        for res, exp in zip(["delta_usd", "vega_usd"], [exp_delta, exp_vega]):
+            percent_diff = abs(result[res] - exp) / abs(exp)
+            assert percent_diff < 0.025
+
+        ir_vol_solver._set_ad_order(2)
+        p2 = ir_period.npv(
+            rate_curve=curve,
+            index_curve=curve,
+            disc_curve=curve,
+            ir_vol=cube,
+            local=True,
+        )
+        _ = ir_vol_solver.gamma(p2)
+        ir_vol_solver._set_ad_order(1)
+        exp_gamma = _.iloc[0, 0]
+        exp_vomma = _.iloc[1, 1]
+        exp_vanna = _.iloc[1, 0]
+
+        for res, exp in zip(
+            ["gamma_usd", "vanna_usd", "vomma_usd"], [exp_gamma, exp_vanna, exp_vomma]
+        ):
+            percent_diff2 = abs(result[res] - exp) / abs(exp)
+            assert percent_diff2 < 0.07 or abs(result[res] - exp) < 0.5
+
+        # test finite difference
+
+        # forward rate is increased by 1bp. Check the gamma and vanna values.
+        curve_solver.s = [3.01]
+        curve_solver.iterate()
+        ir_vol_solver.iterate()
+        result2 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        assert abs(result2["delta_usd"] - result["delta_usd"] - result["gamma_usd"]) < 1e-0
+        assert abs(result2["vega_usd"] - result["vega_usd"] - result["vanna_usd"]) < 5e-1
+
+        curve_solver.s = [3.00]
+        ir_vol_solver.s = [76.0]
+        curve_solver.iterate()
+        ir_vol_solver.iterate()
+        result3 = ir_period.analytic_greeks(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=cube,
+        )
+        assert abs(result3["delta_usd"] - result["delta_usd"] - result["vanna_usd"]) < 2e-2
+        assert abs(result3["vega_usd"] - result["vega_usd"] - result["vomma_usd"]) < 2e-3

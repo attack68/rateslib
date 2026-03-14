@@ -14,6 +14,7 @@ from rateslib.instruments.fx_options.call_put import FXCall, FXPut, _BaseFXOptio
 from rateslib.instruments.fx_options.risk_reversal import FXRiskReversal, _BaseFXOptionStrat
 from rateslib.instruments.fx_options.straddle import FXStraddle
 from rateslib.instruments.fx_options.strangle import FXStrangle
+from rateslib.instruments.fx_options.vol_value import FXVolValue
 
 __all__ = [
     "FXCall",
@@ -22,6 +23,7 @@ __all__ = [
     "FXStraddle",
     "FXStrangle",
     "FXBrokerFly",
+    "FXVolValue",
     "_BaseFXOption",
     "_BaseFXOptionStrat",
 ]

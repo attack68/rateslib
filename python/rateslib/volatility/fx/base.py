@@ -17,16 +17,18 @@ from typing import TYPE_CHECKING, NoReturn, TypeAlias
 from rateslib.default import PlotOutput, plot
 from rateslib.dual import Dual, Dual2, Variable
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.fx_volatility.utils import _FXSmileMeta
 from rateslib.mutability import _WithCache, _WithState
+from rateslib.volatility.fx.utils import _FXSmileMeta
 
 if TYPE_CHECKING:
-    from rateslib.local_types import FXForwards
+    from rateslib.local_types import FXForwards  # pragma: no cover
 
 DualTypes: TypeAlias = "float | Dual | Dual2 | Variable"  # if not defined causes _WithCache failure
 
 
-class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
+class _BaseFXSmile(_WithState, _WithCache[float, DualTypes]):
+    """Abstract base class for implementing *FX Smiles*."""
+
     _ad: int
     _default_plot_x_axis: str
     meta: _FXSmileMeta
@@ -41,7 +43,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
     def plot(
         self,
-        comparators: list[_BaseSmile] | NoInput = NoInput(0),
+        comparators: list[_BaseFXSmile] | NoInput = NoInput(0),
         labels: list[str] | NoInput = NoInput(0),
         x_axis: str | NoInput = NoInput(0),
         f: DualTypes | FXForwards | NoInput = NoInput(0),
@@ -53,14 +55,14 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
 
            The *'delta'* ``x_axis`` type for a *SabrSmile* is calculated based on a
            **forward, unadjusted** delta and is expressed as a negated put option delta
-           consistent with the definition for a :class:`~rateslib.fx_volatility.FXDeltaVolSmile`.
+           consistent with the definition for a :class:`~rateslib.volatility.FXDeltaVolSmile`.
 
         Parameters
         ----------
         comparators: list[Smile]
             A list of Smiles which to include on the same plot as comparators.
             Note the comments on
-            :meth:`FXDeltaVolSmile.plot <rateslib.fx_volatility.FXDeltaVolSmile.plot>`.
+            :meth:`FXDeltaVolSmile.plot <rateslib.volatility.FXDeltaVolSmile.plot>`.
         labels : list[str]
             A list of strings associated with the plot and comparators. Must be same
             length as number of plots.
@@ -87,7 +89,7 @@ class _BaseSmile(_WithState, _WithCache[float, DualTypes]):
         y = [y_]
         if not isinstance(comparators, NoInput):
             for smile in comparators:
-                if not isinstance(smile, _BaseSmile):
+                if not isinstance(smile, _BaseFXSmile):
                     raise ValueError("A `comparator` must be a valid FX Smile type.")
                 x_, y_ = smile._plot(x_axis_, f)  # type: ignore[attr-defined]
                 x.append(x_)

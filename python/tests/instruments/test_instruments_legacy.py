@@ -24,7 +24,6 @@ from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, dual_exp, dual_log, gradient
 from rateslib.enums.parameters import FloatFixingMethod, LegMtm
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     CDS,
     FRA,
@@ -50,6 +49,10 @@ from rateslib.instruments import (
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
+    IRCall,
+    IRPut,
+    IRStraddle,
+    IRVolValue,
     Portfolio,
     Spread,
     STIRFuture,
@@ -64,14 +67,18 @@ from rateslib.instruments.protocols.pricing import (
     _Curves,
     _Vol,
 )
-
-# from rateslib.instruments.utils import (
-#     _get_curves_fx_and_base_maybe_from_solver,
-# )
 from rateslib.legs import Amortization
 from rateslib.periods import ZeroFloatPeriod
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    IRSabrCube,
+    IRSabrSmile,
+)
 
 
 @pytest.fixture
@@ -1572,6 +1579,11 @@ class TestIRS:
         r1 = irs.npv(curves=[curve])
         r2 = irs.npv(curves={"rate_curve": curve, "disc_curve": curve})
         assert r1 == r2
+
+    def test_modifier_as_adjuster(self):
+        irs = IRS(dt(2000, 1, 1), "1y", "S", modifier=Adjuster.CalDaysLagSettle(10), calendar="ldn")
+        assert irs.leg1.schedule.uschedule[0] == dt(2000, 1, 1)
+        assert irs.leg1.schedule.aschedule[0] == dt(2000, 1, 11)
 
     def test_cny_zero_periods(self):
         irs = IRS(
@@ -8957,3 +8969,435 @@ def test_wmr_crosses_not_allowed_standard_instruments():
     ]
     for inst in instruments:
         inst.npv(vol=fxvs, fx=fxf)
+
+
+class TestSwaptions:
+    def test_npv_no_set_premium(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+        )
+        result = irsw.npv(curves=curve, vol=25.16)
+        expected = 0.0
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_with_set_premium(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.npv(curves=curve, vol=25.16)
+        expected = -8246.831212232395
+        assert abs(result - expected) < 1e-6
+
+    def test_npv_local(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.npv(curves=curve, vol=25.16, local=True)
+        expected = -8246.831212232395
+        assert abs(result["usd"] - expected) < 1e-6
+
+    def test_default_payment_date(self):
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        assert irsw.leg2.periods[0].settlement_params.payment == dt(2027, 2, 18)
+
+    @pytest.mark.parametrize(
+        ("metric", "expected"),
+        [
+            ("BlackVolShift_0", 25.16),
+            ("Cash", 149725.796514),
+            ("NormalVol", 75.792872),
+            ("Black_vol_shift_100", 18.880156),
+            ("Black_vol_shift_200", 15.111396),
+            ("Black_vol_shift_300", 12.597702),
+            ("PercentNotional", 0.149725),
+        ],
+    )
+    def test_rate(self, metric, expected):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.rate(
+            curves=[curve],
+            vol=25.16,
+            metric=metric,
+        )
+        assert abs(result - expected) < 1e-5
+
+    @pytest.mark.parametrize(
+        ("metric", "expected"),
+        [("Cash", 149725.796514), ("PercentNotional", 0.149725)],
+    )
+    @pytest.mark.parametrize("date", [dt(2027, 1, 3), dt(2027, 3, 19)])
+    def test_rate_unconventional_payment_date(self, metric, expected, date):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        alt_curve = Curve(nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.91}, calendar="nyc")
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+            payment_lag=date,
+        )
+        result = irsw.rate(
+            curves=[curve, alt_curve, curve],
+            vol=25.16,
+            metric=metric,
+        )
+        expected = expected * alt_curve[date] / alt_curve[dt(2027, 2, 18)]
+        assert abs(result - expected) < 1e-5
+
+    def test_cashflows(self):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        irsw = IRCall(
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            irs_series="usd_irs",
+            premium=10000.0,
+        )
+        result = irsw.cashflows(
+            curves=[curve],
+            vol=25.16,
+        )
+        assert len(result.index) == 2
+        assert abs(result.loc["leg1", "DF"].iloc[0] - 0.969902553602701) < 1e-8
+        assert abs(result.loc["leg1", "Cashflow"].iloc[0] - 149725.7965143448) < 1e-8
+        assert abs(result.loc["leg1", "NPV"].iloc[0] - 145219.43237946142) < 1e-8
+        assert result.loc["leg1", "Ccy"].iloc[0] == "USD"
+        assert result.loc["leg1", "Type"].iloc[0] == "IRSCallPeriod"
+
+    @pytest.mark.parametrize(
+        ("metric", "weights"),
+        [
+            ("PercentNotional", [1.0, 1.0]),
+            ("Cash", [1.0, 1.0]),
+            ("NormalVol", [0.5, 0.5]),
+            ("BlackVolShift_0", [0.5, 0.5]),
+            ("BlackVolShift_100", [0.5, 0.5]),
+            ("BlackVolShift_200", [0.5, 0.5]),
+            ("BlackVolShift_300", [0.5, 0.5]),
+        ],
+    )
+    def test_straddle_rate(self, metric, weights):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irss = IRSabrSmile(
+            eval_date=dt(2026, 2, 16),
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            nodes={
+                "alpha": 0.2,
+                "rho": -0.05,
+                "nu": 0.6,
+            },
+            beta=0.5,
+            irs_series="usd_irs",
+        )
+        irsc = IRCall(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+            metric=metric,
+        )
+        irsp = IRPut(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+            metric=metric,
+        )
+        irstr = IRStraddle(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+            metric=metric,
+        )
+        r1 = irsc.rate(vol=irss, curves=curve)
+        r2 = irsp.rate(vol=irss, curves=curve)
+        r3 = irstr.rate(vol=irss, curves=curve)
+        assert abs(r3 - r1 * weights[0] - r2 * weights[1]) < 1e-5
+
+    def test_straddle_npv(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
+        )
+        irss = IRSabrSmile(
+            eval_date=dt(2026, 2, 16),
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            nodes={
+                "alpha": 0.2,
+                "rho": -0.05,
+                "nu": 0.6,
+            },
+            beta=0.5,
+            irs_series="usd_irs",
+        )
+        irsc = IRCall(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+        )
+        irsp = IRPut(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+        )
+        irstr = IRStraddle(
+            irs_series="usd_irs",
+            expiry=dt(2026, 8, 16),
+            tenor="6m",
+            strike=2.90,
+        )
+        r1 = irsc.npv(vol=irss, curves=curve)
+        r2 = irsp.npv(vol=irss, curves=curve)
+        r3 = irstr.npv(vol=irss, curves=curve)
+        assert abs(r3 - r1 - r2) < 1e-5
+
+    def test_delta_rate_scalar(self):
+        smile = IRSabrSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            nodes={
+                "alpha": 0.20,
+                "rho": -0.05,
+                "nu": 0.65,
+            },
+            beta=0.5,
+            id="sofr_vol",
+        )
+        curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.90}, id="sofr")
+        option_args = dict(
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            metric="NormalVol",
+            curves="sofr",
+            vol="sofr_vol",
+        )
+
+        solver = Solver(
+            curves=[curve, smile],
+            instruments=[
+                IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr"),
+                IRCall(strike="-20bps", **option_args),
+                IRCall(strike="atm", **option_args),
+                IRCall(strike="+20bps", **option_args),
+            ],
+            s=[3.0, 50.0, 45.0, 49.0],
+            instrument_labels=["1Y IRS", "-20bps Vol", "ATM Vol", "+20bps Vol"],
+        )
+
+        irc = IRCall(strike=3.05, premium=0.0, **option_args)
+        delta = irc.delta(solver=solver)
+
+        before = irc.npv(solver=solver)
+        solver.s = [3.0, 50.0, 46.0, 49.0]
+        solver.iterate()
+        after = irc.npv(solver=solver)
+        finite_diff = after - before
+        assert abs(delta.iloc[2, 0] - finite_diff) < 1e-1
+
+
+class TestIRVolValue:
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            IRSabrSmile(
+                nodes={
+                    "alpha": 0.17431060,
+                    "rho": -0.11268306,
+                    "nu": 0.81694072,
+                },
+                beta=0.75,
+                eval_date=dt(2001, 1, 1),
+                expiry="1y",
+                irs_series="eur_irs6",
+                tenor="1y",
+                id="VolSmile",
+            ),
+            IRSabrCube(
+                eval_date=dt(2001, 1, 1),
+                expiries=["1y"],
+                irs_series="eur_irs6",
+                tenors=["1y"],
+                alpha=0.17,
+                beta=0.75,
+                rho=-0.11,
+                nu=0.817,
+                id="VolSmile",
+            ),
+        ],
+    )
+    def test_solver_passthrough(self, vol) -> None:
+        instruments = [
+            IRVolValue(
+                strike=1.0,
+                expiry="1y",
+                tenor="1y",
+                irs_series="eur_irs6",
+                eval_date=dt(2001, 1, 1),
+                vol=vol,
+                metric="alpha",
+            ),
+            IRVolValue(
+                strike=1.0,
+                expiry="1y",
+                tenor="1y",
+                irs_series="eur_irs6",
+                eval_date=dt(2001, 1, 1),
+                vol="VolSmile",
+                metric="rho",
+            ),
+            IRVolValue(
+                strike=1.0,
+                expiry="1y",
+                tenor="1y",
+                irs_series="eur_irs6",
+                eval_date=dt(2001, 1, 1),
+                vol="VolSmile",
+                metric="nu",
+            ),
+        ]
+        Solver(curves=[vol], instruments=instruments, s=[0.25, -0.04, 0.75])
+        for param, expected in zip(["alpha", "rho", "nu"], [0.25, -0.04, 0.75]):
+            if isinstance(vol, IRSabrCube):
+                result = getattr(
+                    vol.get_smile(expiry=dt(2002, 1, 2), tenor=dt(2003, 1, 4)).nodes, param
+                )
+            else:
+                result = getattr(vol.nodes, param)
+            assert abs(result - expected) < 1e-6
+
+        v = IRVolValue(
+            strike=9.0,
+            expiry="1y",
+            tenor="1y",
+            irs_series="eur_irs6",
+            eval_date=dt(2001, 1, 1),
+            vol=vol,
+            metric="black_vol_shift_0",
+        )
+        result = v.rate(vol=vol, curves=Curve({dt(2001, 1, 1): 1.0, dt(2005, 1, 1): 0.7}))
+        expected = 15.170743310759043
+        assert abs(result - expected) < 1e-6
+
+    def test_no_solver_vol_value(self) -> None:
+        vv = IRVolValue(
+            strike=1.0,
+            irs_series="eur_irs6",
+            expiry="1y",
+            tenor="1y",
+            eval_date=dt(2000, 1, 1),
+            vol="string_id",
+        )
+        with pytest.raises(ValueError, match="`vol` must contain IRVol object, not str,"):
+            vv.rate()
+
+    def test_repr(self):
+        v = IRVolValue(
+            strike=0.25,
+            expiry="1y",
+            tenor="1y",
+            eval_date=dt(2000, 1, 1),
+            irs_series="usd_irs",
+        )
+        expected = f"<rl.IRVolValue at {hex(id(v))}>"
+        assert v.__repr__() == expected
+
+    @pytest.mark.parametrize(
+        "vol",
+        [
+            # IRSabrSmile(
+            #     nodes={
+            #         "alpha": 0.17431060,
+            #         "rho": -0.11268306,
+            #         "nu": 0.81694072,
+            #     },
+            #     beta=1.0,
+            #     eval_date=dt(2001, 1, 1),
+            #     expiry="1y",
+            #     irs_series="eur_irs6",
+            #     tenor="1y",
+            #     id="vol",
+            # ),
+            IRSabrCube(
+                eval_date=dt(2001, 1, 1),
+                expiries=["1y"],
+                tenors=["1Y", "2y"],
+                irs_series="usd_irs",
+                beta=1.0,
+                alpha=np.array([[0.17431060, 0.2]]),
+                rho=np.array([[-0.11268306, 0.2]]),
+                nu=np.array([[0.81694072, 0.2]]),
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("metric", ["alpha", "beta", "rho", "nu"])
+    def test_sabr_param(self, vol, metric):
+        v = IRVolValue(
+            strike=0.25,
+            expiry="1y",
+            tenor="1y",
+            eval_date=dt(2001, 1, 1),
+            irs_series="usd_irs",
+            metric=metric,
+        )
+        expected = {
+            "alpha": 0.17431060,
+            "beta": 1.0,
+            "rho": -0.11268306,
+            "nu": 0.81694072,
+        }
+        assert v.rate(vol=vol) == expected[metric]

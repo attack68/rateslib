@@ -13,6 +13,7 @@
 # It avoids all circular import by performing a TYPE_CHECKING check on any component.
 
 from collections.abc import Callable as Callable
+from collections.abc import Iterable as Iterable
 from collections.abc import Sequence as Sequence
 from datetime import datetime as datetime
 from typing import Any as Any
@@ -35,23 +36,25 @@ from rateslib.data.fixings import FXIndex as FXIndex
 from rateslib.data.fixings import IBORFixing as IBORFixing
 from rateslib.data.fixings import IBORStubFixing as IBORStubFixing
 from rateslib.data.fixings import IndexFixing as IndexFixing
+from rateslib.data.fixings import IRSSeries as IRSSeries
 from rateslib.data.fixings import RFRFixing as RFRFixing
 from rateslib.data.loader import Fixings as Fixings
 from rateslib.data.loader import _BaseFixingsLoader as _BaseFixingsLoader
+from rateslib.default import PlotOutput as PlotOutput
 from rateslib.dual.variable import Variable as Variable
 from rateslib.enums.generics import NoInput as NoInput
 from rateslib.enums.generics import Result as Result
 from rateslib.enums.parameters import FloatFixingMethod as FloatFixingMethod
 from rateslib.enums.parameters import FXDeltaMethod as FXDeltaMethod
+from rateslib.enums.parameters import FXOptionMetric as FXOptionMetric
 from rateslib.enums.parameters import IndexMethod as IndexMethod
+from rateslib.enums.parameters import IROptionMetric as IROptionMetric
+from rateslib.enums.parameters import OptionPricingModel as OptionPricingModel
 from rateslib.enums.parameters import OptionType as OptionType
 from rateslib.enums.parameters import SpreadCompoundMethod as SpreadCompoundMethod
+from rateslib.enums.parameters import SwaptionSettlementMethod as SwaptionSettlementMethod
 from rateslib.fx import FXForwards as FXForwards
 from rateslib.fx import FXRates as FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile as FXDeltaVolSmile
-from rateslib.fx_volatility import FXDeltaVolSurface as FXDeltaVolSurface
-from rateslib.fx_volatility import FXSabrSmile as FXSabrSmile
-from rateslib.fx_volatility import FXSabrSurface as FXSabrSurface
 from rateslib.instruments import CDS as CDS
 from rateslib.instruments import FRA as FRA
 from rateslib.instruments import IIRS as IIRS
@@ -76,6 +79,7 @@ from rateslib.instruments import Portfolio as Portfolio
 from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
+from rateslib.instruments.ir_options import _BaseIROption as _BaseIROption
 from rateslib.instruments.protocols.kwargs import _KWArgs as _KWArgs
 from rateslib.instruments.protocols.pricing import _Curves as _Curves
 from rateslib.instruments.protocols.pricing import _Vol as _Vol
@@ -96,6 +100,7 @@ from rateslib.periods import FXCallPeriod as FXCallPeriod
 from rateslib.periods import FXPutPeriod as FXPutPeriod
 from rateslib.periods import ZeroFloatPeriod as ZeroFloatPeriod
 from rateslib.periods import _BaseFXOptionPeriod as _BaseFXOptionPeriod
+from rateslib.periods import _BaseIRSOptionPeriod as _BaseIRSOptionPeriod
 from rateslib.periods.parameters import _FloatRateParams as _FloatRateParams
 from rateslib.periods.parameters import _IndexParams as _IndexParams
 from rateslib.periods.parameters import _NonDeliverableParams as _NonDeliverableParams
@@ -104,29 +109,40 @@ from rateslib.periods.parameters import _SettlementParams as _SettlementParams
 from rateslib.periods.protocols import _BasePeriod as _BasePeriod
 from rateslib.rs import Adjuster as Adjuster
 from rateslib.rs import (
-    Cal,
     FlatBackwardInterpolator,
     FlatForwardInterpolator,
     LinearInterpolator,
     LinearZeroRateInterpolator,
     LogLinearInterpolator,
-    NamedCal,
     NullInterpolator,
-    UnionCal,
 )
 from rateslib.rs import StubInference as StubInference
+from rateslib.volatility import FXDeltaVolSmile as FXDeltaVolSmile
+from rateslib.volatility import FXDeltaVolSurface as FXDeltaVolSurface
+from rateslib.volatility import FXSabrSmile as FXSabrSmile
+from rateslib.volatility import FXSabrSurface as FXSabrSurface
+from rateslib.volatility import IRSabrCube as IRSabrCube
+from rateslib.volatility import IRSabrSmile as IRSabrSmile
+from rateslib.volatility import IRSplineCube as IRSplineCube
+from rateslib.volatility import IRSplineSmile as IRSplineSmile
+from rateslib.volatility import _BaseIRCube as _BaseIRCube
+from rateslib.volatility import _BaseIRSmile as _BaseIRSmile
+from rateslib.volatility import _IRVolPricingParams as _IRVolPricingParams
 
 CurveInterpolator: TypeAlias = "FlatBackwardInterpolator | FlatForwardInterpolator | LinearInterpolator | LogLinearInterpolator | LinearZeroRateInterpolator | NullInterpolator"
 
+from rateslib.rs import Cal as Cal
 from rateslib.rs import Convention as Convention
 from rateslib.rs import Dual as Dual
 from rateslib.rs import Dual2 as Dual2
 from rateslib.rs import Frequency as Frequency
 from rateslib.rs import LegIndexBase as LegIndexBase
+from rateslib.rs import NamedCal as NamedCal
 from rateslib.rs import PPSplineDual as PPSplineDual
 from rateslib.rs import PPSplineDual2 as PPSplineDual2
 from rateslib.rs import PPSplineF64 as PPSplineF64
 from rateslib.rs import RollDay as RollDay
+from rateslib.rs import UnionCal as UnionCal
 from rateslib.scheduling import Schedule as Schedule
 from rateslib.solver import Solver as Solver
 
@@ -147,6 +163,7 @@ Arr1dF64: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.float64]]"
 Arr2dF64: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.float64]]"
 Arr1dObj: TypeAlias = "np.ndarray[tuple[int], np.dtype[np.object_]]"
 Arr2dObj: TypeAlias = "np.ndarray[tuple[int, int], np.dtype[np.object_]]"
+Arr3dObj: TypeAlias = "np.ndarray[tuple[int, int, int], np.dtype[np.object_]]"
 
 PeriodFixings: TypeAlias = "DualTypes | Series[DualTypes] | str | NoInput"
 LegFixings: TypeAlias = "PeriodFixings | list[PeriodFixings] | tuple[PeriodFixings, PeriodFixings]"
@@ -187,9 +204,17 @@ _FXVolOption_: TypeAlias = "_FXVolOption | NoInput"
 FXVol: TypeAlias = "_FXVolOption | str"
 FXVol_: TypeAlias = "FXVol | NoInput"
 
-VolT: TypeAlias = "FXVol | _Vol"
+_IRVolObj: TypeAlias = "_BaseIRSmile | _BaseIRCube[Any]"
+_IRVolOption: TypeAlias = "_IRVolObj | DualTypes"
+_IRVolOption_: TypeAlias = "_IRVolOption | NoInput"
+
+IRVol: TypeAlias = "_IRVolOption | str"
+IRVol_: TypeAlias = "IRVol | NoInput"
+
+VolT: TypeAlias = "IRVol | FXVol | _Vol"
 VolT_: TypeAlias = "VolT | NoInput"
 FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | VolT | NoInput"
+VolStrat_: TypeAlias = "Sequence[VolStrat_] | VolT | NoInput"
 SeqVolT_: TypeAlias = "Sequence[VolT_]"
 
 CurveDict: TypeAlias = "dict[str, _BaseCurve | str] | dict[str, _BaseCurve] | dict[str, str]"
@@ -236,10 +261,22 @@ FXForwards_: TypeAlias = "FXForwards | NoInput"
 # )
 
 
-class SupportsRate:
-    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...  # type: ignore[empty-body]
+class SupportsSolverMutability(Protocol):
+    @property
+    def _n(self) -> int: ...
+    @property
+    def _ini_solve(self) -> int: ...
+    def _set_ad_order(self, ad: int) -> None: ...
+    def _set_node_vector(self, vector: Arr1dObj, ad: int) -> None: ...
+    def _get_node_vars(self) -> tuple[str, ...]: ...
+    def _get_node_vector(self) -> Arr1dObj: ...
 
-    _rate_scalar: float
+
+class SupportsRate(Protocol):
+    def rate(self, *args: Any, **kwargs: Any) -> DualTypes: ...
+
+    @property
+    def rate_scalar(self) -> float: ...
 
 
 class SupportsMetrics:

@@ -24,7 +24,6 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, ind
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
-from rateslib.fx_volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 from rateslib.instruments import (
     IRS,
     XCS,
@@ -39,6 +38,7 @@ from rateslib.instruments import (
     Value,
 )
 from rateslib.solver import Gradients, Solver
+from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
 
 
 class TestIFTSolver:
@@ -690,8 +690,70 @@ def test_max_iterations() -> None:
             s=s,
             func_tol=1e-10,
             max_iter=30,
+            step_tol=0.0,
+            grad_tol=0.0,
         )
     assert len(solver.g_list) == 31
+
+
+def test_step_tol() -> None:
+    curve = Curve(
+        {
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0,
+        },
+        id="v",
+    )
+    instruments = [
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+    ]
+    s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
+    solver = Solver(
+        curves=[curve],
+        instruments=instruments,
+        s=s,
+        max_iter=30,
+        func_tol=0.0,
+        step_tol=1.0,
+        grad_tol=0.0,
+        conv_tol=0.0,
+    )
+    assert solver.result["state"] == 4
+
+
+def test_grad_tol() -> None:
+    curve = Curve(
+        {
+            dt(2022, 1, 1): 1.0,
+            dt(2023, 1, 1): 1.0,
+            dt(2024, 1, 1): 1.0,
+            dt(2025, 1, 1): 1.0,
+        },
+        id="v",
+    )
+    instruments = [
+        (IRS(dt(2022, 1, 1), "1Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "2Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+        (IRS(dt(2022, 1, 1), "3Y", "Q"), {"curves": curve}),
+    ]
+    s = np.array([1.0, 1.6, 2.02, 1.98])  # average 3Y at approximately 2.0%
+    solver = Solver(
+        curves=[curve],
+        instruments=instruments,
+        s=s,
+        max_iter=30,
+        func_tol=0.0,
+        step_tol=0.0,
+        grad_tol=0.01,
+        conv_tol=0.0,
+    )
+    assert solver.result["state"] == 5
 
 
 def test_solver_pre_solver_dependency_generates_same_delta() -> None:

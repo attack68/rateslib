@@ -38,17 +38,14 @@ from rateslib.dual.newton import _solver_result
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.fx import FXForwards, FXRates
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
-from rateslib.fx_volatility import FXVols
 from rateslib.mutability import (
     _new_state_post,
     _no_interior_validation,
     _validate_states,
     _WithState,
 )
+from rateslib.volatility.fx import FXVols
+from rateslib.volatility.ir import IRVols, _BaseIRCube, _BaseIRSmile
 
 P = ParamSpec("P")
 
@@ -62,15 +59,11 @@ if TYPE_CHECKING:
         Any,
         Callable,
         DualTypes,
-        FXDeltaVolSmile,
-        FXDeltaVolSurface,
         FXForwards_,
-        FXSabrSmile,
-        FXSabrSurface,
         Sequence,
         SupportsRate,
+        SupportsSolverMutability,
         Variable,
-        _FXVolObj,
         str_,
     )
 
@@ -88,6 +81,7 @@ class Gradients:
     _J_pre: NDArray[Nf64] | None
     _J2: NDArray[Nf64] | None
     _J2_pre: NDArray[Nf64] | None
+    _grad_v_g: NDArray[Nf64] | None
     _grad_s_vT: NDArray[Nf64] | None
     _grad_s_vT_pre: NDArray[Nf64] | None
     _grad_s_s_vT: NDArray[Nf64] | None
@@ -168,6 +162,20 @@ class Gradients:
         Alias of ``J2``.
         """
         return self.J2  # pragma: no cover
+
+    @property
+    def grad_v_g(self) -> NDArray[Nf64]:
+        """
+        1d array of objective function value with respect to curve variables,
+        of size (n,);
+
+        .. math::
+
+           [\\nabla_\\mathbf{v} g(\\mathbf{v}; \\mathbf{s}) = \\frac{\\partial g}{\\partial v_i}
+        """  # noqa: E501
+        if self._grad_v_g is None:
+            self._grad_v_g = gradient(self.g, self.variables)
+        return self._grad_v_g
 
     @property
     def grad_s_vT(self) -> NDArray[Nf64]:
@@ -977,8 +985,13 @@ NO_PARAMETER_CURVES = [
 
 
 class Solver(Gradients, _WithState):
-    """
-    A numerical solver to determine node values on multiple pricing objects simultaneously.
+    r"""
+    A numerical solver to determine parameter values on multiple pricing objects simultaneously.
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import Solver, Curve, IRS, dt
 
     Parameters
     ----------
@@ -987,9 +1000,9 @@ class Solver(Gradients, _WithState):
         has been individually configured for its node dates and interpolation structures,
         and has a unique ``id``. Each object will be dynamically updated/mutated by the Solver.
     surfaces : sequence
-        Sequence of :class:`Surface` objects where each *surface* has been configured
-        with a unique ``id``. Each *surface* will be dynamically updated/mutated.
-        Internally, *Surfaces* are appended to ``curves`` and provide nothing more than
+        Sequence of :class:`Surface` or :class:`Cube` objects where each has been configured
+        with a unique ``id``. Each object will be dynamically updated/mutated.
+        Internally, ``surfaces`` and ``curves`` are joined and provide nothing more than
         organisational distinction.
     instruments : sequence
         Sequence of calibrating instrument specifications that will be used by
@@ -1017,45 +1030,66 @@ class Solver(Gradients, _WithState):
         The maximum number of iterations to perform.
     func_tol : float
         The tolerance to determine convergence if the objective function is lower
-        than a specific value. Defaults to 1e-12.
+        than a specific value. Defaults to 1e-11.
     conv_tol : float
         The tolerance to determine convergence if successive objective function
-        values are similar. Defaults to 1e-17.
+        values are similar. Defaults to 1e-14.
+    step_tol : float
+        The tolerance for the norm of the difference between successive parameter iterates.
+        Defaults to 1e-14.
+    grad_tol : float
+        The tolerance for the norm of the objective function gradient at an iterate. Defaults
+        to 1e-11.
     ini_lambda : 3-tuple of float, optional
         Parameters to control the Levenberg-Marquardt algorithm, defined as the
         initial lambda value, the scaling factor for a successful iteration and the
         scaling factor for an unsuccessful iteration. Defaults to (1000, 0.25, 2).
     callback : callable, optional
-        Is called after each iteration. Used for debugging or optimisation.
+        Is called after each iteration. Used for debugging or optimization.
 
     Notes
-    -----
-    Once initialized, the ``Solver`` will numerically determine and set, via mutation, all the
-    relevant node values on each *Curve*, *Smile*, or *Surface* simultaneously by
+    -------
+
+    **Purpose**
+
+    Once initialized, the *Solver* will numerically determine and set, via mutation, all the
+    relevant node values on each *Curve*, *Smile*, *Surface* or *Cube* simultaneously by
     calling :meth:`iterate`. This mutation of those pricing objects will override any local AD
     variables pre-configured by a user and use the *Solver's* own variable tags, for proper
-    *delta* and *gamma* management.
+    *delta* and *gamma* management. The objective function of the *Solver* which it seeks to
+    minimize over all parameters, :math:`\mathbf{v}`, is:
 
-    Each *Instrument* provided to ``instruments`` can have its pricing objects (i.e. ``curves``
-    and ``vol``) and ``metric`` preset at initialization, so that the
+    .. math::
+
+       g(\mathbf{v}; \mathbf{s}) = \mathbf{(r(v) - s)^{T} W (r(v) - s)}
+
+    **Instrument Specification**
+
+    Thus, the *Solver* naturally attempts to match the corresponding value in ``s`` with the
+    result of the :meth:`~rateslib.instruments.protocols._WithRate.rate` method called on each
+    of the successive ``instruments``.
+
+    Each *Instrument* provided may set its pricing objects (i.e. ``curves``
+    and ``vol``) and ``metric`` preset at its initialization, so that the
     :meth:`~rateslib.instruments.Metrics.rate` method for each *Instrument* in scope is
-    well defined. As an example,
+    well defined. Best practice refers to these with string mappings that the *Solver*
+    records. As an example,
 
     .. code-block:: python
 
        instruments=[
            ...
-           FXCall([args], curves=[None, eur, None, usd], vol=smile, metric="vol"),
+           FXCall([args], curves=["eur", "usd"], vol="eurusd_smile", metric="vol"),
            ...
        ]
 
-    The ``fx`` argument used in the :meth:`~rateslib.instruments.Metrics.rate` call will
+    The ``fx`` argument used in the :meth:`~rateslib.instruments.protocols._WithRate.rate` call will
     be passed directly to each *Instrument* from the *Solver's* ``fx`` argument, being
     representative of a consistent *FXForwards* object for all *Instruments*.
 
     If the pricing objects and/or *metric* are not preset then the *Solver* ``instruments`` can be
     given as a tuple where the second item is a dict representing keyword arguments passed
-    directly to the :meth:`~rateslib.instruments.Metrics.rate`
+    directly to the :meth:`~rateslib.instruments.protocols._WithRate.rate`
     method. An example is:
 
     .. code-block:: python
@@ -1066,6 +1100,36 @@ class Solver(Gradients, _WithState):
            ...
        ]
 
+    **Stopping Criteria**
+
+    - ``func_tol``: :math:`g(\mathbf{v}_{i+1}; \mathbf{s}) < \epsilon_{func}`. This criteria is
+      only useful for the cases when the number of parameters and number of instruments are
+      sufficiently chosen that an objective function value close to zero is obtainable.
+    - ``conv_tol``: :math:`|g(\mathbf{v}_{i+1}) - g(\mathbf{v}_{i})| < \epsilon_{conv}` and the
+      iterate is an improvement.
+    - ``grad_tol``: :math:`|| \nabla_{\mathbf{v}} g || < \epsilon_{grad}`. This is often the
+      most robust indicator of having reached a stationary point in the optimisation and is a
+      necessary condition of optimality.
+    - ``step_tol``: :math:`|| \mathbf{v}_{i+1} - \mathbf{v}_{i} || < \epsilon_{step}`. This
+      criteria is used mostly to detect 'stalled' or 'stuck' solutions. Even though the *Solver*
+      reports a success stopping under these conditions may be sub-optimal.
+
+    **Analysing**
+
+    The ``callback`` argument can be used to display results or perform tasks during iterations.
+    The signature of such a method is `callback(solver, i, v_i)` giving access to the *Solver*
+    object itself, the iteration number and the current parameter vector.
+
+    .. ipython:: python
+
+       curve = Curve({dt(2022, 1, 1): 1.0, dt(2023, 1, 1): 1.0})
+       solver = Solver(
+           curves=[curve],
+           instruments=[IRS(dt(2022, 1, 1), "6m", spec="usd_irs", curves=curve)],
+           s=[3.0],
+           callback=lambda solver, i, v_i: print(f"iteration {i}: {v_i}"),
+       )
+
     Examples
     --------
 
@@ -1075,8 +1139,8 @@ class Solver(Gradients, _WithState):
 
     def __init__(
         self,
-        curves: Sequence[Curve | FXDeltaVolSmile | FXSabrSmile] = (),
-        surfaces: Sequence[FXDeltaVolSurface | FXSabrSurface] = (),
+        curves: Sequence[Any] = (),
+        surfaces: Sequence[Any] = (),
         instruments: Sequence[SupportsRate] = (),
         s: Sequence[DualTypes] = (),
         weights: Sequence[float] | NoInput = NoInput(0),
@@ -1088,6 +1152,8 @@ class Solver(Gradients, _WithState):
         max_iter: int = 100,
         func_tol: float = 1e-11,
         conv_tol: float = 1e-14,
+        step_tol: float = 1e-14,
+        grad_tol: float = 1e-11,
         ini_lambda: tuple[float, float, float] | NoInput = NoInput(0),
         callback: Callable[[Solver, int, NDArray[Nobject]], None] | NoInput = NoInput(0),
     ) -> None:
@@ -1098,6 +1164,7 @@ class Solver(Gradients, _WithState):
         self.id: str = _drb(uuid4().hex[:5] + "_", id)  # 1 in a million clash
         self.m = len(instruments)
         self.func_tol, self.conv_tol, self.max_iter = func_tol, conv_tol, max_iter
+        self.step_tol, self.grad_tol = step_tol, grad_tol
         self.pre_solvers = tuple(pre_solvers)
 
         # validate `id`s so that DataFrame indexing does not share duplicated keys.
@@ -1138,7 +1205,7 @@ class Solver(Gradients, _WithState):
         self.W = np.diag(self.weights)
 
         # `surfaces` are treated identically to `curves`. Introduced in PR
-        self.curves = {
+        self.curves: dict[str, SupportsSolverMutability] = {
             curve.id: curve
             for curve in list(curves) + list(surfaces)
             if type(curve) not in NO_PARAMETER_CURVES
@@ -1150,13 +1217,13 @@ class Solver(Gradients, _WithState):
         self.n = len(self.variables)
 
         # aggregate and organise variables and labels including pre_solvers
-        self.pre_curves: dict[str, Curve | _FXVolObj] = {}
+        self.pre_curves: dict[str, Any] = {}
         self.pre_variables: tuple[str, ...] = ()
         self.pre_instrument_labels: tuple[tuple[str, str], ...] = ()
         self.pre_instruments: tuple[tuple[SupportsRate, dict[str, Any]], ...] = ()
         self.pre_rate_scalars = []
         self.pre_m, self.pre_n = self.m, self.n
-        curve_collection: list[Curve | _FXVolObj] = []
+        curve_collection: list[Any] = []
         for pre_solver in self.pre_solvers:
             self.pre_variables += pre_solver.pre_variables
             self.pre_instrument_labels += pre_solver.pre_instrument_labels
@@ -1197,7 +1264,7 @@ class Solver(Gradients, _WithState):
             self._parse_instrument(inst) for inst in instruments
         )
         self.pre_instruments += self.instruments
-        self.rate_scalars = tuple(inst[0]._rate_scalar for inst in self.instruments)
+        self.rate_scalars = tuple(inst[0].rate_scalar for inst in self.instruments)
         self.pre_rate_scalars += self.rate_scalars
 
         # TODO need to check curves associated with fx object and set order.
@@ -1360,6 +1427,7 @@ class Solver(Gradients, _WithState):
             self._r_pre: NDArray[Nobject] | None = None  # depends on pre_solvers and self.r
             self._x: NDArray[Nobject] | None = None  # depends on self.r, self.s
             self._g: Dual | Dual2 | None = None  # depends on self.x, self.weights
+            self._grad_v_g: NDArray[Nf64] | None = None  # depends on self.g,
             self._J: NDArray[Nf64] | None = None  # depends on self.r
             self._grad_s_vT: NDArray[Nf64] | None = (
                 None  # final_iter_dual: depends on self.s and iteration
@@ -1384,7 +1452,7 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_curve(self, obj: str) -> Curve:
-        ret: Curve | FXVols = self.pre_curves[obj]
+        ret: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(ret, _BaseCurve):
             return ret
         else:
@@ -1395,12 +1463,23 @@ class Solver(Gradients, _WithState):
 
     @_validate_states
     def _get_pre_fxvol(self, obj: str) -> FXVols:
-        _: Curve | FXVols = self.pre_curves[obj]
+        _: Curve | FXVols | IRVols = self.pre_curves[obj]
         if isinstance(_, FXVols):
             return _
         else:
             raise ValueError(
                 f"A type of `FXVol` object was sought with id:'{obj}' from Solver but another "
+                f"type object was returned:'{type(_)}'."
+            )
+
+    @_validate_states
+    def _get_pre_irvol(self, obj: str) -> _BaseIRSmile | _BaseIRCube[Any]:
+        _: Curve | FXVols | _BaseIRSmile | _BaseIRCube[Any] = self.pre_curves[obj]
+        if isinstance(_, _BaseIRSmile | _BaseIRCube):
+            return _
+        else:
+            raise ValueError(
+                f"A type of `IRVol` object was sought with id:'{obj}' from Solver but another "
                 f"type object was returned:'{type(_)}'."
             )
 
@@ -1418,7 +1497,9 @@ class Solver(Gradients, _WithState):
         Valid *Solver* states are:
 
         - 1: Success within tolerance of objective function close to zero.
-        - 2: Success within tolerance of successive iteration values.
+        - 2: Success within tolerance of successive iteration function values.
+        - 4: Success within tolerance of norm of difference of successive iteration parameter values.
+        - 5: Success within tolerance of function gradient norm close to zero.
         - -1: Failed to satisfy tolerance after maximal allowed iteration.
         """
         return self._result
@@ -1539,17 +1620,16 @@ class Solver(Gradients, _WithState):
 
     def _update_step_(self, algorithm: str) -> NDArray[Nobject]:
         if algorithm == "gradient_descent":
-            grad_v_g = gradient(self.g, self.variables)
-            y = np.matmul(self.J.transpose(), grad_v_g[:, np.newaxis])[:, 0]
+            y = np.matmul(self.J.transpose(), self.grad_v_g[:, np.newaxis])[:, 0]
             alpha = np.dot(y, self.weights * self.x) / np.dot(y, self.weights * y)
-            v_1: NDArray[Nobject] = self.v - grad_v_g * alpha.real
+            v_1: NDArray[Nobject] = self.v - self.grad_v_g * alpha.real
         elif algorithm == "gauss_newton":
             if self.J.shape[0] == self.J.shape[1]:  # square system
                 A = self.J.transpose()
                 b = -np.array([x.real for x in self.x])[:, np.newaxis]
             else:
                 A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
-                b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
+                b = -0.5 * self.grad_v_g[:, np.newaxis]
             delta: NDArray[Nobject] = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         elif algorithm == "levenberg_marquardt":
@@ -1562,7 +1642,7 @@ class Solver(Gradients, _WithState):
             # self.lambd *= self.ini_lambda[2] if self.g_prev < self.g.real else self.ini_lambda[1]
             A = np.matmul(self.J, np.matmul(self.W, self.J.transpose()))
             A += self.lambd * np.eye(self.n)
-            b = -0.5 * gradient(self.g, self.variables)[:, np.newaxis]
+            b = -0.5 * self.grad_v_g[:, np.newaxis]
             delta = np.linalg.solve(A, b)[:, 0]
             v_1 = self.v + delta
         # elif algorithm == "gradient_descent_final":
@@ -1623,14 +1703,24 @@ class Solver(Gradients, _WithState):
         for i in range(self.max_iter):
             self.g_list.append(self.g.real)
             if self.g.real < self.g_list[i] and (self.g_list[i] - self.g.real) < self.conv_tol:
-                # condition is set to less than to avoid the case where a null update
-                # results in the same solution and this is erroneously categorised
-                # as a converged solution.
+                # Converge tolerance: |g(x_i+1) - g(x_i)| < conv_tol AND a better iterate.
+                # Condition enforces a better iterate to avoid the case where a null update
+                # results in the same solution and this is erroneously stopped due to this criteria.
                 return self._solver_result(1, i, time() - t0)
             elif self.g.real < self.func_tol:
+                # Function tolerance: 0 <= g(x_i+1) < func_tol.
                 return self._solver_result(2, i, time() - t0)
+            elif np.sqrt(np.dot(self.grad_v_g, self.grad_v_g)) < self.grad_tol:
+                # Gradient tolerance: |d_v_g(x_i+1)| < grad_tol.
+                return self._solver_result(5, i, time() - t0)
 
-            # v_0 = self.v.copy()
+            if i != 0:
+                eps = np.astype(v_1, float, copy=True) - v_0  # type: ignore[type-var, has-type]
+                if np.sqrt(np.dot(eps, eps)) < self.step_tol:
+                    # Step tolerance: |x_i+1 - x_i| < step_tol.
+                    return self._solver_result(4, i, time() - t0)
+
+            v_0 = np.astype(self.v, float, copy=True)
             v_1 = self._update_step_(self.algorithm)
             # self.v_prev = v_0
             self._update_curves_with_parameters(v_1)
@@ -1652,7 +1742,7 @@ class Solver(Gradients, _WithState):
             # this was amended in PR126 as performance improvement to keep consistent `vars`
             # and was restructured in PR## to decouple methods to accomodate vol surfaces
             n_vars = curve._n - curve._ini_solve
-            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)  # type: ignore[arg-type]
+            curve._set_node_vector(v_new[var_counter : var_counter + n_vars], self._ad)
             var_counter += n_vars
 
         self._update_fx()
@@ -1668,10 +1758,6 @@ class Solver(Gradients, _WithState):
         if not isinstance(self.fx, NoInput):
             self.fx._set_ad_order(order)
         self._reset_properties_()
-
-    # Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-    # Commercial use of this code, and/or copying and redistribution is prohibited.
-    # Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
     @_validate_states
     @_no_interior_validation
@@ -1903,7 +1989,7 @@ class Solver(Gradients, _WithState):
         .. ipython:: python
            :suppress:
 
-           from rateslib import Solver, Curve, SBS, IRS
+           from rateslib import Solver, Curve, SBS, IRS, dt
 
         .. ipython:: python
 
@@ -2343,11 +2429,6 @@ class Solver(Gradients, _WithState):
         sorted_cols = df.columns.sort_values()
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
         return _
-
-
-# Licence: Creative Commons - Attribution-NonCommercial-NoDerivatives 4.0 International
-# Commercial use of this code, and/or copying and redistribution is prohibited.
-# Contact rateslib at gmail.com if this code is observed outside its intended sphere.
 
 
 __all__ = ["Gradients", "Solver"]
