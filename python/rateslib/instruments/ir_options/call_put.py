@@ -52,6 +52,7 @@ if TYPE_CHECKING:
         DualTypes_,
         FXForwards_,
         IRSSeries,
+        PlotOutput,
         Sequence,
         Solver_,
         VolT_,
@@ -63,9 +64,8 @@ if TYPE_CHECKING:
         _IRVolPricingParams,
         bool_,
         datetime_,
-        str_,
         float_,
-        PlotOutput,
+        str_,
     )
 
 
@@ -777,6 +777,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
 
         x, y = self._plot_payoff(window=range, curves=curves, solver=solver, fx=fx, vol=vol)
         return plot([x], [y])  # type: ignore
+
     #
     # def local_analytic_rate_fixings(
     #     self,

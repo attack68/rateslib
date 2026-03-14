@@ -33,12 +33,12 @@ if TYPE_CHECKING:
         Sequence,
         Solver_,
         SwaptionSettlementMethod,
+        VolStrat_,
         VolT_,
         _Vol,
         datetime,
         datetime_,
         str_,
-        VolStrat_,
     )
 
 

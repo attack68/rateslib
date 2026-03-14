@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
+
 import numpy as np
 
 import rateslib.errors as err
