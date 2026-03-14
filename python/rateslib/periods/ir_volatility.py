@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING
+import numpy as np
 
 import rateslib.errors as err
 from rateslib import defaults
@@ -21,11 +22,11 @@ from rateslib.curves._parsers import (
     _validate_curve_not_no_input,
 )
 from rateslib.data.fixings import _get_irs_series
-from rateslib.dual import ift_1dim
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import Err, NoInput, Ok, _drb
 from rateslib.enums.parameters import (
     IROptionMetric,
+    OptionPricingModel,
     OptionType,
     SwaptionSettlementMethod,
     _get_ir_option_metric,
@@ -50,6 +51,7 @@ from rateslib.volatility.utils import (
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
         Any,
+        Arr1dF64,
         CurveOption,
         CurveOption_,
         DualTypes,
@@ -268,17 +270,37 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                 t_e=self.ir_option_params.time_to_expiry(disc_curve_.nodes.initial),
             )
 
-            expected = (
-                _OptionModelBlack76._value(
-                    F=pricing_.f + pricing_.shift,
-                    K=pricing_.k + pricing_.shift,
-                    t_e=pricing_.t_e,
-                    v2=1.0,  # not required
-                    vol=pricing_.vol / 100.0,
-                    phi=self.ir_option_params.direction.value,  # controls calls or put price
-                )
-                * 100.0
-            )  # bps
+            match pricing_.pricing_model:
+                case OptionPricingModel.Black76:
+                    expected = (
+                        _OptionModelBlack76._value(
+                            F=pricing_.f + pricing_.rate_shift,
+                            K=pricing_.k + pricing_.rate_shift,
+                            t_e=pricing_.t_e,
+                            v2=1.0,  # not required
+                            vol=pricing_.vol / 100.0,
+                            phi=self.ir_option_params.direction.value,  # controls calls or put price
+                        )
+                        * 100.0
+                    )  # bps
+                case OptionPricingModel.Bachelier:
+                    expected = (
+                        _OptionModelBachelier._value(
+                            F=pricing_.f + pricing_.rate_shift,
+                            K=pricing_.k + pricing_.rate_shift,
+                            t_e=pricing_.t_e,
+                            v2=1.0,  # not required
+                            vol=pricing_.vol / 100.0,
+                            phi=self.ir_option_params.direction.value,
+                            # controls calls or put price
+                        )
+                        * 100.0
+                    )
+                case _:
+                    raise NotImplementedError(
+                        "Option pricing model not implemented."
+                    )  # pragma: no cover
+
             a_r = self.ir_option_params.option_fixing.annuity(
                 settlement_method=self.ir_option_params.settlement_method,
                 rate_curve=rate_curve,
@@ -414,73 +436,45 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         del pricing
 
         if metric_ == IROptionMetric.NormalVol():
-            # use a root finder to reverse engineer the _Bachelier model.
-            if anal_delta is None:
-                anal_delta_: DualTypes = self.ir_option_params.option_fixing.irs.analytic_delta(  # type: ignore[assignment]
-                    curves=_Curves(disc_curve=disc_curve_),
-                    forward=self.settlement_params.payment,
-                    local=False,
-                )
-            else:
-                anal_delta_ = anal_delta
-            del anal_delta
-
-            def s(g: DualTypes) -> DualTypes:
-                return _OptionModelBachelier._value(
-                    F=pricing_.f,
-                    K=pricing_.k,
-                    t_e=pricing_.t_e,
-                    v2=1.0,
-                    vol=g,
-                    phi=self.ir_option_params.direction.value,
-                )
-
-            result = ift_1dim(
-                s=s,
-                s_tgt=1e4 * cash / (anal_delta_ * self.settlement_params.notional),
-                h="modified_brent",
-                ini_h_args=(0.0001, 10.0),
-            )
-            g: DualTypes = result["g"]
-            return g * 100.0
-        else:
-            # metric_ in [BlackVol types]
+            match pricing_.pricing_model:
+                case OptionPricingModel.Bachelier:
+                    return pricing_.vol
+                case OptionPricingModel.Black76:
+                    return _OptionModelBlack76.convert_to_bachelier(
+                        f=pricing_.f,
+                        k=pricing_.k,
+                        shift=pricing_.shift,
+                        vol=pricing_.vol,
+                        t_e=pricing_.t_e,
+                    )
+                case _:
+                    raise NotImplementedError("Pricing model not implemented.")
+        elif type(metric_) == IROptionMetric.BlackVolShift:
             # might need to resolve a volatility value depending upon the required shift
             # and the expected shift
             required_shift = metric_.shift()
             provided_shift = int(_dual_float(pricing_.shift))
-            if required_shift == provided_shift:
-                return pricing_.vol
-            else:
-                # use a root finder to reverse engineer the shifted vol value.
-                if anal_delta is None:
-                    anal_delta_ = self.ir_option_params.option_fixing.irs.analytic_delta(  # type: ignore[assignment]
-                        curves=_Curves(disc_curve=disc_curve_),
-                        forward=self.settlement_params.payment,
-                        local=False,
-                    )
-                else:
-                    anal_delta_ = anal_delta
-                del anal_delta
 
-                def s(g: DualTypes) -> DualTypes:
-                    return _OptionModelBlack76._value(
-                        F=pricing_.f + float(required_shift) / 100.0,
-                        K=pricing_.k + float(required_shift) / 100.0,
+            match pricing_.pricing_model:
+                case OptionPricingModel.Bachelier:
+                    return _OptionModelBachelier.convert_to_black76(
+                        f=pricing_.f,
+                        k=pricing_.k,
+                        shift=required_shift,
+                        vol=pricing_.vol,
                         t_e=pricing_.t_e,
-                        v2=1.0,
-                        vol=g,
-                        phi=self.ir_option_params.direction.value,
                     )
-
-                result = ift_1dim(
-                    s=s,
-                    s_tgt=1e4 * cash / (anal_delta_ * self.settlement_params.notional),
-                    h="modified_brent",
-                    ini_h_args=(0.0001, 10.0),
-                )
-                g = result["g"]
-                return g * 100.0
+                case OptionPricingModel.Black76:
+                    return _OptionModelBlack76.convert_to_new_shift(
+                        f=pricing_.f,
+                        k=pricing_.k,
+                        old_shift=provided_shift,
+                        target_shift=required_shift,
+                        vol=pricing_.vol,
+                        t_e=pricing_.t_e,
+                    )
+        else:
+            raise NotImplementedError("IROptionMetric` not implemented.")  # pragma: no cover
 
     #
     # def implied_vol(
@@ -548,26 +542,26 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
     #     _: Number = result["g"] * 100.0
     #     return _
     #
-    # def _payoff_at_expiry(
-    #     self, rng: tuple[float, float] | NoInput = NoInput(0)
-    # ) -> tuple[Arr1dF64, Arr1dF64]:
-    #     # used by plotting methods
-    #     if isinstance(self.ir_option_params.strike, NoInput):
-    #         raise ValueError(
-    #             "Cannot return payoff for option without a specified `strike`.",
-    #         )  # pragma: no cover
-    #     if isinstance(rng, NoInput):
-    #         x = np.linspace(0, 20, 1001)
-    #     else:
-    #         x = np.linspace(rng[0], rng[1], 1001)
-    #     k: float = _dual_float(self.ir_option_params.strike)
-    #     _ = (x - k) * self.ir_option_params.direction
-    #     __ = np.zeros(1001)
-    #     if self.ir_option_params.direction > 0:  # call
-    #         y = np.where(x < k, __, _) * self.settlement_params.notional
-    #     else:  # put
-    #         y = np.where(x > k, __, _) * self.settlement_params.notional
-    #     return x, y
+    def _payoff_at_expiry(
+        self, rng: tuple[float, float] | NoInput = NoInput(0)
+    ) -> tuple[Arr1dF64, Arr1dF64]:
+        # used by plotting methods
+        if isinstance(self.ir_option_params.strike, NoInput):
+            raise ValueError(
+                "Cannot return payoff for option without a specified `strike`.",
+            )  # pragma: no cover
+        if isinstance(rng, NoInput):
+            x = np.linspace(0, 20, 1001)
+        else:
+            x = np.linspace(rng[0], rng[1], 1001)
+        k: float = _dual_float(self.ir_option_params.strike)
+        _ = (x - k) * self.ir_option_params.direction
+        __ = np.zeros(1001)
+        if self.ir_option_params.direction > 0:  # call
+            y = np.where(x < k, __, _) * self.settlement_params.notional
+        else:  # put
+            y = np.where(x > k, __, _) * self.settlement_params.notional
+        return x, y
 
 
 class IRSCallPeriod(_BaseIRSOptionPeriod):

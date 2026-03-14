@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from rateslib.dual import dual_log, dual_norm_cdf, dual_norm_pdf
 from rateslib.enums.generics import NoInput, _drb
-from rateslib.enums.parameters import FXDeltaMethod
+from rateslib.enums.parameters import FXDeltaMethod, OptionPricingModel
 from rateslib.periods.parameters.fx_volatility import _FXOptionParams
 from rateslib.periods.parameters.ir_volatility import _IROptionParams
 from rateslib.periods.parameters.settlement import _SettlementParams
@@ -26,6 +26,7 @@ from rateslib.volatility.fx.utils import (
     _delta_type_constants,
 )
 from rateslib.volatility.utils import (
+    _OptionModelBachelier,
     _OptionModelBlack76,
 )
 
@@ -669,76 +670,100 @@ class _WithAnalyticIROptionGreeks(Protocol):
             t_e=sqrt_t**2,
         )
         vol_sqrt_t = pricing_.vol / 100.0 * sqrt_t
-        d_plus = _OptionModelBlack76._d_plus_min_u(pricing_.k / pricing_.f, vol_sqrt_t, 0.5)
-        # d_min = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, -0.5)
+        a_r = self.ir_option_params.option_fixing.annuity(
+            settlement_method=self.ir_option_params.settlement_method,
+            index_curve=index_curve,
+            rate_curve=rate_curve,
+        )
+        v_p = disc_curve[self.settlement_params.payment]
 
         _: dict[str, Any] = dict()
+
+        match pricing_.pricing_model:
+            case OptionPricingModel.Black76:
+                d_plus = _OptionModelBlack76._d_plus_min_u(pricing_.k / pricing_.f, vol_sqrt_t, 0.5)
+                _["__bs76"] = _OptionModelBlack76._value(
+                    F=pricing_.f,
+                    K=pricing_.k,
+                    t_e=pricing_.t_e,
+                    v2=1.0,
+                    vol=pricing_.vol / 100.0,
+                    phi=self.ir_option_params.direction,
+                )
+                # d_min = _OptionModelBlack76._d_plus_min_u(u, vol_sqrt_t, -0.5)
+            case OptionPricingModel.Bachelier:
+                d_plus = (pricing_.f - pricing_.k) / vol_sqrt_t
+                _["__bachelier"] = _OptionModelBachelier._value(
+                    F=pricing_.f,
+                    K=pricing_.k,
+                    t_e=pricing_.t_e,
+                    v2=1.0,
+                    vol=pricing_.vol / 100.0,
+                    phi=self.ir_option_params.direction,
+                )
+
         _["__forward"] = pricing_.f
         _["__sqrt_t"] = sqrt_t
         _["__vol"] = pricing_.vol / 100.0
         _["__strike"] = pricing_.k
         _["delta"] = self._analytic_delta(
+            self.ir_option_params.direction, d_plus, pricing_.pricing_model
+        )
+        _[f"delta_{self.settlement_params.currency}"] = (
+            abs(self.settlement_params.notional) * _["delta"] * a_r * v_p * 1e-6
+        )
+        _["gamma"] = self._analytic_gamma(
             self.ir_option_params.direction,
             d_plus,
+            pricing_.pricing_model,
+            pricing_.f,
+            vol_sqrt_t,
         )
-        # _[f"delta_{self.fx_option_params.pair[:3]}"] = (
-        #     abs(self.settlement_params.notional) * _["delta"]
-        # )
+        _[f"gamma_{self.settlement_params.currency}"] = (
+            _["gamma"] * abs(self.settlement_params.notional) * 1e-8 * a_r * v_p
+        )
 
-        #
-        # _["gamma"] = self._analytic_gamma(
-        #     _is_spot,
-        #     v_deli,
-        #     v_spot,
-        #     z_w_0,
-        #     self.fx_option_params.direction,
-        #     d_plus,
-        #     f_d,
-        #     vol_sqrt_t,
-        # )
-        # _["vega"] = self._analytic_vega(
-        #     v_deli, f_d, sqrt_t, self.fx_option_params.direction, d_plus
-        # )
-        # _["_kega"] = self._analytic_kega(
-        #     z_u_0,
-        #     z_w_0,
-        #     eta_0,
-        #     fx_vol_,
-        #     sqrt_t,
-        #     f_d,
-        #     self.fx_option_params.direction,
-        #     self.fx_option_params.strike,
-        #     d_eta_0,
-        # )
-        # _["_kappa"] = self._analytic_kappa(v_deli, self.fx_option_params.direction, d_min)
+        _["vanna"] = self._analytic_vanna(
+            self.ir_option_params.direction,
+            d_plus,
+            pricing_.pricing_model,
+            vol_sqrt_t,
+            pricing_.vol / 100.0,
+        )
+        _[f"vanna_{self.settlement_params.currency}"] = (
+            _["vanna"] * abs(self.settlement_params.notional) * 1e-8 * a_r * v_p
+        )
 
-        # _["__bs76"] = self._analytic_bs76(
-        #     self.fx_option_params.direction,
-        #     v_deli,
-        #     f_d,
-        #     d_plus,
-        #     self.fx_option_params.strike,
-        #     d_min,
-        # )
-        # _["__notional"] = self.settlement_params.notional
-        # if self.fx_option_params.direction > 0:
-        #     _["__class"] = "FXCallPeriod"
-        # else:
-        #     _["__class"] = "FXPutPeriod"
-        #
+        _["vega"] = self._analytic_vega(
+            self.ir_option_params.direction,
+            d_plus,
+            pricing_.pricing_model,
+            pricing_.f,
+            _["__sqrt_t"],
+        )
+        _[f"vega_{self.settlement_params.currency}"] = (
+            _["vega"] * abs(self.settlement_params.notional) * 1e-6 * a_r * v_p
+        )
+        _["vomma"] = self._analytic_vomma(
+            self.ir_option_params.direction,
+            d_plus,
+            pricing_.pricing_model,
+            _["vega"],
+            vol_sqrt_t,
+            pricing_.vol / 100.0,
+        )
+        _[f"vomma_{self.settlement_params.currency}"] = (
+            _["vomma"] * abs(self.settlement_params.notional) * 1e-8 * a_r * v_p
+        )
+
+        _["__notional"] = self.settlement_params.notional
+        if self.ir_option_params.direction > 0:
+            _["__class"] = "IRCallPeriod"
+        else:
+            _["__class"] = "IRPutPeriod"
+
         # if not _reduced:
-
         #
-        #     _[f"gamma_{self.fx_option_params.pair[:3]}_1%"] = (
-        #         _["gamma"]
-        #         * abs(self.settlement_params.notional)
-        #         * (f_t if _is_spot else f_d)
-        #         * 0.01
-        #     )
-        #
-        #     _[f"vega_{self.fx_option_params.pair[3:]}"] = (
-        #         _["vega"] * abs(self.settlement_params.notional) * 0.01
-        #     )
         #
         #     _["delta_sticky"] = self._analytic_sticky_delta(
         #         _["delta"],
@@ -759,52 +784,64 @@ class _WithAnalyticIROptionGreeks(Protocol):
         #         self.fx_option_params.strike,
         #         fx,
         #     )
-        #     _["vomma"] = self._analytic_vomma(_["vega"], d_plus, d_min, fx_vol_)
-        #     _["vanna"] = self._analytic_vanna(
-        #         z_w_0, self.fx_option_params.direction, d_plus, d_min, fx_vol_
-        #     )
-        #     # _["vanna"] = self._analytic_vanna(_["vega"], _is_spot, f_t, f_d, d_plus, vol_sqrt_t)
 
         return _
 
-    #
-    # @staticmethod
-    # def _analytic_vega(
-    #     v_deli: DualTypes, f_d: DualTypes, sqrt_t: DualTypes, phi: float, d_plus: DualTypes
-    # ) -> DualTypes:
-    #     return v_deli * f_d * sqrt_t * dual_norm_pdf(phi * d_plus)
-    #
-    # @staticmethod
-    # def _analytic_vomma(
-    #     vega: DualTypes,
-    #     d_plus: DualTypes,
-    #     d_min: DualTypes,
-    #     vol: DualTypes,
-    # ) -> DualTypes:
-    #     return vega * d_plus * d_min / vol
-    #
-    # @staticmethod
-    # def _analytic_gamma(
-    #     spot: DualTypes,
-    #     v_deli: DualTypes,
-    #     v_spot: DualTypes,
-    #     z_w: DualTypes,
-    #     phi: float,
-    #     d_plus: DualTypes,
-    #     f_d: DualTypes,
-    #     vol_sqrt_t: DualTypes,
-    # ) -> DualTypes:
-    #     ret = z_w * dual_norm_pdf(phi * d_plus) / (f_d * vol_sqrt_t)
-    #     if spot:
-    #         return ret * z_w * v_spot / v_deli
-    #     return ret
-    #
+    @staticmethod
+    def _analytic_vega(
+        phi: float,
+        d_plus: DualTypes,
+        model: OptionPricingModel,
+        f: DualTypes,
+        sqrt_t: DualTypes,
+    ) -> DualTypes:
+        match model:
+            case OptionPricingModel.Black76:
+                return f * sqrt_t * dual_norm_pdf(phi * d_plus)
+            case OptionPricingModel.Bachelier:
+                return sqrt_t * dual_norm_pdf(d_plus)
+
+    @staticmethod
+    def _analytic_vomma(
+        phi: float,
+        d_plus: DualTypes,
+        model: OptionPricingModel,
+        vega: DualTypes,
+        vol_sqrt_t: DualTypes,
+        vol: DualTypes,
+    ) -> DualTypes:
+        match model:
+            case OptionPricingModel.Black76:
+                return vega * d_plus * (d_plus - vol_sqrt_t) / vol
+            case OptionPricingModel.Bachelier:
+                return vega * d_plus * d_plus / vol
+
+    @staticmethod
+    def _analytic_gamma(
+        phi: float,
+        d_plus: DualTypes,
+        model: OptionPricingModel,
+        f_d: DualTypes,
+        vol_sqrt_t: DualTypes,
+    ) -> DualTypes:
+        ret = dual_norm_pdf(phi * d_plus) / vol_sqrt_t
+        match model:
+            case OptionPricingModel.Black76:
+                return ret / f_d
+            case OptionPricingModel.Bachelier:
+                return ret
+
     @staticmethod
     def _analytic_delta(
         phi: float,
         d_plus: DualTypes,
+        model: OptionPricingModel = OptionPricingModel.Black76,
     ) -> DualTypes:
-        return phi * dual_norm_cdf(phi * d_plus)
+        match model:
+            case OptionPricingModel.Black76:
+                return phi * dual_norm_cdf(phi * d_plus)
+            case OptionPricingModel.Bachelier:
+                return phi * dual_norm_cdf(phi * d_plus)
 
     #
     # @staticmethod
@@ -871,15 +908,20 @@ class _WithAnalyticIROptionGreeks(Protocol):
     #
     #     return delta + vega / v_deli * z_v_0 * dvol_df
     #
-    # @staticmethod
-    # def _analytic_vanna(
-    #     z_w: DualTypes,
-    #     phi: float,
-    #     d_plus: DualTypes,
-    #     d_min: DualTypes,
-    #     vol: DualTypes,
-    # ) -> DualTypes:
-    #     return -z_w * dual_norm_pdf(phi * d_plus) * d_min / vol
+    @staticmethod
+    def _analytic_vanna(
+        phi: float,
+        d_plus: DualTypes,
+        model: OptionPricingModel,
+        vol_sqrt_t: DualTypes,
+        vol: DualTypes,
+    ) -> DualTypes:
+        match model:
+            case OptionPricingModel.Black76:
+                return -dual_norm_pdf(phi * d_plus) * (d_plus - vol_sqrt_t) / vol
+            case OptionPricingModel.Bachelier:
+                return -dual_norm_pdf(phi * d_plus) * d_plus / vol
+
     #
     # # @staticmethod
     # # def _analytic_vanna(vega, spot, f_t, f_d, d_plus, vol_sqrt_t):  # Alternative monetary def.

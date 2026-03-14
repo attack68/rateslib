@@ -121,16 +121,16 @@ class IRVolValue(_BaseInstrument):
 
     Parameters
     ----------
-    strike: float, Variable, str, :red:`required`
-        The strike value used as the index value to the pricing model.
-        If str, there are two possibilities; {"atm", "{}bps"}. "atm" will produce a strike equal
-        to the mid-market *IRS* rate, whilst "20bps" or "-50bps" will yield a strike that number
-        of basis points different to the mid-market rate.
     expiry: datetime, str, :red:`required`
         The expiry of the option. If given in string tenor format, e.g. "1M" requires an
         ``eval_date``. See **Notes**.
     tenor: datetime, str, :red:`required`
         The parameter defining the maturity of the underlying :class:`~rateslib.instruments.IRS`.
+    strike: float, Variable, str, :red:`required`
+        The strike value used as the index value to the pricing model.
+        If str, there are two possibilities; {"atm", "{}bps"}. "atm" will produce a strike equal
+        to the mid-market *IRS* rate, whilst "20bps" or "-50bps" will yield a strike that number
+        of basis points different to the mid-market rate.
     irs_series: IRSSeries, str, :red:`required`
         The standard conventions applied to the underlying :class:`~rateslib.instruments.IRS`.
     eval_date: datetime, :green:`optional`
@@ -145,13 +145,28 @@ class IRVolValue(_BaseInstrument):
 
     """
 
+    @property
+    def rate_scalar(self) -> float:
+        metric_ = self.kwargs.meta["metric"].lower()
+        match metric_:
+            case "alpha" | "beta" | "rho" | "nu":
+                return 1.0
+            case "normal_vol":
+                return 100.0
+            case _ if "black_vol_shift_" in metric_:
+                return 100.0
+            case _:
+                raise NotImplementedError(
+                    "The provided metric for IRVolValue is not rate scalar mapped."
+                )
+
     _rate_scalar = 1.0
 
     def __init__(
         self,
-        strike: DualTypes | str,
         expiry: datetime | str,
         tenor: datetime | str,
+        strike: DualTypes | str,
         irs_series: IRSSeries | str,
         *,
         eval_date: datetime_ = NoInput(0),
@@ -220,12 +235,14 @@ class IRVolValue(_BaseInstrument):
         del metric
 
         if metric_ in ["alpha", "beta", "rho", "nu"]:
-            if isinstance(ir_vol, IRSabrSmile | IRSabrCube):
-                return ir_vol._get_sabr_param(
+            if isinstance(ir_vol, IRSabrSmile):
+                return getattr(ir_vol.nodes, metric_)  # type: ignore[no-any-return]
+            elif isinstance(ir_vol, IRSabrCube):
+                smile: IRSabrSmile = ir_vol.get_smile(  # type: ignore[assignment]
                     expiry=self.kwargs.leg1["expiry"],
                     tenor=self._ir_option_params.option_fixing.termination,
-                    param=metric_,
                 )
+                return getattr(smile.nodes, metric_)  # type: ignore[no-any-return]
             else:
                 raise ValueError(
                     "A SABR parameter `metric` can only be obtained from a SABR type vol pricing "
@@ -285,23 +302,17 @@ class IRVolValue(_BaseInstrument):
                         f=params.f, k=params.k, shift=params.shift, t_e=params.t_e, vol=params.vol
                     )
             case IROptionMetric.BlackVolShift:
-                params = ir_vol.get_from_strike(
-                    k=self.kwargs.leg1["strike"],
-                    curves=curves,
-                    expiry=self.kwargs.leg1["expiry"],
-                    tenor=self._ir_option_params.option_fixing.termination,
-                )
-                shift = metric__.shift()
+                required_shift = metric__.shift()
                 if params.pricing_model == OptionPricingModel.Bachelier:
                     return _OptionModelBachelier.convert_to_black76(
-                        f=params.f, k=params.k, shift=shift, t_e=params.t_e, vol=params.vol
+                        f=params.f, k=params.k, shift=required_shift, t_e=params.t_e, vol=params.vol
                     )
                 else:
                     return _OptionModelBlack76.convert_to_new_shift(
                         f=params.f,
                         k=params.k,
                         old_shift=params.shift,
-                        target_shift=shift,
+                        target_shift=required_shift,
                         t_e=params.t_e,
                         vol=params.vol,
                     )

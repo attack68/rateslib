@@ -45,7 +45,7 @@ from rateslib.mutability import (
     _WithState,
 )
 from rateslib.volatility.fx import FXVols
-from rateslib.volatility.ir import IRVolObj, IRVols
+from rateslib.volatility.ir import IRVols, _BaseIRCube, _BaseIRSmile
 
 P = ParamSpec("P")
 
@@ -1398,9 +1398,9 @@ class Solver(Gradients, _WithState):
             )
 
     @_validate_states
-    def _get_pre_irvol(self, obj: str) -> IRVols:
-        _: Curve | FXVols | IRVols = self.pre_curves[obj]
-        if isinstance(_, IRVolObj):
+    def _get_pre_irvol(self, obj: str) -> _BaseIRSmile | _BaseIRCube[Any]:
+        _: Curve | FXVols | _BaseIRSmile | _BaseIRCube[Any] = self.pre_curves[obj]
+        if isinstance(_, _BaseIRSmile | _BaseIRCube):
             return _
         else:
             raise ValueError(

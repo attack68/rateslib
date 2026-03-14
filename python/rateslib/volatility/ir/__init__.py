@@ -10,20 +10,22 @@
 ####################################################################################################
 
 
-from rateslib.volatility.ir.base import _BaseIRSmile
+from rateslib.volatility.ir.base import _BaseIRCube, _BaseIRSmile
 from rateslib.volatility.ir.sabr import IRSabrCube, IRSabrSmile
-from rateslib.volatility.ir.spline import IRSplineSmile
-from rateslib.volatility.ir.utils import _IRSabrCubeMeta, _IRSmileMeta, _IRVolPricingParams
+from rateslib.volatility.ir.spline import IRSplineCube, IRSplineSmile
+from rateslib.volatility.ir.utils import _IRCubeMeta, _IRSmileMeta, _IRVolPricingParams
 
 __all__ = [
     "IRSabrSmile",
     "IRSplineSmile",
     "IRSabrCube",
+    "IRSplineCube",
     "_BaseIRSmile",
+    "_BaseIRCube",
     "_IRSmileMeta",
-    "_IRSabrCubeMeta",
+    "_IRCubeMeta",
     "_IRVolPricingParams",
 ]
 
-IRVols = IRSabrSmile | IRSabrCube
-IRVolObj = (IRSabrSmile, IRSabrCube)
+IRVols = IRSabrSmile | IRSabrCube | IRSplineSmile | IRSplineCube
+IRVolObj = (IRSabrSmile, IRSabrCube, IRSplineSmile, IRSplineCube)

@@ -27,8 +27,8 @@ from rateslib.volatility import (
     FXDeltaVolSurface,
     FXSabrSmile,
     FXSabrSurface,
-    IRSabrCube,
-    IRSabrSmile,
+    _BaseIRCube,
+    _BaseIRSmile,
 )
 from rateslib.volatility.ir.utils import _IRVolPricingParams
 
@@ -40,7 +40,6 @@ if TYPE_CHECKING:
         CurveOption_,
         DualTypes,
         FXForwards_,
-        IRSabrCube,
         _BaseCurve_,
         _FXVolOption_,
         _IRVolOption_,
@@ -186,7 +185,7 @@ def _get_ir_vol_value_and_forward_maybe_from_obj(
     else:
         k_ = strike
 
-    if isinstance(ir_vol, IRSabrSmile | IRSabrCube):
+    if isinstance(ir_vol, _BaseIRSmile | _BaseIRCube):
         # ir_vol is a Vol object
         return ir_vol.get_from_strike(k=k_, f=f_, expiry=expiry, tenor=tenor)
     elif isinstance(ir_vol, NoInput):

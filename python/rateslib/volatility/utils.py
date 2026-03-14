@@ -27,7 +27,7 @@ from rateslib.dual import (
     dual_norm_pdf,
     ift_1dim,
 )
-from rateslib.dual.utils import _to_number
+from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import (
     NoInput,
 )
@@ -319,6 +319,15 @@ class _OptionModelBlack76:
             F=f + shift / 100.0, K=k + shift / 100.0, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=1.0
         )
 
+        if vol < 0.0:
+            raise RuntimeError(
+                "`vol` cannot be negative.\nIf this has occurred during a Solver calibration:\n"
+                "- are your convergence tolerances wide enough?\n"
+                "- are your initial parameters too far from target? (perhaps use gradient_descent "
+                "to find a better starting point)\n"
+                "- have you tried slackening the `ini_lambda` to say (20000, 0.5, 4)?"
+            )
+
         def s(g: DualTypes) -> DualTypes:
             """s(g) is the price, s, of an option given a volatility, g,"""
             return _OptionModelBachelier._value(
@@ -330,7 +339,13 @@ class _OptionModelBlack76:
                 phi=1.0,
             )
 
-        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        ini_guess = _dual_float(vol * (f + shift / 100.0)) / 100.0
+        result = ift_1dim(
+            s=s,
+            s_tgt=s_tgt,
+            h="ytm_quadratic",
+            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+        )
         g: DualTypes = result["g"]
         return g * 100.0
 
@@ -344,6 +359,9 @@ class _OptionModelBlack76:
         vol: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
+        if old_shift == target_shift:
+            return vol
+
         s_tgt = cls._value(
             F=f + old_shift / 100.0,
             K=k + old_shift / 100.0,
@@ -364,8 +382,24 @@ class _OptionModelBlack76:
                 phi=1.0,
             )
 
+        ini_guess = (
+            _dual_float(
+                vol
+                * (
+                    ((f + old_shift / 100.0) * (k + old_shift / 100.0))
+                    / ((f + target_shift / 100.0) * (k + target_shift / 100.0))
+                )
+                ** 0.5
+            )
+            / 100.0
+        )
         # result = ift_1dim(s=s, s_tgt=s_tgt, h="modified_brent", ini_h_args=(0.0001, 10.0))
-        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        result = ift_1dim(
+            s=s,
+            s_tgt=s_tgt,
+            h="ytm_quadratic",
+            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+        )
         g: DualTypes = result["g"]
         return g * 100.0
 
@@ -436,8 +470,14 @@ class _OptionModelBachelier:
                 phi=1.0,
             )
 
+        ini_guess = vol / (100.0 * ((f + shift / 100.0) * (k + shift / 100.0)) ** 0.5)
         # result = ift_1dim(s=s, s_tgt=s_tgt, h="modified_brent", ini_h_args=(0.0001, 10.0))
-        result = ift_1dim(s=s, s_tgt=s_tgt, h="ytm_quadratic", ini_h_args=(0.0001, 0.10, 0.50))
+        result = ift_1dim(
+            s=s,
+            s_tgt=s_tgt,
+            h="ytm_quadratic",
+            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+        )
         g: DualTypes = result["g"]
         return g * 100.0
 

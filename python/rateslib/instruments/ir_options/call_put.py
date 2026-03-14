@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABCMeta
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
@@ -44,6 +44,7 @@ from rateslib.volatility.ir.utils import _get_ir_expiry_and_payment
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
         Any,
+        Arr1dF64,
         CurveOption_,
         CurvesT_,
         DataFrame,
@@ -60,8 +61,11 @@ if TYPE_CHECKING:
         _BaseLeg,
         _IRVolOption_,
         _IRVolPricingParams,
+        bool_,
         datetime_,
         str_,
+        float_,
+        PlotOutput,
     )
 
 
@@ -75,8 +79,146 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
 
     _pricing: _IRVolPricingParams
 
+    def analytic_greeks(
+        self,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+    ) -> dict[str, Any]:
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        .. rubric:: Examples
+
+        .. ipython:: python
+           :suppress:
+
+           from rateslib import Curve, FXCall, dt, FXForwards, FXRates, FXDeltaVolSmile
+
+        .. ipython:: python
+
+           eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
+           usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
+           fxf = FXForwards(
+               fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
+               fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
+           )
+           fxvs = FXDeltaVolSmile(
+               nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
+               delta_type="forward",
+               eval_date=dt(2020, 1, 1),
+               expiry=dt(2020, 4, 1)
+           )
+           fxc = FXCall(
+               expiry="3m",
+               strike=1.10,
+               eval_date=dt(2020, 1, 1),
+               spec="eurusd_call",
+           )
+           fxc.analytic_greeks(fx=fxf, curves=[eur, usd], vol=fxvs)
+
+        Parameters
+        ----------
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+
+        Returns
+        -------
+        dict
+        """
+        return self._analytic_greeks_set_metrics(
+            curves=curves,
+            solver=solver,
+            fx=fx,
+            vol=vol,
+            set_metrics=True,
+        )
+
+    def _analytic_greeks_set_metrics(
+        self,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        set_metrics: bool_ = True,
+    ) -> dict[str, Any]:
+        """
+        Return various pricing metrics of the *FX Option*.
+
+        Returns
+        -------
+        float, Dual, Dual2
+        """
+        _curves = self._parse_curves(curves)
+        _vol = self._parse_vol(vol)
+        rate_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
+        )
+        disc_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
+        )
+        index_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves,
+            curves_meta=self.kwargs.meta["curves"],
+            solver=solver,
+            name="index_curve",
+        )
+        ir_vol = _maybe_get_ir_vol_maybe_from_solver(
+            vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
+        )
+
+        if set_metrics:
+            self._set_strike_and_vol(
+                rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve, vol=ir_vol
+            )
+            # self._set_premium(curves, fx)
+
+        return self._option.analytic_greeks(
+            rate_curve=_validate_obj_not_no_input(rate_curve, "rate curve"),
+            disc_curve=_validate_obj_not_no_input(disc_curve, "disc curve"),
+            index_curve=_validate_obj_not_no_input(rate_curve, "index curve"),
+            ir_vol=ir_vol,
+            premium=NoInput(0),
+            premium_payment=NoInput(0),
+        )
+
+    def local_analytic_rate_fixings(
+        self,
+        *,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DataFrame:
+        raise NotImplementedError(
+            "`local_analytic_rate_fixings` is not implemented for `_BaseIROption` types."
+        )
+
+    def spread(
+        self,
+        *,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+        base: str_ = NoInput(0),
+        settlement: datetime_ = NoInput(0),
+        forward: datetime_ = NoInput(0),
+    ) -> DualTypes:
+        raise NotImplementedError("`spread` is not implemented for `_BaseIROption` types.")
+
     @property
-    def rate_scalar(self) -> float:
+    def _rate_scalar(self) -> float:  # type: ignore[override]
         if type(self.kwargs.meta["metric"]) in [
             IROptionMetric.BlackVolShift,
             IROptionMetric.NormalVol,
@@ -551,235 +693,90 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             vol=vol,
         )
 
-    # def analytic_greeks(
-    #     self,
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     vol: FXVol_ = NoInput(0),
-    # ) -> dict[str, Any]:
-    #     """
-    #     Return various pricing metrics of the *FX Option*.
-    #
-    #     .. rubric:: Examples
-    #
-    #     .. ipython:: python
-    #        :suppress:
-    #
-    #        from rateslib import Curve, FXCall, dt, FXForwards, FXRates, FXDeltaVolSmile
-    #
-    #     .. ipython:: python
-    #
-    #        eur = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.98})
-    #        usd = Curve({dt(2020, 1, 1): 1.0, dt(2021, 1, 1): 0.96})
-    #        fxf = FXForwards(
-    #            fx_rates=FXRates({"eurusd": 1.10}, settlement=dt(2020, 1, 3)),
-    #            fx_curves={"eureur": eur, "eurusd": eur, "usdusd": usd},
-    #        )
-    #        fxvs = FXDeltaVolSmile(
-    #            nodes={0.25: 11.0, 0.5: 9.8, 0.75: 10.7},
-    #            delta_type="forward",
-    #            eval_date=dt(2020, 1, 1),
-    #            expiry=dt(2020, 4, 1)
-    #        )
-    #        fxc = FXCall(
-    #            expiry="3m",
-    #            strike=1.10,
-    #            eval_date=dt(2020, 1, 1),
-    #            spec="eurusd_call",
-    #        )
-    #        fxc.analytic_greeks(fx=fxf, curves=[eur, usd], vol=fxvs)
-    #
-    #     Parameters
-    #     ----------
-    #     curves: _Curves, :green:`optional`
-    #         Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
-    #     solver: Solver, :green:`optional`
-    #         A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
-    #         *Cube* mappings for pricing.
-    #     fx: FXForwards, :green:`optional`
-    #         The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
-    #     vol: _Vol, :green:`optional`
-    #         Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
-    #
-    #     Returns
-    #     -------
-    #     dict
-    #     """
-    #     return self._analytic_greeks_set_metrics(
-    #         curves=curves,
-    #         solver=solver,
-    #         fx=fx,
-    #         vol=vol,
-    #         set_metrics=True,
-    #     )
-    #
-    # def _analytic_greeks_set_metrics(
-    #     self,
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     vol: FXVol_ = NoInput(0),
-    #     set_metrics: bool_ = True,
-    # ) -> dict[str, Any]:
-    #     """
-    #     Return various pricing metrics of the *FX Option*.
-    #
-    #     Returns
-    #     -------
-    #     float, Dual, Dual2
-    #     """
-    #     _curves = self._parse_curves(curves)
-    #     _vol = self._parse_vol(vol)
-    #     rate_curve = _maybe_get_curve_maybe_from_solver(
-    #         curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-    #     )
-    #     disc_curve = _maybe_get_curve_maybe_from_solver(
-    #         curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-    #     )
-    #     fx_vol = _maybe_get_fx_vol_maybe_from_solver(
-    #         vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
-    #     )
-    #     fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
-    #
-    #     if set_metrics:
-    #         self._set_strike_and_vol(
-    #             rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=fx_vol
-    #         )
-    #         # self._set_premium(curves, fx)
-    #
-    #     return self._option.analytic_greeks(
-    #         rate_curve=_validate_obj_not_no_input(rate_curve, "rate curve"),
-    #         disc_curve=_validate_obj_not_no_input(disc_curve, "disc curve"),
-    #         fx=_validate_fx_as_forwards(fx_),
-    #         fx_vol=fx_vol,
-    #         premium=NoInput(0),
-    #         premium_payment=self.kwargs.leg2["payment"],
-    #     )
-    #
-    # def _analytic_greeks_reduced(
-    #     self,
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     base: str_ = NoInput(0),
-    #     vol: FXVol_ = NoInput(0),
-    #     set_metrics: bool_ = True,
-    # ) -> dict[str, Any]:
-    #     """
-    #     Return various pricing metrics of the *FX Option*.
-    #     """
-    #     _curves = self._parse_curves(curves)
-    #     _vol = self._parse_vol(vol)
-    #     rate_curve = _maybe_get_curve_maybe_from_solver(
-    #         curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-    #     )
-    #     disc_curve = _maybe_get_curve_maybe_from_solver(
-    #         curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-    #     )
-    #     fx_vol = _maybe_get_fx_vol_maybe_from_solver(
-    #         vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
-    #     )
-    #     fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
-    #
-    #     if set_metrics:
-    #         self._set_strike_and_vol(
-    #             rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=fx_vol
-    #         )
-    #         # self._set_premium(curves, fx)
-    #
-    #     return self._option._base_analytic_greeks(
-    #         rate_curve=_validate_obj_not_no_input(rate_curve, "rate_curve"),
-    #         disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
-    #         fx=_validate_fx_as_forwards(fx_),
-    #         fx_vol=self._pricing.vol,  # type: ignore[arg-type]  # vol is set and != None
-    #         premium=NoInput(0),
-    #         _reduced=True,
-    #     )  # none of the reduced greeks need a VolObj - faster to reuse from _pricing.vol
+    def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
+        """Not implemented for Option types.
+        Use :meth:`~rateslib.instruments._BaseFXOption.analytic_greeks`.
+        """
+        raise NotImplementedError("For Option types use `analytic_greeks`.")
 
-    # def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
-    #     """Not implemented for Option types.
-    #     Use :meth:`~rateslib.instruments._BaseFXOption.analytic_greeks`.
-    #     """
-    #     raise NotImplementedError("For Option types use `analytic_greeks`.")
-    #
-    # def _plot_payoff(
-    #     self,
-    #     window: tuple[float, float] | NoInput = NoInput(0),
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     vol: IRVol_ = NoInput(0),
-    # ) -> tuple[
-    #     np.ndarray[tuple[int], np.dtype[np.float64]], np.ndarray[tuple[int], np.dtype[np.float64]]
-    # ]:
-    #     """
-    #     Mechanics to determine (x,y) coordinates for payoff at expiry plot.
-    #     """
-    #
-    #     _curves = self._parse_curves(curves)
-    #     _vol = self._parse_vol(vol)
-    #     rate_curve = _validate_obj_not_no_input(
-    #         _maybe_get_curve_maybe_from_solver(
-    #             curves=_curves,
-    #             curves_meta=self.kwargs.meta["curves"],
-    #             solver=solver,
-    #             name="rate_curve",
-    #         ),
-    #         "rate_curve",
-    #     )
-    #     disc_curve = _validate_obj_not_no_input(
-    #         _maybe_get_curve_maybe_from_solver(
-    #             curves=_curves,
-    #             curves_meta=self.kwargs.meta["curves"],
-    #             solver=solver,
-    #             name="disc_curve",
-    #         ),
-    #         "disc curve",
-    #     )
-    #     fx_vol = _maybe_get_fx_vol_maybe_from_solver(
-    #         vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
-    #     )
-    #     fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
-    #     self._set_strike_and_vol(rate_curve=rate_curve, disc_curve=disc_curve, fx=fx_, vol=fx_vol)
-    #     # self._set_premium(curves, fx)
-    #
-    #     x, y = self._option._payoff_at_expiry(window)
-    #     return x, y
-    #
-    # def plot_payoff(
-    #     self,
-    #     range: tuple[float, float] | NoInput = NoInput(0),  # noqa: A002
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     base: str_ = NoInput(0),
-    #     vol: float_ = NoInput(0),
-    # ) -> PlotOutput:
-    #     """
-    #     Return a plot of the payoff at expiry, indexed by the *FXFixing* value.
-    #
-    #     Parameters
-    #     ----------
-    #     range: list of float, :green:`optional`
-    #         A range of values for the *FXFixing* value at expiry to use as the x-axis.
-    #     curves: _Curves, :green:`optional`
-    #         Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
-    #     solver: Solver, :green:`optional`
-    #         A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
-    #         *Cube* mappings for pricing.
-    #     fx: FXForwards, :green:`optional`
-    #         The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
-    #     vol: _Vol, :green:`optional`
-    #         Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
-    #
-    #     Returns
-    #     -------
-    #     (Figure, Axes, list[Lines2D])
-    #     """
-    #
-    #     x, y = self._plot_payoff(window=range, curves=curves, solver=solver, fx=fx, vol=vol)
-    #     return plot([x], [y])  # type: ignore
+    def _plot_payoff(
+        self,
+        window: tuple[float, float] | NoInput = NoInput(0),
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolT_ = NoInput(0),
+    ) -> tuple[Arr1dF64, Arr1dF64]:
+        """
+        Mechanics to determine (x,y) coordinates for payoff at expiry plot.
+        """
+        _curves = self._parse_curves(curves)
+        _vol = self._parse_vol(vol)
+        rate_curve = _maybe_get_curve_maybe_from_solver(
+            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
+        )
+        disc_curve: _BaseCurve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="disc_curve",
+            ),
+            name="disc_curve",
+        )
+        index_curve: _BaseCurve = _validate_obj_not_no_input(
+            _maybe_get_curve_maybe_from_solver(
+                curves=_curves,
+                curves_meta=self.kwargs.meta["curves"],
+                solver=solver,
+                name="index_curve",
+            ),
+            name="index_curve",
+        )
+        ir_vol = _maybe_get_ir_vol_maybe_from_solver(
+            vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
+        )
+        self._set_strike_and_vol(
+            rate_curve=rate_curve, disc_curve=disc_curve, index_curve=index_curve, vol=ir_vol
+        )
+
+        # self._set_premium(curves, fx)
+        x, y = self._option._payoff_at_expiry(window)
+        return x, y
+
+    def plot_payoff(
+        self,
+        range: tuple[float, float] | NoInput = NoInput(0),  # noqa: A002
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        base: str_ = NoInput(0),
+        vol: float_ = NoInput(0),
+    ) -> PlotOutput:
+        """
+        Return a plot of the payoff at expiry, indexed by the *FXFixing* value.
+
+        Parameters
+        ----------
+        range: list of float, :green:`optional`
+            A range of values for the *FXFixing* value at expiry to use as the x-axis.
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+        solver: Solver, :green:`optional`
+            A :class:`~rateslib.solver.Solver` object containing *Curve*, *Smile*, *Surface*, or
+            *Cube* mappings for pricing.
+        fx: FXForwards, :green:`optional`
+            The :class:`~rateslib.fx.FXForwards` object used for forecasting FX rates, if necessary.
+        vol: _Vol, :green:`optional`
+            Pricing objects. See **Pricing** on each *Instrument* for details of allowed inputs.
+
+        Returns
+        -------
+        (Figure, Axes, list[Lines2D])
+        """
+
+        x, y = self._plot_payoff(window=range, curves=curves, solver=solver, fx=fx, vol=vol)
+        return plot([x], [y])  # type: ignore
     #
     # def local_analytic_rate_fixings(
     #     self,
