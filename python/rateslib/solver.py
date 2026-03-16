@@ -2430,5 +2430,128 @@ class Solver(Gradients, _WithState):
         _: DataFrame = df.loc[:, sorted_cols].astype("float64")
         return _
 
+    @classmethod
+    def from_other(
+        cls,
+        *,
+        pricing_solver: Solver,
+        instruments: Sequence[SupportsRate],
+        curves: Sequence[Any] = (),
+        surfaces: Sequence[Any] = (),
+        pre_solvers: Sequence[Solver] = (),
+        fx: FXForwards_ = NoInput(0),
+        instrument_labels: Sequence[str] | NoInput = NoInput(0),
+        id: str_,  # noqa: A002
+        **kwargs: Any,
+    ) -> Solver:
+        """
+        Create a :class:`~rateslib.solver.Solver` whose rates, ``s``, are automatically
+        generated from a ``pricing_solver``.
+
+        Parameters
+        ----------
+        pricing_solver: Solver
+            The :class:`~rateslib.solver.Solver` containing pricing object mappings and an ``fx``
+            object that can determine all of the instruments rates, ``s``, for the provided
+            ``instruments``.
+        **kwargs: Any
+            All other arguments expected by a :class:`~rateslib.solver.Solver`, except for ``s``,
+            which are generated from ``pricing_solver``.
+
+        Notes
+        -----
+        This method is designed for ease of implementation of a *'Pricing-Model-Risk-Model'*
+        framework.
+
+        Generating a :class:`~rateslib.solver.Solver` from another **only works** automatically
+        when ``instruments`` pricing objects have been mapped with the same string ids. For
+        example, suppose we desire to build a *'pricing curve'* with market instruments and
+        then, afterward, build a *'risk curve'* with different instruments.
+
+        First build the *'pricing curve'*:
+
+        .. ipython:: python
+
+           pricing_curve = Curve(
+               nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0, dt(2002, 1, 10): 1.0},
+               interpolation="spline",
+               id="sofr",
+           )
+           pricing_solver = Solver(
+               curves=[pricing_curve],
+               instruments=[
+                   IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2000, 1, 1), "2y", spec="usd_irs", curves=["sofr"]),
+               ],
+               s=[4.10, 4.25],
+               instrument_labels=["1y", "2y"],
+               id="price_sv",
+           )
+
+        Now we build the *'risk curve'* with instruments whose prices are automatically generated
+        from the *'pricing curve'*. This provides a more granular, localised set of risks.
+        Note that the ``id`` of both the *'pricing curve'* and the *'risk curve'* are the **same**
+        so that these can be dynamically mapped to the same instruments by different *Solvers*.
+
+        .. ipython:: python
+
+           risk_curve = Curve(
+               nodes={
+                   dt(2000, 1, 1): 1.0,
+                   dt(2000, 4, 1): 1.0,
+                   dt(2000, 7, 1): 1.0,
+                   dt(2000, 10, 1): 1.0,
+                   dt(2001, 1, 1): 1.0,
+                   dt(2001, 4, 1): 1.0,
+                   dt(2001, 7, 1): 1.0,
+                   dt(2001, 10, 1): 1.0,
+                   dt(2002, 1, 10): 1.0,
+               },
+               interpolation="log_linear",
+               id="sofr",
+           )
+           risk_solver = Solver.from_other(
+               pricing_solver=pricing_solver,
+               curves=[risk_curve],
+               instruments=[
+                   IRS(dt(2000, 1, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2000, 4, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2000, 7, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2000, 10, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2001, 1, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2001, 4, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2001, 7, 1), "3m", spec="usd_irs", curves=["sofr"]),
+                   IRS(dt(2001, 10, 1), "3m", spec="usd_irs", curves=["sofr"]),
+               ],
+               instrument_labels=["0m3m", "3m3m", "6m3m", "9m3m", "1y3m", "15m3m", "18m3m", "21m3m"],
+               id="risk_sv",
+           )
+
+        We can then extract delta or cross-gamma risks in different representations using either
+        of our *Solver* objects.
+
+        .. ipython:: python
+
+           irs = IRS(dt(2000, 3, 24), "14m", fixed_rate=3.95, spec="usd_irs", curves=["sofr"])
+           irs.delta(solver=pricing_solver)
+
+        .. ipython:: python
+
+           irs.delta(solver=risk_solver)
+
+
+        """
+        return Solver(
+            pre_solvers=pre_solvers,
+            curves=curves,
+            surfaces=surfaces,
+            instruments=instruments,
+            s=[_dual_float(_.rate(solver=pricing_solver)) for _ in instruments],
+            fx=fx,
+            instrument_labels=instrument_labels,
+            id=id,
+            **kwargs,
+        )
+
 
 __all__ = ["Gradients", "Solver"]

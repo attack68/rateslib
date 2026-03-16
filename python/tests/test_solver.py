@@ -2903,6 +2903,59 @@ def test_curves_without_their_own_params(label):
     assert sv.result["status"] == "SUCCESS"
 
 
+def test_from_other() -> None:
+    pricing_curve = Curve(
+        nodes={dt(2000, 1, 1): 1.0, dt(2001, 1, 1): 1.0, dt(2002, 1, 10): 1.0},
+        interpolation="spline",
+        id="sofr",
+    )
+    pricing_solver = Solver(
+        curves=[pricing_curve],
+        instruments=[
+            IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2000, 1, 1), "2y", spec="usd_irs", curves=["sofr"]),
+        ],
+        s=[4.10, 4.25],
+        instrument_labels=["1y", "2y"],
+        id="price_sv",
+    )
+
+    risk_curve = Curve(
+        nodes={
+            dt(2000, 1, 1): 1.0,
+            dt(2000, 4, 1): 1.0,
+            dt(2000, 7, 1): 1.0,
+            dt(2000, 10, 1): 1.0,
+            dt(2001, 1, 1): 1.0,
+            dt(2001, 4, 1): 1.0,
+            dt(2001, 7, 1): 1.0,
+            dt(2001, 10, 1): 1.0,
+            dt(2002, 1, 10): 1.0,
+        },
+        interpolation="log_linear",
+        id="sofr",
+    )
+    risk_solver = Solver.from_other(
+        pricing_solver=pricing_solver,
+        curves=[risk_curve],
+        instruments=[
+            IRS(dt(2000, 1, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2000, 4, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2000, 7, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2000, 10, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2001, 1, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2001, 4, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2001, 7, 1), "3m", spec="usd_irs", curves=["sofr"]),
+            IRS(dt(2001, 10, 1), "3m", spec="usd_irs", curves=["sofr"]),
+        ],
+        instrument_labels=["0m3m", "3m3m", "6m3m", "9m3m", "1y3m", "15m3m", "18m3m", "21m3m"],
+        id="risk_sv",
+    )
+
+    expected = [3.967, 3.995, 4.051, 4.134, 4.235, 4.318, 4.375, 4.406]
+    assert all(abs(r - e) < 1e-3 for r, e in zip(expected, risk_solver.s))
+
+
 class TestContainerSolver:
     # these tests involve a Solver that has no instruments of its own and is just a
     # wrapper of 1 or multiple `pre_solvers`
