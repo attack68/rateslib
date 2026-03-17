@@ -11,7 +11,7 @@
 
 import warnings
 from datetime import datetime as dt
-from math import exp
+from math import cos, exp
 
 import numpy as np
 import pytest
@@ -117,45 +117,225 @@ class TestIFTSolver:
 
         assert abs(d2g_ds2_ad - d2g_ds2_analytic) < 1e-10
 
-    def test_dekker(self):
-        def s(x):
-            return exp(x) + x**2
+    class TestDekker:
+        def test_simple_linear(self):
+            # test should converge in one secant iteration
+            def s(g):
+                return g
 
-        s_tgt = s(2.0)
-        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-12)
-        assert result["g"] == 2.0
-        assert result["iterations"] < 12
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_dekker", (0, 4), conv_tol=1e-12)
+            assert result["g"] == 2.0
+            assert result["iterations"] == 1
 
-        result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
-        assert 30 < result2["iterations"] < 50
+        def test_cubic_with_bracketed_intervals(self):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
 
-    def test_dekker_conv_tol(self):
-        def s(x):
-            return exp(x) + x**2
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(s, s_tgt, "modified_dekker", (0, 1.5), conv_tol=1e-12, func_tol=1e-12)
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] < 10
 
-        s_tgt = s(2.0)
-        result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
-        assert result["state"] == 1
+            result = ift_1dim(
+                s, s_tgt, "modified_dekker", (1.1, 2.9), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 2.0) < 1e-12
+            assert result["iterations"] < 10
 
-    def test_brent(self):
-        def s(x):
-            return exp(x) + x**2
+            result = ift_1dim(
+                s, s_tgt, "modified_dekker", (2.1, 25.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 3.0) < 1e-12
+            assert result["iterations"] < 15
 
-        s_tgt = s(2.0)
-        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-12)
-        assert result["g"] == 2.0
-        assert result["iterations"] < 12
+        @pytest.mark.parametrize("bracket", [(0.0, 1.0), (1.0, 10.0)])
+        def test_root_in_bracket(self, bracket):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
 
-        # result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
-        # assert result["time"] <= result2["time"]
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(s, s_tgt, "modified_dekker", bracket, conv_tol=1e-12, func_tol=1e-12)
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] == 1
 
-    def test_brent_conv_tol(self):
-        def s(x):
-            return exp(x) + x**2
+        def test_both_roots_in_bracket_takes_left_side(self):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
 
-        s_tgt = s(2.0)
-        result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-3)
-        assert result["state"] == 1
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(
+                s, s_tgt, "modified_dekker", (1.0, 2.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] == 1
+
+        def test_horizontal_secant(self):
+            # the first iterate the boundaries yield the same value and the secant is div by zero
+            def s(g):
+                return g**2 - 2
+
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(
+                s, s_tgt, "modified_dekker", (-2.0, 2.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] + 2**0.5) < 1e-12
+            assert result["iterations"] < 10
+
+        def test_asymptote(self):
+            def s(g):
+                return 1 / (g - 3) - 6
+
+            s_tgt = 0.0
+            # roots at 19 / 6
+            result = ift_1dim(
+                s, s_tgt, "modified_dekker", (3.02, 4.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 19 / 6) < 1e-12
+            assert result["iterations"] < 12
+
+        def test_dekker(self):
+            def s(x):
+                return exp(x) + x**2
+
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-12)
+            assert result["g"] == 2.0
+            assert result["iterations"] < 12
+
+            result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+            assert 30 < result2["iterations"] < 50
+
+        def test_dekker_conv_tol(self):
+            def s(x):
+                return exp(x) + x**2
+
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_dekker", (1.15, 5.0), conv_tol=1e-3)
+            assert result["state"] == 1
+
+    class TestBrent:
+        def test_simple_linear(self):
+            # test should converge in one secant iteration
+            def s(g):
+                return g
+
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_brent", (0, 4), conv_tol=1e-12)
+            assert result["g"] == 2.0
+            assert result["iterations"] == 1
+
+        def test_cubic_with_bracketed_intervals(self):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
+
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(s, s_tgt, "modified_brent", (0, 1.5), conv_tol=1e-12, func_tol=1e-12)
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] < 10
+
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (1.1, 2.9), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 2.0) < 1e-12
+            assert result["iterations"] < 10
+
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (2.1, 25.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 3.0) < 1e-12
+            assert result["iterations"] < 15
+
+        @pytest.mark.parametrize("bracket", [(0.0, 1.0), (1.0, 10.0)])
+        def test_root_in_bracket(self, bracket):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
+
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(s, s_tgt, "modified_brent", bracket, conv_tol=1e-12, func_tol=1e-12)
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] == 1
+
+        def test_both_roots_in_bracket_takes_left_side(self):
+            # test converge to different roots withing the bracketed interval
+            def s(g):
+                return g**3 - 6 * g**2 + 11 * g - 6
+
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (1.0, 2.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 1.0) < 1e-12
+            assert result["iterations"] == 1
+
+        def test_horizontal_secant(self):
+            # the first iterate the boundaries yield the same value and the secant is div by zero
+            def s(g):
+                return g**2 - 2
+
+            s_tgt = 0.0
+            # roots at 1, 2, 3
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (-2.0, 2.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] + 2**0.5) < 1e-12
+            assert result["iterations"] < 10
+
+        def test_asymptote(self):
+            def s(g):
+                return 1 / (g - 3) - 6
+
+            s_tgt = 0.0
+            # roots at 19 / 6
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (3.02, 4.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 19 / 6) < 1e-12
+            assert result["iterations"] < 12
+
+        def test_brent(self):
+            def s(x):
+                return exp(x) + x**2
+
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-12)
+            assert result["g"] == 2.0
+            assert result["iterations"] < 12
+
+            # result2 = ift_1dim(s, s_tgt, "bisection", (1.15, 5.0), conv_tol=1e-12)
+            # assert result["time"] <= result2["time"]
+
+        def test_brent_conv_tol(self):
+            def s(x):
+                return exp(x) + x**2
+
+            s_tgt = s(2.0)
+            result = ift_1dim(s, s_tgt, "modified_brent", (1.15, 5.0), conv_tol=1e-3)
+            assert result["state"] == 1
+
+        def test_paper_replication(self):
+            def s(g):
+                return exp(g**2 / -4.0) - 2 * cos(g) + g / 2.0 - 2.5
+
+            s_tgt = 0.0
+            # roots at 2.1584, 4.6196 and 7.255
+            result = ift_1dim(
+                s, s_tgt, "modified_brent", (1.0, 3.0), conv_tol=1e-12, func_tol=1e-12
+            )
+            assert abs(result["g"] - 2.1584212092981225) < 1e-12
+            assert result["iterations"] < 8
 
     def test_another_func(self):
         def s(g):
