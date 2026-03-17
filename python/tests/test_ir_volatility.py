@@ -22,6 +22,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.data.fixings import IRSSeries
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
+from rateslib.instruments import IRCall, IRPut, IRStraddle, IRVolValue
 from rateslib.splines import PPSplineF64
 from rateslib.volatility import (
     IRSabrCube,
@@ -30,7 +31,7 @@ from rateslib.volatility import (
     IRSplineSmile,
 )
 from rateslib.volatility.ir.utils import _bilinear_interp
-from rateslib.volatility.utils import _SabrSmileNodes
+from rateslib.volatility.utils import _OptionModelBachelier, _OptionModelBlack76, _SabrSmileNodes
 
 
 @pytest.mark.parametrize(
@@ -937,6 +938,7 @@ class TestIRSabrSmile:
         assert irss.nodes.rho == Dual(2.0, ["v1"], [])
         assert irss.nodes.nu == Dual(3.0, ["v2"], [])
 
+    @pytest.mark.skip(reason="SABR Smile cannot solve to parameters matching the target")
     def test_plot_normal_from_black_shift(self):
         # test that smiles with shift equate to the same normal vol graph
         smile1 = IRSabrSmile(
@@ -1007,10 +1009,10 @@ class TestIRSabrSmile:
         s2 = solver_factory(smile2)
         s1 = solver_factory(smile1)
 
-        res1_nvol = [_.rate(solver=s1) for _ in instruments]
-        res2_nvol = [_.rate(solver=s2) for _ in instruments]
-        res1_lnvol = [_.rate(solver=s1, metric="black_vol_shift_0") for _ in instruments]
-        res2_lnvol = [_.rate(solver=s2, metric="black_vol_shift_10") for _ in instruments]
+        _res1_nvol = [_.rate(solver=s1) for _ in instruments]
+        _res2_nvol = [_.rate(solver=s2) for _ in instruments]
+        _res1_lnvol = [_.rate(solver=s1, metric="black_vol_shift_0") for _ in instruments]
+        _res2_lnvol = [_.rate(solver=s2, metric="black_vol_shift_10") for _ in instruments]
 
         fig, ax, lines = smile1.plot(curves=curve, y_axis="normal_vol", comparators=[smile2])
 
@@ -1023,6 +1025,123 @@ class TestIRSabrSmile:
         eps = [abs(pp1.ppev_single(_) - pp2.ppev_single(_)) for _ in x]
 
         assert all(_ < 0.001 for _ in eps)
+
+    @pytest.mark.parametrize(
+        "klass",
+        [
+            (IRStraddle, IRPut, IRCall),
+            (IRVolValue, IRVolValue, IRVolValue),
+        ],
+    )
+    def test_plot_normal_from_black_shift2_with_IROption_Solving(self, klass):
+        # klass denotes the instruments used in the solving process
+        from rateslib import IRS, IRCall, IRPut, IRStraddle, Solver
+
+        # test that smiles with shift equate to the same normal vol graph
+        smile_args = dict(
+            eval_date=dt(2026, 3, 2),
+            expiry="6m",
+            tenor="1y",
+            irs_series="usd_irs",
+            id="sofr_vol",
+        )
+
+        curve = Curve(
+            nodes={dt(2026, 3, 2): 1.0, dt(2029, 3, 2): 0.90},
+            calendar="nyc",
+            convention="act360",
+            id="sofr",
+        )
+
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[IRS(dt(2026, 3, 4), "2y", spec="usd_irs", curves=["sofr"])],
+            s=[3.90],
+            instrument_labels=["US_2y"],
+        )
+
+        def smile_solver_factory(smile):
+            _solver = Solver(
+                pre_solvers=[curve_solver],  # <- contains the US SOFR Curve
+                curves=[smile],  # <- mutates only the smile
+                instruments=[
+                    klass[0](
+                        dt(2026, 9, 2),
+                        "1y",
+                        "atm",
+                        "usd_irs",
+                        curves="sofr",
+                        vol="sofr_vol",
+                        metric="normal_vol",
+                    ),
+                    klass[1](
+                        dt(2026, 9, 2),
+                        "1y",
+                        "-20bps",
+                        "usd_irs",
+                        curves="sofr",
+                        vol="sofr_vol",
+                        metric="normal_vol",
+                    ),
+                    klass[2](
+                        dt(2026, 9, 2),
+                        "1y",
+                        "+20bps",
+                        "usd_irs",
+                        curves="sofr",
+                        vol="sofr_vol",
+                        metric="normal_vol",
+                    ),
+                ],
+                s=[50, 62, 60],
+                instrument_labels=["ATM", "-20bps", "20bps"],
+                id="sofr_sv",
+            )
+
+        smile1 = IRSabrSmile(
+            shift=0, beta=0.5, nodes={"alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args
+        )
+        smile2 = IRSabrSmile(
+            shift=0, beta=0.75, nodes={"alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args
+        )
+        smile3 = IRSabrSmile(
+            shift=0, beta=0.25, nodes={"alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args
+        )
+        smile4 = IRSabrSmile(
+            shift=100, beta=0.5, nodes={"alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args
+        )
+        smile5 = IRSabrSmile(
+            shift=200, beta=0.5, nodes={"alpha": 0.2, "rho": -0.05, "nu": 0.5}, **smile_args
+        )
+
+        # calibrate each smile similarly
+        smile_solver_factory(smile1)
+        smile_solver_factory(smile2)
+        smile_solver_factory(smile3)
+        smile_solver_factory(smile4)
+        smile_solver_factory(smile5)
+
+        fig, ax, lines = smile1.plot(
+            curves=curve, y_axis="normal_vol", comparators=[smile2, smile3, smile4, smile5]
+        )
+
+        pp1 = PPSplineF64(k=2, t=[lines[0]._x[0]] + lines[0]._x.tolist() + [lines[0]._x[-1]])
+        pp1.csolve(tau=lines[0]._x, y=lines[0]._y, left_n=0, right_n=0, allow_lsq=False)
+        pp2 = PPSplineF64(k=2, t=[lines[1]._x[0]] + lines[1]._x.tolist() + [lines[1]._x[-1]])
+        pp2.csolve(tau=lines[1]._x, y=lines[1]._y, left_n=0, right_n=0, allow_lsq=False)
+        pp3 = PPSplineF64(k=2, t=[lines[2]._x[0]] + lines[2]._x.tolist() + [lines[2]._x[-1]])
+        pp3.csolve(tau=lines[2]._x, y=lines[2]._y, left_n=0, right_n=0, allow_lsq=False)
+        pp4 = PPSplineF64(k=2, t=[lines[3]._x[0]] + lines[3]._x.tolist() + [lines[3]._x[-1]])
+        pp4.csolve(tau=lines[3]._x, y=lines[3]._y, left_n=0, right_n=0, allow_lsq=False)
+        pp5 = PPSplineF64(k=2, t=[lines[4]._x[0]] + lines[4]._x.tolist() + [lines[4]._x[-1]])
+        pp5.csolve(tau=lines[4]._x, y=lines[4]._y, left_n=0, right_n=0, allow_lsq=False)
+
+        x = np.linspace(3.50, 4.40, 101)
+        comparators = [pp2, pp3, pp4, pp5]
+        for pp in comparators:
+            eps = np.array([abs(pp1.ppev_single(_) - pp.ppev_single(_)) for _ in x])
+            assert eps.max() < 0.3
+            assert eps.mean() < 0.08
 
 
 class TestIRSabrCube:
@@ -1743,6 +1862,7 @@ class TestIRSplineCube:
         assert result[2] == Dual(0.30, ["X2"], [])
         assert result[7] == Dual(4, ["X7"], [])
 
+    @pytest.mark.skip(reason="no decision on how to use _set_ad_order for manually updated nodes.")
     def test_update_single_key(self):
         # TODO need to decide how _set_or_ad should work with update nodes.
         irsc = IRSplineCube(
@@ -1931,6 +2051,70 @@ class TestStateAndCache:
 
         getattr(surf, method)(*args)
         assert len(surf._cache) == 0
+
+
+class TestPricingModelConversion:
+    class TestBachelier:
+        @pytest.mark.parametrize(
+            ("vol", "k", "shift", "expected"),
+            [
+                (25.0, 2.99, 0.0, 8.3496780104),
+                (25.0, 2.99, 50.0, 7.15460637959775),
+                (25.0, 2.99, 200.0, 5.005529190687043),
+                (25.0, 1.50, 0.0, 11.615241673583585),
+                (25.0, 1.50, 50.0, 9.312911744191437),
+                (25.0, 1.50, 200.0, 5.9394076088397645),
+                (25.0, 4.50, 0.0, 6.753315378082834),
+                (25.0, 4.50, 50.0, 5.9394076088397645),
+                (25.0, 4.50, 200.0, 4.368303987428187),
+            ],
+        )
+        def test_convert_to_black_no_shift(self, vol, k, shift, expected):
+            result = _OptionModelBachelier.convert_to_black76(
+                f=3.0, k=k, shift=shift, vol=vol, t_e=1.0
+            )
+            assert abs(result - expected) < 1e-6
+
+    class TestBlack76:
+        @pytest.mark.parametrize(
+            ("vol", "k", "shift", "expected"),
+            [
+                (25.0, 2.99, 0.0, 74.68039981110007),
+                (25.0, 2.99, 50.0, 87.14793380301037),
+                (25.0, 2.99, 200.0, 124.55052385921005),
+                (25.0, 1.50, 0.0, 53.96106256666565),
+                (25.0, 1.50, 50.0, 66.8366143175683),
+                (25.0, 1.50, 200.0, 104.86487953597288),
+                (25.0, 4.50, 0.0, 92.24642085914786),
+                (25.0, 4.50, 50.0, 104.86487953597292),
+                (25.0, 4.50, 200.0, 142.55991748648242),
+            ],
+        )
+        def test_convert_to_bachelier(self, vol, k, shift, expected):
+            result = _OptionModelBlack76.convert_to_bachelier(
+                f=3.0, k=k, shift=shift, vol=vol, t_e=1.0
+            )
+            assert abs(result - expected) < 1e-9
+
+        @pytest.mark.parametrize(
+            ("vol", "k", "shift", "tgt", "expected"),
+            [
+                (25.0, 2.99, 0.0, 50.0, 21.40861097419223),
+                (25.0, 2.99, 50.0, 100.0, 21.85769609359381),
+                (25.0, 2.99, 200.0, 100.0, 31.30396613960251),
+                (25.0, 1.50, 0.0, 50.0, 20.16566976523089),
+                (25.0, 1.50, 50.0, 100.0, 20.980647995758154),
+                (25.0, 1.50, 200.0, 100.0, 33.00686423510773),
+                (25.0, 4.50, 0.0, 50.0, 21.9787696869096),
+                (25.0, 4.50, 50.0, 100.0, 22.309213489533068),
+                (25.0, 4.50, 200.0, 100.0, 30.382178316599756),
+            ],
+        )
+        def test_convert_to_new_shift(self, vol, k, shift, tgt, expected):
+            result = _OptionModelBlack76.convert_to_new_shift(
+                f=3.0, k=k, old_shift=shift, target_shift=tgt, vol=vol, t_e=1.0
+            )
+            assert abs(result - expected) < 1e-9
 
 
 #

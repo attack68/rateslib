@@ -237,65 +237,67 @@ class _BaseIROptionStrat(_BaseIROption):
 
         return x, y
 
-    # def analytic_greeks(
-    #     self,
-    #     curves: CurvesT_ = NoInput(0),
-    #     solver: Solver_ = NoInput(0),
-    #     fx: FXForwards_ = NoInput(0),
-    #     vol: FXVolStrat_ = NoInput(0),
-    # ) -> dict[str, Any]:
-    #     # implicitly call set_pricing_mid for unpriced parameters
-    #     # this is important for Strategies whose options are
-    #     # dependent upon each other, e.g. Strangle. (RR and Straddle do not have
-    #     # interdependent options)
-    #     self.rate(curves=curves, solver=solver, fx=fx, vol=vol)
-    #
-    #     vol_: FXVolStrat_ = self._parse_vol(vol=vol)
-    #     gks = []
-    #     for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
-    #         if isinstance(inst, _BaseFXOptionStrat):
-    #             gks.append(
-    #                 inst.analytic_greeks(
-    #                     curves=curves,
-    #                     solver=solver,
-    #                     fx=fx,
-    #                     vol=vol_i,
-    #                 )
-    #             )
-    #         else:  # option is FXOption
-    #             # by calling on the OptionPeriod directly the strike is maintained from rate call.
-    #             gks.append(
-    #                 inst._analytic_greeks_set_metrics(
-    #                     curves=curves,
-    #                     solver=solver,
-    #                     fx=fx,
-    #                     vol=vol_i,  # type: ignore[arg-type]
-    #                     set_metrics=False,  # already done in the rate call above
-    #                 )
-    #             )
-    #
-    #     _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "_kega", "_kappa", "__bs76"]
-    #     _: dict[str, Any] = {}
-    #     for attr in _unit_attrs:
-    #         _[attr] = sum(gk[attr] * self.kwargs.meta["rate_weight"][i] for i, gk in enumerate(gks))
-    #
-    #     _notional_attrs = [
-    #         f"delta_{self.kwargs.leg1['pair'].pair[:3]}",
-    #         f"gamma_{self.kwargs.leg1['pair'].pair[:3]}_1%",
-    #         f"vega_{self.kwargs.leg1['pair'].pair[3:]}",
-    #     ]
-    #     for attr in _notional_attrs:
-    #         _[attr] = sum(gk[attr] * self.kwargs.meta["rate_weight"][i] for i, gk in enumerate(gks))
-    #
-    #     _.update(
-    #         {
-    #             "__class": "FXOptionStrat",
-    #             "__options": gks,
-    #             "__delta_type": gks[0]["__delta_type"],
-    #             "__notional": self.kwargs.leg1["notional"],
-    #         },
-    #     )
-    #     return _
+    def analytic_greeks(
+        self,
+        curves: CurvesT_ = NoInput(0),
+        solver: Solver_ = NoInput(0),
+        fx: FXForwards_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
+    ) -> dict[str, Any]:
+        # implicitly call set_pricing_mid for unpriced parameters
+        # this may be important for Strategies whose options are
+        # dependent upon each other, (RR and Straddle do not have interdependent options)
+        self.rate(curves=curves, solver=solver, fx=fx, vol=vol)
+
+        vol_: VolStrat_ = self._parse_vol(vol=vol)
+        gks = []
+        for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
+            if isinstance(inst, _BaseIROptionStrat):
+                gks.append(
+                    inst.analytic_greeks(
+                        curves=curves,
+                        solver=solver,
+                        fx=fx,
+                        vol=vol_i,
+                    )
+                )
+            else:  # option is _BaseIROption
+                gks.append(
+                    inst._analytic_greeks_set_metrics(
+                        curves=curves,
+                        solver=solver,
+                        fx=fx,
+                        vol=vol_i,  # type: ignore[arg-type]
+                        set_metrics=False,  # already done in the rate call above
+                    )
+                )
+
+        _unit_attrs = ["delta", "gamma", "vega", "vomma", "vanna", "__bs76", "__bachelier"]
+        _: dict[str, Any] = {}
+        for attr in _unit_attrs:
+            tally = 0.0
+            for i, gk in enumerate(gks):
+                if attr not in gk:
+                    continue
+                tally += gk[attr] * self.kwargs.meta["rate_weight"][i]
+            _[attr] = tally
+
+        _notional_attrs = [
+            f"delta_{self.settlement_param.currency}",  # type: ignore[attr-defined]
+            f"gamma_{self.settlement_param.currency}",  # type: ignore[attr-defined]
+            f"vega_{self.settlement_param.currency}",  # type: ignore[attr-defined]
+        ]
+        for attr in _notional_attrs:
+            _[attr] = sum(gk[attr] * self.kwargs.meta["rate_weight"][i] for i, gk in enumerate(gks))
+
+        _.update(
+            {
+                "__class": "IROptionStrat",
+                "__options": gks,
+                "__notional": self.kwargs.leg1["notional"],
+            },
+        )
+        return _
 
 
 class IRStraddle(_BaseIROptionStrat):

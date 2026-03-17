@@ -681,10 +681,16 @@ class _WithAnalyticIROptionGreeks(Protocol):
 
         match pricing_.pricing_model:
             case OptionPricingModel.Black76:
-                d_plus = _OptionModelBlack76._d_plus_min_u(pricing_.k / pricing_.f, vol_sqrt_t, 0.5)
+                d_plus = _OptionModelBlack76._d_plus_min_u(
+                    shifted_u=(pricing_.k + pricing_.rate_shift)
+                    / (pricing_.f + pricing_.rate_shift),
+                    vol_sqrt_t=vol_sqrt_t,
+                    eta=0.5,
+                )
                 _["__bs76"] = _OptionModelBlack76._value(
                     F=pricing_.f,
                     K=pricing_.k,
+                    rate_shift=pricing_.rate_shift,
                     t_e=pricing_.t_e,
                     v2=1.0,
                     vol=pricing_.vol / 100.0,
@@ -843,71 +849,6 @@ class _WithAnalyticIROptionGreeks(Protocol):
             case OptionPricingModel.Bachelier:
                 return phi * dual_norm_cdf(phi * d_plus)
 
-    #
-    # @staticmethod
-    # def _analytic_sticky_delta(
-    #     delta: DualTypes,
-    #     vega: DualTypes,
-    #     v_deli: DualTypes,
-    #     vol: _FXVolOption,
-    #     sqrt_t: DualTypes,
-    #     vol_: DualTypes,
-    #     expiry: datetime,
-    #     f_d: DualTypes,
-    #     delta_idx: DualTypes | None,
-    #     u: DualTypes,
-    #     z_v_0: DualTypes,
-    #     z_w_0: DualTypes,
-    #     z_w_1: DualTypes,
-    #     eta_1: float,
-    #     d_plus: DualTypes,
-    #     k: DualTypes,
-    #     fxf: FXForwards,
-    # ) -> DualTypes:
-    #     dvol_df: DualTypes
-    #     if isinstance(vol, FXSabrSmile):
-    #         _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
-    #             k=k,
-    #             f=f_d,
-    #             expiry=expiry,
-    #             as_float=False,
-    #             derivative=2,  # with respect to f
-    #         )
-    #     elif isinstance(vol, FXSabrSurface):
-    #         _, dvol_df = vol._d_sabr_d_k_or_f(  # type: ignore[assignment]
-    #             k=k,
-    #             f=fxf,  # use FXForwards to derive multiple rates
-    #             expiry=expiry,
-    #             as_float=False,
-    #             derivative=2,  # with respect to f
-    #         )
-    #     elif isinstance(vol, FXDeltaVolSmile | FXDeltaVolSurface):
-    #         if isinstance(vol, FXDeltaVolSurface):
-    #             smile: FXDeltaVolSmile = vol.get_smile(expiry)
-    #         else:
-    #             smile = vol
-    #         # d sigma / d delta_idx
-    #         _B = evaluate(smile.nodes.spline.spline, delta_idx, 1) / 100.0  # type: ignore[arg-type]
-    #
-    #         if vol.meta.delta_type in [
-    #             FXDeltaMethod.ForwardPremiumAdjusted,
-    #             FXDeltaMethod.SpotPremiumAdjusted,
-    #         ]:
-    #             # then smile is adjusted:
-    #             ddelta_idx_df_d: DualTypes = -delta_idx / f_d  # type: ignore[operator]
-    #         else:
-    #             ddelta_idx_df_d = 0.0
-    #         _A = z_w_1 * dual_norm_pdf(-d_plus)
-    #         ddelta_idx_df_d -= _A / (f_d * vol_ * sqrt_t)
-    #         ddelta_idx_df_d /= 1 + _A * ((dual_log(u) / (vol_**2 * sqrt_t) + eta_1 * sqrt_t) * _B)
-    #
-    #         dvol_df = _B * z_w_0 / z_v_0 * ddelta_idx_df_d
-    #
-    #     else:
-    #         dvol_df = 0.0
-    #
-    #     return delta + vega / v_deli * z_v_0 * dvol_df
-    #
     @staticmethod
     def _analytic_vanna(
         phi: float,
@@ -921,47 +862,3 @@ class _WithAnalyticIROptionGreeks(Protocol):
                 return -dual_norm_pdf(phi * d_plus) * (d_plus - vol_sqrt_t) / vol
             case OptionPricingModel.Bachelier:
                 return -dual_norm_pdf(phi * d_plus) * d_plus / vol
-
-    #
-    # # @staticmethod
-    # # def _analytic_vanna(vega, spot, f_t, f_d, d_plus, vol_sqrt_t):  # Alternative monetary def.
-    # #     if spot:
-    # #         return vega / f_t * (1 - d_plus / vol_sqrt_t)
-    # #     else:
-    # #         return vega / f_d * (1 - d_plus / vol_sqrt_t)
-    #
-    # @staticmethod
-    # def _analytic_kega(
-    #     z_u: DualTypes,
-    #     z_w: DualTypes,
-    #     eta: float,
-    #     vol: DualTypes,
-    #     sqrt_t: float,
-    #     f_d: DualTypes,
-    #     phi: float,
-    #     k: DualTypes,
-    #     d_eta: DualTypes,
-    # ) -> DualTypes:
-    #     if eta < 0:
-    #         # dz_u_du = 1.0
-    #         x = vol * phi * dual_norm_cdf(phi * d_eta) / (f_d * z_u * dual_norm_pdf(phi * d_eta))
-    #     else:
-    #         x = 0.0
-    #
-    #     ret = (d_eta - 2.0 * eta * sqrt_t * vol) / (-1 / (k * sqrt_t) + x)
-    #     return ret
-    #
-    # @staticmethod
-    # def _analytic_kappa(v_deli: DualTypes, phi: float, d_min: DualTypes) -> DualTypes:
-    #     return -v_deli * phi * dual_norm_cdf(phi * d_min)
-    #
-    # @staticmethod
-    # def _analytic_bs76(
-    #     phi: float,
-    #     v_deli: DualTypes,
-    #     f_d: DualTypes,
-    #     d_plus: DualTypes,
-    #     k: DualTypes,
-    #     d_min: DualTypes,
-    # ) -> DualTypes:
-    #     return phi * v_deli * (f_d * dual_norm_cdf(phi * d_plus) - k * dual_norm_cdf(phi * d_min))

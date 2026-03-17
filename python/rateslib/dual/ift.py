@@ -47,7 +47,7 @@ def ift_1dim(
     - :math:`g(s)` is **not** analytical and hence requires iterations to determine.
     - :math:`s(g)` is a known analytical inverse of :math:`g`.
 
-    This problem is framed by finding the root of :math:`f(g) = s(g) - s_{tgt}`.
+    This problem is framed by finding the root of :math:`f(g) = s(g) - s_{tgt} = 0`.
 
     Parameters
     ----------
@@ -88,8 +88,8 @@ def ift_1dim(
       the interval whose *f* values have opposite signs. For info see
       :download:`Halving Interval for Dekker<_static/modified-dekker.pdf>`.
     - **'ytm_quadratic'**: Requires ``ini_h_args`` to be a tuple of three floats defining the
-      interval and interior point. This algorithm utilises sequential quadratic approximation
-      and is specifically tuned for solving bond yield-to-maturity.
+      interval and interior point. This algorithm utilises successive parabolic approximations
+      for *g(f)* and is specifically tuned for solving bond yield-to-maturity efficiently.
 
     **What is ``h``**
 
@@ -250,12 +250,12 @@ def _bisection(
     g_i, f_i, state, *h_args_i
     """
     if s_lower is None:
-        s_lower = _dual_float(s(g_lower))  # type: ignore[assignment]
+        s_lower = _dual_float(s(g_lower))
     if s_upper is None:
-        s_upper = _dual_float(s(g_upper))  # type: ignore[assignment]
+        s_upper = _dual_float(s(g_upper))
 
-    f_lower = s_lower - s_tgt  # type: ignore[operator]
-    f_upper = s_upper - s_tgt  # type: ignore[operator]
+    f_lower = s_lower - s_tgt
+    f_upper = s_upper - s_tgt
 
     if _dual_float(f_lower * f_upper) > 0:
         # return a failed state because boundaries must be opposite sign to imply root.
@@ -270,7 +270,7 @@ def _bisection(
     else:
         state = None
 
-    if _dual_float(f_lower * f_mid) > 0:  # type: ignore[arg-type]
+    if _dual_float(f_lower * f_mid) > 0:
         # then lower and mid have same sign so must return upper interval
         if abs(f_mid) < abs(f_upper):
             return g_mid, f_mid, state, g_mid, g_upper, s_mid, s_upper  # type: ignore[return-value]
@@ -317,13 +317,13 @@ def _dekker(
             a_k, b_k = b_k, a_k
 
         # in the first iteration set b_k_m1 = a_k
-        b_k_m1: float = a_k
+        b_k_m1 = a_k
         f_b_k_m1 = f_a_k
     else:
         # subsequent iterations will contain all cached values
-        f_a_k = cached_f_a_k
-        f_b_k = cached_f_b_k
-        f_b_k_m1 = cached_f_b_k_m1
+        f_a_k = cached_f_a_k  # type: ignore[assignment]
+        f_b_k = cached_f_b_k  # type: ignore[assignment]
+        f_b_k_m1 = cached_f_b_k_m1  # type: ignore[assignment]
 
     if abs(a_k - b_k) < conv_tol:
         # the interval is within tolerance so report converged, b_k should be the 'best' solution.
@@ -396,13 +396,13 @@ def _brent(
             a_k, b_k = b_k, a_k
 
         # in the first iteration set b_k_m1 = a_k
-        b_k_m1: float = a_k
+        b_k_m1 = a_k
         f_b_k_m1 = f_a_k
     else:
         # subsequent iterations will contain all cached values
-        f_a_k = cached_f_a_k
-        f_b_k = cached_f_b_k
-        f_b_k_m1 = cached_f_b_k_m1
+        f_a_k = cached_f_a_k  # type: ignore[assignment]
+        f_b_k = cached_f_b_k  # type: ignore[assignment]
+        f_b_k_m1 = cached_f_b_k_m1  # type: ignore[assignment]
 
     if abs(a_k - b_k) < conv_tol:
         return b_k, f_b_k, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -469,6 +469,10 @@ def _ytm_quadratic(
     See docs/source/_static/modified-dekker.pdf for details.
 
     Cached values allow value transmission from one function to the next with many efficiencies.
+
+    Returns
+    -------
+    g_i, f_i=s_i-s_tgt, state, *h_args_i = (g0, g1, g2, f0, f1, f2)
     """
 
     # Load cached values
@@ -476,7 +480,7 @@ def _ytm_quadratic(
     f1: float = cached_f1 if cached_f1 is not None else _root_f(g1, s, s_tgt)
     f2: float = cached_f2 if cached_f2 is not None else _root_f(g2, s, s_tgt)
 
-    # Test interval
+    # Test interval: if all values are same sign translate the interval.
     if f0 < 0 and f1 < 0 and f2 < 0:
         # then g(s*) must be
         g0_ = g0 - (g2 - g0)
@@ -488,6 +492,99 @@ def _ytm_quadratic(
         g1_ = g1 + (g2 - g0)
         g2_ = g2 + 2 * (g2 - g0)
         return g1_, 1e9, None, g0_, g1_, g2_, None, None, None
+
+    # Solve g_new via quadratic approximation
+
+    # # Linear algebra solution
+    # _b = np.array([g0, g1, g2])[:, None]
+    # _A = np.array([[f0**2, f0, 1], [f1**2, f1, 1], [f2**2, f2, 1]])
+    # x = np.linalg.solve(_A, _b)
+    # g_new = x[2, 0]
+
+    # Analytical solution (via Gaussian elimination)
+    f012, f022, f01, f02, g01, g02 = (
+        f0**2 - f1**2,
+        f0**2 - f2**2,
+        f0 - f1,
+        f0 - f2,
+        g0 - g1,
+        g0 - g2,
+    )
+    x0 = (g01 * f02 - g02 * f01) / (f012 * f02 - f022 * f01)
+    x1 = (g01 - x0 * f012) / f01
+    x2 = g0 - x1 * f0 - x0 * f0**2
+    g_new = x2
+
+    # # Lagrange interpolation formula is a valid alternative solution
+    # g_new_compare = g0 * f1 * f2 / ((f0 - f1) * (f0 - f2))
+    # g_new_compare += g1 * f0 * f2 / ((f1 - f0) * (f1 - f2))
+    # g_new_compare += g2 * f0 * f1 / ((f2 - f0) * (f2 - f1))
+    # assert abs(g_new_compare - g_new) < 1e-8
+
+    if g_new < g0 or g_new > g2:
+        # if the quadratic approximation is outside the interval then use a bisection method
+        if f0 * f1 < 0:
+            # bisect in the left hand side
+            g_new = g0 + (g1 - g0) * f0 / (f0 - f1)
+        else:
+            # bisect in the right hand side
+            g_new = g1 - (g2 - g1) * f1 / (f2 - f1)
+
+    f_new = _root_f(g_new, s, s_tgt)
+    for g_ in [g0, g1, g2]:
+        if abs(g_ - g_new) < conv_tol:
+            return g_new, f_new, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    if g0 < g_new and g_new < g1:
+        return g_new, f_new, None, g0, g_new, g1, f0, f_new, f1
+    else:  # g1 < g_new and g_new < g2:
+        return g_new, f_new, None, g1, g_new, g2, f1, f_new, f2
+    # else:
+    #     raise RuntimeError("Unexpected interval: this line should never be reached.")
+
+
+def _quadratic_approx(
+    s: Callable[[DualTypes], DualTypes],
+    s_tgt: float,
+    conv_tol: float,
+    g0: float,
+    g1: float,
+    g2: float,
+    cached_f0: float | None = None,
+    cached_f1: float | None = None,
+    cached_f2: float | None = None,
+) -> tuple[float, float, int | None, float, float, float, float | None, float | None, float | None]:
+    """
+    Appro
+
+    Cached values allow value transmission from one function to the next with many efficiencies.
+
+    Returns
+    -------
+    g_i, f_i=s_i-s_tgt, state, *h_args_i = (g0, g1, g2, f0, f1, f2)
+    """
+
+    # Load cached values
+    f0: float = cached_f0 if cached_f0 is not None else _root_f(g0, s, s_tgt)
+    f1: float = cached_f1 if cached_f1 is not None else _root_f(g1, s, s_tgt)
+    f2: float = cached_f2 if cached_f2 is not None else _root_f(g2, s, s_tgt)
+
+    # Test interval: if all values are same sign translate the guess interval.
+    if (f0 < 0 and f1 < 0 and f2 < 0) or (f0 > 0 and f1 > 0 and f2 > 0):
+        # Then all f = s-s_tgt are above or below zero and there is no crossing point.
+        # Shift the entire initial guesses lower or higher based the linear gradient.
+        if (f0 < 0 and f2 > f0) or (f0 > 0 and f2 < f0):
+            # Shift g to the right
+            g0_ = g2
+            g1_ = g1 + (g2 - g0)
+            g2_ = g2 + 2 * (g2 - g0)
+            return g1_, conv_tol, None, g0_, g1_, g2_, f2, None, None
+        else:
+            # Shift g to the left
+            g0_ = g0 - (g2 - g0)
+            g1_ = g1 - (g2 - g1)
+            g2_ = g0
+            return g1_, conv_tol, None, g0_, g1_, g2_, None, None, f0
 
     # Solve g_new via quadratic approximation
 
@@ -538,4 +635,5 @@ ift_map: dict[str, Callable[P, tuple[float, float, int, tuple[Any, ...]]]] = {
     "modified_dekker": _dekker,  # type: ignore[dict-item]
     "modified_brent": _brent,  # type: ignore[dict-item]
     "ytm_quadratic": _ytm_quadratic,  # type: ignore[dict-item]
+    "quadratic_approx": _quadratic_approx,  # type: ignore[dict-item]
 }

@@ -306,6 +306,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
             expected = _OptionModelBlack76._value(
                 F=fx_.rate(self.fx_option_params.pair, self.fx_option_params.delivery),
                 K=k,
+                rate_shift=0.0,
                 t_e=t_e,
                 v2=1.0,  # disc_curve_[delivery] / disc_curve_[payment],
                 vol=vol_ / 100.0,
@@ -466,7 +467,7 @@ class _BaseFXOptionPeriod(_BasePeriodStatic, _WithAnalyticFXOptionGreeks, metacl
         def root(
             vol: DualTypes, f_d: DualTypes, k: DualTypes, t_e: float, v2: DualTypes, phi: float
         ) -> tuple[DualTypes, DualTypes]:
-            f0 = _OptionModelBlack76._value(f_d, k, t_e, v2, vol, phi) * 10000.0 - imm_premium
+            f0 = _OptionModelBlack76._value(f_d, k, 0.0, t_e, v2, vol, phi) * 10000.0 - imm_premium
             sqrt_t = t_e**0.5
             d_plus = _OptionModelBlack76._d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
             f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0

@@ -60,7 +60,7 @@ class FixedRateBond(_BaseBondInstrument):
     .. ipython:: python
        :suppress:
 
-       from rateslib.instruments import FixedRateBond
+       from rateslib.instruments import FixedRateBond, BondCalcMode
        from datetime import datetime as dt
 
     .. ipython:: python
@@ -181,6 +181,30 @@ class FixedRateBond(_BaseBondInstrument):
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
+
+    Notes
+    ------
+    The ``calc_mode``, which creates a :class:`~rateslib.instruments.BondCalcMode` defines the
+    specifications for YTM and accrued interest calculations. Examples of these values
+    are shown on the :ref:`FixedRateBond defaults <spec-fixed-rate-bonds-modes>` page.
+    One can also create their own mixing-and-matching some presets already designed, e.g.:
+
+    .. ipython:: python
+
+       mode = BondCalcMode(
+           settle_accrual="linear_days_long_front_split",
+           ytm_accrual="linear_days_long_front_split",
+           v1="simple_long_stub_compounding",
+           v2="annual",
+           v3="compounding",
+           c1="cashflow",
+           ci="cashflow",
+           cn="cashflow",
+       )
+
+    All of the arguments allow callables so it is technically possible to re-write any types of
+    calculations that fit into the framework. A cookbook page which demonstrates doing this
+    is :ref:`Understanding and Customising FixedRateBond Conventions <cook-bond_convs>`.
 
     """  # noqa: E501
 
