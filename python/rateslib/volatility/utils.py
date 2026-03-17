@@ -242,27 +242,34 @@ class _OptionModelBlack76:
     """Container for option pricing formulae relating to the lognormal Black-76 model."""
 
     @staticmethod
-    def _d_plus_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes, eta: float) -> DualTypes:
+    def _d_plus_min(
+        K: DualTypes, f: DualTypes, rate_shift: DualTypes, vol_sqrt_t: DualTypes, eta: float
+    ) -> DualTypes:
         # AD preserving calculation of d_plus in Black-76 formula  (eta should +/- 0.5)
-        return dual_log(f / K) / vol_sqrt_t + eta * vol_sqrt_t
+        return dual_log((f + rate_shift) / (K + rate_shift)) / vol_sqrt_t + eta * vol_sqrt_t
 
     @staticmethod
-    def _d_plus_min_u(u: DualTypes, vol_sqrt_t: DualTypes, eta: float) -> DualTypes:
+    def _d_plus_min_u(shifted_u: DualTypes, vol_sqrt_t: DualTypes, eta: float) -> DualTypes:
         # AD preserving calculation of d_plus in Black-76 formula  (eta should +/- 0.5)
-        return -dual_log(u) / vol_sqrt_t + eta * vol_sqrt_t
+        return -dual_log(shifted_u) / vol_sqrt_t + eta * vol_sqrt_t
 
     @staticmethod
-    def _d_min(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
-        return _OptionModelBlack76._d_plus_min(K, f, vol_sqrt_t, -0.5)
+    def _d_min(
+        K: DualTypes, f: DualTypes, rate_shift: DualTypes, vol_sqrt_t: DualTypes
+    ) -> DualTypes:
+        return _OptionModelBlack76._d_plus_min(K, f, rate_shift, vol_sqrt_t, -0.5)
 
     @staticmethod
-    def _d_plus(K: DualTypes, f: DualTypes, vol_sqrt_t: DualTypes) -> DualTypes:
-        return _OptionModelBlack76._d_plus_min(K, f, vol_sqrt_t, +0.5)
+    def _d_plus(
+        K: DualTypes, f: DualTypes, rate_shift: DualTypes, vol_sqrt_t: DualTypes
+    ) -> DualTypes:
+        return _OptionModelBlack76._d_plus_min(K, f, rate_shift, vol_sqrt_t, +0.5)
 
     @staticmethod
     def _value(
         F: DualTypes,
         K: DualTypes,
+        rate_shift: DualTypes,
         t_e: DualTypes,
         v2: DualTypes,
         vol: DualTypes,
@@ -291,11 +298,11 @@ class _OptionModelBlack76:
         --------
         float, Dual, Dual2
         """
-        vs = vol * t_e**0.5
-        d1 = _OptionModelBlack76._d_plus(K, F, vs)
-        d2 = d1 - vs
+        vol_sqrt_t = vol * t_e**0.5
+        d1 = _OptionModelBlack76._d_plus(K, F, rate_shift, vol_sqrt_t)
+        d2 = d1 - vol_sqrt_t
         Nd1, Nd2 = dual_norm_cdf(phi * d1), dual_norm_cdf(phi * d2)
-        _: DualTypes = phi * (F * Nd1 - K * Nd2)
+        _: DualTypes = phi * ((F + rate_shift) * Nd1 - (K + rate_shift) * Nd2)
         # Spot formulation instead of F (Garman Kohlhagen formulation)
         # https://quant.stackexchange.com/a/63661/29443
         # r1, r2 = dual_log(df1) / -t, dual_log(df2) / -t
@@ -315,8 +322,9 @@ class _OptionModelBlack76:
         vol: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
+        phi = 1.0 if k > f else -1.0
         s_tgt = cls._value(
-            F=f + shift / 100.0, K=k + shift / 100.0, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=1.0
+            F=f, K=k, rate_shift=shift / 100.0, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=phi
         )
 
         if vol < 0.0:
@@ -336,15 +344,15 @@ class _OptionModelBlack76:
                 t_e=t_e,
                 v2=1.0,
                 vol=g,
-                phi=1.0,
+                phi=phi,
             )
 
         ini_guess = _dual_float(vol * (f + shift / 100.0)) / 100.0
         result = ift_1dim(
             s=s,
             s_tgt=s_tgt,
-            h="ytm_quadratic",
-            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+            h="modified_brent",
+            ini_h_args=(0.01 * ini_guess, 10.0 * ini_guess),
         )
         g: DualTypes = result["g"]
         return g * 100.0
@@ -359,27 +367,31 @@ class _OptionModelBlack76:
         vol: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
+        phi = -1.0 if k < f else 1.0
+
         if old_shift == target_shift:
             return vol
 
         s_tgt = cls._value(
-            F=f + old_shift / 100.0,
-            K=k + old_shift / 100.0,
+            F=f,
+            K=k,
+            rate_shift=old_shift / 100.0,
             t_e=t_e,
             v2=1.0,
             vol=vol / 100.0,
-            phi=1.0,
+            phi=phi,
         )
 
         def s(g: DualTypes) -> DualTypes:
             """s(g) is the price, s, of an option given a volatility, g,"""
             return cls._value(
-                F=f + target_shift / 100.0,
-                K=k + target_shift / 100.0,
+                F=f,
+                K=k,
+                rate_shift=target_shift / 100.0,
                 t_e=t_e,
                 v2=1.0,
                 vol=g,
-                phi=1.0,
+                phi=phi,
             )
 
         ini_guess = (
@@ -397,8 +409,8 @@ class _OptionModelBlack76:
         result = ift_1dim(
             s=s,
             s_tgt=s_tgt,
-            h="ytm_quadratic",
-            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+            h="modified_brent",
+            ini_h_args=(0.01 * ini_guess, 10.0 * ini_guess),
         )
         g: DualTypes = result["g"]
         return g * 100.0
@@ -457,17 +469,19 @@ class _OptionModelBachelier:
         vol: DualTypes,
         t_e: DualTypes,
     ) -> DualTypes:
-        s_tgt = cls._value(F=f, K=k, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=1.0)
+        phi = -1.0 if k < f else 1.0
+        s_tgt = cls._value(F=f, K=k, t_e=t_e, v2=1.0, vol=vol / 100.0, phi=phi)
 
         def s(g: DualTypes) -> DualTypes:
             """s(g) is the price, s, of an option given a volatility, g,"""
             return _OptionModelBlack76._value(
-                F=f + shift / 100.0,
-                K=k + shift / 100.0,
+                F=f,
+                K=k,
+                rate_shift=shift / 100.0,
                 t_e=t_e,
                 v2=1.0,
                 vol=g,
-                phi=1.0,
+                phi=phi,
             )
 
         ini_guess = vol / (100.0 * ((f + shift / 100.0) * (k + shift / 100.0)) ** 0.5)
@@ -475,8 +489,9 @@ class _OptionModelBachelier:
         result = ift_1dim(
             s=s,
             s_tgt=s_tgt,
-            h="ytm_quadratic",
-            ini_h_args=(0.1 * ini_guess, ini_guess, 3.0 * ini_guess),
+            h="modified_brent",
+            ini_h_args=(0.01 * ini_guess, 10.0 * ini_guess),
+            func_tol=1e-11,
         )
         g: DualTypes = result["g"]
         return g * 100.0

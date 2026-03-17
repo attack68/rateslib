@@ -1501,7 +1501,7 @@ class Solver(Gradients, _WithState):
         - 4: Success within tolerance of norm of difference of successive iteration parameter values.
         - 5: Success within tolerance of function gradient norm close to zero.
         - -1: Failed to satisfy tolerance after maximal allowed iteration.
-        """
+        """  # noqa: E501
         return self._result
 
     @property
@@ -1715,12 +1715,12 @@ class Solver(Gradients, _WithState):
                 return self._solver_result(5, i, time() - t0)
 
             if i != 0:
-                eps = np.astype(v_1, float, copy=True) - v_0  # type: ignore[type-var, has-type]
+                eps = np.astype(v_1, float, copy=True) - v_0  # type: ignore[type-var, has-type]  # noqa: F821
                 if np.sqrt(np.dot(eps, eps)) < self.step_tol:
                     # Step tolerance: |x_i+1 - x_i| < step_tol.
                     return self._solver_result(4, i, time() - t0)
 
-            v_0 = np.astype(self.v, float, copy=True)
+            v_0 = np.astype(self.v, float, copy=True)  # noqa: F841
             v_1 = self._update_step_(self.algorithm)
             # self.v_prev = v_0
             self._update_curves_with_parameters(v_1)
@@ -2539,8 +2539,7 @@ class Solver(Gradients, _WithState):
 
            irs.delta(solver=risk_solver)
 
-
-        """
+        """  # noqa: E501
         return Solver(
             pre_solvers=pre_solvers,
             curves=curves,

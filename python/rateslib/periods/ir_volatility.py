@@ -275,25 +275,25 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                 case OptionPricingModel.Black76:
                     expected = (
                         _OptionModelBlack76._value(
-                            F=pricing_.f + pricing_.rate_shift,
-                            K=pricing_.k + pricing_.rate_shift,
+                            F=pricing_.f,
+                            K=pricing_.k,
+                            rate_shift=pricing_.rate_shift,
                             t_e=pricing_.t_e,
                             v2=1.0,  # not required
                             vol=pricing_.vol / 100.0,
-                            phi=self.ir_option_params.direction.value,  # controls calls or put price
+                            phi=self.ir_option_params.direction.value,
                         )
                         * 100.0
                     )  # bps
                 case OptionPricingModel.Bachelier:
                     expected = (
                         _OptionModelBachelier._value(
-                            F=pricing_.f + pricing_.rate_shift,
-                            K=pricing_.k + pricing_.rate_shift,
+                            F=pricing_.f,
+                            K=pricing_.k,
                             t_e=pricing_.t_e,
                             v2=1.0,  # not required
                             vol=pricing_.vol / 100.0,
                             phi=self.ir_option_params.direction.value,
-                            # controls calls or put price
                         )
                         * 100.0
                     )
@@ -450,7 +450,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                     )
                 case _:
                     raise NotImplementedError("Pricing model not implemented.")
-        elif type(metric_) == IROptionMetric.BlackVolShift:
+        elif type(metric_) is IROptionMetric.BlackVolShift:
             # might need to resolve a volatility value depending upon the required shift
             # and the expected shift
             required_shift = metric_.shift()
@@ -533,7 +533,10 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
     #     def root(
     #         vol: DualTypes, f_d: DualTypes, k: DualTypes, t_e: float, v2: DualTypes, phi: float
     #     ) -> tuple[DualTypes, DualTypes]:
-    #         f0 = _OptionModelBlack76._value(f_d, k, t_e, NoInput(0), v2, vol, phi) * 10000.0 - imm_premium
+    #         f0 = (
+    #             _OptionModelBlack76._value(f_d, k, t_e, NoInput(0), v2, vol, phi)
+    #             * 10000.0 - imm_premium
+    #         )
     #         sqrt_t = t_e**0.5
     #         d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
     #         f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0

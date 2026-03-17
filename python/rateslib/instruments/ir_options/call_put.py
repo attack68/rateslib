@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
 from rateslib.curves._parsers import _validate_obj_not_no_input
+from rateslib.default import plot
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import (

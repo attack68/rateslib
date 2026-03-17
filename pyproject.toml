@@ -81,7 +81,7 @@ exclude = [
     "target",
     "venv9",
     "venv11",
-    "scratch.py",
+    "scratch*.py",
     "__pycache__",
     "docs/source/conf.py",
     "old",

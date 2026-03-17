@@ -253,15 +253,15 @@ class IRVolValue(_BaseInstrument):
         rate_curve = _maybe_get_curve_maybe_from_solver(
             curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
         )
-        disc_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            ),
-            name="disc_curve",
-        )
+        # disc_curve: _BaseCurve = _validate_obj_not_no_input(
+        #     _maybe_get_curve_maybe_from_solver(
+        #         curves=_curves,
+        #         curves_meta=self.kwargs.meta["curves"],
+        #         solver=solver,
+        #         name="disc_curve",
+        #     ),
+        #     name="disc_curve",
+        # )
         index_curve: _BaseCurve = _validate_obj_not_no_input(
             _maybe_get_curve_maybe_from_solver(
                 curves=_curves,
