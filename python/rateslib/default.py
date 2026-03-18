@@ -54,6 +54,7 @@ DEFAULTS = dict(
     payment_lag=2,
     payment_lag_exchange=0,
     payment_lag_specific={
+        "Fee": 0,
         "IRS": 2,
         "STIRFuture": 0,
         "IIRS": 2,

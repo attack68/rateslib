@@ -20,6 +20,7 @@ from rateslib.instruments.bonds import (
     _BaseBondInstrument,
 )
 from rateslib.instruments.cds import CDS
+from rateslib.instruments.fee import Fee
 from rateslib.instruments.fly import Fly
 from rateslib.instruments.fra import FRA
 from rateslib.instruments.fx_forward import FXForward
@@ -85,6 +86,7 @@ __all__ = [
     "IndexFixedRateBond",
     "BondFuture",
     "Bill",
+    "Fee",
     # fx options
     "FXPut",
     "FXCall",

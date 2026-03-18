@@ -36,6 +36,7 @@ from rateslib.instruments import (
     ZCIS,
     ZCS,
     Bill,
+    Fee,
     FixedRateBond,
     FloatRateNote,
     Fly,
@@ -9401,3 +9402,67 @@ class TestIRVolValue:
             "nu": 0.81694072,
         }
         assert v.rate(vol=vol) == expected[metric]
+
+
+class TestFee:
+    # init
+
+    def test_date_and_attributes(self):
+        fee = Fee(dt(2022, 1, 1), 2e6, calendar="tgt", payment_lag=0, ex_div=2, currency="EUR")
+        assert fee.settlement_params.payment == dt(2022, 1, 3)
+        assert fee.settlement_params.notional == 2e6
+        assert fee.settlement_params.ex_dividend == dt(2021, 12, 30)
+        assert fee.settlement_params.currency == "eur"
+
+    # protocols
+
+    def test_npv(self, curve):
+        fee = Fee(dt(2022, 3, 1), 2e6)
+        result = fee.npv(curves=curve)
+        assert abs(result + 1986866.2068519176) < 1e-7
+
+    @pytest.mark.parametrize(("metric", "exp"), [("npv", -1986866.20), ("payment", -2e6)])
+    def test_rate(self, curve, metric, exp):
+        fee = Fee(dt(2022, 3, 1), 2e6)
+        result = fee.rate(curves=curve, metric=metric)
+        assert abs(result - exp) < 1e-2
+
+    def test_analytic_delta(self, curve):
+        fee = Fee(dt(2022, 3, 1), 2e6)
+        result = fee.analytic_delta(curves=curve)
+        assert abs(result - 0.0) < 1e-2
+
+    def test_cashflows(self, curve):
+        fee = Fee(dt(2022, 3, 1), 2e6)
+        result = fee.cashflows(curves=curve)
+        assert isinstance(result, DataFrame)
+
+    def test_fixings(self, curve):
+        fee = Fee(dt(2022, 3, 1), 2e6)
+        result = fee.local_analytic_rate_fixings(curves=curve)
+        assert isinstance(result, DataFrame)
+
+    def test_non_deliverable(self, curve):
+        name = str(hash(os.urandom(2)))
+        fixings.add(name + "_eurusd", Series(index=[dt(2022, 2, 25)], data=[1.50]))
+        fee = Fee(
+            effective=dt(2022, 3, 1), notional=2e6, currency="usd", pair="eurusd", fx_fixings=name
+        )
+        result = fee.npv(curves=curve)
+        fixings.pop(name + "_eurusd")
+        assert abs(result + curve[dt(2022, 3, 1)] * 2e6 * 1.5) < 1e-7
+
+    def test_indexation(self, curve):
+        name = str(hash(os.urandom(2)))
+        fixings.add(name, Series(index=[dt(2022, 2, 1), dt(2022, 3, 1)], data=[1.10, 1.50]))
+        fee = Fee(
+            effective=dt(2022, 3, 1),
+            notional=2e6,
+            currency="usd",
+            index_fixings=name,
+            index_lag=0,
+            index_base_date=dt(2022, 2, 1),
+        )
+        result = fee.npv(curves=curve)
+        fixings.pop(name)
+        assert abs(result + curve[dt(2022, 3, 1)] * 2e6 * 1.5 / 1.1) < 1e-7
