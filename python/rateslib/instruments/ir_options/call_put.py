@@ -29,7 +29,8 @@ from rateslib.instruments.irs import IRS
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _maybe_get_ir_vol_maybe_from_solver,
     _Vol,
 )
@@ -57,7 +58,6 @@ if TYPE_CHECKING:
         Sequence,
         Solver_,
         VolT_,
-        _BaseCurve,
         _BaseCurve_,
         _BaseIRSOptionPeriod,
         _BaseLeg,
@@ -158,20 +158,13 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-        )
-        index_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves,
-            curves_meta=self.kwargs.meta["curves"],
-            solver=solver,
-            name="index_curve",
-        )
+
         ir_vol = _maybe_get_ir_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -183,9 +176,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             # self._set_premium(curves, fx)
 
         return self._option.analytic_greeks(
-            rate_curve=_validate_obj_not_no_input(rate_curve, "rate curve"),
-            disc_curve=_validate_obj_not_no_input(disc_curve, "disc curve"),
-            index_curve=_validate_obj_not_no_input(rate_curve, "index curve"),
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
+            index_curve=index_curve,
             ir_vol=ir_vol,
             premium=NoInput(0),
             premium_payment=NoInput(0),
@@ -496,29 +489,14 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
         metric: IROptionMetric | str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            ),
-            name="disc_curve",
-        )
-        index_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="index_curve",
-            ),
-            name="index_curve",
-        )
+        del vol
+
         ir_vol = _maybe_get_ir_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -544,12 +522,10 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             metric_ in [IROptionMetric.Cash(), IROptionMetric.PercentNotional()]
             and self.leg2.settlement_params.payment != self.leg1.settlement_params.payment
         ):
-            disc_curve_ = _validate_obj_not_no_input(disc_curve, name="disc_curve")
-            del disc_curve
             return (
                 value
-                * disc_curve_[self.leg2.settlement_params.payment]
-                / disc_curve_[self.leg1.settlement_params.payment]
+                * disc_curve[self.leg2.settlement_params.payment]
+                / disc_curve[self.leg1.settlement_params.payment]
             )
         else:
             return value
@@ -566,26 +542,14 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves,
-            curves_meta=self.kwargs.meta["curves"],
-            solver=solver,
-            name="rate_curve",
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves,
-            curves_meta=self.kwargs.meta["curves"],
-            solver=solver,
-            name="disc_curve",
-        )
-        index_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves,
-            curves_meta=self.kwargs.meta["curves"],
-            solver=solver,
-            name="index_curve",
-        )
+        del vol
+
         ir_vol = _maybe_get_ir_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -617,12 +581,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             forward=forward,
         )
         prem_npv = self._premium.npv(
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="leg2_disc_curve",
-            ),
+            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
             fx=fx,
             base=base_,
             local=local,
@@ -645,27 +604,15 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+
+        _vol = self._parse_vol(vol)
+        del vol
+
         try:
-            _curves = self._parse_curves(curves)
-            _vol = self._parse_vol(vol)
-            rate_curve = _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="rate_curve",
-            )
-            disc_curve = _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            )
-            index_curve = _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="index_curve",
-            )
             ir_vol = _maybe_get_ir_vol_maybe_from_solver(
                 vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
             )
@@ -685,13 +632,13 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             pass  # `cashflows` proceed without pricing determined values
 
         return self._cashflows_from_legs(
-            curves=curves,
+            curves=c[0],
             solver=solver,
             fx=fx,
             base=base,
             settlement=settlement,
             forward=forward,
-            vol=vol,
+            vol=_vol,
         )
 
     def analytic_delta(self, *args: Any, leg: int = 1, **kwargs: Any) -> NoReturn:
@@ -711,29 +658,14 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            ),
-            name="disc_curve",
-        )
-        index_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="index_curve",
-            ),
-            name="index_curve",
-        )
+        del vol
+
         ir_vol = _maybe_get_ir_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )

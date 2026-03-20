@@ -63,7 +63,7 @@ class Fee(_BaseInstrument):
 
     .. ipython:: python
 
-       fee = Fee(dt(2022, 1, 4), notional=2e6, calendar="ncy", payment_lag=0)
+       fee = Fee(dt(2022, 1, 4), notional=2e6, calendar="nyc", payment_lag=0)
        fee.cashflows()
 
     .. rubric:: Pricing
@@ -231,6 +231,7 @@ class Fee(_BaseInstrument):
             metric="npv",
             notional=defaults.notional,
             payment_lag=defaults.payment_lag_specific[type(self).__name__],
+            calendar="all",
         )
         self._kwargs = _KWArgs(
             spec=NoInput(0),

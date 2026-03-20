@@ -20,8 +20,8 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import FloatLeg
@@ -416,53 +416,41 @@ class SBS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        metric_: str = _drb(self.kwargs.meta["metric"], metric)
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        leg2_rate_curve = _fetch_pricing_curve("leg2_rate_curve", True, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
 
+        metric_: str = _drb(self.kwargs.meta["metric"], metric)
         if metric_.lower() == "leg1":
             leg2_npv: DualTypes = self.leg2.local_npv(
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-                ),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-                ),
+                rate_curve=leg2_rate_curve,
+                disc_curve=leg2_disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
             )
             return self.leg1.spread(
                 target_npv=-leg2_npv,
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
-                ),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
             )
         else:  # metric == "leg2"
             leg1_npv: DualTypes = self.leg1.local_npv(
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
-                ),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                rate_curve=rate_curve,
+                disc_curve=disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
             )
             return self.leg2.spread(
                 target_npv=-leg1_npv,
-                rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-                ),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-                ),
+                rate_curve=leg2_rate_curve,
+                disc_curve=leg2_disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,

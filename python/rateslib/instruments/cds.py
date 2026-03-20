@@ -20,8 +20,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
@@ -354,15 +355,11 @@ class CDS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
+            rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
+            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
@@ -370,12 +367,8 @@ class CDS(_BaseInstrument):
         return (
             self.leg1.spread(
                 target_npv=-leg2_npv,
-                rate_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "rate_curve", solver
-                ),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                rate_curve=_fetch_pricing_curve("rate_curve", True, True, *c),
+                disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
@@ -569,14 +562,11 @@ class CDS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+
         return self.leg2.analytic_rec_risk(
-            rate_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
+            rate_curve=_fetch_pricing_curve("leg2_rate_curve", False, True, *c),
+            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
             fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
             base=base,
         )

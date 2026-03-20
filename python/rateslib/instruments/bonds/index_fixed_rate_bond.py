@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.dual import Dual, gradient
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
@@ -26,7 +25,8 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import FixedLeg
@@ -519,23 +519,11 @@ class IndexFixedRateBond(_BaseBondInstrument):
         -------
         float, Dual, Dual2, Variable
         """  # noqa: E501
+        c = _parse_curves(self, curves, solver)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
-        _curves = self._parse_curves(curves)
-        disc_curve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves_meta=self.kwargs.meta["curves"],
-                curves=_curves,
-                name="disc_curve",
-                solver=solver,
-            ),
-            "disc_curve",
-        )
-        index_curve = _maybe_get_curve_maybe_from_solver(
-            curves_meta=self.kwargs.meta["curves"],
-            curves=_curves,
-            name="index_curve",
-            solver=solver,
-        )
 
         if isinstance(settlement, NoInput):
             settlement_ = self.leg1.schedule.calendar.lag_bus_days(

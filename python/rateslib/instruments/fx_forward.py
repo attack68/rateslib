@@ -21,13 +21,13 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import CustomLeg
 from rateslib.periods import Cashflow
-from rateslib.periods.utils import _validate_base_curve
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -275,7 +275,8 @@ class FXForward(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+
         fx_ = _get_fx_maybe_from_solver(solver=solver, fx=fx)
         if isinstance(fx_, FXForwards | FXRates):
             imm_fx: DualTypes = fx_.rate(self.kwargs.leg2["pair"])
@@ -288,17 +289,10 @@ class FXForward(_BaseInstrument):
             # this is a mypy error since FXForwards is a case above
             imm_fx = fx_  # type: ignore[assignment]
 
-        curve_domestic = _maybe_get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
-        curve_foreign = _maybe_get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-        )
-
         _: DualTypes = forward_fx(
             date=self.kwargs.leg1["settlement"],
-            curve_domestic=_validate_base_curve(curve_domestic),
-            curve_foreign=_validate_base_curve(curve_foreign),
+            curve_domestic=_fetch_pricing_curve("disc_curve", False, False, *c),
+            curve_foreign=_fetch_pricing_curve("leg2_disc_curve", False, False, *c),
             fx_rate=imm_fx,
         )
         return _

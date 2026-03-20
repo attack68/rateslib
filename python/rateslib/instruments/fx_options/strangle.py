@@ -22,8 +22,9 @@ from rateslib.enums.parameters import FXDeltaMethod
 from rateslib.instruments.fx_options.call_put import FXCall, FXPut
 from rateslib.instruments.fx_options.risk_reversal import _BaseFXOptionStrat
 from rateslib.instruments.protocols.pricing import (
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_forwards_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
     _maybe_get_fx_vol_maybe_from_solver,
     _Vol,
 )
@@ -406,28 +407,13 @@ class FXStrangle(_BaseFXOptionStrat):
         """
         Solve the single vol rate metric for a strangle using iterative market convergence routine.
         """
-        # Get curves and vol
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
         fxf = _validate_fx_as_forwards(_get_fx_forwards_maybe_from_solver(solver=solver, fx=fx))
-        rate_curve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves_meta=self.kwargs.meta["curves"],
-                curves=_curves,
-                name="rate_curve",
-                solver=solver,
-            ),
-            "rate_curve",
-        )
-        disc_curve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves_meta=self.kwargs.meta["curves"],
-                curves=_curves,
-                name="disc_curve",
-                solver=solver,
-            ),
-            "disc_curve",
-        )
+
         vol_0: _FXVolOption = _validate_obj_not_no_input(  # type: ignore[assignment]
             _maybe_get_fx_vol_maybe_from_solver(
                 vol_meta=self.kwargs.meta["vol"][0],

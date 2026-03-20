@@ -21,9 +21,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_forwards_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import FixedLeg, FloatLeg
@@ -479,16 +479,16 @@ class IRS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        leg2_rate_curve = _fetch_pricing_curve("leg2_rate_curve", True, True, *c)
+        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+
         fx_ = _get_fx_forwards_maybe_from_solver(solver, fx)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
+            rate_curve=leg2_rate_curve,
+            disc_curve=leg2_disc_curve,
             index_curve=NoInput(0),
             fx=fx_,
             settlement=settlement,
@@ -498,9 +498,7 @@ class IRS(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                disc_curve=disc_curve,
                 fx=fx_,
                 index_curve=NoInput(0),
                 settlement=settlement,
@@ -520,14 +518,12 @@ class IRS(_BaseInstrument):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        leg2_rate_curve = _fetch_pricing_curve("leg2_rate_curve", True, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+
         fx_ = _get_fx_forwards_maybe_from_solver(solver, fx)
-        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "disc_curve", solver
-        )
+
         leg1_npv: DualTypes = self.leg1.local_npv(
             rate_curve=NoInput(0),
             disc_curve=disc_curve,

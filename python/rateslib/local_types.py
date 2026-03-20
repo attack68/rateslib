@@ -79,6 +79,7 @@ from rateslib.instruments import Portfolio as Portfolio
 from rateslib.instruments import Spread as Spread
 from rateslib.instruments import STIRFuture as STIRFuture
 from rateslib.instruments import Value as Value
+from rateslib.instruments import _BaseInstrument as _BaseInstrument
 from rateslib.instruments.ir_options import _BaseIROption as _BaseIROption
 from rateslib.instruments.protocols.kwargs import _KWArgs as _KWArgs
 from rateslib.instruments.protocols.pricing import _Curves as _Curves
