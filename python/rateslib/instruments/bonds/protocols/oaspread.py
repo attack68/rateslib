@@ -17,14 +17,13 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib import defaults
 from rateslib.curves._parsers import (
     _maybe_set_ad_order,
-    _validate_obj_not_no_input,
 )
 from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.protocols import _WithAccrued
 from rateslib.instruments.protocols.pricing import (
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
 )
 
 if TYPE_CHECKING:
@@ -153,10 +152,17 @@ class _WithOASpread(_WithAccrued, Protocol):
            bond.oaspread(curves=curve, price=94.0)
 
         """
+
+
         if isinstance(price, NoInput):
             raise ValueError("`price` must be supplied in order to derive the `oaspread`.")
 
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)  # type: ignore[arg-type]
+        disc_curve_ = _fetch_pricing_curve("disc_curve", False, False, *c)
+        rate_curve_ = _fetch_pricing_curve("rate_curve", True, True, *c)
+
+        _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
+        _ad_fore = _maybe_set_ad_order(rate_curve_, 0)
 
         def s_with_args(
             g: DualTypes, curve: _BaseCurveOrDict_, disc_curve: _BaseCurve, metric: str_
@@ -179,20 +185,6 @@ class _WithOASpread(_WithAccrued, Protocol):
             """
             _shifted_discount_curve = disc_curve.shift(g)
             return self.rate(curves=[curve, _shifted_discount_curve], metric=metric)  # type: ignore[list-item]
-
-        disc_curve_ = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "disc_curve", solver
-            ),
-            "disc_curve",
-        )
-
-        _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
-        rate_curve_ = _maybe_get_curve_or_dict_maybe_from_solver(
-            self.kwargs.meta["curves"], _curves, "rate_curve", solver
-        )
-
-        _ad_fore = _maybe_set_ad_order(rate_curve_, 0)
 
         s = partial(
             s_with_args,

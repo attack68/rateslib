@@ -20,7 +20,8 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import ZeroFixedLeg, ZeroIndexLeg
@@ -380,16 +381,15 @@ class ZCIS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
+        leg2_index_curve = _fetch_pricing_curve("leg2_index_curve", False, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=NoInput(0),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
-            index_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_index_curve", solver
-            ),
+            disc_curve=leg2_disc_curve,
+            index_curve=leg2_index_curve,
             settlement=settlement,
             forward=forward,
         )
@@ -397,9 +397,7 @@ class ZCIS(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                disc_curve=disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,

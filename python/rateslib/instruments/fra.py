@@ -21,9 +21,8 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
-    _maybe_get_curve_or_dict_object_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import FixedLeg, FloatLeg
@@ -428,12 +427,12 @@ class FRA(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+
+        c = _parse_curves(self, curves, solver)
+
+        fra_scalar = self._fra_rate_scalar(
+            leg2_rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c)
         )
-        fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
 
         npv = super().npv(
             curves=curves,
@@ -480,16 +479,13 @@ class FRA(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
+            rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
+            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
             settlement=settlement,
             forward=forward,
         )
@@ -497,9 +493,7 @@ class FRA(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
@@ -524,12 +518,11 @@ class FRA(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+        c = _parse_curves(self, curves, solver)
+
+        fra_scalar = self._fra_rate_scalar(
+            leg2_rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c)
         )
-        fra_scalar = self._fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
         a_delta = super().analytic_delta(
             curves=curves,
             solver=solver,
@@ -564,12 +557,9 @@ class FRA(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
+        c = _parse_curves(self, curves, solver)
         return df * self._fra_rate_scalar(
-            leg2_rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
-            )
+            leg2_rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c)
         )
 
     def cashflows(
@@ -593,12 +583,10 @@ class FRA(_BaseInstrument):
             forward=forward,
         )
 
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        leg2_rate_curve = _maybe_get_curve_or_dict_object_maybe_from_solver(
-            solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_rate_curve"
+        c = _parse_curves(self, curves, solver)
+        scalar = self._try_fra_rate_scalar(
+            leg2_rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c)
         )
-        scalar = self._try_fra_rate_scalar(leg2_rate_curve=leg2_rate_curve)
 
         headers = [
             defaults.headers["cashflow"],

@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import FloatFixingMethod
 from rateslib.instruments.bonds.conventions import (
@@ -25,8 +24,8 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import FloatLeg
@@ -384,24 +383,12 @@ class FloatRateNote(_BaseBondInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
+        c = _parse_curves(self, curves, solver)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+
         metric = _drb(self.kwargs.meta["metric"], metric).lower()
-        _curves = self._parse_curves(curves)
         if metric in ["clean_price", "dirty_price", "spread", "ytm"]:
-            disc_curve = _validate_obj_not_no_input(
-                _maybe_get_curve_maybe_from_solver(
-                    solver=solver,
-                    curves=_curves,
-                    curves_meta=self.kwargs.meta["curves"],
-                    name="disc_curve",
-                ),
-                "disc_curve",
-            )
-            rate_curve = _maybe_get_curve_or_dict_maybe_from_solver(
-                solver=solver,
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                name="rate_curve",
-            )
             settlement_ = self._maybe_get_settlement(settlement, disc_curve)
 
             if metric == "spread":

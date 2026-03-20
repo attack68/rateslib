@@ -28,8 +28,9 @@ from rateslib.enums.parameters import FXOptionMetric, _get_fx_delta_type
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_forwards_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
     _maybe_get_fx_vol_maybe_from_solver,
     _Vol,
 )
@@ -489,14 +490,13 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-        )
+        del vol
+
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -539,14 +539,14 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-        )
+        del vol
+
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -563,8 +563,8 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             base_ = base
 
         opt_npv = self._option.npv(
-            rate_curve=_validate_obj_not_no_input(rate_curve, "rate curve"),
-            disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
             fx=fx_,
             base=base_,
             local=local,
@@ -573,12 +573,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             forward=forward,
         )
         prem_npv = self._premium.npv(
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="leg2_disc_curve",
-            ),
+            disc_curve=leg2_disc_curve,
             fx=fx_,
             base=base_,
             local=local,
@@ -601,21 +596,14 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
+        c = _parse_curves(self, curves, solver)
+
+        _vol = self._parse_vol(vol)
+        del vol
+
         try:
-            _curves = self._parse_curves(curves)
-            _vol = self._parse_vol(vol)
-            rate_curve = _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="rate_curve",
-            )
-            disc_curve = _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            )
+            rate_curve = _fetch_pricing_curve("rate_curve", False, True, *c)
+            disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
             fx_vol = _maybe_get_fx_vol_maybe_from_solver(
                 vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
             )
@@ -636,7 +624,7 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             base=base,
             settlement=settlement,
             forward=forward,
-            vol=vol,
+            vol=_vol,
         )
 
     def analytic_greeks(
@@ -717,14 +705,13 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         -------
         float, Dual, Dual2
         """
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-        )
+        del vol
+
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -737,8 +724,8 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             # self._set_premium(curves, fx)
 
         return self._option.analytic_greeks(
-            rate_curve=_validate_obj_not_no_input(rate_curve, "rate curve"),
-            disc_curve=_validate_obj_not_no_input(disc_curve, "disc curve"),
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
             fx=_validate_fx_as_forwards(fx_),
             fx_vol=fx_vol,
             premium=NoInput(0),
@@ -757,14 +744,13 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         """
         Return various pricing metrics of the *FX Option*.
         """
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+
         _vol = self._parse_vol(vol)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        disc_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="disc_curve"
-        )
+        del vol
+
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )
@@ -777,8 +763,8 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
             # self._set_premium(curves, fx)
 
         return self._option._base_analytic_greeks(
-            rate_curve=_validate_obj_not_no_input(rate_curve, "rate_curve"),
-            disc_curve=_validate_obj_not_no_input(disc_curve, "disc_curve"),
+            rate_curve=rate_curve,
+            disc_curve=disc_curve,
             fx=_validate_fx_as_forwards(fx_),
             fx_vol=self._pricing.vol,  # type: ignore[arg-type]  # vol is set and != None
             premium=NoInput(0),
@@ -804,27 +790,13 @@ class _BaseFXOption(_BaseInstrument, metaclass=ABCMeta):
         """
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
 
-        _curves = self._parse_curves(curves)
         _vol = self._parse_vol(vol)
-        rate_curve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="rate_curve",
-            ),
-            "rate_curve",
-        )
-        disc_curve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="disc_curve",
-            ),
-            "disc curve",
-        )
+        del vol
+
         fx_vol = _maybe_get_fx_vol_maybe_from_solver(
             vol=_vol, vol_meta=self.kwargs.meta["vol"], solver=solver
         )

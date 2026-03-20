@@ -15,7 +15,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, NoReturn
 
 from rateslib import defaults
-from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.data.fixings import _get_irs_series
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import OptionPricingModel, OptionType, _get_ir_option_metric
@@ -24,7 +23,8 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _maybe_get_curve_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
     _maybe_get_ir_vol_maybe_from_solver,
     _Vol,
 )
@@ -46,7 +46,6 @@ if TYPE_CHECKING:
         IRSSeries,
         Solver_,
         VolT_,
-        _BaseCurve,
         datetime,
         datetime_,
         str_,
@@ -249,28 +248,10 @@ class IRVolValue(_BaseInstrument):
                     "object."
                 )
 
-        _curves = self._parse_curves(curves)
-        rate_curve = _maybe_get_curve_maybe_from_solver(
-            curves=_curves, curves_meta=self.kwargs.meta["curves"], solver=solver, name="rate_curve"
-        )
-        # disc_curve: _BaseCurve = _validate_obj_not_no_input(
-        #     _maybe_get_curve_maybe_from_solver(
-        #         curves=_curves,
-        #         curves_meta=self.kwargs.meta["curves"],
-        #         solver=solver,
-        #         name="disc_curve",
-        #     ),
-        #     name="disc_curve",
-        # )
-        index_curve: _BaseCurve = _validate_obj_not_no_input(
-            _maybe_get_curve_maybe_from_solver(
-                curves=_curves,
-                curves_meta=self.kwargs.meta["curves"],
-                solver=solver,
-                name="index_curve",
-            ),
-            name="index_curve",
-        )
+        c = _parse_curves(self, curves, solver)
+        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        # disc_curve: _BaseCurve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
 
         metric__ = _get_ir_option_metric(metric_)
         del metric_

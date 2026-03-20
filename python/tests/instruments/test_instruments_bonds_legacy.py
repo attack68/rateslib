@@ -3476,7 +3476,7 @@ class TestFloatRateNote:
         expected = 0.13083715795372267
         assert abs(result - expected) < 1e-8
 
-    def test_rate_raises(self) -> None:
+    def test_rate_raises(self, curve) -> None:
         bond = FloatRateNote(
             effective=dt(2007, 1, 1),
             termination=dt(2017, 1, 1),
@@ -3487,6 +3487,7 @@ class TestFloatRateNote:
             fixing_method="rfr_observation_shift(5)",
             spread_compound_method="none_simple",
             settle=2,
+            curves=curve,
         )
 
         with pytest.raises(ValueError, match="`metric` must be in"):

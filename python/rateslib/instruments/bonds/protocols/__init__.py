@@ -23,7 +23,8 @@ from rateslib.instruments.bonds.protocols.repo import _WithRepo
 from rateslib.instruments.bonds.protocols.ytm import _WithYTM
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.pricing import (
-    _maybe_get_curve_maybe_from_solver,
+    _fetch_pricing_curve,
+    _parse_curves,
 )
 
 if TYPE_CHECKING:
@@ -64,16 +65,8 @@ class _BaseBondInstrument(
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         if isinstance(settlement, NoInput):
-            _curves = self._parse_curves(curves)
-            disc_curve = _validate_obj_not_no_input(
-                _maybe_get_curve_maybe_from_solver(
-                    curves_meta=self.kwargs.meta["curves"],
-                    curves=_curves,
-                    name="disc_curve",
-                    solver=solver,
-                ),
-                "disc_curve",
-            )
+            c = _parse_curves(self, curves, solver)
+            disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
             settlement_ = self.leg1.schedule.calendar.lag_bus_days(
                 disc_curve.nodes.initial,
                 self.kwargs.meta["settle"],
@@ -148,17 +141,11 @@ class _BaseBondInstrument(
         forward: datetime_ = NoInput(0),
         leg: int = 1,
     ) -> DualTypes | dict[str, DualTypes]:
+        c = _parse_curves(self, curves, solver)
+
         settlement_ = self._maybe_get_settlement(
             settlement=settlement,
-            disc_curve=_validate_obj_not_no_input(
-                _maybe_get_curve_maybe_from_solver(
-                    curves_meta=self.kwargs.meta["curves"],
-                    curves=self._parse_curves(curves),
-                    name="disc_curve",
-                    solver=solver,
-                ),
-                "disc_curve",
-            ),
+            disc_curve=_fetch_pricing_curve("disc_curve", False, False, *c),
         )
 
         return super().analytic_delta(

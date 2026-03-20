@@ -21,13 +21,13 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_forwards_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import CustomLeg
 from rateslib.periods import Cashflow
-from rateslib.periods.utils import _validate_base_curve
 from rateslib.scheduling import Schedule
 
 if TYPE_CHECKING:
@@ -426,7 +426,8 @@ class FXSwap(_BaseInstrument):
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+
         fx_ = _get_fx_forwards_maybe_from_solver(solver=solver, fx=fx)
 
         core_curve = "" if core_leg == "leg1" else "leg2_"
@@ -435,22 +436,14 @@ class FXSwap(_BaseInstrument):
         nd_leg_: CustomLeg = getattr(self, nd_leg)
 
         # then non-deliverability and fx_fixing are on leg2
-        disc_curve = _validate_base_curve(
-            _maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, f"{core_curve}disc_curve", solver
-            )
-        )
+        disc_curve = _fetch_pricing_curve(f"{core_curve}disc_curve", False, False, *c)
         core_npv: DualTypes = core_leg_.npv(  # type: ignore[assignment]
             disc_curve=disc_curve,
             base=self.leg2.settlement_params.currency,
             fx=fx_,
             local=False,
         )
-        nd_disc_curve = _validate_base_curve(
-            _maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, f"{nd_curve}disc_curve", solver
-            )
-        )
+        nd_disc_curve = _fetch_pricing_curve(f"{nd_curve}disc_curve", False, False, *c)
         nd_cf1_npv = self.leg2.periods[0].local_npv(disc_curve=nd_disc_curve, fx=fx_)
         net_zero_cf = (core_npv + nd_cf1_npv) / nd_disc_curve[
             nd_leg_.periods[1].settlement_params.payment

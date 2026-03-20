@@ -20,17 +20,15 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
+    _fetch_pricing_curve,
+    _parse_curves,
     _get_fx_maybe_from_solver,
-    _maybe_get_curve_maybe_from_solver,
-    _maybe_get_curve_object_maybe_from_solver,
-    _maybe_get_curve_or_dict_maybe_from_solver,
     _Vol,
 )
 from rateslib.legs import FixedLeg, FloatLeg
 from rateslib.periods.utils import (
     _maybe_fx_converted,
     _maybe_local,
-    _validate_base_curve,
 )
 
 if TYPE_CHECKING:
@@ -422,16 +420,10 @@ class STIRFuture(_BaseInstrument):
             forward=forward,
         )[self.leg1.settlement_params.currency]
 
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        npv_immediate = (
-            local_npv
-            / _validate_base_curve(
-                _maybe_get_curve_maybe_from_solver(
-                    solver=solver, curves_meta=_curves_meta, curves=_curves, name="disc_curve"
-                )
-            )[self.leg1.settlement_params.payment]
-        )
+        c = _parse_curves(self, curves, solver)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+
+        npv_immediate = local_npv / disc_curve[self.leg1.settlement_params.payment]
 
         if not local:
             return _maybe_fx_converted(
@@ -474,16 +466,16 @@ class STIRFuture(_BaseInstrument):
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        _curves = self._parse_curves(curves)
+        c = _parse_curves(self, curves, solver)
+        leg2_rate_curve = _fetch_pricing_curve("leg2_rate_curve", True, True, *c)
+        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_maybe_get_curve_or_dict_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_rate_curve", solver
-            ),
-            disc_curve=_maybe_get_curve_maybe_from_solver(
-                self.kwargs.meta["curves"], _curves, "leg2_disc_curve", solver
-            ),
+            rate_curve=leg2_rate_curve,
+            disc_curve=leg2_disc_curve,
             settlement=settlement,
             forward=forward,
         )
@@ -491,9 +483,7 @@ class STIRFuture(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_maybe_get_curve_maybe_from_solver(
-                    self.kwargs.meta["curves"], _curves, "disc_curve", solver
-                ),
+                disc_curve=disc_curve,
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
@@ -531,19 +521,14 @@ class STIRFuture(_BaseInstrument):
             forward=forward,
             leg=leg,
         )[self.leg1.settlement_params.currency]
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
+
+        c = _parse_curves(self, curves, solver)
+
         prefix = "" if leg == 1 else "leg2_"
+        disc_curve = _fetch_pricing_curve(f"{prefix}disc_curve", False, False, *c)
+
         adjusted_local_analytic_delta = (
-            unadjusted_local_analytic_delta
-            / _validate_base_curve(
-                _maybe_get_curve_maybe_from_solver(
-                    solver=solver,
-                    curves_meta=_curves_meta,
-                    curves=_curves,
-                    name=f"{prefix}disc_curve",
-                )
-            )[self.leg1.settlement_params.payment]
+            unadjusted_local_analytic_delta / disc_curve[self.leg1.settlement_params.payment]
         )
         return _maybe_local(
             value=adjusted_local_analytic_delta,
@@ -572,16 +557,9 @@ class STIRFuture(_BaseInstrument):
             settlement=settlement,
             forward=forward,
         )
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        return (
-            df  # type: ignore[operator]
-            / _validate_base_curve(
-                _maybe_get_curve_or_dict_maybe_from_solver(
-                    solver=solver, curves_meta=_curves_meta, curves=_curves, name="leg2_disc_curve"
-                )
-            )[self.leg1.settlement_params.payment]
-        )
+        c = _parse_curves(self, curves, solver)
+        disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, False, *c)
+        return df / disc_curve[self.leg1.settlement_params.payment]  # type: ignore[operator]
 
     def cashflows(
         self,
@@ -605,11 +583,9 @@ class STIRFuture(_BaseInstrument):
         )
         df[defaults.headers["payment"]] = None
 
-        _curves: _Curves = self._parse_curves(curves)
-        _curves_meta: _Curves = self.kwargs.meta["curves"]
-        disc_curve = _maybe_get_curve_object_maybe_from_solver(
-            solver=solver, curves_meta=_curves_meta, curves=_curves, name="disc_curve"
-        )
+        c = _parse_curves(self, curves, solver)
+        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+
         if isinstance(disc_curve, NoInput):
             pass
         else:
