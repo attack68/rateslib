@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.dual import Variable, gradient
 from rateslib.dual.utils import _dual_float, _to_number
 from rateslib.enums.generics import NoInput, _drb
@@ -27,7 +26,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
     _Vol,
 )
@@ -338,7 +337,7 @@ class Bill(_BaseBondInstrument):
         float, Dual, Dual2
         """
         c = _parse_curves(self, curves, solver)
-        disc_curve_ = _fetch_pricing_curve("disc_curve", False, False, *c)
+        disc_curve_ = _get_curve("disc_curve", False, False, *c)
 
         settlement_ = self._maybe_get_settlement(settlement=settlement, disc_curve=disc_curve_)
 

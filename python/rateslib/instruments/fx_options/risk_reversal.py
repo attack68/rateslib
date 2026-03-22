@@ -28,9 +28,9 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolStrat_,
         Sequence,
         Solver_,
+        VolStrat_,
         VolT_,
         _Vol,
         bool_,
@@ -76,7 +76,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         rate_weight_vol: list[float],
         metric: str_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ):
         self._n = len(options)
         if self._n != len(rate_weight) or self._n != len(rate_weight_vol):
@@ -180,7 +180,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
     #     return ret
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         raise NotImplementedError(f"{type(cls).__name__} must implement `_parse_vol`.")
 
     @property
@@ -196,13 +196,13 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: str_ = NoInput(0),
     ) -> DualTypes:
-        vol_: FXVolStrat_ = self._parse_vol(vol)
+        vol_: VolStrat_ = self._parse_vol(vol)
         metric_: str = _drb(self.kwargs.meta["metric"], metric)
         map_ = {
             "pips_or_%": self.kwargs.meta["rate_weight"],
@@ -235,7 +235,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -271,7 +271,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -292,9 +292,9 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
-        vol_: FXVolStrat_ = self._parse_vol(vol)
+        vol_: VolStrat_ = self._parse_vol(vol)
 
         y = None
         for inst, vol__ in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
@@ -317,7 +317,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
         # implicitly call set_pricing_mid for unpriced parameters
         # this is important for Strategies whose options are
@@ -325,7 +325,7 @@ class _BaseFXOptionStrat(_BaseFXOption):
         # interdependent options)
         self.rate(curves=curves, solver=solver, fx=fx, vol=vol)
 
-        vol_: FXVolStrat_ = self._parse_vol(vol=vol)
+        vol_: VolStrat_ = self._parse_vol(vol=vol)
         gks = []
         for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
             if isinstance(inst, _BaseFXOptionStrat):
@@ -627,7 +627,7 @@ class FXRiskReversal(_BaseFXOptionStrat):
         self.kwargs.leg1["notional"] = notional_
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
         return FXPut._parse_vol(vol[0]), FXCall._parse_vol(vol[1])

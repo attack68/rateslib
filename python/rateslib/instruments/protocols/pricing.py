@@ -25,11 +25,14 @@ if TYPE_CHECKING:
         FX_,
         Any,
         CurvesT_,
+        DualTypes,
         FXForwards_,
         FXVol_,
         IRVol_,
+        NoInput,
         Solver,
         Solver_,
+        VolStrat_,
         VolT_,
         _BaseCurve,
         _BaseCurve_,
@@ -38,13 +41,10 @@ if TYPE_CHECKING:
         _BaseCurveOrId,
         _BaseCurveOrIdOrIdDict,
         _BaseCurveOrIdOrIdDict_,
+        _BaseInstrument,
         _FXVolObj,
-        _FXVolOption_,
         _IRVolObj,
         _IRVolOption_,
-        _BaseInstrument,
-        Solver_,
-        CurvesT_,
     )
 
 
@@ -174,18 +174,43 @@ class _Vol:
 
 
 def _parse_curves(
-    obj: _BaseInstrument,
-    curves: CurvesT_,
-    solver: Solver_
+    obj: _BaseInstrument, curves: CurvesT_, solver: Solver_
 ) -> tuple[_Curves, _Curves, Solver_]:
     return (obj._parse_curves(curves), obj.kwargs.meta["curves"], solver)
+
+
+@overload
+def _parse_vol(
+    obj: _BaseInstrument,
+    vol: VolT_,
+    solver: Solver_,
+    sequence: Literal[False],
+) -> tuple[_Vol, _Vol, Solver_]: ...
+
+
+@overload
+def _parse_vol(
+    obj: _BaseInstrument,
+    vol: VolStrat_,
+    solver: Solver_,
+    sequence: Literal[True],
+) -> tuple[VolStrat_, VolStrat_, Solver_]: ...
+
+
+def _parse_vol(
+    obj: _BaseInstrument,
+    vol: VolT_ | VolStrat_,
+    solver: Solver_,
+    sequence: bool,
+) -> tuple[_Vol | VolStrat_, _Vol | VolStrat_, Solver_]:
+    return obj._parse_vol(vol), obj.kwargs.meta["vol"], solver  # type: ignore[arg-type]
 
 
 # Solver and Curve mapping
 
 
 @overload
-def _fetch_pricing_curve(
+def _get_curve(
     name: str,
     allow_dict: Literal[False],
     allow_no_input: Literal[True],
@@ -196,7 +221,7 @@ def _fetch_pricing_curve(
 
 
 @overload
-def _fetch_pricing_curve(
+def _get_curve(
     name: str,
     allow_dict: Literal[False],
     allow_no_input: Literal[False],
@@ -207,7 +232,7 @@ def _fetch_pricing_curve(
 
 
 @overload
-def _fetch_pricing_curve(
+def _get_curve(
     name: str,
     allow_dict: Literal[True],
     allow_no_input: Literal[True],
@@ -218,7 +243,7 @@ def _fetch_pricing_curve(
 
 
 @overload
-def _fetch_pricing_curve(
+def _get_curve(
     name: str,
     allow_dict: Literal[True],
     allow_no_input: Literal[False],
@@ -228,7 +253,7 @@ def _fetch_pricing_curve(
 ) -> _BaseCurveOrDict: ...
 
 
-def _fetch_pricing_curve(
+def _get_curve(
     name: str,
     allow_dict: bool,
     allow_no_input: bool,
@@ -247,7 +272,7 @@ def _fetch_pricing_curve(
             curve=curve, allow_dict=allow_dict, allow_no_input=allow_no_input
         )
     else:
-        return _get_curve_from_solver2(  # type: ignore[no-any-return, call-overload]
+        return _get_curve_from_solver(  # type: ignore[no-any-return, call-overload]
             curve=curve,
             solver=solver,
             allow_dict=allow_dict,
@@ -299,10 +324,11 @@ def _validate_base_curve_or_dict(
             raise ValueError("Cannot supply a dict type object as this `curve`.")
         else:
             return {
-                k: _validate_base_curve(v, allow_no_input=allow_no_input) for k, v in curve.items()  # type: ignore[call-overload]
+                k: _validate_base_curve(v, allow_no_input=allow_no_input)  # type: ignore[call-overload]
+                for k, v in curve.items()
             }
     else:
-        return _validate_base_curve(curve, allow_no_input=allow_no_input) # type: ignore[no-any-return, call-overload]
+        return _validate_base_curve(curve, allow_no_input=allow_no_input)  # type: ignore[no-any-return, call-overload]
 
 
 @overload
@@ -319,24 +345,25 @@ def _validate_base_curve(curve: _BaseCurveOrId, allow_no_input: bool) -> _BaseCu
             return NoInput(0)
         else:
             raise ValueError(
-                f"`curves` must contain _BaseCurve, not str, if `solver` not given. Got id: '{curve}'"
+                f"`curves` must contain _BaseCurve, not str, if `solver` not given. "
+                f"Got id: '{curve}'"
             )
     return curve
 
 
 @overload
-def _get_curve_from_solver2(
+def _get_curve_from_solver(
     curve: _BaseCurveOrIdOrIdDict, solver: Solver, allow_dict: Literal[True]
 ) -> _BaseCurveOrDict: ...
 
 
 @overload
-def _get_curve_from_solver2(
+def _get_curve_from_solver(
     curve: _BaseCurveOrIdOrIdDict, solver: Solver, allow_dict: Literal[False]
 ) -> _BaseCurve: ...
 
 
-def _get_curve_from_solver2(
+def _get_curve_from_solver(
     curve: _BaseCurveOrIdOrIdDict, solver: Solver, allow_dict: bool
 ) -> _BaseCurveOrDict:
     """
@@ -410,19 +437,90 @@ def _parse_curve_or_id_from_solver_(curve: _BaseCurveOrId, solver: Solver) -> _B
 # Solver and FX Vol mapping
 
 
-def _maybe_get_fx_vol_maybe_from_solver(
-    vol_meta: _Vol,
+@overload
+def _get_fx_vol(
+    allow_numeric: Literal[True],
+    allow_no_input: Literal[True],
     vol: _Vol,
-    # name: str, = "fx_vol"
+    vol_meta: _Vol,
     solver: Solver_,
-) -> _FXVolOption_:
+) -> _FXVolObj | DualTypes | NoInput: ...
+
+
+@overload
+def _get_fx_vol(
+    allow_numeric: Literal[True],
+    allow_no_input: Literal[False],
+    vol: _Vol,
+    vol_meta: _Vol,
+    solver: Solver_,
+) -> _FXVolObj | DualTypes: ...
+
+
+@overload
+def _get_fx_vol(
+    allow_numeric: Literal[False],
+    allow_no_input: Literal[True],
+    vol: _Vol,
+    vol_meta: _Vol,
+    solver: Solver_,
+) -> _FXVolObj | NoInput: ...
+
+
+@overload
+def _get_fx_vol(
+    allow_numeric: Literal[False],
+    allow_no_input: Literal[False],
+    vol: _Vol,
+    vol_meta: _Vol,
+    solver: Solver_,
+) -> _FXVolObj: ...
+
+
+def _get_fx_vol(
+    allow_numeric: bool,
+    allow_no_input: bool,
+    vol: _Vol,
+    vol_meta: _Vol,
+    solver: Solver_,
+) -> _FXVolObj | DualTypes | NoInput:
     fx_vol_ = _drb(vol_meta.fx_vol, vol.fx_vol)
-    if isinstance(fx_vol_, NoInput | float | Dual | Dual2 | Variable):
-        return fx_vol_
+    if isinstance(fx_vol_, NoInput) or fx_vol_ is None:
+        if allow_no_input:
+            return NoInput(0)
+        else:
+            raise ValueError("`fx_vol` must be provided. Got NoInput.")
+    elif isinstance(fx_vol_, float | Dual | Dual2 | Variable):
+        if allow_numeric:
+            return fx_vol_
+        else:
+            raise ValueError("`fx_vol` must be an object. Got numeric quantity.")
     elif isinstance(solver, NoInput):
-        return _validate_fx_vol_is_not_id(fx_vol=fx_vol_)
+        return _validate_base_fx_vol(fx_vol=fx_vol_, allow_no_input=allow_no_input)  # type: ignore[no-any-return, call-overload]
     else:
         return _get_fx_vol_from_solver(fx_vol=fx_vol_, solver=solver)
+
+
+@overload
+def _validate_base_fx_vol(fx_vol: _FXVolObj | str, allow_no_input: Literal[False]) -> _FXVolObj: ...
+
+
+@overload
+def _validate_base_fx_vol(
+    fx_vol: _FXVolObj | str, allow_no_input: Literal[True]
+) -> _FXVolObj | NoInput: ...
+
+
+def _validate_base_fx_vol(fx_vol: _FXVolObj | str, allow_no_input: bool) -> _FXVolObj | NoInput:
+    if isinstance(fx_vol, str):
+        if allow_no_input:
+            return NoInput(0)
+        else:
+            raise ValueError(
+                f"`fx_vol` must contain FXVol object, not str, if `solver` not given. "
+                f"Got id: '{fx_vol}'"
+            )
+    return fx_vol
 
 
 def _get_fx_vol_from_solver(fx_vol: _FXVolObj | str, solver: Solver) -> _FXVolObj:
@@ -461,14 +559,6 @@ def _get_fx_vol_from_solver(fx_vol: _FXVolObj | str, solver: Solver) -> _FXVolOb
             return fx_vol
         else:
             raise ValueError("FXVol object must be in `solver`.")
-
-
-def _validate_fx_vol_is_not_id(fx_vol: _FXVolObj | str) -> _FXVolObj:
-    if isinstance(fx_vol, str):  # curve is a str ID
-        raise ValueError(
-            f"`vol` must contain FXVol object, not str, if `solver` not given. Got id: '{fx_vol}'"
-        )
-    return fx_vol
 
 
 # Solver and IR Vol mapping

@@ -25,7 +25,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
     _Vol,
 )
@@ -520,8 +520,8 @@ class IndexFixedRateBond(_BaseBondInstrument):
         float, Dual, Dual2, Variable
         """  # noqa: E501
         c = _parse_curves(self, curves, solver)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+        disc_curve = _get_curve("disc_curve", False, False, *c)
+        index_curve = _get_curve("index_curve", False, True, *c)
 
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 

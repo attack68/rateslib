@@ -23,9 +23,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _maybe_get_ir_vol_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.periods.parameters import _IROptionParams
@@ -249,9 +249,9 @@ class IRVolValue(_BaseInstrument):
                 )
 
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
+        rate_curve = _get_curve("rate_curve", True, True, *c)
         # disc_curve: _BaseCurve = _fetch_pricing_curve("disc_curve", False, False, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+        index_curve = _get_curve("index_curve", False, False, *c)
 
         metric__ = _get_ir_option_metric(metric_)
         del metric_

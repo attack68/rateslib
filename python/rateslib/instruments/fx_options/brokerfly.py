@@ -28,9 +28,9 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolStrat_,
         Sequence,
         Solver_,
+        VolStrat_,
         VolT_,
         bool_,
         datetime,
@@ -323,7 +323,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         return self.kwargs.meta["instruments"]  # type: ignore[no-any-return]
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[FXVolStrat_, FXVolStrat_]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[VolStrat_, VolStrat_]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol, vol)
         return (FXStrangle._parse_vol(vol[0]), FXStrangle._parse_vol(vol[1]))
@@ -333,7 +333,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_,
         solver: Solver_,
         fx: FXForwards_,
-        vol: tuple[FXVolStrat_, FXVolStrat_],
+        vol: tuple[VolStrat_, VolStrat_],
         metric: str_,
     ) -> None:
         """
@@ -382,7 +382,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -432,7 +432,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ) -> dict[str, Any]:
         # implicitly call set_pricing_mid for unpriced parameters
         self.rate(curves=curves, solver=solver, fx=fx, base=NoInput(0), vol=vol, metric="pips_or_%")
@@ -476,7 +476,7 @@ class FXBrokerFly(_BaseFXOptionStrat):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ) -> tuple[Any, Any]:
         vol_ = self._parse_vol(vol)
         self._maybe_set_vega_neutral_notional(curves, solver, fx, vol_, metric="pips_or_%")

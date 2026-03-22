@@ -28,7 +28,6 @@ if TYPE_CHECKING:
         DualTypes,
         DualTypes_,
         FXForwards_,
-        FXVolStrat_,
         IRSSeries,
         Sequence,
         Solver_,
@@ -81,7 +80,7 @@ class _BaseIROptionStrat(_BaseIROption):
         rate_weight_vol: list[float],
         metric: IROptionMetric | str_ = NoInput(0),
         curves: CurvesT_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
     ):
         self._n = len(options)
         if self._n != len(rate_weight) or self._n != len(rate_weight_vol):
@@ -123,13 +122,13 @@ class _BaseIROptionStrat(_BaseIROption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
         metric: IROptionMetric | str_ = NoInput(0),
     ) -> DualTypes:
-        vol_: FXVolStrat_ = self._parse_vol(vol)
+        vol_: VolStrat_ = self._parse_vol(vol)
         metric_: IROptionMetric = _get_ir_option_metric(_drb(self.kwargs.meta["metric"], metric))
         match type(metric_):
             case IROptionMetric.NormalVol | IROptionMetric.BlackVolShift:
@@ -160,7 +159,7 @@ class _BaseIROptionStrat(_BaseIROption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -196,7 +195,7 @@ class _BaseIROptionStrat(_BaseIROption):
         curves: CurvesT_ = NoInput(0),
         solver: Solver_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
-        vol: FXVolStrat_ = NoInput(0),
+        vol: VolStrat_ = NoInput(0),
         base: str_ = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
@@ -494,7 +493,7 @@ class IRStraddle(_BaseIROptionStrat):
         self.kwargs.leg1["notional"] = notional_
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
         return IRPut._parse_vol(vol[0]), IRCall._parse_vol(vol[1])

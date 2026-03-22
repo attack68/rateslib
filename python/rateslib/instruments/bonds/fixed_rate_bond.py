@@ -14,7 +14,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rateslib import defaults
-from rateslib.curves._parsers import _validate_obj_not_no_input
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.conventions import (
     BondCalcMode,
@@ -24,7 +23,7 @@ from rateslib.instruments.bonds.protocols import _BaseBondInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
     _Vol,
 )
@@ -369,7 +368,7 @@ class FixedRateBond(_BaseBondInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
+        disc_curve = _get_curve("disc_curve", False, False, *c)
 
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
 

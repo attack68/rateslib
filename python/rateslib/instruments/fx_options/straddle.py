@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         DualTypes_,
-        FXVolStrat_,
+        VolStrat_,
         VolT_,
         _Vol,
         bool_,
@@ -286,7 +286,7 @@ class FXStraddle(_BaseFXOptionStrat):
         self.kwargs.leg2["premium_ccy"] = self.instruments[0].kwargs.leg2["premium_ccy"]
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
         return FXPut._parse_vol(vol[0]), FXCall._parse_vol(vol[1])

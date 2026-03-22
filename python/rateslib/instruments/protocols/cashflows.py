@@ -20,11 +20,12 @@ from rateslib import defaults
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_maybe_from_solver,
-    _maybe_get_fx_vol_maybe_from_solver,
+    _get_fx_vol,
     _maybe_get_ir_vol_maybe_from_solver,
+    _parse_curves,
+    _parse_vol,
     _WithPricingObjs,
 )
 
@@ -35,8 +36,6 @@ if TYPE_CHECKING:
         FXForwards_,
         Solver_,
         VolT_,
-        _Curves,
-        _Vol,
         datetime_,
         str_,
     )
@@ -148,20 +147,18 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         # specific to that instrument
         assert hasattr(self, "legs")  # noqa: S101
 
-        c = _parse_curves(self, curves, solver)
-
-        _vol: _Vol = self._parse_vol(vol)
-        del vol
+        c = _parse_curves(self, curves, solver)  # type: ignore[arg-type]
+        v = _parse_vol(self, vol, solver, False)  # type: ignore[call-overload, misc]
+        fx_vol = _get_fx_vol(True, True, *v)
 
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
 
-        fx_vol = _maybe_get_fx_vol_maybe_from_solver(self.kwargs.meta["vol"], _vol, solver)
-        ir_vol = _maybe_get_ir_vol_maybe_from_solver(self.kwargs.meta["vol"], _vol, solver)
+        ir_vol = _maybe_get_ir_vol_maybe_from_solver(self.kwargs.meta["vol"], v[0], solver)
         legs_df = [
             self.legs[0].cashflows(
-                rate_curve=_fetch_pricing_curve("rate_curve", True, True, *c),
-                disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
-                index_curve=_fetch_pricing_curve("index_curve", False, True, *c),
+                rate_curve=_get_curve("rate_curve", True, True, *c),
+                disc_curve=_get_curve("disc_curve", False, True, *c),
+                index_curve=_get_curve("index_curve", False, True, *c),
                 fx=_fx_maybe_from_solver,
                 fx_vol=fx_vol,
                 ir_vol=ir_vol,
@@ -174,9 +171,9 @@ class _WithCashflows(_WithPricingObjs, Protocol):
         if len(self.legs) > 1:
             legs_df.append(
                 self.legs[1].cashflows(
-                    rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
-                    disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
-                    index_curve=_fetch_pricing_curve("leg2_index_curve", False, True, *c),
+                    rate_curve=_get_curve("leg2_rate_curve", True, True, *c),
+                    disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
+                    index_curve=_get_curve("leg2_index_curve", False, True, *c),
                     fx=_fx_maybe_from_solver,
                     fx_vol=fx_vol,
                     settlement=settlement,

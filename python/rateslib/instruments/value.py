@@ -19,11 +19,7 @@ from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import IndexMethod
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
-from rateslib.instruments.protocols.pricing import (
-    _Curves,
-    _fetch_pricing_curve,
-    _parse_curves
-)
+from rateslib.instruments.protocols.pricing import _Curves, _get_curve, _parse_curves
 from rateslib.scheduling import dcf
 
 if TYPE_CHECKING:
@@ -182,11 +178,11 @@ class Value(_BaseInstrument):
 
         effective: datetime = self.kwargs.leg1["effective"]
         if metric_ == "curve_value":
-            curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+            curve = _get_curve("rate_curve", False, False, *c)
             ret: DualTypes = curve[effective]
 
         elif metric_ == "cc_zero_rate":
-            curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+            curve = _get_curve("rate_curve", False, False, *c)
             if curve._base_type != _CurveType.dfs:
                 raise TypeError(
                     "`curve` used with `metric`='cc_zero_rate' must be discount factor based.",
@@ -195,7 +191,7 @@ class Value(_BaseInstrument):
             ret = (dual_log(curve[effective]) / -dcf_) * 100
 
         elif metric_ == "index_value":
-            curve = _fetch_pricing_curve("index_curve", False, False, *c)
+            curve = _get_curve("index_curve", False, False, *c)
             ret = curve.index_value(
                 index_date=effective,
                 index_lag=curve.meta.index_lag,
@@ -203,7 +199,7 @@ class Value(_BaseInstrument):
             )
 
         elif metric_ == "o/n_rate":
-            curve = _fetch_pricing_curve("rate_curve", False, False, *c)
+            curve = _get_curve("rate_curve", False, False, *c)
             ret = curve.rate(effective, "1D")  # type: ignore[assignment]
 
         else:

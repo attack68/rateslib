@@ -22,12 +22,7 @@ from rateslib.curves import Curve
 from rateslib.dual.utils import _dual_float
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
-from rateslib.instruments.protocols.pricing import (
-    _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
-    _Vol
-)
+from rateslib.instruments.protocols.pricing import _Curves, _get_curve, _parse_curves, _Vol
 from rateslib.periods.utils import (
     _maybe_local,
 )
@@ -1223,7 +1218,7 @@ class BondFuture(_BaseInstrument):
         basis of zero and pricing from the cheapest to delivery (CTD).
         """
         c = _parse_curves(self, curves, solver)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
 
         basket: tuple[FixedRateBond, ...] = self.kwargs.meta["basket"]
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()

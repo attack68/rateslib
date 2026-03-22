@@ -8634,7 +8634,7 @@ class TestFXVolValue:
 
     def test_no_solver_vol_value(self) -> None:
         vv = FXVolValue(0.25, vol="string_id")
-        with pytest.raises(ValueError, match="`vol` must contain FXVol object, not str,"):
+        with pytest.raises(ValueError, match="`fx_vol` must contain FXVol object, not str, if"):
             vv.rate()
 
     def test_repr(self):

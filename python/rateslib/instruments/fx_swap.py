@@ -21,9 +21,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_forwards_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import CustomLeg
@@ -436,14 +436,14 @@ class FXSwap(_BaseInstrument):
         nd_leg_: CustomLeg = getattr(self, nd_leg)
 
         # then non-deliverability and fx_fixing are on leg2
-        disc_curve = _fetch_pricing_curve(f"{core_curve}disc_curve", False, False, *c)
+        disc_curve = _get_curve(f"{core_curve}disc_curve", False, False, *c)
         core_npv: DualTypes = core_leg_.npv(  # type: ignore[assignment]
             disc_curve=disc_curve,
             base=self.leg2.settlement_params.currency,
             fx=fx_,
             local=False,
         )
-        nd_disc_curve = _fetch_pricing_curve(f"{nd_curve}disc_curve", False, False, *c)
+        nd_disc_curve = _get_curve(f"{nd_curve}disc_curve", False, False, *c)
         nd_cf1_npv = self.leg2.periods[0].local_npv(disc_curve=nd_disc_curve, fx=fx_)
         net_zero_cf = (core_npv + nd_cf1_npv) / nd_disc_curve[
             nd_leg_.periods[1].settlement_params.payment
