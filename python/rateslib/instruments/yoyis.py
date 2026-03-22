@@ -21,7 +21,7 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
     _Vol,
 )
@@ -415,9 +415,9 @@ class YoYIS(_BaseInstrument):
         metric: str_ = NoInput(0),
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
-        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
-        leg2_index_curve = _fetch_pricing_curve("leg2_index_curve", False, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        leg2_disc_curve = _get_curve("leg2_disc_curve", False, True, *c)
+        leg2_index_curve = _get_curve("leg2_index_curve", False, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
             rate_curve=NoInput(0),
@@ -450,9 +450,9 @@ class YoYIS(_BaseInstrument):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
-        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
-        leg2_index_curve = _fetch_pricing_curve("leg2_index_curve", False, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        leg2_disc_curve = _get_curve("leg2_disc_curve", False, True, *c)
+        leg2_index_curve = _get_curve("leg2_index_curve", False, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
 
         leg1_npv: DualTypes = self.leg1.local_npv(
             rate_curve=NoInput(0),

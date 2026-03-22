@@ -22,9 +22,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_forwards_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import FixedLeg, FloatLeg
@@ -696,10 +696,10 @@ class XCS(_BaseInstrument):
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
 
-        leg2_rate_curve = _fetch_pricing_curve("leg2_rate_curve", True, True, *c)
-        leg2_disc_curve = _fetch_pricing_curve("leg2_disc_curve", False, True, *c)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
+        leg2_rate_curve = _get_curve("leg2_rate_curve", True, True, *c)
+        leg2_disc_curve = _get_curve("leg2_disc_curve", False, True, *c)
+        rate_curve = _get_curve("rate_curve", True, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
 
         metric_ = _drb(self.kwargs.meta["metric"], metric)
         fx_ = _get_fx_forwards_maybe_from_solver(fx=fx, solver=solver)

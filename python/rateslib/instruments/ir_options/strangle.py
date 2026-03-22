@@ -24,9 +24,9 @@ if TYPE_CHECKING:
         CurvesT_,
         DualTypes,
         DualTypes_,
-        FXVolStrat_,
         IRSSeries,
         SwaptionSettlementMethod,
+        VolStrat_,
         VolT_,
         _Vol,
         datetime,
@@ -229,7 +229,7 @@ class IRStrangle(_BaseIROptionStrat):
         self.kwargs.leg1["notional"] = notional_
 
     @classmethod
-    def _parse_vol(cls, vol: FXVolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
+    def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
         return IRPut._parse_vol(vol[0]), IRCall._parse_vol(vol[1])

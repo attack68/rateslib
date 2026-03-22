@@ -22,7 +22,7 @@ from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.bonds.protocols import _WithAccrued
 from rateslib.instruments.protocols.pricing import (
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
 )
 
@@ -153,13 +153,12 @@ class _WithOASpread(_WithAccrued, Protocol):
 
         """
 
-
         if isinstance(price, NoInput):
             raise ValueError("`price` must be supplied in order to derive the `oaspread`.")
 
         c = _parse_curves(self, curves, solver)  # type: ignore[arg-type]
-        disc_curve_ = _fetch_pricing_curve("disc_curve", False, False, *c)
-        rate_curve_ = _fetch_pricing_curve("rate_curve", True, True, *c)
+        disc_curve_ = _get_curve("disc_curve", False, False, *c)
+        rate_curve_ = _get_curve("rate_curve", True, True, *c)
 
         _ad_disc = _maybe_set_ad_order(disc_curve_, 0)
         _ad_fore = _maybe_set_ad_order(rate_curve_, 0)

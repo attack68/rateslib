@@ -20,9 +20,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import CreditPremiumLeg, CreditProtectionLeg
@@ -358,8 +358,8 @@ class CDS(_BaseInstrument):
         c = _parse_curves(self, curves, solver)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
-            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
+            rate_curve=_get_curve("leg2_rate_curve", True, True, *c),
+            disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
@@ -367,8 +367,8 @@ class CDS(_BaseInstrument):
         return (
             self.leg1.spread(
                 target_npv=-leg2_npv,
-                rate_curve=_fetch_pricing_curve("rate_curve", True, True, *c),
-                disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
+                rate_curve=_get_curve("rate_curve", True, True, *c),
+                disc_curve=_get_curve("disc_curve", False, True, *c),
                 index_curve=NoInput(0),
                 settlement=settlement,
                 forward=forward,
@@ -565,8 +565,8 @@ class CDS(_BaseInstrument):
         c = _parse_curves(self, curves, solver)
 
         return self.leg2.analytic_rec_risk(
-            rate_curve=_fetch_pricing_curve("leg2_rate_curve", False, True, *c),
-            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
+            rate_curve=_get_curve("leg2_rate_curve", False, True, *c),
+            disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
             fx=_get_fx_maybe_from_solver(solver=solver, fx=fx),
             base=base,
         )

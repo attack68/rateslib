@@ -20,7 +20,7 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _convert_to_schedule_kwargs, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
+    _get_curve,
     _parse_curves,
     _Vol,
 )
@@ -437,8 +437,8 @@ class IIRS(_BaseInstrument):
         c = _parse_curves(self, curves, solver)
 
         leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
-            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
+            rate_curve=_get_curve("leg2_rate_curve", True, True, *c),
+            disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,
@@ -462,8 +462,8 @@ class IIRS(_BaseInstrument):
             self.leg1.spread(
                 target_npv=-leg2_npv,  # - leg1_npv,
                 rate_curve=NoInput(0),
-                disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
-                index_curve=_fetch_pricing_curve("index_curve", False, True, *c),
+                disc_curve=_get_curve("disc_curve", False, True, *c),
+                index_curve=_get_curve("index_curve", False, True, *c),
                 settlement=settlement,
                 forward=forward,
             )
@@ -485,15 +485,15 @@ class IIRS(_BaseInstrument):
 
         leg1_npv: DualTypes = self.leg1.local_npv(
             rate_curve=NoInput(0),
-            disc_curve=_fetch_pricing_curve("disc_curve", False, True, *c),
-            index_curve=_fetch_pricing_curve("index_curve", False, True, *c),
+            disc_curve=_get_curve("disc_curve", False, True, *c),
+            index_curve=_get_curve("index_curve", False, True, *c),
             settlement=settlement,
             forward=forward,
         )
         return self.leg2.spread(
             target_npv=-leg1_npv,
-            rate_curve=_fetch_pricing_curve("leg2_rate_curve", True, True, *c),
-            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
+            rate_curve=_get_curve("leg2_rate_curve", True, True, *c),
+            disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
             index_curve=NoInput(0),
             settlement=settlement,
             forward=forward,

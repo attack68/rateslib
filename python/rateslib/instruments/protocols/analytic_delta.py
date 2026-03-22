@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Protocol
 
 from rateslib.enums.generics import NoInput
 from rateslib.instruments.protocols.pricing import (
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_forwards_maybe_from_solver,
-    _maybe_get_fx_vol_maybe_from_solver,
-    _Vol,
+    _get_fx_vol,
+    _parse_curves,
+    _parse_vol,
     _WithPricingObjs,
 )
 
@@ -30,7 +30,6 @@ if TYPE_CHECKING:
         FXForwards_,
         Solver_,
         VolT_,
-        _Curves,
         _KWArgs,
         datetime_,
         str_,
@@ -106,22 +105,20 @@ class _WithAnalyticDelta(_WithPricingObjs, Protocol):
         -------
         float, Dual, Dual2, Variable or dict of such indexed by string currency.
         """
-        c = _parse_curves(self, curves, solver)
-
-        _vol: _Vol = self._parse_vol(vol)
-        del vol
+        c = _parse_curves(self, curves, solver)  # type: ignore[arg-type]
+        v = _parse_vol(self, vol, solver, False)  # type: ignore[call-overload, misc]
 
         prefix = "" if leg == 1 else "leg2_"
 
         if hasattr(self, "legs"):
-            rate_curve = _fetch_pricing_curve(f"{prefix}rate_curve", True, True, *c)
-            disc_curve = _fetch_pricing_curve(f"{prefix}disc_curve", False, True, *c)
-            index_curve = _fetch_pricing_curve(f"{prefix}index_curve", False, True, *c)
+            rate_curve = _get_curve(f"{prefix}rate_curve", True, True, *c)
+            disc_curve = _get_curve(f"{prefix}disc_curve", False, True, *c)
+            index_curve = _get_curve(f"{prefix}index_curve", False, True, *c)
             value: DualTypes | dict[str, DualTypes] = self.legs[leg - 1].analytic_delta(
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
                 index_curve=index_curve,
-                fx_vol=_maybe_get_fx_vol_maybe_from_solver(self.kwargs.meta["vol"], _vol, solver),
+                fx_vol=_get_fx_vol(True, True, *v),
                 fx=_get_fx_forwards_maybe_from_solver(fx=fx, solver=solver),
                 base=base,
                 local=local,

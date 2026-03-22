@@ -21,9 +21,9 @@ from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import CustomLeg
@@ -291,8 +291,8 @@ class FXForward(_BaseInstrument):
 
         _: DualTypes = forward_fx(
             date=self.kwargs.leg1["settlement"],
-            curve_domestic=_fetch_pricing_curve("disc_curve", False, False, *c),
-            curve_foreign=_fetch_pricing_curve("leg2_disc_curve", False, False, *c),
+            curve_domestic=_get_curve("disc_curve", False, False, *c),
+            curve_foreign=_get_curve("leg2_disc_curve", False, False, *c),
             fx_rate=imm_fx,
         )
         return _

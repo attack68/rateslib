@@ -16,10 +16,11 @@ from typing import TYPE_CHECKING, Protocol
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _get_fx_maybe_from_solver,
-    _maybe_get_fx_vol_maybe_from_solver,
+    _get_fx_vol,
+    _parse_curves,
+    _parse_vol,
     _WithPricingObjs,
 )
 from rateslib.periods.utils import _maybe_fx_converted
@@ -31,9 +32,7 @@ if TYPE_CHECKING:
         FXForwards_,
         Solver_,
         VolT_,
-        _Curves,
         _SettlementParams,
-        _Vol,
         datetime_,
         str_,
     )
@@ -144,13 +143,11 @@ class _WithNPV(_WithPricingObjs, Protocol):
         # specific to that instrument
         assert hasattr(self, "legs")  # noqa: S101
 
-        c = _parse_curves(self, curves, solver)
-
-        _vol: _Vol = self._parse_vol(vol)
-        del vol
+        c = _parse_curves(self, curves, solver)  # type: ignore[arg-type]
+        v = _parse_vol(self, vol, solver, False)  # type: ignore[call-overload, misc]
+        fx_vol = _get_fx_vol(True, True, *v)
 
         _fx_maybe_from_solver = _get_fx_maybe_from_solver(fx=fx, solver=solver)
-        fx_vol = _maybe_get_fx_vol_maybe_from_solver(self.kwargs.meta["vol"], _vol, solver)
 
         local_npv: dict[str, DualTypes] = {}
         for leg, names in zip(
@@ -162,9 +159,9 @@ class _WithNPV(_WithPricingObjs, Protocol):
             strict=False,
         ):
             leg_local_npv = leg.local_npv(
-                rate_curve=_fetch_pricing_curve(names[0], True, True, *c),
-                disc_curve=_fetch_pricing_curve(names[1], False, True, *c),
-                index_curve=_fetch_pricing_curve(names[2], False, True, *c),
+                rate_curve=_get_curve(names[0], True, True, *c),
+                disc_curve=_get_curve(names[1], False, True, *c),
+                index_curve=_get_curve(names[2], False, True, *c),
                 fx=_fx_maybe_from_solver,
                 fx_vol=fx_vol,
                 settlement=settlement,
@@ -178,10 +175,10 @@ class _WithNPV(_WithPricingObjs, Protocol):
         if not local:
             single_value: DualTypes = 0.0
             base_ = _drb(self.settlement_params.currency, base)
-            for k, v in local_npv.items():
+            for k_, v_ in local_npv.items():
                 single_value += _maybe_fx_converted(
-                    value=v,
-                    currency=k,
+                    value=v_,
+                    currency=k_,
                     fx=_fx_maybe_from_solver,
                     base=base_,
                     forward=forward,

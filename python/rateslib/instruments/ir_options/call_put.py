@@ -29,9 +29,9 @@ from rateslib.instruments.irs import IRS
 from rateslib.instruments.protocols import _BaseInstrument, _KWArgs
 from rateslib.instruments.protocols.pricing import (
     _Curves,
-    _fetch_pricing_curve,
-    _parse_curves,
+    _get_curve,
     _maybe_get_ir_vol_maybe_from_solver,
+    _parse_curves,
     _Vol,
 )
 from rateslib.legs import CustomLeg
@@ -159,9 +159,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         float, Dual, Dual2
         """
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, False, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+        rate_curve = _get_curve("rate_curve", True, False, *c)
+        disc_curve = _get_curve("disc_curve", False, False, *c)
+        index_curve = _get_curve("index_curve", False, False, *c)
 
         _vol = self._parse_vol(vol)
 
@@ -490,9 +490,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         metric: IROptionMetric | str_ = NoInput(0),
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, False, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+        rate_curve = _get_curve("rate_curve", True, False, *c)
+        disc_curve = _get_curve("disc_curve", False, False, *c)
+        index_curve = _get_curve("index_curve", False, False, *c)
 
         _vol = self._parse_vol(vol)
         del vol
@@ -543,9 +543,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
     ) -> DualTypes | dict[str, DualTypes]:
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+        rate_curve = _get_curve("rate_curve", True, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
+        index_curve = _get_curve("index_curve", False, True, *c)
 
         _vol = self._parse_vol(vol)
         del vol
@@ -581,7 +581,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             forward=forward,
         )
         prem_npv = self._premium.npv(
-            disc_curve=_fetch_pricing_curve("leg2_disc_curve", False, True, *c),
+            disc_curve=_get_curve("leg2_disc_curve", False, True, *c),
             fx=fx,
             base=base_,
             local=local,
@@ -605,9 +605,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, True, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, True, *c)
+        rate_curve = _get_curve("rate_curve", True, True, *c)
+        disc_curve = _get_curve("disc_curve", False, True, *c)
+        index_curve = _get_curve("index_curve", False, True, *c)
 
         _vol = self._parse_vol(vol)
         del vol
@@ -659,9 +659,9 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         Mechanics to determine (x,y) coordinates for payoff at expiry plot.
         """
         c = _parse_curves(self, curves, solver)
-        rate_curve = _fetch_pricing_curve("rate_curve", True, True, *c)
-        disc_curve = _fetch_pricing_curve("disc_curve", False, False, *c)
-        index_curve = _fetch_pricing_curve("index_curve", False, False, *c)
+        rate_curve = _get_curve("rate_curve", True, True, *c)
+        disc_curve = _get_curve("disc_curve", False, False, *c)
+        index_curve = _get_curve("index_curve", False, False, *c)
 
         _vol = self._parse_vol(vol)
         del vol

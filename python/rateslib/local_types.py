@@ -214,7 +214,7 @@ IRVol_: TypeAlias = "IRVol | NoInput"
 
 VolT: TypeAlias = "IRVol | FXVol | _Vol"
 VolT_: TypeAlias = "VolT | NoInput"
-FXVolStrat_: TypeAlias = "Sequence[FXVolStrat_] | VolT | NoInput"
+
 VolStrat_: TypeAlias = "Sequence[VolStrat_] | VolT | NoInput"
 SeqVolT_: TypeAlias = "Sequence[VolT_]"
 
