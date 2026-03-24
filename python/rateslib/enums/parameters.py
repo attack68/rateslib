@@ -188,6 +188,26 @@ def _get_leg_mtm(leg_mtm: str | LegMtm) -> LegMtm:
             )
 
 
+_LEG_INDEX_BASE_MAP = {
+    "initial": LegIndexBase.Initial,
+    "periodonperiod": LegIndexBase.PeriodOnPeriod,
+    "period_on_period": LegIndexBase.PeriodOnPeriod,
+}
+
+
+def _get_leg_index_base(leg_index: str | LegIndexBase) -> LegIndexBase:
+    if isinstance(leg_index, LegIndexBase):
+        return leg_index
+    else:
+        try:
+            return _LEG_INDEX_BASE_MAP[leg_index.lower()]
+        except KeyError:
+            raise ValueError(
+                f"`leg_index_base` as string: '{leg_index}' is not a valid option. "
+                f"Please consult docs."
+            )
+
+
 _INDEX_METHOD_MAP = {
     "daily": IndexMethod.Daily,
     "monthly": IndexMethod.Monthly,

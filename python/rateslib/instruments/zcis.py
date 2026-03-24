@@ -24,7 +24,8 @@ from rateslib.instruments.protocols.pricing import (
     _parse_curves,
     _Vol,
 )
-from rateslib.legs import ZeroFixedLeg, ZeroIndexLeg
+from rateslib.legs import FixedLeg, ZeroFixedLeg
+from rateslib.scheduling import Frequency
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -215,8 +216,9 @@ class ZCIS(_BaseInstrument):
 
            The following are **meta parameters**.
 
-    curves : XXX
-        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument.
+    curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
+        Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
+        **Pricing**.
     spec: str, :green:`optional`
         A collective group of parameters. See
         :ref:`default argument specifications <defaults-arg-input>`.
@@ -242,7 +244,7 @@ class ZCIS(_BaseInstrument):
         return self._leg1
 
     @property
-    def leg2(self) -> ZeroIndexLeg:
+    def leg2(self) -> FixedLeg:
         """The :class:`~rateslib.legs.ZeroFloatLeg` of the *Instrument*."""
         return self._leg2
 
@@ -271,7 +273,7 @@ class ZCIS(_BaseInstrument):
         convention: str_ = NoInput(0),
         leg2_effective: datetime_ = NoInput(1),
         leg2_termination: datetime | str_ = NoInput(1),
-        leg2_frequency: Frequency | str_ = NoInput(1),
+        # leg2_frequency: Frequency | str_ = NoInput(1),
         leg2_stub: str_ = NoInput(1),
         leg2_front_stub: datetime_ = NoInput(1),
         leg2_back_stub: datetime_ = NoInput(1),
@@ -305,7 +307,7 @@ class ZCIS(_BaseInstrument):
             termination=termination,
             leg2_termination=leg2_termination,
             frequency=frequency,
-            leg2_frequency=leg2_frequency,
+            # leg2_frequency=leg2_frequency,
             stub=stub,
             leg2_stub=leg2_stub,
             front_stub=front_stub,
@@ -347,7 +349,10 @@ class ZCIS(_BaseInstrument):
             initial_exchange=False,
             final_exchange=False,
             leg2_initial_exchange=False,
-            leg2_final_exchange=False,
+            leg2_final_exchange=True,
+            leg2_index_only=True,
+            leg2_fixed_rate=0.0,
+            leg2_frequency=Frequency.Zero(),
             vol=_Vol(),
         )
 
@@ -366,7 +371,7 @@ class ZCIS(_BaseInstrument):
         )
 
         self._leg1 = ZeroFixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg1, 1))
-        self._leg2 = ZeroIndexLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
+        self._leg2 = FixedLeg(**_convert_to_schedule_kwargs(self.kwargs.leg2, 1))
         self._legs = [self.leg1, self.leg2]
 
     def rate(
