@@ -90,7 +90,6 @@ from rateslib.legs import FixedLeg as FixedLeg
 from rateslib.legs import FloatLeg as FloatLeg
 from rateslib.legs import ZeroFixedLeg as ZeroFixedLeg
 from rateslib.legs import ZeroFloatLeg as ZeroFloatLeg
-from rateslib.legs import ZeroIndexLeg as ZeroIndexLeg
 from rateslib.legs.protocols import _BaseLeg as _BaseLeg
 from rateslib.periods import Cashflow as Cashflow
 from rateslib.periods import CreditPremiumPeriod as CreditPremiumPeriod

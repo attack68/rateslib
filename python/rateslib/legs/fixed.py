@@ -40,7 +40,6 @@ from rateslib.rs import LegIndexBase
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
-        Any,
         CurveOption_,
         DualTypes,
         DualTypes_,
@@ -889,9 +888,9 @@ class ZeroFixedLeg(_BaseLeg):
         to non-deliverability.
         Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
         See also :ref:`fixings <fixings-doc>`.
-    mtm: bool, :green:`optional (set to False)`
-        Define whether the non-deliverability depends on a single
-        :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
+    mtm: LegMtm or str, :green:`optional (set to 'initial')`
+        Define how the fixing dates are determined for each :class:`~rateslib.data.fixings.FXFixing`
+        See **Notes** regarding non-deliverability. *XCS* is not allowed on a *Zero* type *Leg*.
         Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
 
         .. note::
@@ -961,7 +960,7 @@ class ZeroFixedLeg(_BaseLeg):
         # non-deliverable
         pair: FXIndex | str_ = NoInput(0),
         fx_fixings: LegFixings = NoInput(0),
-        mtm: bool = False,
+        mtm: LegMtm | str_ = NoInput(0),
         # index params
         index_base: DualTypes_ = NoInput(0),
         index_lag: int_ = NoInput(0),
@@ -969,6 +968,11 @@ class ZeroFixedLeg(_BaseLeg):
         index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
         index_only: bool = False,
     ) -> None:
+        mtm_ = _get_leg_mtm(_drb("initial", mtm))
+        del mtm
+        if mtm_ is LegMtm.XCS:
+            raise ValueError("`mtm` cannot be XCS variant for a ZeroFixedLeg type.")
+
         self._schedule = schedule
         if self.schedule.frequency == "Z":
             raise ValueError(
@@ -1017,8 +1021,10 @@ class ZeroFixedLeg(_BaseLeg):
                 ex_dividend=self.schedule.pschedule3[-1],
                 # non-deliverable
                 pair=pair,
-                fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
-                delivery=self.schedule.pschedule2[0] if not mtm else self.schedule.pschedule2[-2],
+                fx_fixings=fx_fixings_[0] if mtm_ is LegMtm.Initial else fx_fixings_[-1],
+                delivery=self.schedule.pschedule2[0]
+                if mtm_ is LegMtm.Initial
+                else self.schedule.pschedule2[-1],
                 # index parameters
                 index_base=index_base,
                 index_lag=index_lag,
@@ -1043,7 +1049,7 @@ class ZeroFixedLeg(_BaseLeg):
                 pair=pair,
                 fx_fixings=fx_fixings_[0],
                 delivery=self.schedule.pschedule2[0]
-                if (not mtm or final_exchange)
+                if mtm_ is LegMtm.Initial
                 else self.schedule.pschedule2[-1],
                 # index params
                 index_base=index_base,
@@ -1127,249 +1133,6 @@ class ZeroFixedLeg(_BaseLeg):
 
         R = ((-target_cashflow / N + 1) ** (1 / (d * f)) - 1) * f * 10000.0
         return R
-
-
-class ZeroIndexLeg(_BaseLeg):
-    """
-    A *Leg* composed of *indexed* :class:`~rateslib.periods.Cashflow` at termination,
-    and possibly effective.
-
-    .. rubric:: Examples
-
-    .. ipython:: python
-       :suppress:
-
-       from rateslib.legs import ZeroIndexLeg
-       from rateslib.scheduling import Schedule
-       from datetime import datetime as dt
-       from pandas import Series
-
-    .. ipython:: python
-
-       fixings.add("CPI_UK", Series(index=[dt(2000, 1, 1), dt(2002, 1, 1)], data=[100.0, 115.0]))
-       zil = ZeroIndexLeg(
-           schedule=Schedule(
-                effective=dt(2000, 2, 1),
-                termination=dt(2002, 2, 1),
-                frequency="Z",
-           ),
-           index_lag=1,
-           index_fixings="CPI_UK",
-           notional=10e6,
-       )
-       zil.cashflows()
-
-    .. ipython:: python
-       :suppress:
-
-       fixings.pop("CPI_UK")
-
-    .. role:: red
-
-    .. role:: green
-
-    Parameters
-    ----------
-    schedule: Schedule, :red:`required`
-        The :class:`~rateslib.scheduling.Schedule` object which structures contiguous *Periods*.
-        The schedule object also contains data for payment dates, payment dates for notional
-        exchanges and ex-dividend dates for each period. Only the start and end of the schedule are
-        relevant for this *Zero* type *Leg*.
-
-        .. note::
-
-           The following define generalised **settlement** parameters.
-
-    currency : str, :green:`optional (set by 'defaults')`
-        The local settlement currency of the leg (3-digit code).
-    notional : float, Dual, Dual2, Variable, :green:`optional (set by 'defaults')`
-        The initial leg notional, defined in units of *reference currency*.
-    initial_exchange : bool, :green:`optional (set as False)`
-        Whether to also include an initial notional exchange. If *True* then ``final_exchange``
-        **will** also be set to *True*.
-    final_exchange : bool, :green:`optional (set as initial_exchange)`
-        Whether to also include a final notional exchange and interim amortization
-        notional exchanges.
-
-    .. note::
-
-           The following are **period parameters** combined with the ``schedule``.
-
-    convention: str, :green:`optional (set by 'defaults')`
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
-
-        .. note::
-
-           The following define **non-deliverable** parameters. If the *Leg* is directly
-           deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
-
-    pair: FXIndex, str, :green:`optional`
-        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
-        defining the currency pair that determines *Period*
-        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
-    fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
-        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability.
-        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`,
-        and see also :ref:`fiixngs <fixings-doc>`.
-    mtm: bool, :green:`optional (set to False)`
-        Define whether the non-deliverability depends on a single
-        :class:`~rateslib.data.fixings.FXFixing` defined at the start of the *Leg*, or the end.
-        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`.
-
-        .. note::
-
-           The following parameters define **indexation**. The *Period* will be considered
-           indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
-           are given.
-
-    index_method : IndexMethod, str, :green:`optional (set by 'defaults')`
-        The interpolation method, or otherwise, to determine index values from reference dates.
-    index_lag: int, :green:`optional (set by 'defaults')`
-        The indexation lag, in months, applied to the determination of index values.
-    index_base: float, Dual, Dual2, Variable, :green:`optional`
-        The specific value applied as the base index value for all *Periods*.
-        If not given and ``index_fixings`` is a string fixings identifier that will be
-        used to determine the base index value.
-    index_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
-        The index value for the reference date.
-        Best practice is to supply this value as string identifier relating to the global
-        ``fixings`` object. See also :ref:`fixings <fixings-doc>`.
-
-    Notes
-    -----
-    A :class:`~rateslib.legs.ZeroIndexLeg` contains, at most, two
-    :class:`~rateslib.periods.Cashflow`. Three structures can be configured:
-
-    - One cashflow consisting of only the **indexed amount** relating to some notional value (
-      ``initial_exchange`` and ``final_exchange`` are both *False*)
-    - One cashflow consisting of a notional amount **plus its indexed amount** (``final_exchange``
-      is *True*)
-    - Two cashflows (of opposite directions) exchanging notionals (``initial_exchange`` and
-      ``final_exchange`` are both *True*)
-
-    **Non-deliverability**
-
-    Non-deliverability behaves in the same way as a :class:`~rateslib.legs.FixedLeg`.
-    If ``mtm`` is *False* then a single :class:`~rateslib.data.fixings.FXFixing` defined by
-    the ``effective`` date or an agreed transactional value is used for all cashflows.
-
-    With notional exchanges this same principle applies, since there are only upto two cashflows.
-
-    Without notional exchanges and setting ``mtm`` to *True* allows the
-    :class:`~rateslib.data.fixings.FXFixing` to have a delivery date equal to the future payment
-    date of the cashflow.
-
-    """
-
-    @property
-    def settlement_params(self) -> _SettlementParams:
-        """The :class:`~rateslib.periods.parameters._SettlementParams` associated with
-        the :class:`~rateslib.periods.Cashflow` at maturity."""
-        return self._regular_periods[0].settlement_params
-
-    @cached_property
-    def periods(self) -> list[_BasePeriod]:
-        """A list of all contained *Periods*."""
-        periods_: list[_BasePeriod] = []
-
-        if self._exchange_periods[0] is not None:
-            periods_.append(self._exchange_periods[0])
-        periods_.extend(self._regular_periods)
-
-        return periods_
-
-    @property
-    def schedule(self) -> Schedule:
-        """The :class:`~rateslib.scheduling.Schedule` object of *Leg*."""
-        return self._schedule
-
-    @property
-    def amortization(self) -> Amortization:
-        """
-        The :class:`~rateslib.legs.Amortization` object associated with the schedule.
-        """
-        return self._amortization
-
-    def __init__(
-        self,
-        schedule: Schedule,
-        *,
-        # period
-        convention: str_ = NoInput(0),
-        # settlement and currency
-        notional: DualTypes_ = NoInput(0),
-        currency: str_ = NoInput(0),
-        initial_exchange: bool = False,
-        final_exchange: bool = False,
-        # non-deliverable
-        pair: FXIndex | str_ = NoInput(0),
-        fx_fixings: LegFixings = NoInput(0),
-        mtm: bool = False,
-        # index params
-        index_base: DualTypes_ = NoInput(0),
-        index_lag: int_ = NoInput(0),
-        index_method: IndexMethod | str_ = NoInput(0),
-        index_fixings: Series[DualTypes] | str_ = NoInput(0),  # type: ignore[type-var]
-    ) -> None:
-        self._schedule = schedule
-        self._notional: DualTypes = _drb(defaults.notional, notional)
-        self._currency: str = _drb(defaults.base_currency, currency).lower()
-        self._convention: str = _drb(defaults.convention, convention)
-        self._amortization = Amortization(n=self.schedule.n_periods, initial=self._notional)
-
-        index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
-        fx_fixings_ = _leg_fixings_to_list(fx_fixings, self.schedule.n_periods)
-
-        # Exchange periods
-        if not initial_exchange:
-            _ini_cf: Cashflow | None = None
-        else:
-            _ini_cf = Cashflow(
-                payment=self.schedule.pschedule2[0],
-                notional=-self._amortization.outstanding[0],
-                currency=self._currency,
-                ex_dividend=self.schedule.pschedule3[0],
-                # non-deliverable
-                pair=pair,
-                fx_fixings=fx_fixings_[0],
-                delivery=self.schedule.pschedule2[0],
-                # index params
-                index_base=index_base,
-                index_lag=index_lag,
-                index_method=index_method,
-                index_fixings=index_fixings_[0],
-                index_base_date=self.schedule.aschedule[0],
-                index_reference_date=self.schedule.aschedule[0],
-                index_only=False,  #  is only True if there is not final exchange
-            )
-        final_exchange_ = final_exchange or initial_exchange
-        _final_cf = Cashflow(
-            payment=self.schedule.pschedule2[-1],
-            notional=self._amortization.outstanding[-1],
-            currency=self._currency,
-            ex_dividend=self.schedule.pschedule3[-1],
-            # non-deliverable
-            pair=pair,
-            fx_fixings=fx_fixings_[0] if not mtm else fx_fixings_[-1],
-            delivery=self.schedule.pschedule2[-1]
-            if (mtm and not final_exchange_)
-            else self.schedule.pschedule2[0],
-            # index parameters
-            index_base=index_base,
-            index_lag=index_lag,
-            index_method=index_method,
-            index_fixings=index_fixings_[0],
-            index_base_date=self.schedule.aschedule[0],
-            index_reference_date=self.schedule.aschedule[-1],
-            index_only=not final_exchange_,
-        )
-        self._exchange_periods = (_ini_cf,)
-        self._regular_periods = (_final_cf,)
-
-    def spread(self, *args: Any, **kwargs: Any) -> DualTypes:
-        return super().spread(*args, **kwargs)  # type: ignore[safe-super]
 
 
 def _fx_delivery(

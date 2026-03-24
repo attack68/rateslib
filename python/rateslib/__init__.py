@@ -146,7 +146,6 @@ from rateslib.legs import (
     FloatLeg,
     ZeroFixedLeg,
     ZeroFloatLeg,
-    ZeroIndexLeg,
 )
 from rateslib.periods import (
     Cashflow,
@@ -305,7 +304,6 @@ __all__ = [
     "FloatLeg",
     "ZeroFloatLeg",
     "ZeroFixedLeg",
-    "ZeroIndexLeg",
     "CustomLeg",
     "CreditPremiumLeg",
     "CreditProtectionLeg",
