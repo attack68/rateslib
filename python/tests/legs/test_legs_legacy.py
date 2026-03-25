@@ -1160,6 +1160,49 @@ class TestFloatLeg:
         )
         assert abs(result - expected) < 1e-10
 
+    def test_leg_index_base_period_on_period(self):
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
+                frequency="M",
+                calendar="all",
+            ),
+            index_fixings="some",
+            index_lag=0,
+            index_base_type=LegIndexBase.PeriodOnPeriod,
+        )
+        assert fl.periods[0].index_params.index_base.date == dt(2000, 1, 7)
+        assert fl.periods[1].index_params.index_base.date == dt(2000, 2, 7)
+
+    def test_index_only_all_periods(self, curve):
+        name = str(hash(os.urandom(2)))
+        fixings.add(
+            name,
+            Series(index=[dt(2022, 1, 1), dt(2022, 2, 1), dt(2022, 3, 1)], data=[1.0, 1.1, 1.3]),
+        )
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2022, 1, 7),
+                termination=dt(2022, 3, 7),
+                frequency="M",
+                calendar="all",
+            ),
+            index_fixings=name,
+            index_lag=0,
+            index_method="monthly",
+            index_base_type=LegIndexBase.PeriodOnPeriod,
+            initial_exchange=True,
+            index_only=True,
+        )
+        result = fl.cashflows(rate_curve=curve, disc_curve=curve)
+
+        # the rates are approximately 4% and in each period inflation increases around 10% and 20%.
+        # this means the `index only` amount of each cashflows are approximately below:
+        expected = [0.0, -346.7781, -569.3935, -181818.1818]
+        for i in range(4):
+            assert abs(result.loc[i, "Cashflow"] - expected[i]) < 1e-2
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve) -> None:

@@ -54,6 +54,7 @@ from rateslib.instruments import (
     IRPut,
     IRStraddle,
     IRVolValue,
+    Loan,
     Portfolio,
     Spread,
     STIRFuture,
@@ -69,7 +70,7 @@ from rateslib.instruments.protocols.pricing import (
     _Vol,
 )
 from rateslib.legs import Amortization
-from rateslib.periods import ZeroFloatPeriod
+from rateslib.periods import Cashflow, ZeroFloatPeriod
 from rateslib.scheduling import Adjuster, NamedCal, Schedule, add_tenor, get_imm
 from rateslib.solver import Solver
 from rateslib.volatility import (
@@ -9466,3 +9467,191 @@ class TestFee:
         result = fee.npv(curves=curve)
         fixings.pop(name)
         assert abs(result + curve[dt(2022, 3, 1)] * 2e6 * 1.5 / 1.1) < 1e-7
+
+
+class TestLoan:
+    # init
+
+    def test_date_and_attributes(self):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+        )
+        assert loan.settlement_params.notional == 2e6
+        assert loan.settlement_params.ex_dividend == dt(2022, 3, 30)
+        assert loan.settlement_params.currency == "eur"
+        assert isinstance(loan.leg1.periods[0], Cashflow)
+        assert isinstance(loan.leg1.periods[-1], Cashflow)
+
+    # protocols
+
+    def test_npv(self, curve):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+            fixed_rate=10.0,
+        )
+        result = loan.npv(curves=curve)
+        assert abs(result + 117558.44166647314) < 1e-7
+
+    @pytest.mark.parametrize(("metric", "exp"), [("npv", 0.0)])
+    def test_rate(self, curve, metric, exp):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+            fixed=False,
+        )
+        result = loan.rate(curves=curve, metric=metric)
+        assert abs(result - exp) < 1e-2
+
+    def test_analytic_delta(self, curve):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=10e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+        )
+        result = loan.analytic_delta(curves=curve)
+        assert abs(result - 985.608939) < 1e-2
+
+    def test_cashflows(self, curve):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=10e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+            fixed_rate=10.0,
+        )
+        result = loan.cashflows(curves=curve)
+        assert isinstance(result, DataFrame)
+
+    def test_fixings(self, curve):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=10e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=2,
+            currency="EUR",
+            fixed=False,
+        )
+        result = loan.local_analytic_rate_fixings(curves=curve)
+        assert isinstance(result, DataFrame)
+
+    def test_non_deliverable(self, curve):
+        name = str(hash(os.urandom(2)))
+        fixings.add(name + "_eurusd", Series(index=[dt(2021, 12, 30)], data=[1.50]))
+        loan = Loan(
+            dt(2022, 1, 1),
+            "3m",
+            "Q",
+            notional=1e6,
+            calendar="all",
+            payment_lag=0,
+            ex_div=2,
+            currency="usd",
+            pair="eurusd",
+            fx_fixings=name,
+            fixed_rate=0.0,
+        )
+        result = loan.npv(curves=curve)
+        fixings.pop(name + "_eurusd")
+        assert abs(result + curve[dt(2022, 4, 1)] * 1e6 * 1.5 - 1.5e6) < 1e-7
+        assert loan.settlement_params.currency == "usd"
+        assert loan.settlement_params.notional_currency == "eur"
+
+    def test_indexation(self, curve):
+        name = str(hash(os.urandom(2)))
+        fixings.add(name, Series(index=[dt(2022, 2, 1), dt(2022, 3, 1)], data=[1.10, 1.50]))
+        loan = Loan(
+            dt(2022, 2, 1),
+            "1m",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=0,
+            currency="EUR",
+            index_lag=0,
+            index_method="monthly",
+            index_fixings=name,
+            fixed_rate=0.0,
+        )
+        result = loan.npv(curves=curve)
+        expected = 2e6 * (curve[dt(2022, 2, 1)] - curve[dt(2022, 3, 1)] * 1.5 / 1.1)
+        fixings.pop(name)
+        assert abs(result - expected) < 1e-7
+
+    @pytest.mark.skip(reason="metric not implemented")
+    @pytest.mark.parametrize(
+        ("settlement", "exp"),
+        [(NoInput(0), 4.058910928323769), (dt(2022, 4, 5), 4.058910928323769)],
+    )
+    def test_metric_fixed_rate(self, settlement, exp, curve):
+        loan = Loan(
+            dt(2022, 1, 1),
+            "1y",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            payment_lag=0,
+            ex_div=0,
+            currency="EUR",
+        )
+        result = loan.rate(curves=curve, metric="fixed_rate")
+        assert abs(result - exp) < 1e-7
+
+    @pytest.mark.skip(reason="metric not implemented")
+    @pytest.mark.parametrize(
+        ("settlement", "exp"),
+        [
+            (NoInput(0), 4.058910928323769),
+            # (dt(2022, 4, 5), 4.058910928323769)
+        ],
+    )
+    def test_metric_float_spread(self, settlement, exp, curve):
+        disc_curve = curve.shift(0.0)
+        loan = Loan(
+            dt(2022, 1, 3),
+            "1y",
+            "Q",
+            notional=2e6,
+            calendar="tgt",
+            convention="act360",
+            payment_lag=0,
+            ex_div=0,
+            currency="EUR",
+            fixed=False,
+            spread_compound_method="isda_compounding",
+        )
+        _pv = loan.npv(curves=curve)
+        result = loan.rate(curves=[curve, disc_curve], metric="float_spread")
+        assert abs(result - 0.0) < 1e-7
