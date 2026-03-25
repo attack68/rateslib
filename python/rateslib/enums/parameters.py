@@ -21,6 +21,33 @@ if TYPE_CHECKING:
     from typing import NoReturn  # TODO: convert to Never on Python >= 3.11
 
 
+# LegIndexBase.__doc__ = """
+# Enumerable type for placement of ``index_base_date`` on each *Period* within a *Leg*.
+#
+# .. rubric:: Variants
+#
+# .. ipython:: python
+#    :suppress:
+#
+#    from rateslib.rs import LegIndexBase
+#    variants = [item for item in LegIndexBase.__dict__ if \\
+#        "__" != item[:2] and \\
+#        item not in ['to_json'] \
+#    ]
+#
+# .. ipython:: python
+#
+#    variants
+#
+# This is a **simple** enum and does not require initialization with other parameters. For example
+#
+# .. ipython:: python
+#
+#    _ = LegIndexBase.Initial
+#
+# """
+
+
 class OptionType(float, Enum):
     """
     Enumerable type to define option directions.

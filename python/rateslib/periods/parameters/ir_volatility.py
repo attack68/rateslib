@@ -41,7 +41,6 @@ class _IROptionParams:
     _metric: IROptionMetric
     _option_fixing: IRSFixing
     _strike: DualTypes_
-    _currency: str
     _direction: OptionType
 
     def __init__(
@@ -116,12 +115,12 @@ class _IROptionParams:
 
     @property
     def option_fixing(self) -> IRSFixing:
-        """The FX fixing related to settlement of the option."""
+        """The :class:`~rateslib.data.fixings.IRSFixing` related to settlement of the option."""
         return self._option_fixing
 
     @property
     def metric(self) -> IROptionMetric:
-        """The default pricing quoting of the option."""
+        """The default :class:`~rateslib.enums.IROptionMetric` used for the rate of the option."""
         return self._metric
 
     def time_to_expiry(self, now: datetime) -> float:

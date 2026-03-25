@@ -67,6 +67,8 @@ pub enum IROptionMetric {
 }
 
 /// Enumerable type for index base determination on each Period in a Leg.
+///
+/// This is a **simple** enum type and does not require initialization with additional parameters.
 #[pyclass(module = "rateslib.rs", eq, eq_int, hash, frozen, from_py_object)]
 #[derive(Debug, Hash, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub enum LegIndexBase {

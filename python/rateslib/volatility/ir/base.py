@@ -690,14 +690,14 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
         -----------
         k: float, Dual, Dual2, Variable, :red:`required`
             The strike of the option.
-        expiry: datetime, :green:`
+        expiry: datetime, :red:`required`
             The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
+        tenor: datetime, :red:`required`
             The termination date of the underlying *IRS*, required for parameter interpolation.
-        f: float, Dual, Dual2
+        f: float, Dual, Dual2, :green:`optional`
             The forward rate at delivery of the option.
-        curves: _Curves,
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
+        curves: _Curves, :green:`optional`
+            Pricing objects. See **Pricing** notes of an :class:`~rateslib.instruments.IRCall`
             for details of allowed inputs.
 
         Returns
@@ -709,7 +709,8 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
 
     def get_smile(self, expiry: datetime | str, tenor: datetime | str) -> _BaseIRSmile:
         """
-        Given an option strike, expiry and tenor, return the volatility.
+        Return a constructed :class:`~rateslib.volatility._BaseIRSmile` for a given
+        expiry and tenor.
 
         .. role:: red
 
@@ -717,21 +718,14 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
 
         Parameters
         -----------
-        k: float, Dual, Dual2, Variable, :red:`required`
-            The strike of the option.
-        expiry: datetime, :green:`
+        expiry: datetime, str, :red:`required`
             The expiry of the option. Required for temporal interpolation.
-        tenor: datetime, optional
+        tenor: datetime, str, :red:`required`
             The termination date of the underlying *IRS*, required for parameter interpolation.
-        f: float, Dual, Dual2
-            The forward rate at delivery of the option.
-        curves: _Curves,
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
-            for details of allowed inputs.
 
         Returns
         -------
-        _IRVolPricingParams
+        _BaseIRSmile
         """
         expiry_ = _get_ir_expiry(
             eval_date=self.meta.eval_date, irs_series=self.meta.irs_series, expiry=expiry
