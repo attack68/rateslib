@@ -29,12 +29,20 @@ use serde::{Deserialize, Serialize};
 ///    from rateslib.rs import IROptionMetric
 ///    variants = [item for item in IROptionMetric.__dict__ if \
 ///        "__" != item[:2] and \
-///        item not in ['to_json', 'method_param'] \
+///        item not in ['to_json', 'method_param', 'shift'] \
 ///    ]
 ///
 /// .. ipython:: python
 ///
 ///    variants
+///
+/// Note that this is a **complex** enum type and requires initialization with additional parameters
+/// in the case of *BlackVolShift* which requires a positive basis points shift. For example:
+///
+/// .. ipython:: python
+///
+///    metric1 = IROptionMetric.PercentNotional()
+///    metric2 = IROptionMetric.BlackVolShift(100)
 ///
 #[pyclass(module = "rateslib.rs", name = "IROptionMetric", eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]

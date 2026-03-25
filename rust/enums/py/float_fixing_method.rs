@@ -36,6 +36,19 @@ use serde::{Deserialize, Serialize};
 ///
 ///    variants
 ///
+/// Note that this is a **complex** enum type and requires initialization with one integer parameter
+/// in **all** cases except for the *RFRPaymentDelay* and *RFRPaymentDelayAverage* variants (whose
+/// payment dates are defined by the *Schedule* itself). For example:
+///
+/// .. ipython:: python
+///
+///    _ = FloatFixingMethod.RFRPaymentDelay()
+///    _ = FloatFixingMethod.RFRPaymentDelayAverage()
+///    _ = FloatFixingMethod.IBOR(2)         # parameter is the lagged fixing days
+///    _ = FloatFixingMethod.RFRLockout(5)   # parameter is the days locked out (must be greater than 1)
+///    _ = FloatFixingMethod.RFRLookback(5)  # parameter is the shifted number of days
+///    _ = FloatFixingMethod.RFRObservationShift(5)  # parameter is the shifted number of days
+///
 #[pyclass(module = "rateslib.rs", name = "FloatFixingMethod", eq, from_py_object)]
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub(crate) enum PyFloatFixingMethod {
