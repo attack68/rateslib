@@ -48,6 +48,7 @@ from rateslib.instruments.ir_options import (
     _BaseIROptionStrat,
 )
 from rateslib.instruments.irs import IRS
+from rateslib.instruments.loan import Loan
 from rateslib.instruments.ndf import NDF
 from rateslib.instruments.ndxcs import NDXCS
 from rateslib.instruments.portfolio import Portfolio
@@ -87,6 +88,7 @@ __all__ = [
     "BondFuture",
     "Bill",
     "Fee",
+    "Loan",
     # fx options
     "FXPut",
     "FXCall",

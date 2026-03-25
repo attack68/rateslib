@@ -55,6 +55,7 @@ DEFAULTS = dict(
     payment_lag_exchange=0,
     payment_lag_specific={
         "Fee": 0,
+        "Loan": 0,
         "IRS": 2,
         "STIRFuture": 0,
         "IIRS": 2,
@@ -76,6 +77,7 @@ DEFAULTS = dict(
     },
     fixing_method="rfr_payment_delay",
     spread_compound_method="none_simple",
+    index_base_type="initial",
     base_currency="usd",
     fx_delivery_lag=2,
     fx_delta_type="spot",
@@ -566,6 +568,7 @@ class Defaults:
     payment_lag_specific: dict[str, int]
     fixing_method: str
     spread_compound_method: str
+    index_base_type: str
     base_currency: str
     fx_delivery_lag: int
     fx_delta_type: str

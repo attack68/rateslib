@@ -68,12 +68,17 @@ class Fee(_BaseInstrument):
 
     .. rubric:: Pricing
 
-    A *Fee* requires just one *Curve* for discounting.
+    A *Fee* requires just one *Curve* for discounting, unless it is also indexed, in which
+    case it may also require an additional index *Curve*
 
     .. code-block:: python
 
        curves = curve | [curve]           #  a single curve is repeated for all required curves
-       curves = {"disc_curve": disc_curve}  # dict form is explicit
+       curves = [index_curve, disc_curve]  #  two curves given the specific order
+       curves = {  # dict form is explicit
+           "disc_curve": disc_curve,
+           "index_curve": index_curve,
+       }
 
     The concept of *rate* is alien to a *Fee*, and these are not *Instruments* that would
     typically be expected to form part of a *Solver* framework. However, for flexibility,
@@ -282,28 +287,41 @@ class Fee(_BaseInstrument):
     @classmethod
     def _parse_curves(cls, curves: CurvesT_) -> _Curves:
         """
-        A Value requires only one 1 curve, which is set as all element values
+        A Value requires only one 1 curve, if not indexed, which is set as all element values.
+
+        If the fee is indexed then an `index_curve` may be required.
         """
         if isinstance(curves, NoInput):
             return _Curves()
         elif isinstance(curves, dict):
             return _Curves(
                 disc_curve=curves.get("disc_curve", NoInput(0)),
+                index_curve=_drb(
+                    curves.get("disc_curve", NoInput(0)),
+                    curves.get("index_curve", NoInput(0)),
+                ),
             )
         elif isinstance(curves, list | tuple):
-            if len(curves) != 1:
+            if len(curves) == 1:
                 return _Curves(
                     disc_curve=curves[0],
+                    index_curve=curves[0],
+                )
+            elif len(curves) == 2:
+                return _Curves(
+                    disc_curve=curves[1],
+                    index_curve=curves[0],
                 )
             else:
                 raise ValueError(
-                    f"{type(cls).__name__} requires only 1 curve type. Got {len(curves)}."
+                    f"{type(cls).__name__} requires upto 2 curve type. Got {len(curves)}."
                 )
         elif isinstance(curves, _Curves):
             return curves
         else:  # `curves` is just a single input
             return _Curves(
                 disc_curve=curves,  # type: ignore[arg-type]
+                index_curve=curves,  # type: ignore[arg-type]
             )
 
     def rate(

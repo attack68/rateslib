@@ -23,9 +23,11 @@ from rateslib.dual import ift_1dim
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import (
     FloatFixingMethod,
+    LegIndexBase,
     LegMtm,
     SpreadCompoundMethod,
     _get_float_fixing_method,
+    _get_leg_index_base,
     _get_leg_mtm,
 )
 from rateslib.legs.amortization import Amortization, _AmortizationType, _get_amortization
@@ -101,6 +103,14 @@ class FloatLeg(_BaseLeg, _WithExDiv):
 
         .. note::
 
+           The following are **period parameters** combined with the ``schedule``.
+
+    convention: str, :green:`optional (set by 'defaults')`
+        The day count convention applied to calculations of period accrual dates.
+        See :meth:`~rateslib.scheduling.dcf`.
+
+        .. note::
+
            The following define generalised **settlement** parameters.
 
     currency : str, :green:`optional (set by 'defaults')`
@@ -117,37 +127,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     final_exchange : bool, :green:`optional (set as initial_exchange)`
         Whether to also include a final notional exchange and interim amortization
         notional exchanges.
-
-        .. note::
-
-           The following define **non-deliverable** parameters. If the *Leg* is directly
-           deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
-
-    pair: FXIndex, str, :green:`optional`
-        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
-        defining the currency pair that determines *Period*
-        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
-    fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
-        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
-        to non-deliverability.
-        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`, and
-        see also :ref:`fixings <fixings-doc>`.
-        This should only ever be entered as either:
-
-        - scalar value: 1.15,
-        - fixings series: "Reuters_ZBS",
-        - tuple of transaction rate and fixing series: (1.25, "Reuters_ZBC")
-    mtm: LegMtm or str, :green:`optional (set to 'initial')`
-        Define how the fixing dates are determined for each :class:`~rateslib.data.fixings.FXFixing`
-        See **Notes** regarding non-deliverability.
-
-        .. note::
-
-           The following are **period parameters** combined with the ``schedule``.
-
-    convention: str, :green:`optional (set by 'defaults')`
-        The day count convention applied to calculations of period accrual dates.
-        See :meth:`~rateslib.scheduling.dcf`.
 
         .. note::
 
@@ -180,6 +159,29 @@ class FloatLeg(_BaseLeg, _WithExDiv):
 
         .. note::
 
+           The following define **non-deliverable** parameters. If the *Leg* is directly
+           deliverable then do not set a non-deliverable ``pair`` or any ``fx_fixings``.
+
+    pair: FXIndex, str, :green:`optional`
+        The :class:`~rateslib.data.fixings.FXIndex` for :class:`~rateslib.data.fixings.FXFixing`
+        defining the currency pair that determines *Period*
+        settlement. The *reference currency* is implied from ``pair``. Must include ``currency``.
+    fx_fixings: float, Dual, Dual2, Variable, Series, str, 2-tuple or list, :green:`optional`
+        The value of the :class:`~rateslib.data.fixings.FXFixing` for each *Period* according
+        to non-deliverability.
+        Review the **notes** section non-deliverability on a :class:`~rateslib.legs.FixedLeg`, and
+        see also :ref:`fixings <fixings-doc>`.
+        This should only ever be entered as either:
+
+        - scalar value: 1.15,
+        - fixings series: "Reuters_ZBS",
+        - tuple of transaction rate and fixing series: (1.25, "Reuters_ZBC")
+    mtm: LegMtm or str, :green:`optional (set to 'initial')`
+        Define how the fixing dates are determined for each :class:`~rateslib.data.fixings.FXFixing`
+        See **Notes** regarding non-deliverability.
+
+        .. note::
+
            The following parameters define **indexation**. The *Period* will be considered
            indexed if any of ``index_method``, ``index_lag``, ``index_base``, ``index_fixings``
            are given.
@@ -199,6 +201,8 @@ class FloatLeg(_BaseLeg, _WithExDiv):
     index_only: bool, :green:`optional (set as False)`
         A flag which indicates that the nominal amount is deducted from the cashflow leaving only
         the indexed up quantity.
+    index_base_type: LegIndexBase, str, :green:`optional (set as 'initial')`
+        A parameter to define how the ``index_base_date`` is set on each period. See notes.
 
     Notes
     -----
@@ -518,6 +522,8 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         index_lag: int_ = NoInput(0),
         index_method: IndexMethod | str_ = NoInput(0),
         index_fixings: LegFixings = NoInput(0),
+        index_only: bool = False,
+        index_base_type: LegIndexBase | str_ = NoInput(0),
     ) -> None:
         zero_periods_ = _drb(False, zero_periods)
         del zero_periods
@@ -538,11 +544,15 @@ class FloatLeg(_BaseLeg, _WithExDiv):
         del currency
         self._convention: str = _drb(defaults.convention, convention)
         del convention
+
         self._mtm = _get_leg_mtm(mtm)
         del mtm
 
         index_fixings_ = _leg_fixings_to_list(index_fixings, self.schedule.n_periods)
         del index_fixings
+
+        index_base_type_ = _get_leg_index_base(_drb(defaults.index_base_type, index_base_type))
+        del index_base_type
 
         # if initial and final exchange with MtM.Payment then there is an extra fixing date
         _mtm_param = 1 if (self._mtm == LegMtm.Payment and initial_exchange) else 0
@@ -569,6 +579,7 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 index_fixings=index_fixings_[0],
                 index_base_date=self.schedule.aschedule[0],
                 index_reference_date=self.schedule.aschedule[0],
+                index_only=index_only,
             )
         final_exchange_ = final_exchange or initial_exchange
         if not final_exchange_:
@@ -593,8 +604,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                 index_lag=index_lag,
                 index_method=index_method,
                 index_fixings=index_fixings_[-1],
-                index_base_date=self.schedule.aschedule[0],
+                index_base_date=self.schedule.aschedule[0]
+                if index_base_type_ is LegIndexBase.Initial
+                else self.schedule.aschedule[-2],
                 index_reference_date=self.schedule.aschedule[-1],
+                index_only=index_only,
             )
         self._exchange_periods = (_ini_cf, _final_cf)
 
@@ -635,8 +649,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self._schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type_ is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self._schedule.aschedule[i + 1],
+                        index_only=index_only,
                     )
                     for i in range(self._schedule.n_periods)
                 ]
@@ -650,6 +667,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                     "constructed from multiple floating rate fixings compounded up.\n"
                     "Therefore more parameters are required to properly specify the scheduling.\n"
                     "See Notes."
+                )
+            if index_base_type_ is LegIndexBase.PeriodOnPeriod:
+                raise ValueError(
+                    "Cannot use `PeriodOnPeriod` LegIndexBase type with a a FloatLeg with "
+                    "`zero_periods` as True."
                 )
             fixing_series_ = _init_float_rate_series(
                 fixing_series=fixing_series,
@@ -705,8 +727,9 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self._schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0],  # PeriodOnPeriod ValueErr above
                         index_reference_date=self._schedule.aschedule[i + 1],
+                        index_only=index_only,
                         # meta
                         metric="simple",  # to ensure correct cals in the cashflow for the Leg
                     )
@@ -738,8 +761,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self._schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type_ is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self._schedule.aschedule[i + 1],
+                        index_only=True,
                     )
                     for i in range(self._schedule.n_periods - 1)
                 ]
@@ -766,8 +792,11 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type_ is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self.schedule.aschedule[i + 1],
+                        index_only=index_only,
                     )
                     for i in range(self.schedule.n_periods - 1)
                 ]
