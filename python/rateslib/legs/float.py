@@ -668,11 +668,6 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                     "Therefore more parameters are required to properly specify the scheduling.\n"
                     "See Notes."
                 )
-            if index_base_type_ is LegIndexBase.PeriodOnPeriod:
-                raise ValueError(
-                    "Cannot use `PeriodOnPeriod` LegIndexBase type with a a FloatLeg with "
-                    "`zero_periods` as True."
-                )
             fixing_series_ = _init_float_rate_series(
                 fixing_series=fixing_series,
                 calendar=self._schedule.calendar,
@@ -727,7 +722,9 @@ class FloatLeg(_BaseLeg, _WithExDiv):
                         index_lag=index_lag,
                         index_method=index_method,
                         index_fixings=index_fixings_[i],
-                        index_base_date=self.schedule.aschedule[0],  # PeriodOnPeriod ValueErr above
+                        index_base_date=self.schedule.aschedule[0]
+                        if index_base_type_ is LegIndexBase.Initial
+                        else self.schedule.aschedule[i],
                         index_reference_date=self._schedule.aschedule[i + 1],
                         index_only=index_only,
                         # meta
