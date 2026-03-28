@@ -1203,6 +1203,22 @@ class TestFloatLeg:
         for i in range(4):
             assert abs(result.loc[i, "Cashflow"] - expected[i]) < 1e-2
 
+    def test_period_on_period_zero_periods(self):
+        fl = FloatLeg(
+            schedule=Schedule(
+                effective=dt(2000, 1, 7),
+                termination=dt(2000, 3, 7),
+                frequency="M",
+                calendar="all",
+            ),
+            zero_periods=True,
+            fixing_frequency="7d",
+            index_base_type=LegIndexBase.PeriodOnPeriod,
+            index_lag=2,
+        )
+        assert fl.periods[0].index_params.index_base.date == dt(2000, 1, 7)
+        assert fl.periods[1].index_params.index_base.date == dt(2000, 2, 7)
+
 
 class TestZeroFloatLeg:
     def test_zero_float_leg_set_float_spread(self, curve) -> None:
