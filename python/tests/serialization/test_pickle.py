@@ -169,7 +169,7 @@ def test_pickle_round_trip_obj_via_equality(obj):
         (Convention.ActActICMA, Convention.ActActICMA, Convention.ActActISDA),
         (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.RFRLookback(2)),
         (FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(2), FloatFixingMethod.IBOR(5)),
-        (IROptionMetric.Cash(), IROptionMetric.Cash(), IROptionMetric.BlackVolShift(200)),
+        (IROptionMetric.Premium(), IROptionMetric.Premium(), IROptionMetric.BlackVolShift(200)),
         (
             IROptionMetric.BlackVolShift(200),
             IROptionMetric.BlackVolShift(200),

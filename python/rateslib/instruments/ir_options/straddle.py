@@ -133,7 +133,7 @@ class _BaseIRSOptionStrat(_BaseIRSOption):
         match type(metric_):
             case IROptionMetric.NormalVol | IROptionMetric.BlackVolShift:
                 weights = self.kwargs.meta["rate_weight_vol"]
-            case IROptionMetric.Cash | IROptionMetric.PercentNotional:
+            case IROptionMetric.Premium | IROptionMetric.PercentNotional:
                 weights = self.kwargs.meta["rate_weight"]
 
         _: DualTypes = 0.0

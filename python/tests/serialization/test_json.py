@@ -82,7 +82,7 @@ from rateslib.splines import PPSplineDual, PPSplineDual2, PPSplineF64
         FloatFixingMethod.RFRLockout(4),
         FloatFixingMethod.RFRLockoutAverage(4),
         FloatFixingMethod.IBOR(2),
-        IROptionMetric.Cash(),
+        IROptionMetric.Premium(),
         IROptionMetric.PercentNotional(),
         IROptionMetric.NormalVol(),
         IROptionMetric.BlackVolShift(25),

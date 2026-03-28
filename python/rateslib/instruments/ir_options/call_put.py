@@ -519,7 +519,7 @@ class _BaseIRSOption(_BaseInstrument, metaclass=ABCMeta):
             metric=metric_,
         )
         if (
-            metric_ in [IROptionMetric.Cash(), IROptionMetric.PercentNotional()]
+            metric_ in [IROptionMetric.Premium(), IROptionMetric.PercentNotional()]
             and self.leg2.settlement_params.payment != self.leg1.settlement_params.payment
         ):
             return (

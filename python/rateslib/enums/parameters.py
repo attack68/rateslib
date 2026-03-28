@@ -370,7 +370,7 @@ def _get_fx_option_metric(method: str | FXOptionMetric) -> FXOptionMetric:
 
 _IR_METRIC_MAP: dict[str, type[IROptionMetric]] = {
     "normal_vol": IROptionMetric.NormalVol,
-    "cash": IROptionMetric.Cash,
+    "premium": IROptionMetric.Premium,
     "percent_notional": IROptionMetric.PercentNotional,
     "black_vol_shift": IROptionMetric.BlackVolShift,
     # aliases

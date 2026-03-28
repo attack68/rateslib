@@ -414,7 +414,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
             ir_vol=ir_vol,
         )
 
-        if metric_ == IROptionMetric.Cash():
+        if metric_ == IROptionMetric.Premium():
             return cash
         elif metric_ == IROptionMetric.PercentNotional():
             return cash / self.settlement_params.notional * 100.0
