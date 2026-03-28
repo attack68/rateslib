@@ -765,9 +765,9 @@ class _WithAnalyticIROptionGreeks(Protocol):
 
         _["__notional"] = self.settlement_params.notional
         if self.ir_option_params.direction > 0:
-            _["__class"] = "IRCallPeriod"
+            _["__class"] = "IRSCallPeriod"
         else:
-            _["__class"] = "IRPutPeriod"
+            _["__class"] = "IRSPutPeriod"
 
         # if not _reduced:
         #

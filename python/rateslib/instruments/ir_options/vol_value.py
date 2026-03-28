@@ -18,7 +18,7 @@ from rateslib import defaults
 from rateslib.data.fixings import _get_irs_series
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import OptionPricingModel, OptionType, _get_ir_option_metric
-from rateslib.instruments.ir_options.call_put import _BaseIROption
+from rateslib.instruments.ir_options.call_put import _BaseIRSOption
 from rateslib.instruments.protocols import _BaseInstrument
 from rateslib.instruments.protocols.kwargs import _KWArgs
 from rateslib.instruments.protocols.pricing import (
@@ -303,10 +303,10 @@ class IRVolValue(_BaseInstrument):
                 )
 
     def _parse_curves(self, curves: CurvesT_) -> _Curves:
-        return _BaseIROption._parse_curves(curves)
+        return _BaseIRSOption._parse_curves(curves)
 
     def _parse_vol(self, vol: VolT_) -> _Vol:
-        return _BaseIROption._parse_vol(vol)
+        return _BaseIRSOption._parse_vol(vol)
 
     def npv(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise NotImplementedError(

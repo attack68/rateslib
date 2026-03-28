@@ -438,7 +438,7 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
         f: float, Dual, Dual2, Variable, :green:`optional`
             The forward rate at delivery of the option.
         curves: _Curves, :green:`optional`
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
+            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRSCall`
             for details of allowed inputs. Required if ``f`` is not given.
 
         Returns
@@ -697,7 +697,7 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
         f: float, Dual, Dual2, :green:`optional`
             The forward rate at delivery of the option.
         curves: _Curves, :green:`optional`
-            Pricing objects. See **Pricing** notes of an :class:`~rateslib.instruments.IRCall`
+            Pricing objects. See **Pricing** notes of an :class:`~rateslib.instruments.IRSCall`
             for details of allowed inputs.
 
         Returns

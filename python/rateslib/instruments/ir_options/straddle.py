@@ -18,7 +18,7 @@ from pandas import DataFrame
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import IROptionMetric, _get_ir_option_metric
-from rateslib.instruments.ir_options.call_put import IRCall, IRPut, _BaseIROption
+from rateslib.instruments.ir_options.call_put import IRSCall, IRSPut, _BaseIRSOption
 from rateslib.instruments.protocols import _KWArgs
 
 if TYPE_CHECKING:
@@ -41,10 +41,10 @@ if TYPE_CHECKING:
     )
 
 
-class _BaseIROptionStrat(_BaseIROption):
+class _BaseIRSOptionStrat(_BaseIRSOption):
     """
-    A custom option strategy composed of a list of :class:`~rateslib.instruments._BaseIROption`,
-    or other :class:`~rateslib.instruments._BaseIROptionStrat` objects, of the same
+    A custom option strategy composed of a list of :class:`~rateslib.instruments._BaseIRSOption`,
+    or other :class:`~rateslib.instruments._BaseIRSOptionStrat` objects, of the same
     :class:`~rateslib.data.fixings.IRSSeries`.
 
     .. warning::
@@ -66,7 +66,7 @@ class _BaseIROptionStrat(_BaseIROption):
     """
 
     _greeks: dict[str, Any] = {}
-    _strat_elements: tuple[_BaseIROption | _BaseIROptionStrat, ...]
+    _strat_elements: tuple[_BaseIRSOption | _BaseIRSOptionStrat, ...]
 
     @property
     def kwargs(self) -> _KWArgs:
@@ -75,7 +75,7 @@ class _BaseIROptionStrat(_BaseIROption):
 
     def __init__(
         self,
-        options: Sequence[_BaseIROption | _BaseIROptionStrat],
+        options: Sequence[_BaseIRSOption | _BaseIRSOptionStrat],
         rate_weight: list[float],
         rate_weight_vol: list[float],
         metric: IROptionMetric | str_ = NoInput(0),
@@ -110,7 +110,7 @@ class _BaseIROptionStrat(_BaseIROption):
         raise NotImplementedError(f"{type(cls).__name__} must implement `_parse_vol`.")
 
     @property
-    def instruments(self) -> tuple[_BaseIROption | _BaseIROptionStrat, ...]:
+    def instruments(self) -> tuple[_BaseIRSOption | _BaseIRSOptionStrat, ...]:
         return self.kwargs.meta["instruments"]  # type: ignore[no-any-return]
 
     def __repr__(self) -> str:
@@ -251,7 +251,7 @@ class _BaseIROptionStrat(_BaseIROption):
         vol_: VolStrat_ = self._parse_vol(vol=vol)
         gks = []
         for inst, vol_i in zip(self.instruments, vol_, strict=True):  # type: ignore[misc, arg-type]
-            if isinstance(inst, _BaseIROptionStrat):
+            if isinstance(inst, _BaseIRSOptionStrat):
                 gks.append(
                     inst.analytic_greeks(
                         curves=curves,
@@ -260,7 +260,7 @@ class _BaseIROptionStrat(_BaseIROption):
                         vol=vol_i,
                     )
                 )
-            else:  # option is _BaseIROption
+            else:  # option is _BaseIRSOption
                 gks.append(
                     inst._analytic_greeks_set_metrics(
                         curves=curves,
@@ -299,27 +299,27 @@ class _BaseIROptionStrat(_BaseIROption):
         return _
 
 
-class IRStraddle(_BaseIROptionStrat):
+class IRSStraddle(_BaseIRSOptionStrat):
     """
-    An *IR Straddle* :class:`~rateslib.instruments._BaseIROptionStrat`.
+    An *IR Straddle* :class:`~rateslib.instruments._BaseIRSOptionStrat`.
 
     .. warning::
 
        *Swaptions* and *IR Volatility* are in Beta status introduced in v2.7.0
 
-    A *Straddle* is composed of a :class:`~rateslib.instruments.IRPut`
-    and :class:`~rateslib.instruments.IRCall` with the same strike, expiry and tenor.
+    A *Straddle* is composed of a :class:`~rateslib.instruments.IRSPut`
+    and :class:`~rateslib.instruments.IRSCall` with the same strike, expiry and tenor.
 
     .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import IRStraddle, Curve, dt
+       from rateslib import IRSStraddle, Curve, dt
 
     .. ipython:: python
 
-       irstr = IRStraddle(
+       irstr = IRSStraddle(
            eval_date=dt(2020, 1, 1),
            expiry="3m",
            tenor="1Y",
@@ -331,7 +331,7 @@ class IRStraddle(_BaseIROptionStrat):
 
     .. rubric:: Pricing
 
-    The pricing mirrors that for an :class:`~rateslib.instruments.IRCall`. All options use the
+    The pricing mirrors that for an :class:`~rateslib.instruments.IRSCall`. All options use the
     same ``curves``. Allowable inputs are:
 
     .. code-block:: python
@@ -445,7 +445,7 @@ class IRStraddle(_BaseIROptionStrat):
         vol_ = self._parse_vol(vol)
         notional_ = _drb(defaults.notional, notional)
         options = [
-            IRPut(
+            IRSPut(
                 irs_series=irs_series,
                 expiry=expiry,
                 payment_lag=payment_lag,
@@ -463,7 +463,7 @@ class IRStraddle(_BaseIROptionStrat):
                 metric=NoInput(0),
                 spec=spec,
             ),
-            IRCall(
+            IRSCall(
                 irs_series=irs_series,
                 expiry=expiry,
                 payment_lag=payment_lag,
@@ -496,7 +496,7 @@ class IRStraddle(_BaseIROptionStrat):
     def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
-        return IRPut._parse_vol(vol[0]), IRCall._parse_vol(vol[1])
+        return IRSPut._parse_vol(vol[0]), IRSCall._parse_vol(vol[1])
 
     def _set_notionals(self, notional: DualTypes) -> None:
         """

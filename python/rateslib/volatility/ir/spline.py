@@ -492,7 +492,7 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
         tenor: datetime, optional
             The termination date of the underlying *IRS*, required for parameter interpolation.
         curves: _Curves,
-            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRCall`
+            Pricing objects. See **Pricing** on :class:`~rateslib.instruments.IRSCall`
             for details of allowed inputs.
 
         Returns

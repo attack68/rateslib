@@ -74,8 +74,8 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
     r"""
     Abstract base class for *IROptionPeriods* types.
 
-    **See Also**: :class:`~rateslib.periods.IRCallPeriod`,
-    :class:`~rateslib.periods.IRPutPeriod`
+    **See Also**: :class:`~rateslib.periods.IRSCallPeriod`,
+    :class:`~rateslib.periods.IRSPutPeriod`
 
     """
 
