@@ -27,7 +27,7 @@ from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
-from rateslib.enums import FloatFixingMethod
+from rateslib.enums import Err, FloatFixingMethod, Ok
 from rateslib.enums.parameters import FXDeltaMethod, IndexMethod, SpreadCompoundMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
@@ -45,7 +45,13 @@ from rateslib.periods import (
 )
 from rateslib.periods.float_rate import rate_value
 from rateslib.scheduling import Cal, Frequency, RollDay, Schedule
-from rateslib.volatility import FXDeltaVolSmile, FXSabrSmile, FXSabrSurface, IRSabrSmile
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXSabrSmile,
+    FXSabrSurface,
+    IRSabrSmile,
+    IRSplineSmile,
+)
 from rateslib.volatility.utils import _OptionModelBlack76
 
 
@@ -6188,3 +6194,125 @@ class TestIROption:
         )
         assert abs(result3["delta_usd"] - result["delta_usd"] - result["vanna_usd"]) < 2e-2
         assert abs(result3["vega_usd"] - result["vega_usd"] - result["vomma_usd"]) < 2e-3
+
+    def test_repr(self):
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        assert ir_period.__repr__() == f"<rl.IRSCallPeriod at {hex(id(ir_period))}>"
+
+    def test_raise_on_no_strike(self):
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            notional=100e6,
+        )
+        with pytest.raises(
+            ValueError,
+            match="An FXOptionPeriod cashflow cannot be determined without setting a `strike`.",
+        ):
+            ir_period.unindexed_cashflow()
+
+    def test_cash_collateralized_settlement_with_fixing(self):
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            notional=100e6,
+            strike=3.0,
+            option_fixings=3.05,
+            settlement_method="CashCollateralized",
+        )
+        curve = Curve({dt(2027, 2, 16): 1.0, dt(2028, 2, 16): 0.98})
+        result = ir_period.unindexed_cashflow(index_curve=curve)
+        expected = 24885.54  #  approx 5 * 0.993 * 5000
+        assert abs(result - expected) < 1e-2
+
+    def test_try_rate(self):
+        # if we know that the exercise will occur (from the fixing_value) value the cashflow
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+        )
+        result = ir_period.try_rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=25.16,
+            metric="normal_vol",
+        )
+        assert isinstance(result, Ok)
+
+        result = ir_period.try_rate(
+            rate_curve=NoInput(0),
+            disc_curve=NoInput(0),
+            index_curve=NoInput(0),
+            metric="normal_vol",
+        )
+        assert isinstance(result, Err)
+
+    def test_rate_bachelier_metric(self):
+        curve = Curve(
+            nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
+        )
+        ir_period = IRSCallPeriod(
+            expiry=dt(2027, 2, 16),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.020383,
+            notional=100e6,
+            metric="normal_vol",
+        )
+        smile = IRSplineSmile(
+            nodes={0: 50.0},
+            eval_date=dt(2026, 2, 16),
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            irs_series="usd_irs",
+        )
+        smile2 = IRSabrSmile(
+            nodes={"alpha": 0.5, "rho": 0.01, "nu": 0.03},
+            beta=0.5,
+            eval_date=dt(2026, 2, 16),
+            expiry=dt(2027, 2, 16),
+            tenor="6m",
+            irs_series="usd_irs",
+        )
+        result = ir_period.try_rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=smile,
+        )
+        expected = 50.0
+        assert abs(result.unwrap() - expected) < 1e-2
+
+        result2 = ir_period.try_rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=smile2,
+        )
+        expected = 86.6790263475833
+        assert abs(result2.unwrap() - expected) < 1e-5
+
+        result3 = ir_period.try_rate(
+            rate_curve=curve,
+            disc_curve=curve,
+            index_curve=curve,
+            ir_vol=smile,
+            metric="black_vol_shift_50",
+        )
+        expected = 14.2149591308255
+        assert abs(result3.unwrap() - expected) < 1e-5

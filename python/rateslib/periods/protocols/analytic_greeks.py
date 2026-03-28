@@ -42,6 +42,7 @@ if TYPE_CHECKING:
         _FXVolOption,
         _FXVolOption_,
         _IRVolOption_,
+        _IRVolPricingParams,
         datetime,
         datetime_,
     )
@@ -550,7 +551,7 @@ class _WithAnalyticIROptionGreeks(Protocol):
         premium_payment: datetime_ = NoInput(0),
     ) -> dict[str, Any]:
         r"""
-        Return the different greeks for the *FX Option*.
+        Return the different greeks for the *IR Option*.
 
         Parameters
         ----------
@@ -561,7 +562,7 @@ class _WithAnalyticIROptionGreeks(Protocol):
         fx: FXForwards, optional
             The :class:`~rateslib.fx.FXForward` object used for forecasting the
             ``fx_fixing`` for deliverable cashflows, if necessary.
-        fx_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
+        ir_vol: FXDeltaVolSmile, FXSabrSmile, FXDeltaVolSurface, FXSabrSurface, optional
             The FX volatility *Smile* or *Surface* object used for determining Black calendar
             day implied volatility values.
         premium: float, Dual, Dual2, optional
@@ -631,7 +632,7 @@ class _WithAnalyticIROptionGreeks(Protocol):
         ValueError: if the ``strike`` is not set on the *Option*.
         """  # noqa: E501
         raise NotImplementedError(
-            "Type {type(self).__name__} has not implmented `anlaytic_greeks`."
+            "Type {type(self).__name__} has not implemented `analytic_greeks`."
         )
 
     def _base_analytic_greeks(
@@ -640,7 +641,7 @@ class _WithAnalyticIROptionGreeks(Protocol):
         disc_curve: _BaseCurve,
         index_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         premium: DualTypes_ = NoInput(0),  # expressed in the payment currency
         premium_payment: datetime_ = NoInput(0),
         _reduced: bool = False,

@@ -189,7 +189,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         rate_curve: CurveOption_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> tuple[DualTypes, DualTypes | None, _IRVolPricingParams | None]:
         """
         Perform the unindexed_reference_cashflow calculations but return calculation
@@ -297,10 +297,11 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                         )
                         * 100.0
                     )
-                case _:
-                    raise NotImplementedError(
-                        "Option pricing model not implemented."
-                    )  # pragma: no cover
+                case _:  # pragma: no cover
+                    raise RuntimeError(
+                        f"Option pricing model {pricing_.pricing_model} not implemented. "
+                        f"Please report this issue."
+                    )
 
             a_r = self.ir_option_params.option_fixing.annuity(
                 settlement_method=self.ir_option_params.settlement_method,
@@ -319,7 +320,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         rate_curve: _BaseCurve_ = NoInput(0),
         disc_curve: _BaseCurve_ = NoInput(0),
         index_curve: _BaseCurve_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         **kwargs: Any,
     ) -> DualTypes:
         return self._unindexed_reference_cashflow_elements(
@@ -335,7 +336,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         disc_curve: _BaseCurve,
         index_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         metric: IROptionMetric | str_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> Result[DualTypes]:
@@ -366,7 +367,7 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         disc_curve: _BaseCurve,
         index_curve: _BaseCurve,
         fx: FXForwards_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         metric: IROptionMetric | str_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
@@ -448,8 +449,11 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
                         vol=pricing_.vol,
                         t_e=pricing_.t_e,
                     )
-                case _:
-                    raise NotImplementedError("Pricing model not implemented.")
+                case _:  # pragma: no cover
+                    raise RuntimeError(
+                        f"Pricing model `{pricing_.pricing_model}` not implemented. "
+                        f"Please report this issue."
+                    )
         elif type(metric_) is IROptionMetric.BlackVolShift:
             # might need to resolve a volatility value depending upon the required shift
             # and the expected shift
@@ -477,75 +481,6 @@ class _BaseIRSOptionPeriod(_BasePeriodStatic, _WithAnalyticIROptionGreeks, metac
         else:
             raise NotImplementedError("IROptionMetric` not implemented.")  # pragma: no cover
 
-    #
-    # def implied_vol(
-    #     self,
-    #     rate_curve: _BaseCurve,
-    #     disc_curve: _BaseCurve,
-    #     fx: FXForwards,
-    #     premium: DualTypes,
-    #     metric: FXOptionMetric | str_ = NoInput(0),
-    # ) -> Number:
-    #     """
-    #     Calculate the implied volatility of the FX option.
-    #
-    #     Parameters
-    #     ----------
-    #     rate_curve: Curve
-    #         Not used by `implied_vol`.
-    #     disc_curve: Curve
-    #         The discount *Curve* for the RHS currency.
-    #     fx: FXForwards
-    #         The object to project the currency pair FX rate at delivery.
-    #     premium: float, Dual, Dual2
-    #         The premium value of the option paid at the appropriate payment date. Expressed
-    #         either in *'pips'* or *'percent'* of notional. Must align with ``metric``.
-    #     metric: str in {"pips", "percent"}, optional
-    #         The manner in which the premium is expressed.
-    #
-    #     Returns
-    #     -------
-    #     float, Dual or Dual2
-    #     """
-    #     if isinstance(self.ir_option_params.strike, NoInput):
-    #         raise ValueError(err.VE_NEEDS_STRIKE)
-    #     k = self.ir_option_params.strike
-    #     phi = self.ir_option_params.direction
-    #     metric_ = _get_ir_option_metric(_drb(self.ir_option_params.metric, metric))
-    #
-    #     # This function uses newton_1d and is AD safe.
-    #
-    #     # convert the premium to a standardised immediate pips value.
-    #     if metric_ == FXOptionMetric.Percent:
-    #         # convert premium to pips form
-    #         premium = (
-    #             premium
-    #             * fx.rate(self.ir_option_params.pair, self.settlement_params.payment)
-    #             * 100.0
-    #         )
-    #     # convert to immediate pips form
-    #     imm_premium = premium * disc_curve[self.settlement_params.payment]
-    #
-    #     t_e = self.ir_option_params.time_to_expiry(disc_curve.nodes.initial)
-    #     v2 = disc_curve[self.ir_option_params.delivery]
-    #     f_d = fx.rate(self.ir_option_params.pair, self.ir_option_params.delivery)
-    #
-    #     def root(
-    #         vol: DualTypes, f_d: DualTypes, k: DualTypes, t_e: float, v2: DualTypes, phi: float
-    #     ) -> tuple[DualTypes, DualTypes]:
-    #         f0 = (
-    #             _OptionModelBlack76._value(f_d, k, t_e, NoInput(0), v2, vol, phi)
-    #             * 10000.0 - imm_premium
-    #         )
-    #         sqrt_t = t_e**0.5
-    #         d_plus = _d_plus_min_u(k / f_d, vol * sqrt_t, 0.5)
-    #         f1 = v2 * dual_norm_pdf(phi * d_plus) * f_d * sqrt_t * 10000.0
-    #         return f0, f1
-    #
-    #     result = newton_1dim(root, 0.10, args=(f_d, k, t_e, v2, phi))
-    #     _: Number = result["g"] * 100.0
-    #     return _
-    #
     def _payoff_at_expiry(
         self, rng: tuple[float, float] | NoInput = NoInput(0)
     ) -> tuple[Arr1dF64, Arr1dF64]:

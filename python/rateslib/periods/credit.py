@@ -46,6 +46,7 @@ if TYPE_CHECKING:  # pragma: no cover
         _BaseCurve_,
         _FXVolOption_,
         _IRVolOption_,
+        _IRVolPricingParams,
         bool_,
         datetime,
         datetime_,
@@ -222,7 +223,7 @@ class CreditPremiumPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
 
@@ -557,7 +558,7 @@ class CreditProtectionPeriod(_BasePeriod):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         rate_curve_, disc_curve_ = _validate_credit_curves(rate_curve, disc_curve).unwrap()
         quadrature = self._quadrature(rate_curve_, disc_curve_)

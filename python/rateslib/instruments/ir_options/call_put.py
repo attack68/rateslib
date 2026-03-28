@@ -471,7 +471,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
                 rate_curve=rate_curve,
                 disc_curve=disc_curve,
                 index_curve=index_curve,
-                ir_vol=pricing.vol,
+                ir_vol=pricing,
                 local=False,
                 forward=self.kwargs.leg2["payment"],
             )
@@ -515,7 +515,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             rate_curve=rate_curve,
             disc_curve=disc_curve,
             index_curve=index_curve,
-            ir_vol=ir_vol,
+            ir_vol=self._pricing,
             metric=metric_,
         )
         if (
@@ -576,7 +576,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
             fx=fx,
             base=base_,
             local=local,
-            ir_vol=self._pricing.vol,
+            ir_vol=self._pricing,
             settlement=settlement,
             forward=forward,
         )

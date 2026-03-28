@@ -2441,7 +2441,7 @@ class Solver(Gradients, _WithState):
         pre_solvers: Sequence[Solver] = (),
         fx: FXForwards_ = NoInput(0),
         instrument_labels: Sequence[str] | NoInput = NoInput(0),
-        id: str_,  # noqa: A002
+        id: str_ = NoInput(0),  # noqa: A002
         **kwargs: Any,
     ) -> Solver:
         """
