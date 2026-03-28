@@ -148,7 +148,7 @@ def _get_immediate_fx_scalar_and_base(
 
 
 def _get_ir_vol_value_and_forward_maybe_from_obj(
-    ir_vol: _IRVolOption_,
+    ir_vol: _IRVolOption_ | _IRVolPricingParams,
     rate_curve: CurveOption_,
     index_curve: _BaseCurve_,
     strike: DualTypes | str,
@@ -165,6 +165,8 @@ def _get_ir_vol_value_and_forward_maybe_from_obj(
     output: tuple[DualTypes, DualTypes, DualTypes]
         The forward IRS rate exc. shift, the Black shifted vol, the shift to add to `f` and `k`.
     """
+    if isinstance(ir_vol, _IRVolPricingParams):
+        return ir_vol
     # IROption can have a `strike` that is NoInput, however this internal function should
     # only be performed after a `strike` has been set to number, temporarily or otherwise.
     f_ = irs.rate(

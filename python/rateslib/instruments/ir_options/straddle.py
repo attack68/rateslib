@@ -282,9 +282,9 @@ class _BaseIROptionStrat(_BaseIROption):
             _[attr] = tally
 
         _notional_attrs = [
-            f"delta_{self.settlement_param.currency}",  # type: ignore[attr-defined]
-            f"gamma_{self.settlement_param.currency}",  # type: ignore[attr-defined]
-            f"vega_{self.settlement_param.currency}",  # type: ignore[attr-defined]
+            f"delta_{self.settlement_params.currency}",
+            f"gamma_{self.settlement_params.currency}",
+            f"vega_{self.settlement_params.currency}",
         ]
         for attr in _notional_attrs:
             _[attr] = sum(gk[attr] * self.kwargs.meta["rate_weight"][i] for i, gk in enumerate(gks))

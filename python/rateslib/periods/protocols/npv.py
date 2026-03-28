@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         _BaseCurve_,
         _FXVolOption_,
         _IRVolOption_,
+        _IRVolPricingParams,
         datetime,
         datetime_,
         str_,
@@ -156,7 +157,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the immediate NPV of the *Period* in local settlement currency.
@@ -236,7 +237,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
@@ -341,7 +342,7 @@ class _WithNPV(Protocol):
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
         base: str_ = NoInput(0),
         local: bool = False,
         settlement: datetime_ = NoInput(0),
@@ -628,7 +629,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* before settlement currency and
@@ -707,7 +708,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Static Period* before settlement currency adjustment
@@ -758,7 +759,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FX_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> Result[DualTypes]:
         r"""
         Replicate :meth:`~rateslib.periods.protocols._WithNPVStatic.reference_cashflow`
@@ -873,7 +874,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         index_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the cashflow for the *Period* with settlement currency adjustment
@@ -956,7 +957,7 @@ class _WithNPVStatic(_WithNPV, _WithIndexingStatic, _WithNonDeliverableStatic, P
         disc_curve: _BaseCurve_ = NoInput(0),
         fx: FXForwards_ = NoInput(0),
         fx_vol: _FXVolOption_ = NoInput(0),
-        ir_vol: _IRVolOption_ = NoInput(0),
+        ir_vol: _IRVolOption_ | _IRVolPricingParams = NoInput(0),
     ) -> DualTypes:
         r"""
         Calculate the NPV of the *Period* in local settlement currency.

@@ -80,6 +80,7 @@ from rateslib.volatility import (
     FXSabrSurface,
     IRSabrCube,
     IRSabrSmile,
+    IRSplineSmile,
 )
 
 
@@ -9250,6 +9251,29 @@ class TestSwaptions:
         after = irc.npv(solver=solver)
         finite_diff = after - before
         assert abs(delta.iloc[2, 0] - finite_diff) < 1e-1
+
+    @pytest.mark.parametrize(("strike", "expected"), [(3.99, 5558.52), ("+0bps", -48193.65)])
+    def test_npv_from_normal_vol_object(self, strike, expected, curve):
+        smile = IRSplineSmile(
+            nodes={-100: 100.0, 0: 95.0, 100: 100.0},
+            eval_date=dt(2022, 1, 1),
+            expiry=dt(2023, 1, 3),
+            tenor="1y",
+            irs_series="usd_irs",
+        )
+        iro = IRCall(
+            eval_date=dt(2022, 1, 1),
+            expiry="1y",
+            tenor="1y",
+            strike=strike,
+            irs_series="usd_irs",
+            curves=curve,
+            vol=smile,
+            notional=100e6,
+            premium=420000.0,
+        )
+        result = iro.npv()
+        assert abs(result - expected) < 1e-2
 
 
 class TestIRVolValue:
