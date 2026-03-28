@@ -50,9 +50,9 @@ from rateslib.instruments import (
     FXSwap,
     FXVolValue,
     IndexFixedRateBond,
-    IRCall,
-    IRPut,
-    IRStraddle,
+    IRSCall,
+    IRSPut,
+    IRSStraddle,
     IRVolValue,
     Loan,
     Portfolio,
@@ -8979,7 +8979,7 @@ class TestSwaptions:
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
         )
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -8993,7 +8993,7 @@ class TestSwaptions:
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
         )
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9008,7 +9008,7 @@ class TestSwaptions:
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="tgt"
         )
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9020,7 +9020,7 @@ class TestSwaptions:
         assert abs(result["usd"] - expected) < 1e-6
 
     def test_default_payment_date(self):
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9046,7 +9046,7 @@ class TestSwaptions:
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
         )
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9072,7 +9072,7 @@ class TestSwaptions:
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
         )
         alt_curve = Curve(nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.91}, calendar="nyc")
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9094,7 +9094,7 @@ class TestSwaptions:
         curve = Curve(
             nodes={dt(2026, 2, 16): 1.0, dt(2028, 2, 16): 0.941024343401225}, calendar="nyc"
         )
-        irsw = IRCall(
+        irsw = IRSCall(
             expiry=dt(2027, 2, 16),
             tenor="6m",
             strike=3.020383,
@@ -9141,21 +9141,21 @@ class TestSwaptions:
             beta=0.5,
             irs_series="usd_irs",
         )
-        irsc = IRCall(
+        irsc = IRSCall(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
             strike=2.90,
             metric=metric,
         )
-        irsp = IRPut(
+        irsp = IRSPut(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
             strike=2.90,
             metric=metric,
         )
-        irstr = IRStraddle(
+        irstr = IRSStraddle(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
@@ -9183,19 +9183,19 @@ class TestSwaptions:
             beta=0.5,
             irs_series="usd_irs",
         )
-        irsc = IRCall(
+        irsc = IRSCall(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
             strike=2.90,
         )
-        irsp = IRPut(
+        irsp = IRSPut(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
             strike=2.90,
         )
-        irstr = IRStraddle(
+        irstr = IRSStraddle(
             irs_series="usd_irs",
             expiry=dt(2026, 8, 16),
             tenor="6m",
@@ -9234,15 +9234,15 @@ class TestSwaptions:
             curves=[curve, smile],
             instruments=[
                 IRS(dt(2000, 1, 1), "1y", spec="usd_irs", curves="sofr"),
-                IRCall(strike="-20bps", **option_args),
-                IRCall(strike="atm", **option_args),
-                IRCall(strike="+20bps", **option_args),
+                IRSCall(strike="-20bps", **option_args),
+                IRSCall(strike="atm", **option_args),
+                IRSCall(strike="+20bps", **option_args),
             ],
             s=[3.0, 50.0, 45.0, 49.0],
             instrument_labels=["1Y IRS", "-20bps Vol", "ATM Vol", "+20bps Vol"],
         )
 
-        irc = IRCall(strike=3.05, premium=0.0, **option_args)
+        irc = IRSCall(strike=3.05, premium=0.0, **option_args)
         delta = irc.delta(solver=solver)
 
         before = irc.npv(solver=solver)
@@ -9261,7 +9261,7 @@ class TestSwaptions:
             tenor="1y",
             irs_series="usd_irs",
         )
-        iro = IRCall(
+        iro = IRSCall(
             eval_date=dt(2022, 1, 1),
             expiry="1y",
             tenor="1y",

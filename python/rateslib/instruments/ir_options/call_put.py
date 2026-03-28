@@ -70,12 +70,12 @@ if TYPE_CHECKING:
     )
 
 
-class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
+class _BaseIRSOption(_BaseInstrument, metaclass=ABCMeta):
     """
     Abstract base class for implementing *IR Swaptions*.
 
-    See :class:`~rateslib.instruments.IRCall` and
-    :class:`~rateslib.instruments.IRPut`.
+    See :class:`~rateslib.instruments.IRSCall` and
+    :class:`~rateslib.instruments.IRSPut`.
     """
 
     _pricing: _IRVolPricingParams
@@ -195,7 +195,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         forward: datetime_ = NoInput(0),
     ) -> DataFrame:
         raise NotImplementedError(
-            "`local_analytic_rate_fixings` is not implemented for `_BaseIROption` types."
+            "`local_analytic_rate_fixings` is not implemented for `_BaseIRSOption` types."
         )
 
     def spread(
@@ -209,7 +209,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
         settlement: datetime_ = NoInput(0),
         forward: datetime_ = NoInput(0),
     ) -> DualTypes:
-        raise NotImplementedError("`spread` is not implemented for `_BaseIROption` types.")
+        raise NotImplementedError("`spread` is not implemented for `_BaseIRSOption` types.")
 
     @property
     def _rate_scalar(self) -> float:  # type: ignore[override]
@@ -741,7 +741,7 @@ class _BaseIROption(_BaseInstrument, metaclass=ABCMeta):
     #     raise NotImplementedError(f"`spread` is not implemented for type: {type(self).__name__}")
 
 
-class IRCall(_BaseIROption):
+class IRSCall(_BaseIRSOption):
     """
     An *IR Payer Swaption*.
 
@@ -754,11 +754,11 @@ class IRCall(_BaseIROption):
     .. ipython:: python
        :suppress:
 
-       from rateslib import dt, Curve, IRCall
+       from rateslib import dt, Curve, IRSCall
 
     .. ipython:: python
 
-       iro = IRCall(
+       iro = IRSCall(
            expiry=dt(2027, 2, 16),
            tenor="6m",
            strike=3.02,
@@ -894,7 +894,7 @@ class IRCall(_BaseIROption):
 
     metric: IROptionMetric, str, :green:`optional` (set by 'default')`
         The metric used by default in the
-        :meth:`~rateslib.instruments._BaseIROption.rate` method. See **Pricing**.
+        :meth:`~rateslib.instruments._BaseIRSOption.rate` method. See **Pricing**.
     curves : _BaseCurve, str, dict, _Curves, Sequence, :green:`optional`
         Pricing objects passed directly to the *Instrument's* methods' ``curves`` argument. See
         **Pricing**.
@@ -911,11 +911,11 @@ class IRCall(_BaseIROption):
         super().__init__(*args, call=True, **kwargs)
 
 
-class IRPut(_BaseIROption):
+class IRSPut(_BaseIRSOption):
     """
     An *IR Receiver Swaption*.
 
-    For parameters and examples see :class:`~rateslib.instruments.IRCall`.
+    For parameters and examples see :class:`~rateslib.instruments.IRSCall`.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

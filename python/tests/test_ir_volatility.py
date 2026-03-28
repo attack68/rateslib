@@ -22,7 +22,7 @@ from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.data.fixings import IRSSeries
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
-from rateslib.instruments import IRCall, IRPut, IRStraddle, IRVolValue
+from rateslib.instruments import IRSCall, IRSPut, IRSStraddle, IRVolValue
 from rateslib.splines import PPSplineF64
 from rateslib.volatility import (
     IRSabrCube,
@@ -970,7 +970,7 @@ class TestIRSabrSmile:
             shift=10.0,
         )
 
-        from rateslib import IRS, IRCall, Solver
+        from rateslib import IRS, IRSCall, Solver
 
         curve = Curve(nodes={dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.90}, id="sofr")
         curve_solver = Solver(
@@ -989,9 +989,9 @@ class TestIRSabrSmile:
         )
 
         instruments = [
-            IRCall(strike="-20bps", **option_args),
-            IRCall(strike="atm", **option_args),
-            IRCall(strike="+20bps", **option_args),
+            IRSCall(strike="-20bps", **option_args),
+            IRSCall(strike="atm", **option_args),
+            IRSCall(strike="+20bps", **option_args),
         ]
 
         def solver_factory(smile):
@@ -1029,13 +1029,13 @@ class TestIRSabrSmile:
     @pytest.mark.parametrize(
         "klass",
         [
-            (IRStraddle, IRPut, IRCall),
+            (IRSStraddle, IRSPut, IRSCall),
             (IRVolValue, IRVolValue, IRVolValue),
         ],
     )
     def test_plot_normal_from_black_shift2_with_IROption_Solving(self, klass):
         # klass denotes the instruments used in the solving process
-        from rateslib import IRS, IRCall, IRPut, IRStraddle, Solver
+        from rateslib import IRS, IRSCall, IRSPut, IRSStraddle, Solver
 
         # test that smiles with shift equate to the same normal vol graph
         smile_args = dict(

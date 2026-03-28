@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING
 from rateslib import defaults
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.enums.parameters import IROptionMetric
-from rateslib.instruments.ir_options.call_put import IRCall, IRPut
-from rateslib.instruments.ir_options.straddle import _BaseIROptionStrat
+from rateslib.instruments.ir_options.call_put import IRSCall, IRSPut
+from rateslib.instruments.ir_options.straddle import _BaseIRSOptionStrat
 
 if TYPE_CHECKING:
     from rateslib.local_types import (  # pragma: no cover
@@ -35,27 +35,27 @@ if TYPE_CHECKING:
     )
 
 
-class IRStrangle(_BaseIROptionStrat):
+class IRSStrangle(_BaseIRSOptionStrat):
     """
-    An *IR Strangle* :class:`~rateslib.instruments._BaseIROptionStrat`.
+    An *IR Strangle* :class:`~rateslib.instruments._BaseIRSOptionStrat`.
 
     .. warning::
 
        *Swaptions* and *IR Volatility* are in Beta status introduced in v2.7.0
 
-    A *Strangle* is composed of a lower strike :class:`~rateslib.instruments.IRPut`
-    and a higher strike :class:`~rateslib.instruments.IRCall` with the same expiry and tenor.
+    A *Strangle* is composed of a lower strike :class:`~rateslib.instruments.IRSPut`
+    and a higher strike :class:`~rateslib.instruments.IRSCall` with the same expiry and tenor.
 
     .. rubric:: Examples
 
     .. ipython:: python
        :suppress:
 
-       from rateslib import IRStrangle, Curve, dt
+       from rateslib import IRSStrangle, Curve, dt
 
     .. ipython:: python
 
-       irstr = IRStrangle(
+       irstr = IRSStrangle(
            eval_date=dt(2020, 1, 1),
            expiry="3m",
            tenor="1Y",
@@ -67,7 +67,7 @@ class IRStrangle(_BaseIROptionStrat):
 
     .. rubric:: Pricing
 
-    The pricing mirrors that for an :class:`~rateslib.instruments.IRCall`. All options use the
+    The pricing mirrors that for an :class:`~rateslib.instruments.IRSCall`. All options use the
     same ``curves``. Allowable inputs are:
 
     .. code-block:: python
@@ -181,7 +181,7 @@ class IRStrangle(_BaseIROptionStrat):
         vol_ = self._parse_vol(vol)
         notional_ = _drb(defaults.notional, notional)
         options = [
-            IRPut(
+            IRSPut(
                 irs_series=irs_series,
                 expiry=expiry,
                 payment_lag=payment_lag,
@@ -199,7 +199,7 @@ class IRStrangle(_BaseIROptionStrat):
                 metric=NoInput(0),
                 spec=spec,
             ),
-            IRCall(
+            IRSCall(
                 irs_series=irs_series,
                 expiry=expiry,
                 payment_lag=payment_lag,
@@ -232,7 +232,7 @@ class IRStrangle(_BaseIROptionStrat):
     def _parse_vol(cls, vol: VolStrat_) -> tuple[_Vol, _Vol]:  # type: ignore[override]
         if not isinstance(vol, list | tuple):
             vol = (vol,) * 2
-        return IRPut._parse_vol(vol[0]), IRCall._parse_vol(vol[1])
+        return IRSPut._parse_vol(vol[0]), IRSCall._parse_vol(vol[1])
 
     def _set_notionals(self, notional: DualTypes) -> None:
         """
