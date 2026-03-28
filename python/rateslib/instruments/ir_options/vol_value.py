@@ -271,7 +271,7 @@ class IRVolValue(_BaseInstrument):
         )
 
         match type(metric__):
-            case IROptionMetric.Cash | IROptionMetric.PercentNotional:
+            case IROptionMetric.Premium | IROptionMetric.PercentNotional:
                 raise ValueError(
                     "`metric` cannot be a cash or monetary quantity for this Instrument type"
                 )

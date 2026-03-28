@@ -9033,7 +9033,7 @@ class TestSwaptions:
         ("metric", "expected"),
         [
             ("BlackVolShift_0", 25.16),
-            ("Cash", 149725.796514),
+            ("Premium", 149725.796514),
             ("NormalVol", 75.792872),
             ("Black_vol_shift_100", 18.880156),
             ("Black_vol_shift_200", 15.111396),
@@ -9063,7 +9063,7 @@ class TestSwaptions:
 
     @pytest.mark.parametrize(
         ("metric", "expected"),
-        [("Cash", 149725.796514), ("PercentNotional", 0.149725)],
+        [("Premium", 149725.796514), ("PercentNotional", 0.149725)],
     )
     @pytest.mark.parametrize("date", [dt(2027, 1, 3), dt(2027, 3, 19)])
     def test_rate_unconventional_payment_date(self, metric, expected, date):
@@ -9117,7 +9117,7 @@ class TestSwaptions:
         ("metric", "weights"),
         [
             ("PercentNotional", [1.0, 1.0]),
-            ("Cash", [1.0, 1.0]),
+            ("Premium", [1.0, 1.0]),
             ("NormalVol", [0.5, 0.5]),
             ("BlackVolShift_0", [0.5, 0.5]),
             ("BlackVolShift_100", [0.5, 0.5]),
