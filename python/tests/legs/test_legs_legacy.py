@@ -1492,7 +1492,7 @@ class TestZeroFloatLeg:
                     frequency="Z",
                 ),
                 notional=-1e8,
-                convention="ActAct",
+                convention="ActActISDA",
             )
 
     def test_zero_float_leg_analytic_delta(self, curve) -> None:
@@ -1504,7 +1504,7 @@ class TestZeroFloatLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             float_spread=1.0,
             fixing_series=FloatRateSeries(
                 lag=0,
@@ -1578,7 +1578,7 @@ class TestZeroFixedLeg:
                 frequency=freq,
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=rate,
         )
         result = zfl.cashflows(disc_curve=curve)
@@ -1611,7 +1611,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=2.0,
         )
         result = zfl.cashflows(disc_curve=curve)
@@ -1639,7 +1639,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=2.5,
         )
         result = zfl.npv(disc_curve=curve)
@@ -1657,7 +1657,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=2.5,
         )
         result2 = zfl.analytic_delta(disc_curve=curve)
@@ -1680,7 +1680,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=NoInput(0),
         )
         result = zfl.spread(
@@ -1702,7 +1702,7 @@ class TestZeroFixedLeg:
                 frequency="M",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             final_exchange=final_exchange,
             fixed_rate=NoInput(0),
         )
@@ -1725,7 +1725,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=NoInput(0),
         )
         with pytest.raises(ZeroDivisionError):
@@ -1747,7 +1747,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=NoInput(0),
             final_exchange=final_exchange,
             index_base=100.0,
@@ -1775,7 +1775,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=NoInput(0),
             currency="usd",
             final_exchange=final_exchange,
@@ -1804,7 +1804,7 @@ class TestZeroFixedLeg:
                     frequency="A",
                 ),
                 notional=-1e8,
-                convention="ActAct",
+                convention="ActActISDA",
                 fixed_rate=NoInput(0),
                 amortization=1.0,
             )
@@ -1819,7 +1819,7 @@ class TestZeroFixedLeg:
                     frequency="Z",
                 ),
                 notional=-1e8,
-                convention="ActAct",
+                convention="ActActISDA",
                 fixed_rate=NoInput(0),
             )
 
@@ -1832,7 +1832,7 @@ class TestZeroFixedLeg:
                 frequency="A",
             ),
             notional=-1e8,
-            convention="ActAct",
+            convention="ActActISDA",
             fixed_rate=NoInput(0),
         )
         with pytest.raises(ValueError, match="A `fixed_rate` must be set for a "):

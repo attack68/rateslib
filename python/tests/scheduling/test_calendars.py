@@ -233,8 +233,8 @@ def test_modifiers_eom(cal_, modifier, expected) -> None:
         (dt(2022, 1, 1), dt(2022, 4, 1), "ACT360", 0.2465753424657534 * 365 / 360),
         (dt(2022, 1, 1), dt(2022, 4, 1), "30360", 0.250),
         (dt(2022, 1, 1), dt(2022, 4, 1), "30E360", 0.250),
-        (dt(2022, 1, 1), dt(2022, 4, 1), "ACTACT", 0.2465753424657534),
-        (dt(2022, 1, 1), dt(2022, 1, 1), "ACTACT", 0.0),
+        (dt(2022, 1, 1), dt(2022, 4, 1), "ACTACTISDA", 0.2465753424657534),
+        (dt(2022, 1, 1), dt(2022, 1, 1), "ACTACTISDA", 0.0),
         (dt(2022, 1, 1), dt(2023, 1, 31), "1+", 1.0),
         (dt(2022, 1, 1), dt(2024, 2, 28), "1+", 2 + 1 / 12),
         (dt(2022, 1, 1), dt(2022, 4, 1), "BUS252", 0.35714285714285715),
@@ -419,6 +419,15 @@ def test_dcf_actacticma_raises():
             True,
             Cal.from_name("tgt"),
             NoInput(0),
+        )
+
+
+def test_dcf_actact_raises():
+    with pytest.raises(ValueError, match=r"`ActAct` must be directly specified as `ActActICMA` "):
+        _ = dcf(
+            dt(2022, 2, 28),
+            dt(2023, 2, 28),
+            "actact",
         )
 
 
