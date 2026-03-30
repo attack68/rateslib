@@ -527,7 +527,7 @@ US_GB = BondCalcMode(
     # US Treasury street convention
     settle_accrual="linear_days_long_front_split",
     ytm_accrual="linear_days_long_front_split",
-    v1="compounding",
+    v1="compounding_final_simple",
     v2="regular",
     v3="compounding",
     c1="cashflow",

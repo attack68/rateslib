@@ -473,6 +473,17 @@ class TestFixedRateBond:
         assert abs(y2 - 9.54) > 1e-6
         assert abs(y2 - exp_y2) < 1e-6
 
+    def test_street_convention_simple_first_period(self):
+        # US91282CLB53
+        bond = FixedRateBond(dt(2024, 7, 31), "2y", spec="us_gb", fixed_rate=4.375)
+        result = bond.price(ytm=4.0, settlement=dt(2026, 3, 31))
+        expected = 100.1152156
+        assert abs(result - expected) < 1e-6
+
+        result2 = bond.price(ytm=4.0, settlement=dt(2026, 1, 7))
+        expected2 = 100.205071
+        assert abs(result2 - expected2) < 1e-6
+
     # Swedish Government Bond Tests. Data from alternative systems.
 
     @pytest.mark.parametrize(
@@ -2982,7 +2993,7 @@ class TestBill:
         )
         expected = bond.ytm(99.75, settlement=dt(2023, 9, 7))
         assert abs(result - expected) < 1e-14
-        assert abs(result - 4.90740754) < 1e-7
+        assert abs(result - 4.854240865091567) < 1e-7
 
     @pytest.mark.parametrize(
         ("price", "tol"), [(96.0, 1e-6), (95.0, 1e-6), (93.0, 1e-5), (80.0, 1e-2)]
