@@ -828,12 +828,12 @@ class IRSCall(_BaseIRSOption):
 
           iro.rate(curves=[curve], vol=25.16, metric="NormalVol")
 
-    - **"Cash"**: the cash premium amount applicable to the 'payment' date, expressed in the
+    - **"Premium"**: the cash premium amount applicable to the 'payment' date, expressed in the
       premium currency.
 
       .. ipython:: python
 
-          iro.rate(curves=[curve], vol=25.16, metric="Cash")
+          iro.rate(curves=[curve], vol=25.16, metric="Premium")
 
     - **"PercentNotional"**: the cash premium amount expressed as a percentage of the
       notional.
