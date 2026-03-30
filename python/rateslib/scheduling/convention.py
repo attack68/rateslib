@@ -47,7 +47,6 @@ _CONVENTIONS_MAP: dict[str, Convention] = {
     "1": Convention.One,
     "ONE": Convention.One,
     ###
-    "ACTACT": Convention.ActActISDA,
     "ACTACTISDA": Convention.ActActISDA,
     "ACTACTICMA": Convention.ActActICMA,
     "ACTACTISMA": Convention.ActActICMA,
@@ -68,6 +67,11 @@ def _get_convention(convention: Convention | str) -> Convention:
         try:
             return _CONVENTIONS_MAP[convention.upper()]
         except KeyError:
+            if convention.upper() == "ACTACT":
+                raise ValueError(
+                    "`ActAct` must be directly specified as `ActActICMA` (most common for bonds) "
+                    "or `ActActISDA` (rarely used)."
+                )
             raise ValueError(f"`convention`: {convention}, is not valid.")
 
 
