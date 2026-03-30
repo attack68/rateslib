@@ -22,7 +22,7 @@ if TYPE_CHECKING:
         Any,
     )
 
-DEVELOPMENT = os.environ.get("RATESLIB_DEVELOPMENT", "True")
+DEVELOPMENT = os.environ.get("RATESLIB_DEVELOPMENT", "False")
 
 # This is output from a development version and hard coded before a release for performance.
 INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
