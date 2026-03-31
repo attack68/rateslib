@@ -181,7 +181,7 @@ class _WithMutability(ABC):
 
 class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
     """
-    Abstract base class for implementing *IR Smiles*.
+    Abstract base class for implementing *IR Volatility Smiles*.
 
     Any :class:`~rateslib.volatility._BaseIRSmile` is required to implement the following
     **properties**:
@@ -472,7 +472,7 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
 
 class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], _BaseIRSmile], ABC):
     """
-    Abstract base class for implementing *IR Cubes*.
+    Abstract base class for implementing *IR Volatility Cubes*.
 
     Any :class:`~rateslib.volatility._BaseIRCube` is required to implement the following
     **properties**:
