@@ -254,11 +254,62 @@ class _IRVolSpline:
 class IRSplineSmile(_BaseIRSmile, _WithMutability):
     r"""
     Create an *IR Volatility Smile* at a given expiry indexed for a specific IRS tenor
-    with normal volatility interpolated by a polynomial spline curve.
+    with volatility values interpolated by a polynomial spline curve.
+
+    An *IRSplineSmile* is intended as a grid point element of the more general
+    :class:`~rateslib.volatility.IRSplineCube`, which users are recommended to use instead.
 
     .. warning::
 
        *Swaptions* and *IR Volatility* are in Beta status introduced in v2.7.0
+
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import IRSplineSmile, dt
+
+    .. ipython:: python
+
+       irss = IRSplineSmile(
+           eval_date=dt(2000, 1, 1),
+           expiry=dt(2000, 7, 1),
+           tenor="1y",
+           irs_series="usd_irs",
+           nodes={
+               -25.0: 33.375,
+               -10.0: 32.551,
+               0.0: 32.488,
+               10.0: 32.859,
+               25.0: 34.164
+           },
+           k=4,
+       )
+       irss.plot(f=2.5513, x_axis="strike", y_axis="normal_vol")
+
+    .. plot::
+
+       from rateslib import IRSplineSmile, dt
+       irss = IRSplineSmile(
+           eval_date=dt(2000, 1, 1),
+           expiry=dt(2000, 7, 1),
+           tenor="1y",
+           irs_series="usd_irs",
+           nodes={
+               -25.0: 33.375,
+               -10.0: 32.551,
+               0.0: 32.488,
+               10.0: 32.859,
+               25.0: 34.164
+           },
+           k=4,
+       )
+       fig, ax, lines = irss.plot(f=2.5513, x_axis="strike", y_axis="normal_vol")
+       plt.show()
+       plt.close()
+
+    For further examples see :ref:`Constructing a Smile <c-ir-smile-constructing-doc>`.
 
     .. role:: green
 
@@ -282,6 +333,11 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
     k: int in {2, 4}, :green:`optional (set as 2)`
         The order of the interpolating spline, with (2, 4) representing (linear, cubic)
         interpolation respectively.
+    pricing_model: str, OptionPricingModel, :green:`optional (set as 'normal_vol')`
+        The option pricing model used by this object. Parameters must be represented
+        in the appropriate form for the model.
+    shift: float, :green:`optional (set as zero)`
+        The shift applied to the forward and strike in pricing formula or in plot conversions.
     id: str, optional, :green:`optional (set as random)`
         The unique identifier to distinguish between *Smiles* in a multicurrency framework
         and/or *Surface*.
@@ -307,9 +363,10 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
     a :class:`~rateslib.solver.Solver` object. The order of the spline, ``k``, in {2, 4} is a
     hyper-parameter of this model and will not be mutated.
 
-    Examples
-    --------
-    See :ref:`Constructing a Smile <c-ir-smile-constructing-doc>`.
+    The primary reason for the implementation of this *IRSplineSmile* is generally for expression
+    of risk to normal volatility values. In particular using ``k=2`` allows a risk representation
+    with localized strikes. For a more thorough demonstration of this see
+    :ref:`IR Vol Pricing and Risks <cook-ir-vol-risks-doc>`.
 
     """  # noqa: E501
 
@@ -370,7 +427,7 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
 
     @property
     def nodes(self) -> _IRSplineSmileNodes:
-        """An instance of :class:`~rateslib.volatility.utils._IRSplineSmileNodes`."""
+        """An instance of :class:`~rateslib.volatility._IRSplineSmileNodes`."""
         return self._nodes
 
     ### _WithMutability ABCs:
@@ -467,14 +524,19 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
 
     @property
     def ad(self) -> int:
+        """Int in {0,1,2} describing the AD order associated with the
+        :class:`~rateslib.volatility._BaseIRSmile`."""
         return self._ad
 
     @property
     def pricing_params(self) -> Sequence[float | Dual | Dual2 | Variable]:
+        """An ordered set of pricing parameters associated with the
+        :class:`~rateslib.volatility._BaseIRSmile`."""
         return self.nodes.values
 
     @property
     def meta(self) -> _IRSmileMeta:
+        """An instance of :class:`~rateslib.volatility.ir.utils._IRSmileMeta`."""
         return self._meta
 
     def _get_from_strike(self, k: DualTypes, f: DualTypes) -> _IRVolPricingParams:
@@ -513,13 +575,60 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
 class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
     r"""
     Create an *IR Volatility Cube* parametrized by :class:`~rateslib.volatility.IRSplineSmile` at
-    different expiries and *IRS* tenors.
+    different *expiries* and *IRS* *tenors*.
 
     .. warning::
 
        *Swaptions* and *IR Volatility* are in Beta status introduced in v2.7.0
 
-    See also the :ref:`IR Vol Smiles & Cubes <c-ir-smile-doc>` section in the user guide.
+    .. rubric:: Examples
+
+    .. ipython:: python
+       :suppress:
+
+       from rateslib import IRSplineCube, dt
+
+    .. ipython:: python
+
+       irsc = IRSplineCube(
+           eval_date=dt(2000, 1, 1),
+           expiries=["3m", "1y"],
+           tenors=["1y", "2y"],
+           strikes=[-25.0, 0.0, 25.0],
+           irs_series="usd_irs",
+           parameters=[    # <- normal vol at each strike for each row expiry and column tenor
+               [[33.5, 32.5, 34.1], [33.7, 32.6, 34.6]],
+               [[33.4, 32.2, 33.9], [33.1, 32.1, 34.1]],
+           ],
+           k=4,
+       )
+       irss = irsc.get_smile("6m", "1y")
+       irss.plot(f=2.5513, x_axis="strike", y_axis="normal_vol")
+
+    .. plot::
+
+       from rateslib import IRSplineCube, dt
+       irsc = IRSplineCube(
+           eval_date=dt(2000, 1, 1),
+           expiries=["3m", "1y"],
+           tenors=["1y", "2y"],
+           strikes=[-25.0, 0.0, 25.0],
+           irs_series="usd_irs",
+           parameters=[    # <- normal vol at each strike for each row expiry and column tenor
+               [[33.5, 32.5, 34.1], [33.7, 32.6, 34.6]],
+               [[33.4, 32.2, 33.9], [33.1, 32.1, 34.1]],
+           ],
+           k=4,
+       )
+       irss = irsc.get_smile("6m", "1y")
+       fig, ax, lines = irss.plot(f=2.5513, x_axis="strike", y_axis="normal_vol")
+       plt.show()
+       plt.close()
+
+
+
+    For further information see also the
+    :ref:`IR Vol Smiles & Cubes <c-ir-smile-doc>` section in the user guide.
 
     .. role:: green
 
@@ -546,6 +655,11 @@ class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
     k: int in {2, 4}, :green:`optional (set as 2)`
         The order of the interpolating spline, with (2, 4) representing (linear, cubic)
         interpolation respectively.
+    pricing_model: str, OptionPricingModel, :green:`optional (set as 'normal_vol')`
+        The option pricing model used by this object. Parameters must be represented
+        in the appropriate form for the model.
+    shift: float, :green:`optional (set as zero)`
+        The shift applied to the forward and strike in pricing formula or in plot conversions.
     weights: Series, optional
         Weights used for temporal volatility interpolation. See notes.
     id: str, optional
@@ -558,37 +672,10 @@ class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
 
     Notes
     -----
-    See :class:`~rateslib.volatility.FXSabrSmile` for a description of SABR parameters for
-    *Smile* construction.
-
-    **Temporal Interpolation**
-
-    Interpolation along the expiry axis occurs by performing total linear variance interpolation
-    for a given *strike* measured on neighboring *Smiles*.
-
-    If ``weights`` are given this uses the scaling approach of forward volatility (as demonstrated
-    in Clark's *FX Option Pricing*) for calendar days (different options 'cuts' and timezone are
-    not implemented). A datetime indexed `Series` must be provided, where any calendar date that
-    is not included will be assigned the default weight of 1.0.
-
-    See :ref:`constructing FX volatility surfaces <c-fx-smile-doc>` for more details.
-
-    **Extrapolation**
-
-    When an ``expiry`` is sought that is prior to the first parametrised *Smile expiry* or after the
-    final parametrised *Smile expiry* extrapolation is required. This is not recommended,
-    however. It would be wiser to create parameterised *Smiles* at *expiries* which suit those
-    one wishes to obtian values for.
-
-    When seeking an ``expiry`` beyond the final expiry, a new
-    :class:`~rateslib.volatility.SabrSmile` is created at that specific *expiry* using the
-    same SABR parameters as matching the final parametrised *Smile*. This will capture the
-    evolution of ATM-forward rates through time.
-
-    When seeking an ``expiry`` prior to the first expiry, the volatility found on the first *Smile*
-    will be used an interpolated, using total linear variance accooridng to the given ``weights``.
-    If ``weights`` are not used then this will return the same value as obtained from that
-    first parametrised *Smile*. This does not account any evolution of ATM-forward rates.
+    Normal vol parameters for any **(expiry, tenor, strike)** triplet are bilinearly
+    interpolated from immediately neighbouring grid points. Grid points outside of the
+    domain of the given ``expiries`` and ``tenors`` assume values from the singular nearest
+    grid point.
 
     """
 

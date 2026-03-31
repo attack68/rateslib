@@ -82,6 +82,7 @@ class _SabrSmileNodes:
 
     @property
     def n(self) -> int:
+        """The number of parameters."""
         return 4
 
 

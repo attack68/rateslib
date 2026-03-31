@@ -1292,15 +1292,21 @@ class IRSSeries:
 
     .. ipython:: python
 
-       fxi = FXIndex(
-           pair="eurusd",
-           calendar="tgt|fed",      # <- Spot FX measures settlement dates according to this calendar
+       irss = IRSSeries(
+           currency="nok",
            settle=2,
-           isda_mtm_calendar="ldn", # <- MTM XCS FX fixing dates are determined according to this calendar
-           isda_mtm_settle=-2,
+           calendar="osl",
+           convention="30e360",
+           leg2_convention="act360",
+           frequency="A",
+           leg2_frequency="Q",
+           leg2_fixing_method="Ibor(2)",
+           eom=False,
+           modifier="MF",
+           payment_lag=0
        )
-       fxi.delivery(dt(2025, 7, 3))
-       fxi.isda_fixing_date(dt(2025, 7, 3))
+       irss.settle
+
 
     .. role:: red
 
@@ -1324,7 +1330,7 @@ class IRSSeries:
     leg2_frequency: str, :green:`optional (set by 'defaults')`
         The leg2_frequency passed to the :class:`~rateslib.instruments.IRS`
     leg2_fixing_method: FloatFixingMethod, str, :green:`optional (set by 'defaults')`
-        The :class:`~rateslib.enums.parameters.FloatFixingMethod` describing the determination
+        The :class:`~rateslib.enums.FloatFixingMethod` describing the determination
         of the floating rate for each period.
     eom : bool, :green:`optional`
         The eom passed to the :class:`~rateslib.instruments.IRS`
@@ -1393,25 +1399,25 @@ class IRSSeries:
 
     @property
     def convention(self) -> Convention:
-        """The :class:`rateslib.scheduling.Convention` of leg1 of
+        """The :class:`~rateslib.scheduling.Convention` of leg1 of
         the associated :class:`~rateslib.instruments.IRS`"""
         return self._convention
 
     @property
     def leg2_convention(self) -> Convention:
-        """The :class:`rateslib.scheduling.Convention` of leg2 of
+        """The :class:`~rateslib.scheduling.Convention` of leg2 of
         the associated :class:`~rateslib.instruments.IRS`"""
         return self._leg2_convention
 
     @property
     def modifier(self) -> Adjuster:
-        """The :class:`rateslib.scheduling.Adjuster` for accrual modification
+        """The :class:`~rateslib.scheduling.Adjuster` for accrual modification
         of the associated :class:`~rateslib.instruments.IRS`"""
         return self._modifier
 
     @property
     def payment_lag(self) -> Adjuster | int | str_:
-        """The :class:`rateslib.scheduling.Adjuster` for payment date modification
+        """The :class:`~rateslib.scheduling.Adjuster` for payment date modification
         of the associated :class:`~rateslib.instruments.IRS`"""
         return self._payment_lag
 
