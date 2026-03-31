@@ -40,15 +40,29 @@ UTC = timezone.utc
 class _IRVolPricingParams(NamedTuple):
     """Container for parameters for pricing IR options."""
 
-    vol: DualTypes  # vol appropriate for `pricing_model`
-    k: DualTypes  # strike
-    f: DualTypes  # forward
-    shift: DualTypes  # shift to apply to `k` and `f` to use with `vol` in bps
-    t_e: DualTypes  # time to expiry
+
+    vol: DualTypes
+    """The volatility parameter associated with the specified ``pricing_model``."""
+
+    k: DualTypes
+    """The strike price of the option."""
+
+    f: DualTypes
+    """The mid-market forward rate of underlying."""
+
+    shift: DualTypes
+    """The shift (basis points) applied to the strike and forward under the ``pricing_model``."""
+
+    t_e: DualTypes
+    """The time to expiry used in the pricing formula."""
+
     pricing_model: OptionPricingModel
+    """The specific option pricing formula used for valuation."""
 
     @property
     def rate_shift(self) -> DualTypes:
+        """The shift (rate percentage terms) applied to the strike and forward under
+        the ``pricing_model``."""
         return self.shift / 100.0
 
 

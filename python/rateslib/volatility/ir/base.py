@@ -186,6 +186,7 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
     Any :class:`~rateslib.volatility._BaseIRSmile` is required to implement the following
     **properties**:
 
+    - **id** (str)
     - **ad** (int)
     - **meta** (:class:`~rateslib.volatility._IRSmileMeta`)
     - **pricing_params** (Iterable[float | Dual | Dual2 | Variable])
@@ -476,6 +477,7 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
     Any :class:`~rateslib.volatility._BaseIRCube` is required to implement the following
     **properties**:
 
+    - **id** (str)
     - **ad** (int)
     - **meta** (:class:`~rateslib.volatility._IRCubeMeta`)
     - **pricing_params** (3D ndarray)
