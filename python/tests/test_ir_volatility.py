@@ -1911,6 +1911,32 @@ class TestIRSplineCube:
         result = irsc._get_node_vector()
         assert result[0] == Dual(20.0, ["X0"], [])
 
+    @pytest.mark.parametrize(
+        ("model", "metric"), [("black76", "black_vol_shift_0"), ("bachelier", "normal_vol")]
+    )
+    def test_pricing_model(self, model, metric):
+        irss = IRSplineCube(
+            parameters=[[[20.0]]],
+            k=2,
+            eval_date=dt(2001, 1, 1),
+            irs_series="usd_irs",
+            expiries=["1y"],
+            tenors=["3m"],
+            strikes=[0.0],
+            id="vol",
+            pricing_model=model,
+        )
+        curve = Curve({dt(2001, 1, 1): 1.0, dt(2003, 1, 1): 0.94})
+        iro = IRSCall(
+            expiry=dt(2002, 1, 1),
+            tenor="3m",
+            irs_series="usd_irs",
+            strike=3.0,
+        )
+        result = iro.rate(vol=irss, curves=curve, metric=metric)
+        expected = 20.0
+        assert abs(result - expected) < 1e-6
+
 
 class TestStateAndCache:
     @pytest.mark.parametrize(

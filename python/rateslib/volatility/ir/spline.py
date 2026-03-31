@@ -693,6 +693,7 @@ class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
         irs_series: str | IRSSeries,
         parameters: DualTypes | Arr3dObj,
         shift: DualTypes_ = NoInput(0),
+        pricing_model: OptionPricingModel | str = "normal_vol",
         k: int_ = NoInput(0),
         weights: Series[float] | NoInput = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
@@ -710,7 +711,11 @@ class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
             _expiries=expiries,
             _irs_series=_get_irs_series(irs_series),
             _shift=_drb(0.0, shift),
-            _smile_params=dict(k=_drb(2, k)),
+            _smile_params=dict(
+                k=_drb(2, k),
+                pricing_model=_get_option_pricing_model(pricing_model),
+            ),
+            _pricing_model=_get_option_pricing_model(pricing_model),
         )
 
         _shape = (self.meta._n_expiries, self.meta._n_tenors, len(strikes))

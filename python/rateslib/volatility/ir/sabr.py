@@ -550,6 +550,7 @@ class IRSabrCube(_BaseIRCube[str], _WithMutability):
             _shift=_drb(0.0, shift),
             _indexes=["alpha", "rho", "nu"],
             _smile_params=dict(beta=beta),
+            _pricing_model=OptionPricingModel.Black76,
         )
 
         _shape = (self.meta._n_expiries, self.meta._n_tenors)

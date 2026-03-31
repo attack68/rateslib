@@ -199,6 +199,7 @@ class _IRCubeMeta:
     _shift: DualTypes
     _indexes: list[Any]
     _smile_params: dict[str, Any]
+    _pricing_model: OptionPricingModel
 
     def __post_init__(self) -> None:
         for idx in range(1, len(self.expiries)):
@@ -331,6 +332,11 @@ class _IRCubeMeta:
     def eval_date(self) -> datetime:
         """Evaluation date of the *Surface*."""
         return self._eval_date
+
+    @property
+    def pricing_model(self) -> OptionPricingModel:
+        """The option pricing model associated with this *Cube's* volatility output."""
+        return self._pricing_model
 
 
 def _get_ir_expiry_and_payment(
