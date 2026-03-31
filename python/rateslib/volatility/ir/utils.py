@@ -40,7 +40,6 @@ UTC = timezone.utc
 class _IRVolPricingParams(NamedTuple):
     """Container for parameters for pricing IR options."""
 
-
     vol: DualTypes
     """The volatility parameter associated with the specified ``pricing_model``."""
 

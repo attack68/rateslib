@@ -19,10 +19,10 @@ from rateslib.enums.parameters import (
     IROptionMetric,
     LegIndexBase,
     LegMtm,
-    SpreadCompoundMethod,
-    SwaptionSettlementMethod,
     OptionPricingModel,
     OptionType,
+    SpreadCompoundMethod,
+    SwaptionSettlementMethod,
 )
 
 __all__ = [
