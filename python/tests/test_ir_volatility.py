@@ -1569,6 +1569,31 @@ class TestIRSplineSmile:
             assert abs(result - v) < 1e-6
             assert irss.nodes.spline.k == expected_k
 
+    @pytest.mark.parametrize(
+        ("model", "metric"), [("black76", "black_vol_shift_0"), ("bachelier", "normal_vol")]
+    )
+    def test_pricing_model(self, model, metric):
+        irss = IRSplineSmile(
+            nodes={0: 20.0},
+            k=2,
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            irs_series="usd_irs",
+            tenor="3m",
+            id="vol",
+            pricing_model=model,
+        )
+        curve = Curve({dt(2001, 1, 1): 1.0, dt(2003, 1, 1): 0.94})
+        iro = IRSCall(
+            expiry=dt(2002, 1, 1),
+            tenor="3m",
+            irs_series="usd_irs",
+            strike=3.0,
+        )
+        result = iro.rate(vol=irss, curves=curve, metric=metric)
+        expected = 20.0
+        assert abs(result - expected) < 1e-6
+
 
 class TestIRSplineCube:
     def test_init(self):

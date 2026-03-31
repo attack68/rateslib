@@ -31,8 +31,8 @@ from rateslib.volatility.ir import (
     _BaseIRSmile,
     _IRCubeMeta,
     _IRSmileMeta,
-    _IRVolPricingParams,
     _IRSplineSmileNodes,
+    _IRVolPricingParams,
     _IRVolSpline,
 )
 
