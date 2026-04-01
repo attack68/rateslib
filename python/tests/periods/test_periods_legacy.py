@@ -27,7 +27,7 @@ from rateslib.data.fixings import FloatRateSeries, FXIndex
 from rateslib.data.loader import FixingMissingForecasterError
 from rateslib.default import NoInput, _drb
 from rateslib.dual import Dual, gradient
-from rateslib.enums import Err, FloatFixingMethod, Ok
+from rateslib.enums import Err, FloatFixingMethod, Ok, OptionPricingModel
 from rateslib.enums.parameters import FXDeltaMethod, IndexMethod, SpreadCompoundMethod
 from rateslib.fx import FXForwards, FXRates
 from rateslib.periods import (
@@ -49,7 +49,9 @@ from rateslib.volatility import (
     FXDeltaVolSmile,
     FXSabrSmile,
     FXSabrSurface,
+    IRSabrCube,
     IRSabrSmile,
+    IRSplineCube,
     IRSplineSmile,
 )
 from rateslib.volatility.utils import _OptionModelBlack76
@@ -6039,6 +6041,7 @@ class TestIROption:
             "gamma_usd": 25.532181384278392,
             "vega_usd": 5694.981592743021,
             "vanna_usd": 13.88751512418925,
+            "delta_sticky": 0.5274735620216011,
         }
 
         # forward rate is increased by 1bp. Check the gamma and vanna values.
@@ -6127,6 +6130,7 @@ class TestIROption:
             "vega_usd": 1914.1055455944868,
             "vanna_usd": 1.4603860666729847,
             "vomma_usd": 0.08356621720682876,
+            "delta_sticky": 0.47718417514818345,
         }
 
         # first test that the calculations are generally static, i.e. quantities are obtainable
@@ -6194,6 +6198,66 @@ class TestIROption:
         )
         assert abs(result3["delta_usd"] - result["delta_usd"] - result["vanna_usd"]) < 2e-2
         assert abs(result3["vega_usd"] - result["vega_usd"] - result["vomma_usd"]) < 2e-3
+
+    @pytest.mark.parametrize(
+        ("ir_vol", "expected"),
+        [
+            (
+                IRSplineCube(
+                    eval_date=dt(2000, 1, 1),
+                    expiries=["1y"],
+                    tenors=["1y"],
+                    strikes=[-25, 0.0, 25.0],
+                    irs_series="usd_irs",
+                    parameters=[[[33.5, 32.5, 34.1]]],
+                    k=2,
+                    pricing_model="bachelier",
+                ),
+                0.5657673654151706,
+            ),
+            (
+                IRSplineCube(
+                    eval_date=dt(2000, 1, 1),
+                    expiries=["1y"],
+                    tenors=["1y"],
+                    strikes=[-25, 0.0, 25.0],
+                    irs_series="usd_irs",
+                    parameters=[[[33.5, 32.5, 34.1]]],
+                    k=2,
+                    pricing_model="black76",
+                ),
+                0.6338221418100394,
+            ),
+            (
+                IRSabrCube(
+                    eval_date=dt(2000, 1, 1),
+                    expiries=["1y"],
+                    tenors=["1y"],
+                    beta=0.5,
+                    irs_series="usd_irs",
+                    alpha=0.5,
+                    rho=-0.05,
+                    nu=0.65,
+                ),
+                0.5538666266910927,
+            ),
+        ],
+    )
+    def test_analytic_sticky_delta(self, ir_vol, expected):
+        ir_period = IRSCallPeriod(
+            expiry=dt(2001, 1, 1),
+            irs_series="usd_irs",
+            tenor="6m",
+            strike=3.45,
+            notional=100e6,
+        )
+        curve = Curve({dt(2000, 1, 1): 1.0, dt(2003, 1, 1): 0.9})
+        result = ir_period.analytic_greeks(
+            disc_curve=curve, rate_curve=curve, index_curve=curve, ir_vol=ir_vol
+        )
+        assert abs(result["delta"] - result["delta_sticky"]) > 0.01
+
+        assert abs(result["delta_sticky"] - expected) < 1e-5
 
     def test_repr(self):
         ir_period = IRSCallPeriod(

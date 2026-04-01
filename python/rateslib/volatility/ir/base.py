@@ -196,6 +196,7 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
 
     - **_plot(x_axis, f, y_axis, curves)**
     - **_get_from_strike(k, f, curves)**
+    - **_d_sigma_d_f(k, f)**
 
     The directly provided methods with these implementations are:
 
@@ -267,6 +268,17 @@ class _BaseIRSmile(_WithState, _WithCache[float, DualTypes], ABC):
         tgt_shift: float_,
     ) -> tuple[Iterable[float], Iterable[float]]:
         """Perform the necessary calculation to derive (x,y) coordinates for a chart."""
+        pass
+
+    @abstractmethod
+    def _d_sigma_d_f(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+    ) -> DualTypes:
+        """
+        Calculate the derivative :math:`\frac{d \\sigma}{d f}` for a generic spline model.
+        """
         pass
 
     def _plot_conversion(

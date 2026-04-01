@@ -422,6 +422,25 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
             t_e=self._meta.t_expiry,
         )
 
+    def _d_sigma_d_f(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+    ) -> DualTypes:
+        """
+        Calculate the derivative :math:`\frac{d \\sigma}{d f}` for a generic spline model.
+        """
+        return _SabrModel._d_sabr_d_k_or_f(  # type: ignore[return-value]
+            _to_number(k + self.meta.rate_shift),
+            _to_number(f + self.meta.rate_shift),
+            self._meta.t_expiry,
+            self.nodes.alpha,
+            self.nodes.beta,
+            self.nodes.rho,
+            self.nodes.nu,
+            derivative=2,
+        )[1]
+
 
 class IRSabrCube(_BaseIRCube[str], _WithMutability):
     r"""

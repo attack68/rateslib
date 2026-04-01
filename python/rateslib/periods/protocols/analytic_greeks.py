@@ -21,7 +21,15 @@ from rateslib.periods.parameters.ir_volatility import _IROptionParams
 from rateslib.periods.parameters.settlement import _SettlementParams
 from rateslib.periods.utils import _get_ir_vol_value_and_forward_maybe_from_obj
 from rateslib.splines import evaluate
-from rateslib.volatility import FXDeltaVolSmile, FXDeltaVolSurface, FXSabrSmile, FXSabrSurface
+from rateslib.volatility import (
+    FXDeltaVolSmile,
+    FXDeltaVolSurface,
+    FXSabrSmile,
+    FXSabrSurface,
+    _BaseIRCube,
+    _BaseIRSmile,
+    _IRVolPricingParams,
+)
 from rateslib.volatility.fx.utils import (
     _delta_type_constants,
 )
@@ -42,7 +50,6 @@ if TYPE_CHECKING:
         _FXVolOption,
         _FXVolOption_,
         _IRVolOption_,
-        _IRVolPricingParams,
         datetime,
         datetime_,
     )
@@ -763,34 +770,24 @@ class _WithAnalyticIROptionGreeks(Protocol):
             _["vomma"] * abs(self.settlement_params.notional) * 1e-8 * a_r * v_p
         )
 
+        _["delta_sticky"] = self._analytic_sticky_delta(
+            delta=_["delta"],
+            vega=_["vega"],
+            ir_vol=ir_vol,
+            f=pricing_.f,
+            k=pricing_.k,
+            expiry=self.ir_option_params.expiry,
+            tenor=self.ir_option_params.option_fixing.termination,
+        )
+        _[f"delta_sticky_{self.settlement_params.currency}"] = (
+            abs(self.settlement_params.notional) * _["delta_sticky"] * a_r * v_p * 1e-6
+        )
+
         _["__notional"] = self.settlement_params.notional
         if self.ir_option_params.direction > 0:
             _["__class"] = "IRSCallPeriod"
         else:
             _["__class"] = "IRSPutPeriod"
-
-        # if not _reduced:
-        #
-        #
-        #     _["delta_sticky"] = self._analytic_sticky_delta(
-        #         _["delta"],
-        #         _["vega"],
-        #         v_deli,
-        #         fx_vol,
-        #         sqrt_t,
-        #         fx_vol_,
-        #         self.fx_option_params.expiry,
-        #         f_d,
-        #         delta_idx,
-        #         u,
-        #         z_v_0,
-        #         z_w_0,
-        #         z_w_1,
-        #         eta_1,
-        #         d_plus,
-        #         self.fx_option_params.strike,
-        #         fx,
-        #     )
 
         return _
 
@@ -863,3 +860,27 @@ class _WithAnalyticIROptionGreeks(Protocol):
                 return -dual_norm_pdf(phi * d_plus) * (d_plus - vol_sqrt_t) / vol
             case OptionPricingModel.Bachelier:
                 return -dual_norm_pdf(phi * d_plus) * d_plus / vol
+
+    @staticmethod
+    def _analytic_sticky_delta(
+        delta: DualTypes,
+        vega: DualTypes,
+        ir_vol: _IRVolOption_ | _IRVolPricingParams,
+        f: DualTypes,
+        k: DualTypes,
+        expiry: str | datetime,
+        tenor: str | datetime,
+    ) -> DualTypes:
+        dvol_df: DualTypes
+        if isinstance(ir_vol, _BaseIRSmile):
+            dvol_df = ir_vol._d_sigma_d_f(k=k, f=f)
+        elif isinstance(ir_vol, _BaseIRCube):
+            smile = ir_vol.get_smile(expiry, tenor)
+            dvol_df = smile._d_sigma_d_f(k=k, f=f)
+        elif isinstance(ir_vol, _IRVolPricingParams):
+            raise NotImplementedError(
+                "Cannot calculate sticky delta from pricing params without object"
+            )
+        else:
+            dvol_df = 0.0
+        return delta + vega * dvol_df
