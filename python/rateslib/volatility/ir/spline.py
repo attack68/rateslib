@@ -571,6 +571,16 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
             t_e=self.meta.t_expiry,
         )
 
+    def _d_sigma_d_f(
+        self,
+        k: DualTypes,
+        f: DualTypes,
+    ) -> DualTypes:
+        """
+        Calculate the derivative :math:`\frac{d \\sigma}{d f}` for a generic spline model.
+        """
+        return self.nodes.spline.evaluate(x=(k - f) * 100.0, m=1) * -1.0
+
 
 class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
     r"""

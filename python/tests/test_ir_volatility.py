@@ -10,19 +10,20 @@
 ####################################################################################################
 
 from datetime import datetime as dt
-from itertools import combinations
+from itertools import combinations, product
 
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
-from pandas import DataFrame, Index, Series
+from pandas import DataFrame, Index, IndexSlice, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.data.fixings import IRSSeries
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient
-from rateslib.instruments import IRSCall, IRSPut, IRSStraddle, IRVolValue
+from rateslib.instruments import IRS, IRSCall, IRSPut, IRSStraddle, IRVolValue
+from rateslib.solver import Solver
 from rateslib.splines import PPSplineF64
 from rateslib.volatility import (
     IRSabrCube,
@@ -1143,6 +1144,21 @@ class TestIRSabrSmile:
             assert eps.max() < 0.3
             assert eps.mean() < 0.08
 
+    def test_d_sigma_d_f(self):
+        irss = IRSabrSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            beta=0.5,
+            nodes=dict(alpha=0.2, rho=-0.05, nu=0.65),
+            shift=0.0,
+        )
+        result = irss._d_sigma_d_f(k=0.8, f=1.0)
+        manual = irss.get_from_strike(k=0.8, f=Dual(1.0, ["f"], []))
+        manual_gradient = gradient(manual.vol, ["f"])[0] / 100.0
+        assert abs(result - manual_gradient) < 2e-3
+
 
 class TestIRSabrCube:
     def test_init(self):
@@ -1593,6 +1609,24 @@ class TestIRSplineSmile:
         result = iro.rate(vol=irss, curves=curve, metric=metric)
         expected = 20.0
         assert abs(result - expected) < 1e-6
+
+    @pytest.mark.parametrize("model", ["black76", "bachelier"])
+    @pytest.mark.parametrize("k", [2, 4])
+    def test_d_sigma_d_f(self, model, k):
+        irss = IRSplineSmile(
+            nodes={-200.0: 70.0, -100.0: 58, 0: 50.0, 100.0: 61, 200.0: 75.0},
+            k=k,
+            eval_date=dt(2001, 1, 1),
+            expiry=dt(2002, 1, 1),
+            irs_series="eur_irs6",
+            tenor="2y",
+            id="vol",
+            pricing_model=model,
+        )
+        result = irss._d_sigma_d_f(k=0.8, f=1.0)
+        dual = irss.nodes.spline.evaluate(x=(0.8 - Dual(1.0, ["f"], [])) * 100.0, m=0)
+        manual_gradient = gradient(dual, ["f"])[0] / 100.0
+        assert abs(result - manual_gradient) < 1e-10
 
 
 class TestIRSplineCube:
@@ -2168,135 +2202,124 @@ class TestPricingModelConversion:
             assert abs(result - expected) < 1e-9
 
 
-#
-#     @pytest.mark.parametrize(
-#         ("method", "args"),
-#         [
-#             ("get_from_strike", (1.0, 1.0, dt(2000, 5, 3), NoInput(0))),
-#             ("_get_index", (0.9, dt(2000, 5, 3))),
-#             ("get_smile", (dt(2000, 5, 3),)),
-#         ],
-#     )
-#     def test_surface_populate_cache(self, method, args):
-#         surf = FXDeltaVolSurface(
-#             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#             delta_indexes=[0.5],
-#             node_values=[[10.0], [9.0]],
-#             eval_date=dt(1999, 1, 1),
-#             delta_type="forward",
-#         )
-#         before = surf._cache_len
-#         getattr(surf, method)(*args)
-#         assert surf._cache_len == before + 1
-#
-#     @pytest.mark.parametrize(
-#         ("method", "args"),
-#         [
-#             ("_set_node_vector", ([0.99, 0.98, 0.99, 0.99, 0.98, 0.99], 1)),
-#         ],
-#     )
-#     @pytest.mark.parametrize(
-#         "surface",
-#         [
-#             FXDeltaVolSurface(
-#                 expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#                 delta_indexes=[0.25, 0.5, 0.75],
-#                 node_values=[[10.0, 9.0, 8.0], [9.0, 8.0, 7.0]],
-#                 eval_date=dt(1999, 1, 1),
-#                 delta_type="forward",
-#             ),
-#             FXSabrSurface(
-#                 expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#                 node_values=[[10.0, 1.0, 8.0, 9.0], [9.0, 1.0, 8.0, 7.0]],
-#                 eval_date=dt(1999, 1, 1),
-#             ),
-#         ],
-#     )
-#     def test_surface_change_state(self, method, args, surface):
-#         pre_state = surface._state
-#         getattr(surface, method)(*args)
-#         assert surface._state != pre_state
-#
-#     @pytest.mark.parametrize(
-#         ("method", "args"),
-#         [
-#             ("_set_ad_order", (2,)),
-#         ],
-#     )
-#     @pytest.mark.parametrize(
-#         "surface",
-#         [
-#             FXDeltaVolSurface(
-#                 expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#                 delta_indexes=[0.25, 0.5, 0.75],
-#                 node_values=[[10.0, 9.0, 8.0], [9.0, 8.0, 7.0]],
-#                 eval_date=dt(1999, 1, 1),
-#                 delta_type="forward",
-#             ),
-#             FXSabrSurface(
-#                 expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#                 node_values=[[10.0, 1.0, 8.0, 9.0], [9.0, 1.0, 8.0, 7.0]],
-#                 eval_date=dt(1999, 1, 1),
-#             ),
-#         ],
-#     )
-#     def test_surface_maintain_state(self, method, args, surface):
-#         pre_state = surface._state
-#         getattr(surface, method)(*args)
-#         assert surface._state == pre_state
-#
-#     def test_surface_validate_states(self):
-#         # test the get_smile method validates the states after a mutation
-#         surf = FXDeltaVolSurface(
-#             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#             delta_indexes=[0.5],
-#             node_values=[[10.0], [9.0]],
-#             eval_date=dt(1999, 1, 1),
-#             delta_type="forward",
-#         )
-#         pre_state = surf._state
-#         surf.smiles[0].update_node(0.5, 11.0)
-#         surf.get_smile(dt(2000, 1, 9))
-#         post_state = surf._state
-#         assert pre_state != post_state  # validate states has been run and updated the state.
-#
-#     @pytest.mark.parametrize(
-#         "smile",
-#         [
-#             FXDeltaVolSmile(
-#                 nodes={0.25: 10.0, 0.5: 10.0, 0.75: 11.0},
-#                 delta_type="forward",
-#                 eval_date=dt(2023, 3, 16),
-#                 expiry=dt(2023, 6, 16),
-#                 id="vol",
-#             ),
-#             FXSabrSmile(
-#                 nodes={
-#                     "alpha": 0.17431060,
-#                     "beta": 1.0,
-#                     "rho": -0.11268306,
-#                     "nu": 0.81694072,
-#                 },
-#                 eval_date=dt(2023, 3, 16),
-#                 expiry=dt(2023, 6, 16),
-#                 id="vol",
-#             ),
-#         ],
-#     )
-#     def test_initialisation_state_smile(self, smile):
-#         assert smile._state != 0
-#
-#     def test_initialisation_state_surface(self):
-#         surf = FXDeltaVolSurface(
-#             expiries=[dt(2000, 1, 1), dt(2001, 1, 1)],
-#             delta_indexes=[0.5],
-#             node_values=[[10.0], [9.0]],
-#             eval_date=dt(1999, 1, 1),
-#             delta_type="forward",
-#         )
-#         assert surf._state != 0
-#
-#
-# def test_validate_delta_type() -> None:
-#     with pytest.raises(ValueError, match="`delta_type` as string: 'BAD_TYPE' i"):
-#         _get_fx_delta_type("BAD_TYPE")
+class TestCookbokReplicators:
+    def test_z_ir_vol_risks(self):
+        curve = Curve(
+            nodes={
+                dt(2026, 3, 17): 1.0,
+                dt(2026, 9, 17): 1.0,
+                dt(2027, 3, 17): 1.0,
+                dt(2028, 3, 17): 1.0,
+                dt(2029, 3, 17): 1.0,
+                dt(2030, 3, 17): 1.0,
+                dt(2031, 4, 17): 1.0,
+            },
+            convention="act360",
+            calendar="nyc",
+            interpolation="log_linear",
+            id="sofr",
+        )
+        swap_tenors = ["6m", "1y", "2y", "3y", "4y", "5y"]
+        curve_solver = Solver(
+            curves=[curve],
+            instruments=[
+                IRS(dt(2026, 3, 17), _, spec="usd_irs", curves="sofr") for _ in swap_tenors
+            ],
+            s=[4.10, 4.02, 4.08, 4.12, 4.18, 4.22],
+            instrument_labels=swap_tenors,
+            id="us_rates",
+        )
+
+        expiries = ["6m", "1y", "2y"]
+        tenors = ["3m", "1y", "2y"]
+        pricing_cube = IRSabrCube(
+            eval_date=dt(2026, 3, 17),
+            expiries=expiries,
+            tenors=tenors,
+            irs_series="usd_irs",
+            beta=0.5,  # <- beta is a hyper-parameter and applies globally to this Cube
+            alpha=0.5,  # <- alpha as scalar applies the same value to each gridpoint automatically
+            rho=[  # <- rho is provided in array format with a value at each gridpoint
+                [0.4, 0.45, 0.29],
+                [0.4, 0.4, 0.26],
+                [0.3, 0.3, 0.25],
+            ],
+            nu=[  # <- nu is provided in array format with a value at each gridpoint
+                [1.0, 0.98, 0.87],
+                [0.9, 0.875, 0.7],
+                [0.63, 0.6, 0.56],
+            ],
+            id="usd_cube",
+        )
+        pricing_solver = Solver(surfaces=[pricing_cube], pre_solvers=[curve_solver])
+        iro = IRSPut(
+            expiry=dt(2027, 3, 3),
+            tenor="1y",
+            irs_series="usd_irs",
+            notional=125e6,
+            strike=3.99,
+            premium=400000,
+            curves="sofr",
+            vol="usd_cube",
+            metric="normal_vol",
+        )
+
+        result = iro.npv(solver=pricing_solver)
+        assert abs(result - 12988.135) < 1e-2
+
+        result = iro.rate(solver=pricing_solver)
+        assert abs(result - 103.889) < 1e-2
+
+        expiries = ["3m", "1y", "2y"]  # <- expiries are different to those above
+        tenors = ["1y", "2y"]  # <- tenors are also different
+        strikes = [-100.0, -50.0, -25.0, 0.0, 25.0, 50.0, 100.0]  # <- strikes are bps to ATM
+        risk_cube = IRSplineCube(
+            eval_date=dt(2026, 3, 17),
+            expiries=expiries,
+            tenors=tenors,
+            strikes=strikes,
+            irs_series="usd_irs",
+            parameters=25.0,  # <-  all normal vol values are initialised at 25bps
+            id="usd_cube",
+        )
+        strikes_str = [f"{_}bps" for _ in strikes]
+        args = dict(
+            irs_series="eur_irs3",
+            eval_date=dt(2026, 3, 11),
+            metric="normal_vol",
+            curves="sofr",
+            vol="usd_cube",
+        )
+        instruments = [
+            IRVolValue(e, t, k, **args) for e, t, k in product(expiries, tenors, strikes_str)
+        ]
+        instrument_labels = [f"{e}{t}_{k}" for e, t, k in product(expiries, tenors, strikes_str)]
+        risk_solver = Solver.from_other(
+            pricing_solver=pricing_solver,  # <- will determine our ``s`` rates directly
+            surfaces=[risk_cube],
+            instruments=instruments,
+            instrument_labels=instrument_labels,
+            id="us_vol",
+            pre_solvers=[
+                curve_solver
+            ],  # <- the curve_solver is still needed to pass the SOFR Curve.
+            grad_tol=1e-5,
+            func_tol=1e-5,
+            step_tol=1e-5,
+        )
+        df = iro.delta(solver=risk_solver)
+        ix = IndexSlice
+        delta = df.loc[ix[:, "us_rates"], :].sum(axis=None)
+        vega = df.loc[ix[:, "us_vol"], :].sum(axis=None)
+        gf = iro.gamma(solver=risk_solver)
+        gamma = gf.loc[ix[:, :, :, "us_rates"], ix[:, "us_rates"]].sum(axis=None)
+        vomma = gf.loc[ix[:, :, :, "us_vol"], ix[:, "us_vol"]].sum(axis=None)
+        vanna = gf.loc[ix[:, :, :, "us_rates"], ix[:, "us_vol"]].sum(axis=None)
+
+        agks = iro.analytic_greeks(solver=risk_solver)
+
+        assert abs(agks["gamma_usd"] - gamma) < 5.5
+        assert abs(agks["vega_usd"] - vega) < 1e-3
+        assert abs(agks["vomma_usd"] - vomma) < 1e-3
+        assert abs(agks["vanna_usd"] - vanna) < 1.1
+        assert abs(agks["delta_sticky_usd"] - delta) < 42.0
