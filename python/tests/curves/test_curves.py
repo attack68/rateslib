@@ -34,6 +34,7 @@ from rateslib.dual.utils import _get_order_of
 from rateslib.enums.generics import Err, NoInput, Ok
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import IRS
+from rateslib.periods import FloatPeriod
 from rateslib.scheduling import Cal, dcf, get_calendar
 from rateslib.solver import Solver
 
@@ -1183,6 +1184,24 @@ def test_spline_interpolation_feature(curve):
     assert feature[dt(2000, 1, 1)] == original[dt(2000, 1, 1)]
     assert feature[dt(1999, 1, 1)] == original[dt(1999, 1, 1)]
     assert feature[dt(2001, 5, 1)] == original[dt(2001, 5, 1)]
+
+
+def test_conventions_and_calendar_unnecessary():
+    # test that the calendar and the convention of a Curve is not required to forecast rates
+
+    # this test currently raises but in future versions the calendar and convention attributes
+    # of a curve may be separated from this mechanism.
+    curve = Curve({dt(2026, 4, 1): 1.0, dt(2028, 4, 1): 0.98}, calendar="nyc", convention="act360")
+    period = FloatPeriod(
+        start=dt(2026, 4, 1),
+        end=dt(2026, 7, 1),
+        payment=dt(2026, 7, 1),
+        frequency="Q",
+        convention="act365f",
+        calendar="osl",
+    )
+    with pytest.raises(ValueError, match="A `rate_curve` and `rate_index` have been supplied with"):
+        period.rate(rate_curve=curve)
 
 
 class TestCurve:
