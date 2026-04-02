@@ -80,4 +80,5 @@ class _WithAccrued(Protocol):
         calculation mode specific to the :class:`~rateslib.instruments.BondCalcMode`.
 
         """  # noqa: E501
-        return self._accrued(settlement, self.kwargs.meta["calc_mode"]._settle_accrual)
+        value = self._accrued(settlement, self.kwargs.meta["calc_mode"]._settle_accrual)
+        return value

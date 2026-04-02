@@ -29,7 +29,9 @@ if TYPE_CHECKING:
         YtmDiscountFunction,
         YtmStubDiscountFunction,
     )
-    from rateslib.local_types import Any  # pragma: no cover
+    from rateslib.local_types import (  # pragma: no cover
+        Any,
+    )
 
 
 class BondCalcMode:
@@ -395,6 +397,7 @@ class BondCalcMode:
     """  # noqa: E501, W293
 
     _settle_accrual: AccrualFunction
+    # _settle_accrual_rounding: int | None
     _ytm_accrual: AccrualFunction
     _v1: YtmStubDiscountFunction
     _v2: YtmDiscountFunction
@@ -413,6 +416,7 @@ class BondCalcMode:
         c1: str | CashflowFunction,
         ci: str | CashflowFunction,
         cn: str | CashflowFunction,
+        # settle_accrual_rounding: int_ = NoInput(0),
     ):
         self._kwargs: dict[str, str] = {}
         for name, func, _map in zip(
@@ -436,6 +440,13 @@ class BondCalcMode:
             else:
                 setattr(self, f"_{name}", func)
                 self._kwargs[name] = "custom"
+
+        # if isinstance(settle_accrual_rounding, NoInput):
+        #     self._settle_accrual_rounding = None
+        #     self._kwargs["settle_accrual_rounding"] = "none"
+        # else:
+        #     self._settle_accrual_rounding = settle_accrual_rounding
+        #     self._kwargs["settle_accrual_rounding"] = str(settle_accrual_rounding)
 
     @property
     def kwargs(self) -> dict[str, str]:
@@ -514,6 +525,19 @@ UK_GB = BondCalcMode(
 NZ_GB = BondCalcMode(
     # New Zealand government bond conventions
     settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding_final_simple_act365f",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
+)
+
+AU_GB = BondCalcMode(
+    # Australian government bond conventions
+    settle_accrual="linear_days",
+    # settle_accrual_rounding=3,
     ytm_accrual="linear_days",
     v1="compounding_final_simple_act365f",
     v2="regular",
@@ -698,6 +722,7 @@ NO_GBB = BillCalcMode(
 BOND_MODE_MAP = {
     "uk_gb": UK_GB,
     "nz_gb": NZ_GB,
+    "au_gb": AU_GB,
     "us_gb": US_GB,
     "de_gb": DE_GB,
     "fr_gb": FR_GB,
