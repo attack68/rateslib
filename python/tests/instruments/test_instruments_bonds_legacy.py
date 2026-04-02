@@ -1246,6 +1246,24 @@ class TestFixedRateBond:
         record = bond.leg1.schedule.pschedule3[1]
         assert record == dt(2024, 10, 11)
 
+    # Chinese GB
+
+    @pytest.mark.parametrize(
+        ("ytm", "maturity", "coupon", "exp"),
+        [
+            # gen AI cross check
+            (2.35, dt(2036, 3, 15), 2.50, [101.3230902997, 0.1290760870]),
+            (2.15, dt(2031, 6, 20), 2.20, [100.243946673846, 0.6285714286]),
+            (2.37, dt(2056, 1, 15), 2.38, [100.198070795935, 0.512707182320]),
+        ],
+    )
+    def test_cn_gb(self, ytm, maturity, coupon, exp):
+        bond = FixedRateBond(dt(2020, 6, 21), maturity, fixed_rate=coupon, spec="cn_gb")
+        accrued = bond.accrued(dt(2026, 4, 3))
+        price = bond.price(ytm=ytm, settlement=dt(2026, 4, 3))
+        assert abs(accrued - exp[1]) < 1e-2
+        assert abs(price - exp[0]) < 5e-5
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:

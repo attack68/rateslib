@@ -522,6 +522,18 @@ UK_GB = BondCalcMode(
     cn="cashflow",
 )
 
+CN_GB = BondCalcMode(
+    # Chinese government bond conventions
+    settle_accrual="linear_days",
+    ytm_accrual="linear_days",
+    v1="compounding",
+    v2="regular",
+    v3="compounding",
+    c1="cashflow",
+    ci="cashflow",
+    cn="cashflow",
+)
+
 NZ_GB = BondCalcMode(
     # New Zealand government bond conventions
     settle_accrual="linear_days",
@@ -723,6 +735,7 @@ BOND_MODE_MAP = {
     "uk_gb": UK_GB,
     "nz_gb": NZ_GB,
     "au_gb": AU_GB,
+    "cn_gb": CN_GB,
     "us_gb": US_GB,
     "de_gb": DE_GB,
     "fr_gb": FR_GB,
