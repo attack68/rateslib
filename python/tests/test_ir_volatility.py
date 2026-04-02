@@ -9,9 +9,10 @@
 # and/or contact info (at) rateslib (dot) com
 ####################################################################################################
 
+import sys
 from datetime import datetime as dt
 from itertools import combinations, product
-import sys
+
 import numpy as np
 import pytest
 from matplotlib import pyplot as plt
@@ -2201,9 +2202,9 @@ class TestPricingModelConversion:
             )
             assert abs(result - expected) < 1e-9
 
+
 @pytest.mark.skipif(
-    sys.version_info[:2] == (3, 10),
-    reason="This test is incompatible with Python 3.10"
+    sys.version_info[:2] == (3, 10), reason="This test is incompatible with Python 3.10"
 )
 class TestCookbokReplicators:
     def test_z_ir_vol_risks(self):

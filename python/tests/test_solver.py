@@ -9,10 +9,11 @@
 # and/or contact info (at) rateslib (dot) com
 ####################################################################################################
 
+import sys
 import warnings
 from datetime import datetime as dt
 from math import cos, exp
-import sys
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -440,8 +441,7 @@ class TestGradients:
 
 class TestDocs:
     @pytest.mark.skipif(
-        sys.version_info[:2] == (3, 10),
-        reason="This test is incompatible with Python 3.10"
+        sys.version_info[:2] == (3, 10), reason="This test is incompatible with Python 3.10"
     )
     def test_external_system_replicator(self):
         TODAY = dt(2026, 3, 23)
