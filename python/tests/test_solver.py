@@ -12,7 +12,7 @@
 import warnings
 from datetime import datetime as dt
 from math import cos, exp
-
+import sys
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -20,8 +20,7 @@ from pandas import DataFrame, MultiIndex, Series
 from pandas.errors import PerformanceWarning
 from pandas.testing import assert_frame_equal, assert_series_equal
 from rateslib import add_tenor, calendars, default_context
-from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
-from rateslib.default import NoInput
+from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim, newton_1dim, newton_ndim
 from rateslib.fx import FXForwards, FXRates
 from rateslib.instruments import (
@@ -440,6 +439,10 @@ class TestGradients:
 
 
 class TestDocs:
+    @pytest.mark.skipif(
+        sys.version_info[:2] == (3, 10),
+        reason="This test is incompatible with Python 3.10"
+    )
     def test_external_system_replicator(self):
         TODAY = dt(2026, 3, 23)
         SPOT = calendars.get("nyc").lag_bus_days(TODAY, 2, False)

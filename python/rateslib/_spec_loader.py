@@ -737,7 +737,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "us_gb",
     },
     "us_gbi": {
@@ -753,7 +753,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "index_method": "daily",
         "index_lag": 3,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "us_gb",
     },
     "us_corp": {
@@ -767,7 +767,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "30u360",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "us_corp",
     },
     "us_muni": {
@@ -781,7 +781,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "30u360",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "us_muni",
     },
     "us_gb_tsy": {
@@ -795,7 +795,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "us_gb_tsy",
     },
     "uk_gb": {
@@ -809,8 +809,22 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 7,
+        "ex_div": "-7b",
         "calc_mode": "uk_gb",
+    },
+    "au_gb": {
+        "frequency": "s",
+        "stub": "longfront",
+        "eom": False,
+        "modifier": "none",
+        "calendar": "syd",
+        "payment_lag": 0,
+        "currency": "aud",
+        "convention": "actacticma",
+        "payment_lag_exchange": 0,
+        "settle": 2,
+        "ex_div": "-8d",
+        "calc_mode": "au_gb",
     },
     "nz_gb": {
         "frequency": "s",
@@ -823,8 +837,22 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 8,
+        "ex_div": "-8b",
         "calc_mode": "nz_gb",
+    },
+    "cn_gb": {
+        "frequency": "s",
+        "stub": "shortfront",
+        "eom": False,
+        "modifier": "none",
+        "calendar": "bjs",
+        "payment_lag": 0,
+        "currency": "cny",
+        "convention": "actacticma",
+        "payment_lag_exchange": 0,
+        "settle": 1,
+        "ex_div": "-1b",
+        "calc_mode": "cn_gb",
     },
     "de_gb": {
         "frequency": "a",
@@ -837,7 +865,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "de_gb",
     },
     "fr_gb": {
@@ -851,7 +879,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "fr_gb",
     },
     "nl_gb": {
@@ -865,7 +893,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "nl_gb",
     },
     "it_gb": {
@@ -879,7 +907,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "it_gb",
     },
     "ch_gb": {
@@ -893,7 +921,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "30e360",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "ch_gb",
     },
     "se_gb": {
@@ -907,7 +935,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 5,
+        "ex_div": "-5b",
         "calc_mode": "se_gb",
     },
     "no_gb": {
@@ -921,7 +949,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma_stub365f",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "no_gb",
     },
     "ca_gb": {
@@ -935,7 +963,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "actacticma_stub365f",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "ca_gb",
     },
     "ca_gbi": {
@@ -951,7 +979,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "index_method": "daily",
         "index_lag": 3,
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "-1b",
         "calc_mode": "ca_gb",
     },
     "us_gbb": {
@@ -963,7 +991,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "act360",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 0,
+        "ex_div": "0b",
         "calc_mode": "us_gbb",
     },
     "se_gbb": {
@@ -975,7 +1003,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "act360",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 0,
+        "ex_div": "0b",
         "calc_mode": "se_gbb",
     },
     "no_gbb": {
@@ -987,7 +1015,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "act365f",
         "payment_lag_exchange": 0,
         "settle": 2,
-        "ex_div": 0,
+        "ex_div": "0b",
         "calc_mode": "no_gbb",
     },
     "uk_gbb": {
@@ -999,7 +1027,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "convention": "act365f",
         "payment_lag_exchange": 0,
         "settle": 1,
-        "ex_div": 0,
+        "ex_div": "0b",
         "calc_mode": "uk_gbb",
     },
     "uk_gbi": {
@@ -1015,7 +1043,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "index_method": "daily",
         "index_lag": 3,
         "settle": 1,
-        "ex_div": 7,
+        "ex_div": "-7b",
         "calc_mode": "uk_gb",
     },
     "sek_fra3": {
@@ -1101,7 +1129,7 @@ INSTRUMENT_SPECS: dict[str, dict[str, Any]] = {
         "spread_compound_method": "none_simple",
         "fixing_method": "rfr_observation_shift(5)",
         "settle": 1,
-        "ex_div": 1,
+        "ex_div": "1b",
     },
     "usd_stir": {
         "frequency": "q",

@@ -33,23 +33,28 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-[project.optional-dependencies]
-dev = [
-    # testing
-    "pandas>=3.0,<4.0",
+[dependency-groups]
+test = [
+    # "pandas>=3.0,<4.0",
     "pytest>=9.0,<10.0",
     "coverage>=7.6.1,<8.0",
-    # style/linting
+]
+lint = [
     "ruff>=0.6.3,<1.0",
+]
+typing = [
     "mypy>=1.13,<1.20",
     "pandas-stubs>2.0,<4.0",
-    # doc building
-    "sphinx>=9.0,<10.0",
+]
+docs = [
+    "sphinx>=9.0,<10.0; python_version >= '3.11'",
     "sphinx-automodapi>=0.16.0,<1.0",
     "sphinxcontrib-googleanalytics>=0.4,<1.0",
     "sphinx-tabs>=3.4,<4.0",
     "pydata-sphinx-theme>=0.15.4,<1.0",
     "nbsphinx>=0.9.5,<1.0",
+]
+gui = [
     "jupyterlab>=4.0,<5.0",
     "pickleshare>=0.7.5,<1.0",
 ]
