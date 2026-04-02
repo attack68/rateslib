@@ -18,6 +18,7 @@ from packaging import version
 from rateslib.dual import (
     Dual,
     Dual2,
+    Variable,
     dual_exp,
     dual_inv_norm_cdf,
     dual_log,
@@ -26,7 +27,7 @@ from rateslib.dual import (
     gradient,
     set_order,
 )
-from rateslib.dual.utils import _abs_float
+from rateslib.dual.utils import _abs_float, _dual_round
 
 
 @pytest.fixture
@@ -131,6 +132,19 @@ def test_rdiv_raises(x_1, y_1) -> None:
 
     with pytest.raises(TypeError):
         _ = "string" / y_1
+
+
+@pytest.mark.parametrize(
+    ("input_", "expected"),
+    [
+        (Variable(2.354, ["x"], [1.1011]), Variable(2.35, ["x"], [1.1011])),
+        (Dual(2.354, ["x"], [1.1011]), Dual(2.35, ["x"], [1.1011])),
+        (Dual2(2.354, ["x"], [1.1011], [2.1111]), Dual2(2.35, ["x"], [1.1011], [2.1111])),
+    ],
+)
+def test_dual_round(input_, expected):
+    result = _dual_round(input_, 2)
+    assert result == expected
 
 
 def test_neg(x_1, y_2) -> None:

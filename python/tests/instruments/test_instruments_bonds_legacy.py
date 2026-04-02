@@ -1188,6 +1188,64 @@ class TestFixedRateBond:
         price = bond.price(ytm=ytm, settlement=sett)
         assert abs(price - exp[0]) < 1e-6
 
+    # Australian GB
+
+    @pytest.mark.parametrize(
+        ("ytm", "sett", "maturity", "coupon", "exp"),
+        [
+            # these values are tested without australian rounding convention of 3 dp (5e-4 tol)
+            (4.0, dt(2026, 4, 8), dt(2051, 6, 21), 1.75, [64.479000, 0.5190]),
+            (4.0, dt(2050, 6, 21), dt(2051, 6, 21), 1.75, [97.816, 0.0]),
+            (4.0, dt(2051, 5, 8), dt(2051, 6, 21), 1.75, [99.727923, 0.6630]),
+            (4.0, dt(2050, 12, 21), dt(2051, 6, 21), 1.75, [98.902372, 0.0]),
+            # test ex div
+            (4.0, dt(2026, 6, 12), dt(2051, 6, 21), 1.75, [64.627, 0.832]),
+            (4.0, dt(2026, 6, 13), dt(2051, 6, 21), 1.75, [64.631, -0.038]),
+            (4.0, dt(2026, 6, 14), dt(2051, 6, 21), 1.75, [64.633, -0.034]),
+            (4.0, dt(2026, 6, 15), dt(2051, 6, 21), 1.75, [64.635, -0.029]),
+        ],
+    )
+    def test_au_gb(self, ytm, sett, maturity, coupon, exp):
+        # AU0000097495
+        bond = FixedRateBond(dt(2020, 6, 21), maturity, fixed_rate=coupon, spec="au_gb")
+        accrued = bond.accrued(sett)
+        assert abs(accrued - exp[1]) < 5e-4
+        price = bond.price(ytm=ytm, settlement=sett)
+        assert abs(price - exp[0]) < 6e-4
+
+    def test_au_gb_docs_basic_formula_worked_example(self):
+        bond = FixedRateBond(dt(2018, 11, 21), dt(2029, 11, 21), fixed_rate=2.75, spec="au_gb")
+        result = bond.price(ytm=1.10, settlement=dt(2019, 9, 12), dirty=True)
+        expected = 116.716
+        assert abs(round(result, 3) - expected) < 1e-4
+
+    def test_au_gb_docs_ex_interest_formula_worked_example(self):
+        bond = FixedRateBond(dt(2018, 5, 21), dt(2030, 5, 21), fixed_rate=2.50, spec="au_gb")
+        result = bond.price(ytm=1.10, settlement=dt(2019, 11, 15), dirty=True)
+        expected = 113.827
+        assert abs(round(result, 3) - expected) < 1e-4
+
+    def test_au_gb_docs_near_maturing_worked_example(self):
+        bond = FixedRateBond(dt(2010, 4, 21), dt(2019, 10, 21), fixed_rate=2.75, spec="au_gb")
+        result = bond.price(ytm=1.00, settlement=dt(2019, 9, 26), dirty=True)
+        expected = 101.305613
+        assert abs(round(result, 6) - expected) < 5e-6
+
+    def test_au_gb_docs_near_maturing_ex_interest_worked_example(self):
+        bond = FixedRateBond(dt(2010, 4, 21), dt(2019, 10, 21), fixed_rate=2.75, spec="au_gb")
+        result = bond.price(ytm=1.00, settlement=dt(2019, 10, 16), dirty=True)
+        expected = 99.986303
+        assert abs(round(result, 6) - expected) < 5e-6
+
+    def test_au_gb_record_date_examples(self):
+        bond = FixedRateBond(dt(2023, 11, 21), dt(2028, 5, 21), fixed_rate=2.75, spec="au_gb")
+        record = bond.leg1.schedule.pschedule3[1]
+        assert record == dt(2024, 5, 13)
+
+        bond = FixedRateBond(dt(2024, 4, 21), dt(2026, 4, 21), fixed_rate=4.25, spec="au_gb")
+        record = bond.leg1.schedule.pschedule3[1]
+        assert record == dt(2024, 10, 11)
+
     # General Method Coverage
 
     def test_fixed_rate_bond_yield_domains(self) -> None:

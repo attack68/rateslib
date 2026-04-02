@@ -58,6 +58,22 @@ def _dual_float(val: DualTypes) -> float:
         raise e
 
 
+def _dual_round(val: DualTypes, ndigits: int) -> DualTypes:
+    """Overload for the round() builtin to handle Duals: ONLY impacting the real quantity"""
+    try:
+        return round(val, ndigits)  # type: ignore[arg-type]
+    except TypeError as e:  # val is not Number but a Variable
+        if isinstance(val, Dual):
+            return Dual.vars_from(val, round(val.real, ndigits), val.vars, val.dual)
+        elif isinstance(val, Dual2):
+            return Dual2.vars_from(
+                val, round(val.real, ndigits), val.vars, val.dual, val.dual2.ravel()
+            )
+        elif isinstance(val, Variable):
+            return Variable(round(val.real, ndigits), vars=val.vars, dual=val.dual)
+        raise e
+
+
 def _float_or_none(val: DualTypes | None | NoInput | Result[DualTypes]) -> float | None:
     if val is None or isinstance(val, NoInput | Err):
         return None
