@@ -35,7 +35,7 @@ _A = {  # Provides the map of all available string to Adjuster conversions.
 }
 
 
-def _get_adjuster_none(adjuster: Adjuster | str_) -> Adjuster | None:
+def _get_adjuster_none(adjuster: Adjuster | int | str_) -> Adjuster | None:
     if isinstance(adjuster, NoInput):
         return None
     else:

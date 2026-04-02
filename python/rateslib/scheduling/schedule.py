@@ -22,7 +22,7 @@ from rateslib.default import _make_py_json
 from rateslib.enums.generics import NoInput, _drb
 from rateslib.rs import Adjuster, Frequency, RollDay, StubInference
 from rateslib.rs import Schedule as Schedule_rs
-from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster
+from rateslib.scheduling.adjuster import _convert_to_adjuster, _get_adjuster, _get_adjuster_none
 from rateslib.scheduling.calendars import _is_day_type_tenor, get_calendar
 from rateslib.scheduling.frequency import _get_frequency, add_tenor
 from rateslib.scheduling.rollday import _is_eom_cal
@@ -140,13 +140,6 @@ def _get_adjuster_from_lag_drb(lag: Adjuster | int_, default: str) -> Adjuster:
     else:
         lag_: int = _drb(getattr(defaults, default), lag)
         return _get_adjuster(f"{lag_}B")
-
-
-def _get_adjuster_or_none(lag: Adjuster | None | int_, default: str) -> Adjuster | None:
-    if lag is None:
-        return None
-    else:
-        return _get_adjuster_from_lag_drb(lag, default)
 
 
 class Schedule:
@@ -287,7 +280,7 @@ class Schedule:
         calendar: CalInput = NoInput(0),
         payment_lag: Adjuster | int_ = NoInput(0),
         payment_lag_exchange: Adjuster | int_ = NoInput(0),
-        extra_lag: Adjuster | int_ = NoInput(0),
+        extra_lag: Adjuster | int | str_ = NoInput(0),
         eval_date: datetime_ = NoInput(0),
         eval_mode: str_ = NoInput(0),
     ) -> None:
@@ -299,7 +292,7 @@ class Schedule:
         accrual_adjuster = _get_adjuster_from_modifier(modifier, _should_mod_days(termination))
         payment_adjuster = _get_adjuster_from_lag_drb(payment_lag, "payment_lag")
         payment_adjuster2 = _get_adjuster_from_lag_drb(payment_lag_exchange, "payment_lag_exchange")
-        payment_adjuster3 = _get_adjuster_or_none(_drb(None, extra_lag), "payment_lag")
+        payment_adjuster3 = _get_adjuster_none(extra_lag)
 
         effective_: datetime = _validate_effective(
             effective,
