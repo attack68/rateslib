@@ -19,7 +19,7 @@ from numpy.testing import assert_allclose
 from pandas import DataFrame, MultiIndex, Series
 from pandas.errors import PerformanceWarning
 from pandas.testing import assert_frame_equal, assert_series_equal
-from rateslib import default_context
+from rateslib import add_tenor, calendars, default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve, MultiCsaCurve, index_left
 from rateslib.default import NoInput
 from rateslib.dual import Dual, Dual2, Variable, gradient, ift_1dim, newton_1dim, newton_ndim
@@ -437,6 +437,119 @@ class TestGradients:
         )
         result = self.solver.grad_s_vT
         assert_allclose(expected, result)
+
+
+class TestDocs:
+    def test_external_system_replicator(self):
+        TODAY = dt(2026, 3, 23)
+        SPOT = calendars.get("nyc").lag_bus_days(TODAY, 2, False)
+        TENORS = [
+            "1W",
+            "2W",
+            "3W",
+            "1M",
+            "2M",
+            "3M",
+            "4M",
+            "5M",
+            "6M",
+            "7M",
+            "8M",
+            "9M",
+            "10M",
+            "11M",
+            "12M",
+            "18M",
+            "2Y",
+            "3Y",
+            "4Y",
+            "5Y",
+            "6Y",
+            "7Y",
+            "8Y",
+            "9Y",
+            "10Y",
+            "12Y",
+            "15Y",
+            "20Y",
+            "25Y",
+            "30Y",
+            "40Y",
+            "50Y",
+        ]
+        MATURITIES = [add_tenor(SPOT, _, "MF", "nyc") for _ in TENORS]
+        curve = Curve(
+            nodes={TODAY: 1.0, **dict.fromkeys(MATURITIES, 1.0)},
+            calendar="nyc",
+            convention="act360",
+            id="sofr",
+        )
+        solver = Solver(
+            curves=[curve],
+            instruments=[IRS(SPOT, _, spec="usd_irs", curves=[curve]) for _ in TENORS],
+            s=[
+                3.684,
+                3.6805,
+                3.677,
+                3.6786,
+                3.6941,
+                3.7059,
+                3.71675,
+                3.72315,
+                3.73,
+                3.74215,
+                3.7509,
+                3.75895,
+                3.7656,
+                3.77005,
+                3.7741,
+                3.7373,
+                3.6866,
+                3.6316,
+                3.63217,
+                3.6625,
+                3.706,
+                3.7515,
+                3.7968,
+                3.84117,
+                3.88475,
+                3.9714,
+                4.07703,
+                4.15708,
+                4.15165,
+                4.1093,
+                3.99425,
+                3.875,
+            ],
+        )
+
+        _df = DataFrame(
+            {
+                "tenor": TENORS,
+                "maturity": MATURITIES,
+                "df": [float(curve[_]) for _ in MATURITIES],
+                "rate": [float(IRS(SPOT, _, spec="usd_irs", curves=curve).rate()) for _ in TENORS],
+            }
+        )
+        irs = IRS(
+            dt(2031, 3, 25),
+            dt(2036, 3, 25),
+            spec="usd_irs",
+            curves=["sofr"],
+            fixed_rate=4.0,
+            notional=-100e6,
+        )
+        pv = irs.npv(solver=solver)
+        _ct = irs.cashflows_table(solver=solver)
+        _cf = irs.cashflows(solver=solver)
+        dv01 = irs.delta(solver=solver).sum(axis=None)
+        pv01 = irs.analytic_delta(solver=solver, leg=1)
+        gamma = irs.gamma(solver=solver).sum(axis=None)
+
+        assert abs(pv + 579593.21) < 16.5  # <0.01% deviation
+        assert abs(dv01 + 37518.12) < 3  # <0.01% deviation
+        assert abs(pv01 + 37471.51) < 1.5  # <0.01% deviation
+        assert abs(gamma - 58.50) < 0.004  # <0.01% deviation
 
 
 @pytest.mark.parametrize("algo", ["gauss_newton", "levenberg_marquardt", "gradient_descent"])
