@@ -338,6 +338,9 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
         in the appropriate form for the model.
     shift: float, :green:`optional (set as zero)`
         The shift applied to the forward and strike in pricing formula or in plot conversions.
+    time_scalar: float, Dual, Dual2, Variable, :green:`optional (set as one)`
+        A quantity to remap calendar day time to expiry from ``eval_date`` to another measure
+        of time.
     id: str, optional, :green:`optional (set as random)`
         The unique identifier to distinguish between *Smiles* in a multicurrency framework
         and/or *Surface*.
@@ -382,6 +385,7 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
         k: int_ = NoInput(0),
         pricing_model: OptionPricingModel | str = "normal_vol",
         shift: DualTypes_ = NoInput(0),
+        time_scalar: DualTypes_ = NoInput(0),
         id: str | NoInput = NoInput(0),  # noqa: A002
         ad: int | None = 0,
     ):
@@ -403,6 +407,7 @@ class IRSplineSmile(_BaseIRSmile, _WithMutability):
             _plot_y_axis="normal_vol",
             _shift=_drb(0.0, shift),
             _pricing_model=_get_option_pricing_model(pricing_model),
+            _time_scalar=_drb(1.0, time_scalar),
         )
 
         self._nodes = _IRSplineSmileNodes(nodes=nodes, k=k_)
