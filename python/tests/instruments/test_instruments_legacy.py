@@ -1068,13 +1068,6 @@ class TestNullPricing:
         [
             CDS(dt(2022, 7, 1), "3M", "Q", notional=1e6 * 25 / 14.91357),
             IRS(dt(2022, 7, 1), "3M", "A", notional=1e6),
-            STIRFuture(
-                dt(2022, 3, 16),
-                dt(2022, 6, 15),
-                "Q",
-                spec="usd_stir",
-                contracts=-1,
-            ),
             FRA(dt(2022, 7, 1), "3M", "A", notional=1e6),
             SBS(
                 dt(2022, 7, 1),
@@ -1240,6 +1233,84 @@ class TestNullPricing:
                 index_curve=curve4,
                 leg2_rate_curve=curve5,
                 leg2_disc_curve=curve6,
+                leg2_index_curve=curve5,
+            ),
+            fx=fxf2,
+        )
+        assert rate1 != rate2
+        assert abs(npv2) < 1e-8
+
+    @pytest.mark.parametrize(
+        "inst",
+        [
+            STIRFuture(
+                dt(2022, 3, 16),
+                dt(2022, 6, 15),
+                "Q",
+                spec="usd_stir",
+                contracts=-1,
+            ),
+            # # TODO add a null price test for ZCIS
+        ],
+    )
+    def test_set_pricing_does_not_overwrite_unpriced_status_single_currency_inst(self, inst):
+        # unpriced instruments run a `set_pricing_mid` method
+        # this test ensures that after that run the price is not permanently set and
+        # will reset when priced from an alternative set of curves.
+        # test is slightly different to null_priced_delta: uses fx and includes rate call
+        curve1 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.99}, index_base=66)
+        curve2 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.98}, index_base=66)
+        curve3 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.97})
+        curve4 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.96}, index_base=80)
+        curve5 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.95}, index_base=80)
+        curve6 = Curve({dt(2022, 1, 1): 1.0, dt(2024, 1, 1): 0.94})
+        fxr1 = FXRates({"eurusd": 1.0}, settlement=dt(2022, 1, 1))
+        fxr2 = FXRates({"eurusd": 1.5}, settlement=dt(2022, 1, 1))
+        fxf1 = FXForwards(fxr1, {"usdusd": curve1, "eureur": curve2, "eurusd": curve3})
+        fxf2 = FXForwards(fxr2, {"usdusd": curve4, "eureur": curve5, "eurusd": curve6})
+
+        rate1 = inst.rate(
+            curves=dict(
+                rate_curve=curve1,
+                disc_curve=curve1,
+                index_curve=curve1,
+                leg2_rate_curve=curve2,
+                leg2_disc_curve=curve1,
+                leg2_index_curve=curve2,
+            ),
+            fx=fxf1,
+        )
+        npv1 = inst.npv(
+            curves=dict(
+                rate_curve=curve1,
+                disc_curve=curve1,
+                index_curve=curve1,
+                leg2_rate_curve=curve2,
+                leg2_disc_curve=curve1,
+                leg2_index_curve=curve2,
+            ),
+            fx=fxf1,
+        )
+        assert abs(npv1) < 1e-8
+
+        rate2 = inst.rate(
+            curves=dict(
+                rate_curve=curve4,
+                disc_curve=curve4,
+                index_curve=curve4,
+                leg2_rate_curve=curve5,
+                leg2_disc_curve=curve4,
+                leg2_index_curve=curve5,
+            ),
+            fx=fxf2,
+        )
+        npv2 = inst.npv(
+            curves=dict(
+                rate_curve=curve4,
+                disc_curve=curve4,
+                index_curve=curve4,
+                leg2_rate_curve=curve5,
+                leg2_disc_curve=curve4,
                 leg2_index_curve=curve5,
             ),
             fx=fxf2,
@@ -5494,7 +5565,7 @@ class TestSTIRFuture:
             spec="usd_stir",
             contracts=-1,
         )
-        result = stir.npv(curves=[c1, c1, c2, c3], fx=fxf)
+        result = stir.npv(curves=[None, c1, c2, c1], fx=fxf)
         assert abs(result) < 1e-7
 
     def test_stir_npv_fx(self) -> None:
@@ -5580,8 +5651,9 @@ class TestSTIRFuture:
     )
     def test_3m_spec_contracts(self, spec, expected, curve):
         stir = STIRFuture(get_imm(3, 2022), get_imm(6, 2022), spec=spec)
-        result = stir.analytic_delta(curves=curve)
-        assert abs(result - expected) < 1e-10
+        for leg in [1, 2]:
+            result = stir.analytic_delta(curves=curve, leg=leg)
+            assert abs(result - expected * (1.5 - leg) * 2) < 1e-10
 
     @pytest.mark.parametrize(
         ("spec", "expected"),
@@ -5592,8 +5664,9 @@ class TestSTIRFuture:
     )
     def test_1m_spec_contracts(self, spec, expected, curve):
         stir = STIRFuture(dt(2022, 4, 1), dt(2022, 5, 1), spec=spec)
-        result = stir.analytic_delta(curves=curve)
-        assert abs(result - expected) < 1e-10
+        for leg in [1, 2]:
+            result = stir.analytic_delta(curves=curve, leg=leg)
+            assert abs(result - expected * (1.5 - leg) * 2) < 1e-10
 
     def test_cashflows(self, curve):
         stir = STIRFuture(
@@ -5608,6 +5681,350 @@ class TestSTIRFuture:
         result2 = stir.cashflows(curves=curve)
         assert result2["Payment"].iloc[0] == dt(2022, 1, 1)
         assert result2["DF"].iloc[0] == 1.0
+
+    def test_edsp_check(self):
+        # https://www.fmxfutures.com/wp-content/uploads/2025/09/SOFR-Final-Settlement-Report-9_17_2025.pdf
+        name = str(hash(os.urandom(3)))
+        fixings.add(
+            name + "_1B",
+            Series(
+                index=[
+                    dt.strptime(_, "%m/%d/%Y")
+                    for _ in [
+                        "06/30/2025",
+                        "06/27/2025",
+                        "06/26/2025",
+                        "06/25/2025",
+                        "06/24/2025",
+                        "06/23/2025",
+                        "06/20/2025",
+                        "06/18/2025",
+                        "06/17/2025",
+                        "06/16/2025",
+                        "06/13/2025",
+                        "06/12/2025",
+                        "06/11/2025",
+                        "06/10/2025",
+                        "06/09/2025",
+                        "06/06/2025",
+                        "06/05/2025",
+                        "06/04/2025",
+                        "06/03/2025",
+                        "06/02/2025",
+                        "05/30/2025",
+                        "05/29/2025",
+                        "05/28/2025",
+                        "05/27/2025",
+                        "05/23/2025",
+                        "05/22/2025",
+                        "05/21/2025",
+                        "05/20/2025",
+                        "05/19/2025",
+                        "05/16/2025",
+                        "05/15/2025",
+                        "05/14/2025",
+                        "05/13/2025",
+                        "05/12/2025",
+                        "05/09/2025",
+                        "05/08/2025",
+                        "05/07/2025",
+                        "05/06/2025",
+                        "05/05/2025",
+                        "05/02/2025",
+                        "05/01/2025",
+                        "04/30/2025",
+                        "04/29/2025",
+                        "04/28/2025",
+                        "04/25/2025",
+                        "04/24/2025",
+                        "04/23/2025",
+                        "04/22/2025",
+                        "04/21/2025",
+                        "04/17/2025",
+                        "04/16/2025",
+                        "04/15/2025",
+                        "04/14/2025",
+                        "04/11/2025",
+                        "04/10/2025",
+                        "04/09/2025",
+                        "04/08/2025",
+                        "04/07/2025",
+                        "04/04/2025",
+                        "04/03/2025",
+                        "04/02/2025",
+                        "04/01/2025",
+                        "03/31/2025",
+                        "03/28/2025",
+                        "03/27/2025",
+                        "03/26/2025",
+                        "03/25/2025",
+                        "03/24/2025",
+                        "03/21/2025",
+                        "03/20/2025",
+                        "03/19/2025",
+                        "03/18/2025",
+                        "03/17/2025",
+                        "03/14/2025",
+                        "03/13/2025",
+                        "03/12/2025",
+                        "03/11/2025",
+                        "03/10/2025",
+                        "03/07/2025",
+                        "03/06/2025",
+                        "03/05/2025",
+                        "03/04/2025",
+                        "03/03/2025",
+                    ]
+                ],
+                data=[
+                    4.45,
+                    4.39,
+                    4.4,
+                    4.36,
+                    4.3,
+                    4.29,
+                    4.29,
+                    4.28,
+                    4.31,
+                    4.32,
+                    4.28,
+                    4.28,
+                    4.28,
+                    4.28,
+                    4.29,
+                    4.29,
+                    4.29,
+                    4.28,
+                    4.32,
+                    4.35,
+                    4.35,
+                    4.33,
+                    4.33,
+                    4.31,
+                    4.26,
+                    4.26,
+                    4.26,
+                    4.27,
+                    4.29,
+                    4.3,
+                    4.31,
+                    4.29,
+                    4.3,
+                    4.28,
+                    4.28,
+                    4.29,
+                    4.3,
+                    4.32,
+                    4.33,
+                    4.36,
+                    4.39,
+                    4.41,
+                    4.36,
+                    4.36,
+                    4.33,
+                    4.29,
+                    4.28,
+                    4.3,
+                    4.32,
+                    4.32,
+                    4.31,
+                    4.36,
+                    4.33,
+                    4.33,
+                    4.37,
+                    4.42,
+                    4.4,
+                    4.33,
+                    4.35,
+                    4.39,
+                    4.37,
+                    4.39,
+                    4.41,
+                    4.34,
+                    4.36,
+                    4.35,
+                    4.33,
+                    4.31,
+                    4.3,
+                    4.29,
+                    4.29,
+                    4.31,
+                    4.32,
+                    4.3,
+                    4.3,
+                    4.31,
+                    4.32,
+                    4.33,
+                    4.34,
+                    4.35,
+                    4.34,
+                    4.33,
+                    4.33,
+                ],
+            ),
+        )
+        inst = STIRFuture(
+            get_imm(code="H25"),
+            get_imm(code="M25"),
+            spec="usd_stir",
+            leg2_rate_fixings=name,
+        )
+        result = inst.rate()
+        edsp = 100 - round(result, 4)
+        fixings.pop(name + "_1B")
+        assert edsp == 95.6577
+
+    def test_edsp_check2(self):
+        # https://www.cmegroup.com/content/dam/cmegroup/education/files/sofr-futures-settlement-calculation-methodologies.pdf
+        name = str(hash(os.urandom(3)))
+        fixings.add(
+            name + "_1B",
+            Series(
+                index=[
+                    dt.strptime(_, "%Y-%m-%d")
+                    for _ in [
+                        "2017-06-21",
+                        "2017-06-22",
+                        "2017-06-23",
+                        "2017-06-26",
+                        "2017-06-27",
+                        "2017-06-28",
+                        "2017-06-29",
+                        "2017-06-30",
+                        "2017-07-03",
+                        "2017-07-05",
+                        "2017-07-06",
+                        "2017-07-07",
+                        "2017-07-10",
+                        "2017-07-11",
+                        "2017-07-12",
+                        "2017-07-13",
+                        "2017-07-14",
+                        "2017-07-17",
+                        "2017-07-18",
+                        "2017-07-19",
+                        "2017-07-20",
+                        "2017-07-21",
+                        "2017-07-24",
+                        "2017-07-25",
+                        "2017-07-26",
+                        "2017-07-27",
+                        "2017-07-28",
+                        "2017-07-31",
+                        "2017-08-01",
+                        "2017-08-02",
+                        "2017-08-03",
+                        "2017-08-04",
+                        "2017-08-07",
+                        "2017-08-08",
+                        "2017-08-09",
+                        "2017-08-10",
+                        "2017-08-11",
+                        "2017-08-14",
+                        "2017-08-15",
+                        "2017-08-16",
+                        "2017-08-17",
+                        "2017-08-18",
+                        "2017-08-21",
+                        "2017-08-22",
+                        "2017-08-23",
+                        "2017-08-24",
+                        "2017-08-25",
+                        "2017-08-28",
+                        "2017-08-29",
+                        "2017-08-30",
+                        "2017-08-31",
+                        "2017-09-01",
+                        "2017-09-05",
+                        "2017-09-06",
+                        "2017-09-07",
+                        "2017-09-08",
+                        "2017-09-11",
+                        "2017-09-12",
+                        "2017-09-13",
+                        "2017-09-14",
+                        "2017-09-15",
+                        "2017-09-18",
+                        "2017-09-19",
+                    ]
+                ],
+                data=[
+                    1.02,
+                    1.02,
+                    1.06,
+                    1.05,
+                    1.03,
+                    1.04,
+                    1.07,
+                    1.2,
+                    1.1,
+                    1.05,
+                    1.03,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.02,
+                    1.02,
+                    1.04,
+                    1.02,
+                    1.01,
+                    1.02,
+                    1.01,
+                    1.05,
+                    1.04,
+                    1.04,
+                    1.04,
+                    1.03,
+                    1.08,
+                    1.03,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.01,
+                    1.03,
+                    1.05,
+                    1.08,
+                    1.11,
+                    1.09,
+                    1.09,
+                    1.06,
+                    1.04,
+                    1.02,
+                    1.02,
+                    1.08,
+                    1.05,
+                    1.05,
+                    1.03,
+                    1.03,
+                    1.14,
+                    1.09,
+                    1.05,
+                    1.03,
+                    1.04,
+                    1.04,
+                    1.04,
+                    1.05,
+                    1.05,
+                    1.09,
+                    1.1,
+                    1.04,
+                    1.01,
+                ],
+            ),
+        )
+        inst = STIRFuture(
+            get_imm(code="M17"),
+            get_imm(code="U17"),
+            spec="usd_stir",
+            leg2_rate_fixings=name,
+        )
+        result = inst.rate()
+        edsp = 100 - round(result, 4)
+        fixings.pop(name + "_1B")
+        assert edsp == 98.9495
 
 
 class TestPricingMechanism:

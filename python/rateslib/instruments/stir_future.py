@@ -369,6 +369,7 @@ class STIRFuture(_BaseInstrument):
             leg2_payment_lag=NoInput.inherit,
             leg2_ex_div=NoInput.inherit,
             leg2_convention=NoInput.inherit,
+            leg2_currency=NoInput.inherit,
             fixed_rate=NoInput(0) if isinstance(price, NoInput) else 100 - price,
             vol=_Vol(),
         )
@@ -451,6 +452,7 @@ class STIRFuture(_BaseInstrument):
                 solver=solver,
                 settlement=settlement,
                 forward=forward,
+                metric="rate",
             )
             self.leg1.fixed_rate = _dual_float(mid_market_rate)
 
@@ -468,28 +470,8 @@ class STIRFuture(_BaseInstrument):
     ) -> DualTypes:
         c = _parse_curves(self, curves, solver)
         leg2_rate_curve = _get_curve("leg2_rate_curve", True, True, *c)
-        leg2_disc_curve = _get_curve("leg2_disc_curve", False, True, *c)
-        disc_curve = _get_curve("disc_curve", False, True, *c)
-
         metric_ = _drb(self.kwargs.meta["metric"], metric).lower()
-
-        leg2_npv: DualTypes = self.leg2.local_npv(
-            rate_curve=leg2_rate_curve,
-            disc_curve=leg2_disc_curve,
-            settlement=settlement,
-            forward=forward,
-        )
-        rate = (
-            self.leg1.spread(
-                target_npv=-leg2_npv,
-                rate_curve=NoInput(0),
-                disc_curve=disc_curve,
-                index_curve=NoInput(0),
-                settlement=settlement,
-                forward=forward,
-            )
-            / 100
-        )
+        rate = self.leg2._regular_periods[0].rate(rate_curve=leg2_rate_curve)
         if metric_ == "price":
             return 100 - rate
         elif metric_ == "rate":
