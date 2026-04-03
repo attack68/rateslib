@@ -81,6 +81,7 @@ class _IRSmileMeta:
         _plot_x_axis: str,
         _plot_y_axis: str,
         _pricing_model: OptionPricingModel,
+        _time_scalar: DualTypes,
     ):
         self._eval_date = _eval_date
         self._expiry_input = _expiry_input
@@ -88,6 +89,7 @@ class _IRSmileMeta:
         self._irs_series = _irs_series
         self._plot_x_axis = _plot_x_axis
         self._plot_y_axis = _plot_y_axis
+        self._time_scalar = _time_scalar
         self._irs_fixing = IRSFixing(
             irs_series=self.irs_series,
             publication=self.expiry,
@@ -97,6 +99,11 @@ class _IRSmileMeta:
         )
         self._shift = _shift
         self._pricing_model = _pricing_model
+
+    @property
+    def time_scalar(self) -> DualTypes:
+        """A quantity to multiple calendar day time to expiry to remap time."""
+        return self._time_scalar
 
     @property
     def pricing_model(self) -> OptionPricingModel:
@@ -169,18 +176,18 @@ class _IRSmileMeta:
         return self._irs_fixing
 
     @cached_property
-    def t_expiry(self) -> float:
-        """Calendar days from eval to expiry divided by 365."""
-        return (self.expiry - self.eval_date).days / 365.0
+    def t_expiry(self) -> DualTypes:
+        """Calendar days from eval to expiry divided by 365 multiplied by remapping."""
+        return (self.expiry - self.eval_date).days / 365.0 * self.time_scalar
 
-    def _t_expiry(self, expiry: datetime) -> float:
-        """Calendar days from eval to specified expiry divided by 365."""
-        return (expiry - self.eval_date).days / 365.0
+    def _t_expiry(self, expiry: datetime) -> DualTypes:
+        """Calendar days from eval to specified expiry divided by 365 multiplied by remapping."""
+        return (expiry - self.eval_date).days / 365.0 * self.time_scalar
 
     @cached_property
-    def t_expiry_sqrt(self) -> float:
+    def t_expiry_sqrt(self) -> DualTypes:
         """Square root of ``t_expiry``."""
-        ret: float = self.t_expiry**0.5
+        ret: DualTypes = self.t_expiry**0.5
         return ret
 
 

@@ -1160,6 +1160,19 @@ class TestIRSabrSmile:
         manual_gradient = gradient(manual.vol, ["f"])[0] / 100.0
         assert abs(result - manual_gradient) < 2e-3
 
+    def test_time_scalar(self):
+        irss = IRSabrSmile(
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            tenor="1y",
+            irs_series="usd_irs",
+            beta=0.5,
+            nodes=dict(alpha=0.2, rho=-0.05, nu=0.65),
+            shift=0.0,
+            time_scalar=0.9,
+        )
+        assert irss.meta.t_expiry == 0.9 * (31 + 29 + 31 + 30 + 31 + 30) / 365
+
 
 class TestIRSabrCube:
     def test_init(self):
@@ -1628,6 +1641,19 @@ class TestIRSplineSmile:
         dual = irss.nodes.spline.evaluate(x=(0.8 - Dual(1.0, ["f"], [])) * 100.0, m=0)
         manual_gradient = gradient(dual, ["f"])[0] / 100.0
         assert abs(result - manual_gradient) < 1e-10
+
+    def test_time_scalar(self):
+        irss = IRSplineSmile(
+            nodes={-200.0: 70.0, -100.0: 58, 0: 50.0, 100.0: 61, 200.0: 75.0},
+            k=2,
+            eval_date=dt(2000, 1, 1),
+            expiry=dt(2000, 7, 1),
+            irs_series="eur_irs6",
+            tenor="2y",
+            id="vol",
+            time_scalar=0.9,
+        )
+        assert irss.meta.t_expiry == 0.9 * (31 + 29 + 31 + 30 + 31 + 30) / 365
 
 
 class TestIRSplineCube:
