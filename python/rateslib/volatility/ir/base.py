@@ -674,6 +674,14 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
         tenor: datetime,
         params: Sequence[DualTypes] | Arr1dObj,
     ) -> _BaseIRSmile:
+        if isinstance(self.meta.time_scalars, NoInput):
+            ts = NoInput(0)
+        else:
+            if expiry > self.meta.time_scalars.index[-1]:
+                ts = NoInput(0)
+            else:
+                ts = self.meta.time_scalars[expiry]
+
         return self._SmileType(  # type: ignore[call-arg]
             nodes=dict(zip(self.meta.indexes, params, strict=True)),
             eval_date=self.meta.eval_date,
@@ -682,6 +690,7 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
             tenor=tenor,
             shift=self.meta.shift,
             ad=None,  # inherit the AD variables from the params
+            time_scalar=ts,
             **self.meta.smile_params,
         )
 
