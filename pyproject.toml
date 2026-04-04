@@ -37,6 +37,7 @@ classifiers = [
 test = [
     # "pandas>=3.0,<4.0",
     "pytest>=9.0,<10.0",
+    "pytest-env>=1.0,<2.0",
     "coverage>=7.6.1,<8.0",
 ]
 lint = [
@@ -62,10 +63,9 @@ gui = [
 [tool.pytest.ini_options]
 # pythonpath = [".", "python/rateslib"]
 minversion = "8.0"
-addopts = """
-   --ignore-glob=*_ignore.py
-   --override-ini='env=MPLBACKEND=Agg'
-"""  # use -s to show print capture, use -q for quiet, use -v for verbose
+addopts = [
+   "--ignore-glob=*_ignore.py",
+] # use -s to show print capture, use -q for quiet, use -v for verbose
 testpaths = [
     "python/tests",
 ]
@@ -73,6 +73,9 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning"
 ]
+
+[tool.pytest_env]
+MPLBACKEND = "Agg"
 
 [tool.setuptools]
 packages = ["rateslib"]

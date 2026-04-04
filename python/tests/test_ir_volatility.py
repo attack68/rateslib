@@ -18,7 +18,7 @@ import pytest
 from matplotlib import pyplot as plt
 from pandas import DataFrame, Index, IndexSlice, Series
 from pandas.testing import assert_frame_equal, assert_series_equal
-from rateslib import default_context
+from rateslib import calendars, default_context
 from rateslib.curves import CompositeCurve, Curve, LineCurve
 from rateslib.data.fixings import IRSSeries
 from rateslib.default import NoInput
@@ -32,7 +32,7 @@ from rateslib.volatility import (
     IRSplineCube,
     IRSplineSmile,
 )
-from rateslib.volatility.ir.utils import _bilinear_interp
+from rateslib.volatility.ir.utils import _bilinear_interp, _scale_weights
 from rateslib.volatility.utils import _OptionModelBachelier, _OptionModelBlack76, _SabrSmileNodes
 
 
@@ -1523,6 +1523,66 @@ class TestIRSabrCube:
         assert result[2] == Dual(0.30, ["X_a_1_0"], [])
         assert result[9] == Dual(20.0, ["X_v_0_1"], [])
 
+    @pytest.mark.parametrize(
+        ("weights", "expiries"),
+        [
+            (
+                Series(index=[dt(2000, 1, 3), dt(2000, 1, 8), dt(2000, 1, 4)], data=0.0),
+                [dt(2000, 1, 5), dt(2000, 1, 10), dt(2000, 1, 15)],
+            ),
+            (
+                Series(index=[dt(2000, 1, 3), dt(2000, 1, 20), dt(2000, 1, 4)], data=0.0),
+                [dt(2000, 1, 5), dt(2000, 1, 10), dt(2000, 1, 15)],
+            ),
+        ],
+    )
+    def test_weights_implementation(self, weights, expiries):
+        result = _scale_weights(
+            eval_date=dt(2000, 1, 1),
+            weights=weights,
+            expiries=expiries,
+        )
+
+        c = result.cumsum()
+        for expiry in expiries:
+            if expiry > c.index[-1]:
+                assert c.iloc[-1] == (c.index[-1] - dt(2000, 1, 1)).days
+            else:
+                assert c[expiry] == (expiry - dt(2000, 1, 1)).days
+
+        assert c.iloc[-1] == (c.index[-1] - dt(2000, 1, 1)).days
+
+    def test_weights(self):
+        nyc = calendars.get("nyc")
+        irsc = IRSabrCube(
+            eval_date=dt(2000, 1, 1),
+            expiries=["1y", "2y"],
+            tenors=["1y", "2y"],
+            irs_series=IRSSeries(
+                currency="usd",
+                settle=0,
+                frequency="A",
+                convention="Act360",
+                calendar="all",
+                leg2_fixing_method="ibor(2)",
+            ),
+            beta=0.5,
+            alpha=np.array([[0.1, 0.2], [0.3, 0.4]]),
+            rho=np.array([[1.0, 2.0], [3.0, 4.0]]),
+            nu=np.array([[10.0, 20.0], [30.0, 40.0]]),
+            id="X",
+            weights=Series(
+                index=[
+                    _
+                    for _ in nyc.cal_date_range(dt(2000, 1, 1), dt(2001, 2, 3))
+                    if nyc.is_non_bus_day(_)
+                ],
+                data=0.0,
+            ),
+        )
+        result = irsc.meta.time_scalars
+        assert abs(result.iloc[-1] - 1.0) < 1e-14
+
 
 class TestIRSplineSmile:
     @pytest.mark.parametrize(
@@ -1997,6 +2057,73 @@ class TestIRSplineCube:
         result = iro.rate(vol=irss, curves=curve, metric=metric)
         expected = 20.0
         assert abs(result - expected) < 1e-6
+
+    def test_business_day_time_and_weights(self):
+        nyc = calendars.get("nyc")
+        irsc = IRSplineCube(
+            eval_date=dt(2000, 1, 3),
+            expiries=["1m", "3m", "6m"],
+            tenors=["1y"],
+            strikes=[0],
+            parameters=[[[30.0]], [[35.0]], [[38.0]]],
+            irs_series="usd_irs",
+        )
+        irsc2 = IRSplineCube(
+            eval_date=dt(2000, 1, 3),
+            expiries=["1m", "3m", "6m"],
+            tenors=["1y"],
+            strikes=[0],
+            parameters=[[[30.0]], [[35.0]], [[38.0]]],
+            irs_series="usd_irs",
+            weights=Series(
+                index=[
+                    _
+                    for _ in nyc.cal_date_range(dt(2000, 1, 7), dt(2000, 7, 15))
+                    if nyc.is_non_bus_day(_)
+                ],
+                data=0.0,
+            ),
+        )
+        curve = Curve(
+            nodes={dt(2000, 1, 3): 1.0, dt(2002, 1, 3): 0.93},
+            convention="act360",
+            calendar="nyc",
+        )
+        for expiry in irsc.meta.expiry_dates:
+            # test at expiries time remapping does not exist because these are the natural pillars
+            iro = IRSCall(
+                expiry=expiry,
+                strike="atm",
+                irs_series="usd_irs",
+                tenor="1y",
+            )
+            r1 = iro.rate(curves=curve, vol=irsc, metric="percentnotional") * 100.0
+            r2 = iro.rate(curves=curve, vol=irsc2, metric="percentnotional") * 100.0
+            assert abs(r1 - r2) < 1e-8
+
+        for expiry in [dt(2000, 1, 14), dt(2000, 2, 18), dt(2000, 5, 12)]:
+            # test at expiries inbetween the time remapping exists
+            iro = IRSCall(
+                expiry=expiry,
+                strike="atm",
+                irs_series="usd_irs",
+                tenor="1y",
+            )
+            r1 = iro.rate(curves=curve, vol=irsc, metric="percentnotional") * 100.0
+            r2 = iro.rate(curves=curve, vol=irsc2, metric="percentnotional") * 100.0
+            assert abs(r1 - r2) > 1e-3
+
+        for expiry in [dt(2000, 7, 20), dt(2000, 7, 25)]:
+            # test after weights stop being defined
+            iro = IRSCall(
+                expiry=expiry,
+                strike="atm",
+                irs_series="usd_irs",
+                tenor="1y",
+            )
+            r1 = iro.rate(curves=curve, vol=irsc, metric="percentnotional") * 100.0
+            r2 = iro.rate(curves=curve, vol=irsc2, metric="percentnotional") * 100.0
+            assert abs(r1 - r2) < 1e-8
 
 
 class TestStateAndCache:

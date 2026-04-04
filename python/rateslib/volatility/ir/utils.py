@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 from pandas import Series
 
+from rateslib import calendars
 from rateslib.data.fixings import IRSFixing, _get_irs_series
 from rateslib.enums.generics import NoInput
 from rateslib.scheduling import Adjuster, add_tenor
@@ -212,6 +213,16 @@ class _IRCubeMeta:
         for idx in range(1, len(self.expiries)):
             if self.expiry_dates[idx - 1] >= self.expiry_dates[idx]:
                 raise ValueError("Cube `expiries` are not sorted or contain duplicates.\n")
+        if not isinstance(self._weights, NoInput):
+            object.__setattr__(
+                self,
+                "_weights",
+                _scale_weights(
+                    eval_date=self.eval_date,
+                    weights=self._weights,
+                    expiries=self.expiry_dates,
+                ),
+            )
 
     @property
     def shift(self) -> DualTypes:
@@ -252,13 +263,15 @@ class _IRCubeMeta:
         return self._weights
 
     @cached_property
-    def weights_cum(self) -> Series[float] | NoInput:
+    def time_scalars(self) -> Series[float] | NoInput:
         """Weight adjusted time to expiry (in calendar days) per date for temporal volatility
         interpolation."""
         if isinstance(self.weights, NoInput):
-            return self.weights
+            return NoInput(0)
         else:
-            return self.weights.cumsum()
+            c = Series(index=self.weights.index, data=1.0)
+            c.iloc[0] = 0.0
+            return self.weights.cumsum() / c.cumsum()
 
     @property
     def tenors(self) -> list[str]:
@@ -506,3 +519,55 @@ def _bilinear_interp(
         + bl * (1 - h[1]) * v[0]
         + br * h[1] * v[1]
     )
+
+
+def _scale_weights(
+    eval_date: datetime,
+    weights: Series[float],
+    expiries: list[datetime],
+) -> Series[float]:
+    # the last weight is considered the end point of interest
+    w = weights.sort_index(ascending=True)  # sorted input
+    del weights
+    d = calendars.get("all").cal_date_range(eval_date, w.index[-1])
+    s = Series(data=1.0, index=d)
+    s.update(w)
+    s.update(Series(index=[eval_date], data=0.0))
+    c = s.cumsum()
+    adj_expiries = [eval_date] + expiries
+    for i, expiry in enumerate(adj_expiries):
+        if i == 0:
+            continue
+        if expiry < s.index[-1]:
+            # this expiry is within the middle of the weights series
+            left_index = (adj_expiries[i - 1] - eval_date).days
+            right_index = (expiry - adj_expiries[i - 1]).days + left_index
+            left_count = c[adj_expiries[i - 1]]
+            right_count = c[adj_expiries[i]]
+            s.iloc[left_index + 1 : right_index + 1] *= (right_index - left_index) / (
+                right_count - left_count
+            )
+        elif adj_expiries[i - 1] < s.index[-1]:
+            # the weights extend beyond the last expiry but to to the present expiry
+            left_index = (adj_expiries[i - 1] - eval_date).days
+            right_index = (s.index[-1] - adj_expiries[i - 1]).days + left_index
+            left_count = c[adj_expiries[i - 1]]
+            right_count = c[s.index[-1]]
+            s.iloc[left_index + 1 : right_index + 1] *= (right_index - left_index) / (
+                right_count - left_count
+            )
+        else:
+            # the weights have been exhausted
+            break
+
+    if s.index[-1] > expiries[-1]:
+        # scale the weights beyond last expiry
+        left_index = (adj_expiries[-1] - eval_date).days
+        right_index = (s.index[-1] - adj_expiries[-1]).days + left_index
+        left_count = c[adj_expiries[-1]]
+        right_count = c[s.index[-1]]
+        s.iloc[left_index + 1 : right_index + 1] *= (right_index - left_index) / (
+            right_count - left_count
+        )
+
+    return s
