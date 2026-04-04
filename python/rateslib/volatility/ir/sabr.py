@@ -243,7 +243,7 @@ class IRSabrSmile(_BaseIRSmile, _WithMutability):
         derivative: int
             For with respect to `k` use 1, or `f` use 2.
         """
-        t_e = (expiry - self._meta.eval_date).days / 365.0
+        t_e = _to_number(self.meta.t_expiry)
         K = k + self.meta.rate_shift
         F = f + self.meta.rate_shift
         del k, f
@@ -524,11 +524,12 @@ class IRSabrCube(_BaseIRCube[str], _WithMutability):
         underlying :class:`~rateslib.instruments.IRS` that the swaptions are settled against.
     beta: float, Variable, :red:`required`
         The beta, :math:`\beta`, parameter of the SABR model.
-    weights: Series, optional
-       Weights used for temporal volatility interpolation. See notes.
-    id: str, optional
+    weights: Series, :green:`optional`
+       Weights used for temporal volatility interpolation. Please see
+       :ref:`IR vol time remapping <cook-ir-vol-time-doc>` before using this argument.
+    id: str, :green:`optional`
        The unique identifier to label the *Surface* and its variables.
-    ad: int, optional
+    ad: int, :green:`optional`
        Sets the automatic differentiation order. Defines whether to convert node
        values to float, :class:`~rateslib.dual.Dual` or
        :class:`~rateslib.dual.Dual2`. It is advised against

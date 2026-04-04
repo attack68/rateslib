@@ -675,11 +675,12 @@ class IRSplineCube(_BaseIRCube[float | Variable], _WithMutability):
         in the appropriate form for the model.
     shift: float, :green:`optional (set as zero)`
         The shift applied to the forward and strike in pricing formula or in plot conversions.
-    weights: Series, optional
-        Weights used for temporal volatility interpolation. See notes.
-    id: str, optional
+    weights: Series, :green:`optional`
+       Weights used for temporal volatility interpolation. Please see
+       :ref:`IR vol time remapping <cook-ir-vol-time-doc>` before using this argument.
+    id: str, :green:`optional`
         The unique identifier to label the *Surface* and its variables.
-    ad: int, optional
+    ad: int, :green:`optional`
         Sets the automatic differentiation order. Defines whether to convert node
         values to float, :class:`~rateslib.dual.Dual` or
         :class:`~rateslib.dual.Dual2`. It is advised against
