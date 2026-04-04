@@ -7,11 +7,7 @@ exclude = [
     "benches/*",
     "benchmarks/*",
     "notebooks/*",
-    ".readthedocs.yaml",
     "docs/*",
-    "PACKAGING.md",
-    "PIP_FREEZE.txt",
-    "requirements-minimum.txt",
     "robots.txt",
 ]
 
