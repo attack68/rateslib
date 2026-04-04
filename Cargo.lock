@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "rateslib"
-version = "2.7.0"
+version = "2.7.1"
 dependencies = [
  "auto_ops",
  "bincode",
