@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
-name: Windows Pytest
+name: Python linting and typing
 
 on:
   push:
@@ -12,13 +12,11 @@ on:
 jobs:
   build:
 
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-    env:
-      MPLBACKEND: Agg    # https://github.com/orgs/community/discussions/26434
+        python-version: ["3.13"]
 
     steps:
     - uses: actions/checkout@v4
@@ -32,8 +30,14 @@ jobs:
         enable-cache: true
         python-version: ${{ matrix.python-version }}
 
-    - name: Test with pytest
-      env:
-        RATESLIB_LICENCE: ${{ secrets.RATESLIB_LICENCE }}
+    - name: Python Ruff linting
       run: |
-        uv run --group test pytest
+        uv run --group lint ruff check
+
+    - name: Python Ruff formatting
+      run: |
+        uv run --group lint ruff format --check
+
+    - name: Python static typing
+      run: |
+        uv run --group typing mypy --config-file pyproject.toml
