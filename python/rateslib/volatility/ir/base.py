@@ -675,7 +675,7 @@ class _BaseIRCube(Generic[T], _WithState, _WithCache[tuple[datetime, datetime], 
         params: Sequence[DualTypes] | Arr1dObj,
     ) -> _BaseIRSmile:
         if isinstance(self.meta.time_scalars, NoInput):
-            ts = NoInput(0)
+            ts: DualTypes_ = NoInput(0)
         else:
             if expiry > self.meta.time_scalars.index[-1]:
                 ts = NoInput(0)
